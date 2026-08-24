@@ -1,0 +1,49 @@
+import { createClient } from "@/lib/supabase/server";
+import { computeAccess, type AccessState } from "@/lib/access";
+
+export interface ProfileRow {
+  id: string;
+  email: string | null;
+  name: string | null;
+  paid: boolean;
+  start_date: string | null;
+  photo_consent_at: string | null;
+}
+
+export interface SessionContext {
+  userId: string;
+  email: string | null;
+  profile: ProfileRow | null;
+  access: AccessState;
+}
+
+/**
+ * Récupère l'utilisateur connecté, son profil et son état d'accès calculé.
+ * Retourne null si aucune session valide. À appeler en tête de chaque
+ * route API et page serveur protégée.
+ */
+export async function getSessionContext(): Promise<SessionContext | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, email, name, paid, start_date, photo_consent_at")
+    .eq("id", user.id)
+    .maybeSingle<ProfileRow>();
+
+  const access = computeAccess(
+    profile?.paid ?? false,
+    profile?.start_date ?? null,
+  );
+
+  return {
+    userId: user.id,
+    email: user.email ?? null,
+    profile: profile ?? null,
+    access,
+  };
+}

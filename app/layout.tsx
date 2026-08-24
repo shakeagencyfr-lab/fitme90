@@ -1,0 +1,56 @@
+import type { Metadata, Viewport } from "next";
+import { Archivo, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import "./globals.css";
+
+// Polices auto-hébergées par next/font (aucun appel à Google au runtime,
+// donc rien à autoriser dans la CSP côté font-src).
+const archivo = Archivo({
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800"],
+  variable: "--font-archivo",
+  display: "swap",
+});
+
+const plex = IBM_Plex_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-plex",
+  display: "swap",
+});
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-mono",
+  display: "swap",
+});
+
+export const metadata: Metadata = {
+  title: "FitMe90 — Ton programme sport & nutrition sur 90 jours",
+  description:
+    "Un programme d'entraînement et d'accompagnement nutritionnel personnalisé sur 90 jours, conçu par un coach diplômé BPJEPS.",
+};
+
+// La couleur de thème et la prise en compte de l'encoche sont réglées ici :
+// viewport-fit=cover permet aux zones sûres (safe-area-inset) de fonctionner.
+export const viewport: Viewport = {
+  themeColor: "#F4F3F1",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  // Autorise le zoom (accessibilité) tout en gardant des inputs à 16px.
+  maximumScale: 5,
+};
+
+export default function RootLayout({ children }: LayoutProps<"/">) {
+  return (
+    <html
+      lang="fr"
+      className={`${archivo.variable} ${plex.variable} ${plexMono.variable} h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col bg-paper text-ink">
+        {children}
+      </body>
+    </html>
+  );
+}

@@ -1,0 +1,28 @@
+// Constantes produit FitMe90. Centralisées pour éviter les valeurs
+// magiques dispersées (prix, durées) et garder une source unique.
+
+/** Prix unique du programme, en euros. Paiement une fois pour 90 jours. */
+export const PRICE_EUR = 190;
+
+/** Montant en centimes pour Stripe (Stripe raisonne en plus petite unité). */
+export const PRICE_CENTS = PRICE_EUR * 100;
+
+export const CURRENCY = "eur";
+
+/** Durée du programme actif : coach IA disponible, séances loggables. */
+export const PROGRAM_DAYS = 90;
+
+/** Fenêtre de consultation en lecture seule après la fin du programme. */
+export const GRACE_DAYS = 30;
+
+/** Dernier jour où le plan reste consultable (90 + 30). */
+export const ACCESS_DAYS = PROGRAM_DAYS + GRACE_DAYS; // 120
+
+/** Plafonds d'appels au modèle (BUILD_PLAN étape 4). */
+export const LIMIT_GENERATE_TOTAL = 3; // par utilisateur, au total
+export const LIMIT_COACH_PER_DAY = 60; // messages par jour
+export const LIMIT_RECIPES_PER_DAY = 20;
+export const LIMIT_ANALYZE_GYM_TOTAL = 10;
+
+export const PRODUCT_NAME = "FitMe90";
+export const COACH_CREDENTIAL = "Coach diplômé BPJEPS AGFF";

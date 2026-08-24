@@ -1,0 +1,134 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ *
+ * FitMe90 — jetons de design (README §"Jetons de design")
+ * Palette claire fixe, sans mode sombre : la hiérarchie repose
+ * uniquement sur les bordures et les fonds. Aucune ombre.
+ * ------------------------------------------------------------------ */
+@theme {
+  /* Fonds */
+  --color-paper: #f4f3f1; /* fond de page */
+  --color-surface: #ffffff; /* surface */
+  --color-surface-2: #fbfaf8; /* surface secondaire */
+
+  /* Encre & textes */
+  --color-ink: #17191b; /* encre (titres) */
+  --color-body: #3c3a36; /* texte courant */
+  --color-body-2: #4a4844; /* texte courant (variante) */
+  --color-muted: #6d6b65; /* texte secondaire */
+  --color-muted-2: #8a8880; /* texte tertiaire */
+  --color-disabled: #b5b2aa; /* texte / contrôle désactivé */
+
+  /* Bordures */
+  --color-line: #e3e1dc; /* bordure */
+  --color-line-2: #efede8;
+  --color-line-3: #dedbd4;
+  --color-line-4: #d6d3cc;
+
+  /* Accent */
+  --color-brand: #e0551f; /* accent */
+  --color-brand-hover: #b94215; /* accent survol */
+
+  /* Alerte */
+  --color-alert: #fff4ee; /* fond d'alerte */
+  --color-alert-line: #f6d6c4; /* bordure d'alerte */
+  --color-alert-ink: #5a3427; /* texte d'alerte */
+
+  /* Cardio / repos */
+  --color-cardio: #7fa8c9;
+  --color-rest: #dfdcd6;
+
+  /* Rayons */
+  --radius-control: 9px;
+  --radius-btn: 10px;
+  --radius-btn-lg: 11px;
+  --radius-card: 14px;
+  --radius-card-lg: 16px;
+  --radius-pill: 999px;
+
+  /* Familles typographiques (variables injectées par next/font) */
+  --font-archivo: var(--font-archivo);
+  --font-plex: var(--font-plex);
+  --font-mono: var(--font-mono);
+
+  /* Point de bascule responsive unique (README : 860 px) */
+  --breakpoint-nav: 860px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Base
+ * ------------------------------------------------------------------ */
+html {
+  /* Empêche l'ajustement automatique de la taille du texte sur iOS
+     lors du passage portrait/paysage. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-plex), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: var(--color-brand);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--color-brand-hover);
+}
+
+/* Les champs à 16px minimum évitent le zoom automatique de Safari iOS
+   au focus (déclenché sous 16px). Mobile-first : non négociable. */
+input,
+button,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 16px;
+}
+input {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Surtitres / étiquettes / quantités en Plex Mono majuscules. */
+.mono-label {
+  font-family: var(--font-mono), monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 10px;
+  color: var(--color-muted-2);
+}
+
+/* Cibles tactiles : 44px minimum sur mobile (WCAG / iOS HIG). */
+.tap {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Zone sûre iOS pour la barre de navigation basse (encoche / home bar). */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Réduction des animations selon la préférence système. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
