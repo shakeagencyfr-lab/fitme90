@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/guard";
 import { Card, MonoLabel } from "@/components/ui";
 import { CheckoutButton } from "@/components/checkout-button";
+import { RedeemForm } from "@/components/redeem-form";
 import { PRICE_EUR, COACH_CREDENTIAL } from "@/lib/config";
 
 export const metadata = { title: "Débloquer mon programme — FitMe90" };
@@ -41,6 +42,15 @@ export default async function PaiementPage() {
       </Card>
 
       <CheckoutButton />
+
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-line" />
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">ou</span>
+          <div className="h-px flex-1 bg-line" />
+        </div>
+        <RedeemForm />
+      </div>
 
       <p className="text-[12px] text-muted-2 leading-relaxed">
         Accompagnement sportif et de bien-être, sans visée médicale. En cas de

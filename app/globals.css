@@ -98,7 +98,10 @@ textarea {
   font-family: inherit;
   font-size: 16px;
 }
-input {
+/* On retire l'apparence native pour styler les champs — SAUF les cases à
+   cocher et boutons radio, qui deviendraient invisibles sans style de
+   remplacement (accent-color s'en charge côté composant). */
+input:not([type="checkbox"]):not([type="radio"]) {
   -webkit-appearance: none;
   appearance: none;
 }

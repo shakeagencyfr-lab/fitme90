@@ -178,6 +178,24 @@ create policy "photos_own_folder" on storage.objects for all
   using (bucket_id = 'body-photos' and (storage.foldername(name))[1] = auth.uid()::text)
   with check (bucket_id = 'body-photos' and (storage.foldername(name))[1] = auth.uid()::text);
 
+-- ------------------------------------------------------- codes cadeaux
+-- Codes offrant le programme (débloquent paid=true sans paiement).
+-- Usage unique : `used_by` est renseigné à l'utilisation. Verrouillé côté
+-- client (aucune policy) — seul le serveur (service role) lit/écrit, sinon
+-- on pourrait énumérer les codes.
+create table public.gift_codes (
+  code        text primary key,
+  note        text,                 -- à qui / pourquoi (usage interne)
+  used_by     uuid references auth.users on delete set null,
+  used_at     timestamptz,
+  created_at  timestamptz not null default now()
+);
+alter table public.gift_codes enable row level security;
+revoke all on public.gift_codes from authenticated, anon;
+
+-- Exemple d'ajout d'un code (à faire côté serveur / éditeur SQL) :
+--   insert into public.gift_codes (code, note) values ('MON-CODE', 'cadeau Léa');
+
 -- Vérification (BUILD_PLAN étape 2) : connecte-toi avec deux comptes de test
 -- et confirme qu'aucun ne voit les lignes ni les fichiers de l'autre.
 -- Ne pas sauter cette étape.
