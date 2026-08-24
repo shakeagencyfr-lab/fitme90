@@ -35,12 +35,9 @@ export function RedeemForm() {
 
   if (!open) {
     return (
-      <button
-        onClick={() => setOpen(true)}
-        className="tap text-[14px] text-muted hover:text-ink underline underline-offset-2 self-center"
-      >
-        On m'a offert FitMe90 ? J'ai un code cadeau
-      </button>
+      <Button variant="outline" full onClick={() => setOpen(true)}>
+        J'ai un code cadeau
+      </Button>
     );
   }
 
