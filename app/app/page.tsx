@@ -117,22 +117,16 @@ export default async function ProgrammePage() {
         </div>
       </Card>
 
-      {/* Résumé chiffré + export */}
-      <section className="grid gap-3 sm:grid-cols-3">
+      {/* Résumé chiffré */}
+      <section className="grid gap-3 grid-cols-2">
         <Card><Stat label="Jour" value={`${access.day}/${PROGRAM_DAYS}`} sub="Programme en cours" /></Card>
         <Card><Stat label="Calories / jour" value={`${plan.nutrition.kcal}`} sub="Jour d'entraînement" /></Card>
-        <Card className="flex items-center justify-between gap-3">
-          <div>
-            <MonoLabel>Programme</MonoLabel>
-            <div className="text-[14px] text-body mt-1">Export PDF complet</div>
-          </div>
-          <PdfButton />
-        </Card>
       </section>
 
       <div className="flex flex-wrap gap-3">
         <ButtonLink href="/app/seance" variant="primary">Aller à ma séance</ButtonLink>
         <ButtonLink href="/app/nutrition" variant="outline">Voir la nutrition</ButtonLink>
+        <PdfButton />
       </div>
     </div>
   );

@@ -28,8 +28,8 @@ export function PdfButton() {
   }
 
   return (
-    <Button variant="outline" onClick={download} loading={busy} className="h-11 px-4 text-[14px]">
-      PDF
+    <Button variant="outline" onClick={download} loading={busy}>
+      {busy ? "Préparation…" : "Exporter en PDF"}
     </Button>
   );
 }
