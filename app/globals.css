@@ -122,6 +122,40 @@ input {
   padding-top: env(safe-area-inset-top);
 }
 
+/* Typographie des pages légales (contenu long, semantique). */
+.legal h1 {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-size: clamp(28px, 6vw, 40px);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--color-ink);
+}
+.legal h2 {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 600;
+  font-size: 19px;
+  margin-top: 18px;
+  color: var(--color-ink);
+}
+.legal p,
+.legal li {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--color-body);
+}
+.legal ul {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.legal .muted {
+  color: var(--color-muted);
+  font-size: 13.5px;
+}
+
 /* Réduction des animations selon la préférence système. */
 @media (prefers-reduced-motion: reduce) {
   *,
