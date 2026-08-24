@@ -6,38 +6,65 @@ import {
   shoppingList,
   shoppingListText,
   targetKcalForDay,
+  pnum,
+  grp,
 } from "@/lib/nutrition";
-import { Card, MonoLabel } from "@/components/ui";
+import { Card, MonoLabel, Button, Alert } from "@/components/ui";
+
+interface Recipe {
+  name: string;
+  kcal: string;
+  protein: string;
+  time: string;
+  ingredients: { food: string; qty: string }[];
+  steps: string;
+}
 
 interface Props {
-  day: number;
+  currentDay: number;
   baseKcal: number;
-  restPattern: boolean[]; // 7 booléens (LUN→DIM ou ordre du weekPlan)
+  restPattern: boolean[]; // 7 booléens, ordre du weekPlan
+  dayNames: string[]; // 7 codes (LUN…DIM)
   banned: Record<string, 1>;
   macros: { protein: string; carbs: string; fat: string };
   canGenerate: boolean;
 }
 
-export function NutritionView({ day, baseKcal, restPattern, banned, macros, canGenerate }: Props) {
+const WEEKS = 13; // 90 jours ≈ 13 semaines
+
+export function NutritionView({
+  currentDay,
+  baseKcal,
+  restPattern,
+  dayNames,
+  banned,
+  macros,
+  canGenerate,
+}: Props) {
+  const initialWeek = Math.min(WEEKS, Math.floor((currentDay - 1) / 7) + 1);
+  const initialDow = (currentDay - 1) % 7;
+  const [week, setWeek] = useState(initialWeek);
+  const [dow, setDow] = useState(initialDow);
   const [span, setSpan] = useState<3 | 7 | 14>(7);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [copied, setCopied] = useState(false);
 
-  const isRestOf = useMemo(
-    () => (d: number) => restPattern.length ? restPattern[(d - 1) % restPattern.length] : false,
-    [restPattern],
-  );
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [recipeBusy, setRecipeBusy] = useState(false);
+  const [recipeErr, setRecipeErr] = useState("");
 
-  const todayRest = isRestOf(day);
-  const meals = useMemo(
-    () => dayMeals(day, todayRest, baseKcal, banned),
-    [day, todayRest, baseKcal, banned],
-  );
-  const target = targetKcalForDay(baseKcal, todayRest);
-  const groups = useMemo(
-    () => shoppingList(day, span, isRestOf, baseKcal, banned),
-    [day, span, isRestOf, baseKcal, banned],
-  );
+  const day = Math.min(90, (week - 1) * 7 + dow + 1);
+  const len = restPattern.length || 7;
+  const isRestOf = useMemo(() => (d: number) => (restPattern.length ? restPattern[(d - 1) % len] : false), [restPattern, len]);
+  const dayRest = isRestOf(day);
+
+  const meals = useMemo(() => dayMeals(day, dayRest, baseKcal, banned), [day, dayRest, baseKcal, banned]);
+  const groups = useMemo(() => shoppingList(day, span, isRestOf, baseKcal, banned), [day, span, isRestOf, baseKcal, banned]);
+
+  // Macros deux états (README/PDF : jour de repos ≈ −10 % kcal, glucides −1/5, protéines maintenues).
+  const P = pnum(macros.protein), C = pnum(macros.carbs), F = pnum(macros.fat);
+  const trainKcal = targetKcalForDay(baseKcal, false);
+  const restKcal = targetKcalForDay(baseKcal, true);
 
   async function copyList() {
     try {
@@ -45,28 +72,109 @@ export function NutritionView({ day, baseKcal, restPattern, banned, macros, canG
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      /* clipboard indisponible */
+      /* ignore */
+    }
+  }
+
+  async function genRecipes() {
+    setRecipeBusy(true);
+    setRecipeErr("");
+    try {
+      const res = await fetch("/api/recipes", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Indisponible.");
+      setRecipes(data.recipes ?? []);
+    } catch (e) {
+      setRecipeErr(e instanceof Error ? e.message : "Indisponible.");
+    } finally {
+      setRecipeBusy(false);
     }
   }
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Macros du jour */}
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Card><MacroStat label={todayRest ? "Kcal (repos)" : "Kcal"} value={String(target).replace(/\B(?=(\d{3})+(?!\d))/g, " ")} /></Card>
-        <Card><MacroStat label="Protéines" value={`${macros.protein} g`} /></Card>
-        <Card><MacroStat label="Glucides" value={`${todayRest ? Math.round(Number(macros.carbs.replace(/\D/g, "")) * 0.8) : macros.carbs} g`} /></Card>
-        <Card><MacroStat label="Lipides" value={`${macros.fat} g`} /></Card>
-      </section>
-      {todayRest ? (
-        <p className="text-[13px] text-muted -mt-2">
-          Jour de repos : environ 10 % de calories en moins, glucides réduits, protéines maintenues.
+      {/* Sélecteur de semaine + jour (12+ semaines variées) */}
+      <section className="flex flex-col gap-3">
+        <MonoLabel>Calendrier nutrition</MonoLabel>
+        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+          {Array.from({ length: WEEKS }, (_, i) => i + 1).map((w) => (
+            <button
+              key={w}
+              onClick={() => setWeek(w)}
+              className={[
+                "tap shrink-0 rounded-pill border px-3 text-[13px] font-semibold",
+                w === week ? "bg-ink text-white border-ink" : "bg-surface text-body border-line-4",
+              ].join(" ")}
+            >
+              S{w}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1.5">
+          {dayNames.slice(0, 7).map((name, i) => {
+            const d = (week - 1) * 7 + i + 1;
+            const rest = isRestOf(d);
+            const on = i === dow;
+            const disabled = d > 90;
+            return (
+              <button
+                key={i}
+                disabled={disabled}
+                onClick={() => setDow(i)}
+                className={[
+                  "tap flex flex-col items-center gap-0.5 rounded-control border py-2 text-center",
+                  on ? "border-ink border-2" : "border-line",
+                  rest ? "bg-surface-2" : "bg-surface",
+                  disabled ? "opacity-30" : "",
+                ].join(" ")}
+              >
+                <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-muted-2">{name}</span>
+                <span className="text-[11px] text-body tabular-nums">J{d}</span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[12px] text-muted-2">
+          Jour {day} · {dayRest ? "sans entraînement" : "entraînement"}. Les menus varient au fil des 90 jours.
         </p>
-      ) : null}
+      </section>
+
+      {/* Macros : deux états + explication */}
+      <section className="flex flex-col gap-3">
+        <MonoLabel>Besoins du jour</MonoLabel>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <MacroCard
+            title="Jour d'entraînement"
+            active={!dayRest}
+            kcal={grp(trainKcal)}
+            protein={`${Math.round(P)} g`}
+            carbs={`${Math.round(C)} g`}
+            fat={`${Math.round(F)} g`}
+          />
+          <MacroCard
+            title="Jour de repos"
+            active={dayRest}
+            kcal={grp(restKcal)}
+            protein={`${Math.round(P)} g`}
+            carbs={`${Math.round(C * 0.8)} g`}
+            fat={`${Math.round(F)} g`}
+          />
+        </div>
+        <Card className="bg-surface-2">
+          <p className="text-[13.5px] leading-[1.65] text-body">
+            Les jours d'entraînement, tu vises tes calories complètes. Les jours sans
+            entraînement, on retire environ <strong>10 % des calories</strong> et on
+            réduit les glucides d'un cinquième, tout en <strong>maintenant les
+            protéines</strong> : le muscle continue de récupérer, sans surplus
+            inutile les jours où tu bouges moins. Le jour sélectionné ci-dessus est
+            mis en avant.
+          </p>
+        </Card>
+      </section>
 
       {/* Repas du jour */}
       <section className="flex flex-col gap-3">
-        <MonoLabel>Repas du jour</MonoLabel>
+        <MonoLabel>Repas — jour {day}</MonoLabel>
         {meals.map((m, i) => (
           <Card key={i} className="flex flex-col gap-2">
             <div className="flex items-baseline justify-between gap-2">
@@ -84,6 +192,39 @@ export function NutritionView({ day, baseKcal, restPattern, banned, macros, canG
           </Card>
         ))}
       </section>
+
+      {/* Générateur de recettes */}
+      {canGenerate ? (
+        <section className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <MonoLabel>Idées de recettes</MonoLabel>
+            <p className="text-[13px] text-muted">
+              Calculées sur les objectifs du jour, sans tes allergènes ni les aliments que tu refuses.
+            </p>
+          </div>
+          {recipeErr ? <Alert>{recipeErr}</Alert> : null}
+          {recipes.map((r, i) => (
+            <Card key={i} className="flex flex-col gap-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="font-archivo font-semibold text-[16px] text-ink">{r.name}</div>
+                <div className="font-mono text-[11px] text-brand">{r.kcal} kcal · {r.protein} · {r.time}</div>
+              </div>
+              <div className="flex flex-col gap-1">
+                {r.ingredients.map((it, j) => (
+                  <div key={j} className="flex justify-between text-[14px] text-body border-b border-line-2 py-1 last:border-0">
+                    <span>{it.food}</span>
+                    <span className="text-muted-2">{it.qty}</span>
+                  </div>
+                ))}
+              </div>
+              {r.steps ? <p className="text-[13.5px] text-muted leading-[1.55]">{r.steps}</p> : null}
+            </Card>
+          ))}
+          <Button variant="outline" onClick={genRecipes} loading={recipeBusy} className="self-start h-11">
+            {recipes.length ? "De nouvelles idées" : "Générer des idées de recettes"}
+          </Button>
+        </section>
+      ) : null}
 
       {/* Liste des courses */}
       <section className="flex flex-col gap-3">
@@ -140,25 +281,56 @@ export function NutritionView({ day, baseKcal, restPattern, banned, macros, canG
             </div>
           </Card>
         ))}
-      </section>
-
-      {canGenerate ? (
         <p className="text-[12px] text-muted-2">
           Les allergènes et le régime déclarés sont exclus. Le filtrage est une aide,
           pas une garantie : vérifie toujours les étiquettes des produits.
         </p>
-      ) : null}
+      </section>
     </div>
   );
 }
 
-function MacroStat({ label, value }: { label: string; value: string }) {
+function MacroCard({
+  title,
+  active,
+  kcal,
+  protein,
+  carbs,
+  fat,
+}: {
+  title: string;
+  active: boolean;
+  kcal: string;
+  protein: string;
+  carbs: string;
+  fat: string;
+}) {
   return (
-    <div className="flex flex-col gap-1">
-      <MonoLabel>{label}</MonoLabel>
-      <div className="font-archivo font-extrabold text-[22px] leading-none tracking-[-0.03em] text-ink">
-        {value}
+    <Card className={active ? "border-brand" : ""}>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <span className="font-archivo font-semibold text-[14px] text-ink">{title}</span>
+          {active ? (
+            <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-brand">aujourd'hui</span>
+          ) : null}
+        </div>
+        <div className="font-archivo font-extrabold text-[30px] leading-none tracking-[-0.03em] text-ink">
+          {kcal}
+          <span className="text-[14px] text-muted-2"> kcal</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            ["Prot.", protein],
+            ["Gluc.", carbs],
+            ["Lip.", fat],
+          ].map(([l, v]) => (
+            <div key={l} className="flex flex-col">
+              <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-2">{l}</span>
+              <span className="font-archivo font-semibold text-[15px] text-ink">{v}</span>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </Card>
   );
 }

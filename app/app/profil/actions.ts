@@ -10,6 +10,42 @@ export interface ProfilState {
   ok?: boolean;
 }
 
+import { revalidatePath } from "next/cache";
+
+// Met à jour les mesures du profil (âge, taille, FC repos) et, si fourni, le
+// poids (nouvelle pesée). Alimente IMC et zones cardiaques.
+export async function updateMeasures(
+  _prev: ProfilState,
+  formData: FormData,
+): Promise<ProfilState> {
+  const ctx = await getSessionContext();
+  if (!ctx) return { error: "Non authentifié." };
+
+  const numOrNull = (k: string) => {
+    const v = Number(String(formData.get(k) ?? "").replace(",", "."));
+    return v > 0 ? v : null;
+  };
+  const age = numOrNull("age");
+  const height = numOrNull("height");
+  const rest = numOrNull("rest");
+  const weight = numOrNull("weight");
+
+  const supabase = await createClient();
+  const update: Record<string, number> = {};
+  if (age) update.age = Math.round(age);
+  if (height) update.height_cm = height;
+  if (rest) update.rest_hr = Math.round(rest);
+  if (Object.keys(update).length) {
+    const { error } = await supabase.from("profiles").update(update).eq("id", ctx.userId);
+    if (error) return { error: "Enregistrement impossible." };
+  }
+  if (weight) {
+    await supabase.from("weights").insert({ user_id: ctx.userId, kg: weight });
+  }
+  revalidatePath("/app/profil");
+  return { ok: true };
+}
+
 // Changement de mot de passe depuis l'espace client (session active).
 export async function changePassword(
   _prev: ProfilState,

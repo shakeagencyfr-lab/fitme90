@@ -8,7 +8,9 @@ export default async function NutritionPage() {
   const { ctx, plan, answers } = await loadEspaceOrRedirect();
 
   const baseKcal = pnum(plan.nutrition.kcal) || 2580;
-  const restPattern = plan.weekPlan.slice(0, 7).map((d) => d.rest);
+  const week = plan.weekPlan.slice(0, 7);
+  const restPattern = week.map((d) => d.rest);
+  const dayNames = week.map((d) => d.day);
   const banned = bannedTags(
     (answers.allerg as string[]) ?? [],
     (answers.diet as string) ?? undefined,
@@ -20,9 +22,10 @@ export default async function NutritionPage() {
         Nutrition
       </h1>
       <NutritionView
-        day={Math.max(1, ctx.access.day)}
+        currentDay={Math.max(1, ctx.access.day)}
         baseKcal={baseKcal}
         restPattern={restPattern.length ? restPattern : [false, false, true, false, false, true, true]}
+        dayNames={dayNames.length ? dayNames : ["LUN", "MAR", "MER", "JEU", "VEN", "SAM", "DIM"]}
         banned={banned}
         macros={{ protein: plan.nutrition.protein, carbs: plan.nutrition.carbs, fat: plan.nutrition.fat }}
         canGenerate={ctx.access.coachEnabled}

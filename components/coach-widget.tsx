@@ -56,11 +56,22 @@ export function CoachWidget() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="tap fixed right-4 bottom-[calc(84px+env(safe-area-inset-bottom))] z-50 flex items-center gap-2 rounded-pill bg-ink px-5 text-white nav:bottom-6"
+        className="tap fixed right-4 bottom-[calc(84px+env(safe-area-inset-bottom))] z-50 flex size-14 items-center justify-center rounded-full bg-ink text-white shadow-[0_6px_20px_rgba(23,25,27,0.25)] nav:bottom-6"
         aria-label="Ouvrir le coach"
       >
-        <span aria-hidden>◈</span>
-        <span className="text-[14px] font-semibold">Coach</span>
+        {/* Icône bulle de chat — indique clairement une messagerie */}
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" aria-hidden>
+          <path
+            d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H9l-4 3.5V16H5.5A1.5 1.5 0 0 1 4 14.5v-9Z"
+            fill="currentColor"
+          />
+          <circle cx="9" cy="10" r="1.1" fill="#17191B" />
+          <circle cx="12" cy="10" r="1.1" fill="#17191B" />
+          <circle cx="15" cy="10" r="1.1" fill="#17191B" />
+        </svg>
+        <span className="absolute -top-1 -right-1 rounded-pill bg-brand px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-white">
+          Coach
+        </span>
       </button>
     );
   }

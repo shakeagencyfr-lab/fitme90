@@ -65,9 +65,17 @@ export async function POST(req: NextRequest) {
     .order("created_at", { ascending: false })
     .limit(10);
 
+  // Séances validées récentes : servent au coach pour proposer les charges.
+  const { data: logs } = await supabase
+    .from("session_logs")
+    .select("day, volume, sets_done, entries")
+    .eq("user_id", ctx.userId)
+    .order("day", { ascending: false })
+    .limit(12);
+
   const past = (history ?? []).reverse() as { role: "user" | "assistant"; content: string }[];
 
-  const system = `Tu es le coach de FitMe90 (${COACH_CREDENTIAL}). Tu réponds en français, brièvement et concrètement, UNIQUEMENT à partir du profil et du programme de l'utilisateur ci-dessous. Tu donnes des conseils d'entraînement et d'hygiène alimentaire, jamais d'avis médical : en cas de douleur, de pathologie ou de blessure, invite à consulter un professionnel de santé.\n\nProgramme de l'utilisateur (JSON) :\n${JSON.stringify(program?.plan ?? {})}`;
+  const system = `Tu es le coach de FitMe90 (${COACH_CREDENTIAL}). Tu réponds en français, brièvement et concrètement, UNIQUEMENT à partir du profil, du programme et des séances validées de l'utilisateur ci-dessous. Les charges ne sont jamais imposées : elles se règlent au ressenti (RPE 7 au cycle 1, RPE 8 aux cycles 2-3). Quand on te demande des charges, propose-les à partir des volumes et séries déjà relevés, en progressant prudemment. Tu donnes des conseils d'entraînement et d'hygiène alimentaire, jamais d'avis médical : en cas de douleur, de pathologie ou de blessure, invite à consulter un professionnel de santé.\n\nProgramme (JSON) :\n${JSON.stringify(program?.plan ?? {})}\n\nSéances validées (les plus récentes d'abord) :\n${JSON.stringify(logs ?? [])}`;
 
   const userContent: Anthropic.ContentBlockParam[] = [];
   if (parsed.data.image) {

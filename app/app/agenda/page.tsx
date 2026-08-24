@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { loadEspaceOrRedirect } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import { MonoLabel } from "@/components/ui";
@@ -52,10 +53,12 @@ export default async function AgendaPage() {
                 const isDone = done.has(d);
                 const isToday = d === today;
                 return (
-                  <div
+                  <Link
                     key={d}
+                    href={`/app/seance?jour=${d}`}
+                    aria-label={`Jour ${d}${rest ? " repos" : ""}${isDone ? " validé" : ""}`}
                     className={[
-                      "relative flex aspect-square items-center justify-center rounded-[8px] border text-[12px]",
+                      "relative flex aspect-square items-center justify-center rounded-[8px] border text-[12px] transition-colors hover:border-ink",
                       isToday ? "border-ink border-2" : "border-line",
                       rest ? "bg-surface-2 text-muted-2" : "bg-surface text-body",
                     ].join(" ")}
@@ -71,14 +74,14 @@ export default async function AgendaPage() {
                         className={`absolute bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full ${CYCLE_DOT[cycleOf(d)]}`}
                       />
                     ) : null}
-                  </div>
+                  </Link>
                 );
               })}
             </div>
           </div>
         ))}
       </div>
-      <MonoLabel>Jour {today} · aujourd'hui encadré · ✓ validé · point = cycle</MonoLabel>
+      <MonoLabel>Touche un jour pour voir la séance · aujourd'hui encadré · ✓ validé · point = cycle</MonoLabel>
     </div>
   );
 }
