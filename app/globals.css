@@ -56,8 +56,12 @@
 }
 
 /* ------------------------------------------------------------------ *
- * Base
+ * Base — dans @layer base pour que les utilitaires Tailwind (text-white…)
+ * gardent la priorité. Sans ce layer, la règle `a { color: brand }` bat
+ * `.text-white` (les styles hors-layer priment sur @layer utilities) :
+ * un <a> stylé en bouton orange affichait alors du texte orange invisible.
  * ------------------------------------------------------------------ */
+@layer base {
 html {
   /* Empêche l'ajustement automatique de la taille du texte sur iOS
      lors du passage portrait/paysage. */
@@ -97,6 +101,7 @@ textarea {
 input {
   -webkit-appearance: none;
   appearance: none;
+}
 }
 
 /* Surtitres / étiquettes / quantités en Plex Mono majuscules. */
