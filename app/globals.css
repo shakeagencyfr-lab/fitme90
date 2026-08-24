@@ -164,6 +164,16 @@ input:not([type="checkbox"]):not([type="radio"]) {
   font-size: 13.5px;
 }
 
+/* Impression (page /imprimer → « Enregistrer en PDF »). */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+}
+
 /* Réduction des animations selon la préférence système. */
 @media (prefers-reduced-motion: reduce) {
   *,
