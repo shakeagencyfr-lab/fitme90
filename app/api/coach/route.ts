@@ -6,9 +6,11 @@ import { getSessionContext } from "@/lib/guard";
 import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
 import { anthropic, MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
 import { describeAnswers, coachTone } from "@/lib/questionnaire";
+import { generateProgram, readAdaptations } from "@/lib/program";
 import { LIMIT_COACH_PER_DAY, COACH_CREDENTIAL } from "@/lib/config";
 
 export const runtime = "nodejs";
+export const maxDuration = 300; // l'adaptation peut déclencher une régénération
 
 const bodySchema = z.object({
   message: z.string().min(1).max(2000),
@@ -113,21 +115,101 @@ ${JSON.stringify(logs ?? [])}`;
   }
   userContent.push({ type: "text", text: parsed.data.message });
 
-  let messages: string[];
-  let usage: { input_tokens: number; output_tokens: number };
-  try {
-    const message = await anthropic().messages.create({
+  // Outil que le coach déclenche LUI-MÊME pour adapter le programme quand le
+  // client signale une blessure / contrainte durable.
+  const tools: Anthropic.Tool[] = [
+    {
+      name: "adapter_programme",
+      description:
+        "Adapte et régénère le programme d'entraînement du client. À utiliser UNIQUEMENT quand le client signale une blessure ou une contrainte durable (ex : douleur au genou, épaule fragile, matériel devenu indisponible) et souhaite que ses séances soient adaptées. NE PAS utiliser pour une simple question. Après l'appel, confirme au client ce qui a changé et rappelle de consulter un professionnel de santé si la douleur persiste.",
+      input_schema: {
+        type: "object",
+        properties: {
+          contrainte: {
+            type: "string",
+            description:
+              "La blessure ou contrainte à respecter, formulée clairement (ex : « ménager le genou droit, éviter squat profond et fentes »).",
+          },
+        },
+        required: ["contrainte"],
+      },
+    },
+  ];
+
+  const totalUsage = { input_tokens: 0, output_tokens: 0 };
+  let adapted = false;
+
+  async function callModel(msgs: Anthropic.MessageParam[]) {
+    const m = await anthropic().messages.create({
       model: MODELS.coach,
       max_tokens: 1200,
       output_config: { effort: "low" },
       system,
-      messages: [
-        ...past.map((m) => ({ role: m.role, content: m.content })),
-        { role: "user" as const, content: userContent },
-      ],
+      tools,
+      messages: msgs,
     });
-    const raw = textOf(message);
-    // Découpe en plusieurs messages (format JSON). Repli : un seul message.
+    totalUsage.input_tokens += m.usage.input_tokens;
+    totalUsage.output_tokens += m.usage.output_tokens;
+    return m;
+  }
+
+  // Exécute l'adaptation : mémorise la contrainte + régénère le programme.
+  async function runAdaptation(contrainte: string): Promise<string> {
+    if (!quiz) return "Impossible d'adapter : questionnaire introuvable.";
+    const prev = readAdaptations(quiz.answers);
+    const mergedAnswers = { ...quiz.answers, adaptations: [...prev, contrainte] };
+    await supabase.from("questionnaires").update({ answers: mergedAnswers }).eq("user_id", ctx!.userId);
+
+    const { data: equipRows } = await supabase
+      .from("equipment")
+      .select("name")
+      .eq("user_id", ctx!.userId)
+      .eq("enabled", true);
+    const equipment = (equipRows ?? []).map((e) => e.name as string);
+
+    const result = await generateProgram({
+      answers: mergedAnswers,
+      trainDays: quiz.train_days ?? [],
+      equipment,
+    });
+    totalUsage.input_tokens += result.usage.input_tokens;
+    totalUsage.output_tokens += result.usage.output_tokens;
+    await supabase.from("programs").insert({
+      user_id: ctx!.userId,
+      plan: result.plan,
+      model: result.model,
+    });
+    adapted = true;
+    return `Programme régénéré en tenant compte de : « ${contrainte} ». Les exercices contre-indiqués ont été remplacés par des alternatives sûres. Confirme-le au client et invite-le à consulter si la douleur persiste.`;
+  }
+
+  const convo: Anthropic.MessageParam[] = [
+    ...past.map((m) => ({ role: m.role, content: m.content })),
+    { role: "user" as const, content: userContent },
+  ];
+
+  let messages: string[];
+  try {
+    let resp = await callModel(convo);
+
+    // Un tour d'outil au maximum.
+    if (resp.stop_reason === "tool_use") {
+      const toolUse = resp.content.find(
+        (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
+      );
+      if (toolUse && toolUse.name === "adapter_programme") {
+        const input = toolUse.input as { contrainte?: string };
+        const toolResult = await runAdaptation(input.contrainte ?? "adaptation demandée");
+        convo.push({ role: "assistant", content: resp.content });
+        convo.push({
+          role: "user",
+          content: [{ type: "tool_result", tool_use_id: toolUse.id, content: toolResult }],
+        });
+        resp = await callModel(convo);
+      }
+    }
+
+    const raw = textOf(resp);
     try {
       const parsedOut = parseJsonLoose<{ messages?: unknown }>(raw);
       const arr = Array.isArray(parsedOut.messages) ? parsedOut.messages : [];
@@ -135,11 +217,9 @@ ${JSON.stringify(logs ?? [])}`;
     } catch {
       messages = [];
     }
-    if (!messages.length) messages = [raw.trim() || "Je n'ai pas de réponse pour l'instant."];
-    usage = {
-      input_tokens: message.usage.input_tokens,
-      output_tokens: message.usage.output_tokens,
-    };
+    if (!messages.length) {
+      messages = [raw.trim() || (adapted ? "J'ai adapté ton programme." : "Je n'ai pas de réponse pour l'instant.")];
+    }
   } catch {
     return NextResponse.json(
       { error: "Le coach est momentanément indisponible." },
@@ -152,7 +232,7 @@ ${JSON.stringify(logs ?? [])}`;
     { user_id: ctx.userId, role: "user", content: parsed.data.message },
     ...messages.map((content) => ({ user_id: ctx.userId, role: "assistant", content })),
   ]);
-  await recordCall(ctx.userId, "coach", usage);
+  await recordCall(ctx.userId, "coach", totalUsage);
 
-  return NextResponse.json({ messages });
+  return NextResponse.json({ messages, adapted });
 }

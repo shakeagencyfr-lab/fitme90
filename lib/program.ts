@@ -83,18 +83,33 @@ export interface Brief {
   equipment: string[];
 }
 
+/** Adaptations en cours (blessures/contraintes ajoutées après coup). */
+export function readAdaptations(answers: Record<string, unknown>): string[] {
+  const a = answers?.adaptations;
+  return Array.isArray(a) ? a.map((x) => String(x)).filter(Boolean) : [];
+}
+
 /** Construit le texte de brief envoyé au modèle (réponses en clair). */
 export function buildBrief({ answers, trainDays, equipment }: Brief): string {
   const lines = describeAnswers(answers);
-  return [
+  const adaptations = readAdaptations(answers);
+  const parts = [
     "Profil client FitMe90 — transformation sur 90 jours.",
     lines.length
       ? lines.join("\n")
       : "Profil par défaut : femme 34 ans, 68 kg, 170 cm, 3 séances/semaine.",
     `Jours d'entraînement : ${trainDays.length ? trainDays.join(", ") : "à répartir"}.`,
     `Matériel disponible : ${equipment.length ? equipment.join(", ") : "poids du corps uniquement"}. Aucun exercice hors de cette liste.`,
+  ];
+  if (adaptations.length) {
+    parts.push(
+      `ADAPTATIONS À RESPECTER IMPÉRATIVEMENT (blessures / contraintes) : ${adaptations.join(" ; ")}. Exclus ou remplace tout exercice contre-indiqué par une alternative sûre sur les mêmes groupes musculaires, et adapte les consignes.`,
+    );
+  }
+  parts.push(
     "Personnalise fortement le programme et les consignes à partir de ces réponses (préférences d'exercices, contraintes de temps, mode de vie, motivation). Respecte strictement les allergies et le cadre alimentaire déclarés.",
-  ].join("\n\n");
+  );
+  return parts.join("\n\n");
 }
 
 export interface GenerateResult {

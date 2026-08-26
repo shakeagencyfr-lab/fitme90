@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
 
 interface Msg {
@@ -12,6 +13,7 @@ interface Msg {
 // Texte + pièce jointe image. Ne s'affiche que si le coach est activé
 // (avant J90) — le composant n'est monté que dans ce cas par le layout.
 export function CoachWidget() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([
     {
@@ -52,6 +54,8 @@ export function CoachWidget() {
         if (i > 0) await new Promise((r) => setTimeout(r, 650));
         setMessages((m) => [...m, { role: "assistant", content: list[i] }]);
       }
+      // Le coach a régénéré le programme → rafraîchir l'espace (séance, agenda…).
+      if (data.adapted) router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Le coach est indisponible.");
     } finally {
