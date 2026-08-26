@@ -80,6 +80,15 @@ export default async function ProgrammePage() {
   const planRest = plan.weekPlan.slice(0, 7).map((d) => d.rest);
   const pattern = restPattern(trainDays, planRest);
   const trainNames = plan.weekPlan.filter((d) => !d.rest).map((d) => d.name);
+  const startFmt = ctx.profile?.start_date
+    ? new Date(`${ctx.profile.start_date}T00:00:00Z`).toLocaleDateString("fr-FR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        timeZone: "UTC",
+      })
+    : "";
+  const dayStat = access.phase === "scheduled" ? "J−" + (1 - access.day) : `${access.day}/${PROGRAM_DAYS}`;
 
   return (
     <div className="mx-auto flex max-w-[880px] flex-col gap-6">
@@ -98,6 +107,14 @@ export default async function ProgrammePage() {
         </Alert>
       ) : null}
 
+      {access.phase === "scheduled" ? (
+        <Alert tone="info">
+          Ton programme démarre le {startFmt} (dans {1 - access.day} jour(s)). Tu peux
+          déjà tout consulter ; le coach IA et le journal des séances s'activent le
+          jour J.
+        </Alert>
+      ) : null}
+
       {/* Cycles */}
       <section className="grid gap-3 sm:grid-cols-3">
         {plan.cycles.slice(0, 3).map((c, i) => (
@@ -109,32 +126,44 @@ export default async function ProgrammePage() {
         ))}
       </section>
 
-      {/* Semaine type — reflète les jours choisis par le client */}
+      {/* Semaine type — reflète les jours choisis. Défilement horizontal sur
+          mobile : cartes larges lisibles, on glisse pour voir la suite. */}
       <Card className="flex flex-col gap-3">
-        <MonoLabel>Semaine type</MonoLabel>
-        <div className="grid grid-cols-7 gap-1.5">
-          {DAYS.map((code, i) => {
-            const rest = pattern[i];
-            // Nom de séance : on répartit les séances du plan sur les jours actifs.
-            const trainIdx = pattern.slice(0, i).filter((r) => !r).length;
-            const name = rest ? "Repos" : trainNames[trainIdx % (trainNames.length || 1)] || "Séance";
-            return (
-              <div
-                key={code}
-                className={[
-                  "flex flex-col items-center gap-1 rounded-control border px-1 py-2 text-center transition-colors",
-                  rest ? "border-line bg-surface-2" : "border-brand/40 bg-alert",
-                ].join(" ")}
-              >
-                <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">
-                  {code}
-                </span>
-                <span className={["text-[11px] leading-tight", rest ? "text-muted-2" : "text-ink font-medium"].join(" ")}>
-                  {name}
-                </span>
-              </div>
-            );
-          })}
+        <div className="flex items-center justify-between gap-3">
+          <MonoLabel>Semaine type</MonoLabel>
+          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-2 sm:hidden">
+            glisse →
+          </span>
+        </div>
+        <div className="-mx-5 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex gap-2">
+            {DAYS.map((code, i) => {
+              const rest = pattern[i];
+              const trainIdx = pattern.slice(0, i).filter((r) => !r).length;
+              const name = rest ? "Repos" : trainNames[trainIdx % (trainNames.length || 1)] || "Séance";
+              return (
+                <div
+                  key={code}
+                  className={[
+                    "flex min-h-[96px] w-[104px] shrink-0 flex-col gap-1.5 rounded-control border p-3 transition-colors",
+                    rest ? "border-line bg-surface-2" : "border-brand/40 bg-alert",
+                  ].join(" ")}
+                >
+                  <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted-2">
+                    {code}
+                  </span>
+                  <span
+                    className={[
+                      "text-[13px] leading-snug",
+                      rest ? "text-muted-2" : "font-medium text-ink",
+                    ].join(" ")}
+                  >
+                    {name}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </Card>
 
@@ -142,7 +171,7 @@ export default async function ProgrammePage() {
 
       {/* Résumé chiffré */}
       <section className="grid gap-3 grid-cols-2">
-        <Card><Stat label="Jour" value={`${access.day}/${PROGRAM_DAYS}`} sub="Programme en cours" /></Card>
+        <Card><Stat label="Jour" value={dayStat} sub={access.phase === "scheduled" ? "Avant le départ" : "Programme en cours"} /></Card>
         <Card><Stat label="Calories / jour" value={`${plan.nutrition.kcal}`} sub="Jour d'entraînement" /></Card>
       </section>
 

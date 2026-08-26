@@ -1,6 +1,6 @@
 import { loadEspaceOrRedirect } from "@/lib/queries";
 import { bannedTags, pnum, dislikeTerms } from "@/lib/nutrition";
-import { restPattern } from "@/lib/schedule";
+import { restPattern, startWeekday } from "@/lib/schedule";
 import { DAYS } from "@/lib/questionnaire";
 import { NutritionView } from "@/components/nutrition-view";
 
@@ -27,6 +27,7 @@ export default async function NutritionPage() {
         currentDay={Math.max(1, ctx.access.day)}
         baseKcal={baseKcal}
         restPattern={pattern}
+        startWeekday={startWeekday(ctx.profile?.start_date)}
         dayNames={DAYS}
         banned={banned}
         dislikes={dislikes}

@@ -165,6 +165,16 @@ function FieldView({
         />
       ) : null}
 
+      {f.type === "date" ? (
+        <input
+          type="date"
+          value={(value as string) ?? ""}
+          min={new Date().toISOString().slice(0, 10)}
+          onChange={(e) => set(f.key, e.target.value)}
+          className="tap w-full rounded-btn border border-line-3 bg-surface-2 px-3.5 text-ink outline-none focus:border-ink"
+        />
+      ) : null}
+
       {f.type === "days" ? (
         <div className="flex flex-wrap gap-2">
           {DAYS.map((d) => {

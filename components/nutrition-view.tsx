@@ -23,7 +23,8 @@ interface Recipe {
 interface Props {
   currentDay: number;
   baseKcal: number;
-  restPattern: boolean[]; // 7 booléens, ordre du weekPlan
+  restPattern: boolean[]; // 7 booléens, ordre LUN→DIM
+  startWeekday?: number; // index (0=LUN) du jour de semaine de la date de début
   dayNames: string[]; // 7 codes (LUN…DIM)
   banned: Record<string, 1>;
   dislikes: string[]; // aliments non aimés (termes minuscules)
@@ -37,6 +38,7 @@ export function NutritionView({
   currentDay,
   baseKcal,
   restPattern,
+  startWeekday = 0,
   dayNames,
   banned,
   dislikes,
@@ -57,7 +59,10 @@ export function NutritionView({
 
   const day = Math.min(90, (week - 1) * 7 + dow + 1);
   const len = restPattern.length || 7;
-  const isRestOf = useMemo(() => (d: number) => (restPattern.length ? restPattern[(d - 1) % len] : false), [restPattern, len]);
+  const isRestOf = useMemo(
+    () => (d: number) => (restPattern.length ? restPattern[(((startWeekday + d - 1) % len) + len) % len] : false),
+    [restPattern, len, startWeekday],
+  );
   const dayRest = isRestOf(day);
 
   const meals = useMemo(() => dayMeals(day, dayRest, baseKcal, banned, dislikes), [day, dayRest, baseKcal, banned, dislikes]);

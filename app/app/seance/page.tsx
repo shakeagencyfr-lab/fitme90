@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { loadEspaceOrRedirect } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
-import { restPattern, isRestDay } from "@/lib/schedule";
+import { restPattern, isRestDay, startWeekday } from "@/lib/schedule";
 import { Card, MonoLabel } from "@/components/ui";
 import { SessionRunner, type Exercise } from "@/components/session-runner";
 import { CoachLoadSuggestion } from "@/components/coach-loads";
@@ -31,7 +31,7 @@ export default async function SeancePage({
   const isToday = day === today;
 
   const pattern = restPattern(trainDays, plan.weekPlan.slice(0, 7).map((d) => d.rest));
-  const todayRest = isRestDay(day, pattern);
+  const todayRest = isRestDay(day, pattern, startWeekday(ctx.profile?.start_date));
   const cycle = day <= 30 ? 1 : day <= 60 ? 2 : 3;
   const rpeGoal = targetRpe(day);
   const exercises: Exercise[] = plan.session.exercises.map((e) => ({

@@ -8,7 +8,7 @@ import { anthropic, MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
 import { describeAnswers, coachTone, DAYS } from "@/lib/questionnaire";
 import { generateProgram, readAdaptations } from "@/lib/program";
 import { pnum, grp } from "@/lib/nutrition";
-import { LIMIT_COACH_PER_DAY, COACH_CREDENTIAL } from "@/lib/config";
+import { LIMIT_COACH_PER_DAY, COACH_CREDENTIAL, PROGRAM_DAYS } from "@/lib/config";
 
 const DIETS = ["Omnivore", "Flexitarien", "Végétarien", "Végétalien", "Sans porc", "Sans bœuf"];
 
@@ -36,7 +36,9 @@ export async function POST(req: NextRequest) {
         ? "Le coach IA est désactivé après 90 jours. Ton plan reste consultable."
         : ctx.access.phase === "ended"
           ? "Ton accès au programme est terminé."
-          : "Débloque ton programme pour accéder au coach.";
+          : ctx.access.phase === "scheduled"
+            ? "Ton programme n'a pas encore démarré — le coach IA s'active le jour du départ."
+            : "Débloque ton programme pour accéder au coach.";
     return NextResponse.json({ error: msg }, { status: 403 });
   }
 
@@ -98,6 +100,15 @@ export async function POST(req: NextRequest) {
 PROFIL DU CLIENT :
 ${profileLines.length ? profileLines.join("\n") : "Non renseigné."}
 Jours d'entraînement : ${quiz?.train_days?.join(", ") || "non précisés"}.
+
+CALENDRIER (suis la progression avec ces repères réels) :
+- Programme démarré le ${
+    ctx.profile?.start_date
+      ? new Date(`${ctx.profile.start_date}T00:00:00Z`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
+      : "non défini"
+  }.
+- Aujourd'hui : ${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" })} — jour ${ctx.access.day} sur ${PROGRAM_DAYS}.
+- Les séances tombent aux vrais jours de la semaine choisis. Parle en dates concrètes et repère les séances validées vs prévues pour suivre les retards éventuels.
 
 PROGRAMME (JSON) :
 ${JSON.stringify(program?.plan ?? {})}

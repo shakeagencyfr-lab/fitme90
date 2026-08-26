@@ -10,7 +10,7 @@
 
 import { PROGRAM_DAYS, ACCESS_DAYS } from "./config";
 
-export type AccessPhase = "not_paid" | "not_started" | "active" | "grace" | "ended";
+export type AccessPhase = "not_paid" | "not_started" | "scheduled" | "active" | "grace" | "ended";
 
 export interface AccessState {
   phase: AccessPhase;
@@ -68,6 +68,19 @@ export function computeAccess(
 
   const day = programDay(start, now);
 
+  // Début choisi dans le futur : programme planifié mais pas encore commencé.
+  // Le plan est consultable, mais coach et journal restent fermés jusqu'au J1.
+  if (day < 1) {
+    return {
+      ...base,
+      phase: "scheduled",
+      day,
+      planViewable: true,
+      daysUntilProgramEnd: PROGRAM_DAYS,
+      daysUntilAccessEnd: ACCESS_DAYS,
+    };
+  }
+
   if (day <= PROGRAM_DAYS) {
     return {
       phase: "active",
@@ -110,6 +123,8 @@ export function accessLabel(a: AccessState): string {
       return "Programme non débloqué";
     case "not_started":
       return "Programme prêt à générer";
+    case "scheduled":
+      return `Démarre dans ${1 - a.day} jour(s)`;
     case "active":
       return `Jour ${a.day} sur ${PROGRAM_DAYS}`;
     case "grace":

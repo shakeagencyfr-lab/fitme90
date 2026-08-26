@@ -3,7 +3,7 @@
 // alimentent des colonnes de `profiles`. Plus il est riche, plus le coach IA
 // et le programme sont personnalisés.
 
-export type FieldType = "text" | "number" | "choice" | "multi" | "days";
+export type FieldType = "text" | "number" | "choice" | "multi" | "days" | "date";
 
 export interface Field {
   key: string;
@@ -57,6 +57,7 @@ export const QUIZ: Section[] = [
       { key: "training_history", label: "Ton passé sportif", type: "text", optional: true, placeholder: "2 ans de crossfit, arrêt il y a 6 mois…" },
       { key: "freq", label: "Séances par semaine", type: "choice", options: ["2", "3", "4", "5", "6"] },
       { key: "train_days", label: "Jours d'entraînement", type: "days" },
+      { key: "start_date", label: "Date de début du programme", type: "date", help: "Le jour exact où tu veux démarrer. Le décompte des 90 jours et ton calendrier partent de cette date." },
       { key: "dur", label: "Durée par séance", type: "choice", options: ["30 min", "45 min", "60 min", "90 min"] },
       { key: "session_time", label: "Moment préféré pour t'entraîner", type: "choice", options: ["Matin", "Midi", "Après-midi", "Soir", "Variable"] },
       { key: "cardio_pref", label: "Ton rapport au cardio", type: "choice", options: ["J'aime", "Neutre", "Je déteste"] },

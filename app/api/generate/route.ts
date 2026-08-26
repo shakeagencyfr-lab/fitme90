@@ -111,10 +111,13 @@ export async function POST() {
   }
 
   if (!ctx.profile?.start_date) {
-    await admin
-      .from("profiles")
-      .update({ start_date: new Date().toISOString().slice(0, 10) })
-      .eq("id", ctx.userId);
+    // Date de début choisie au questionnaire (vrai calendrier). On la retient si
+    // elle est valide et pas dans le passé ; sinon on démarre aujourd'hui.
+    const today = new Date().toISOString().slice(0, 10);
+    const picked =
+      typeof quiz.answers?.start_date === "string" ? quiz.answers.start_date.slice(0, 10) : "";
+    const startDate = /^\d{4}-\d{2}-\d{2}$/.test(picked) && picked >= today ? picked : today;
+    await admin.from("profiles").update({ start_date: startDate }).eq("id", ctx.userId);
   }
 
   await recordCall(ctx.userId, "generate", result.usage);
