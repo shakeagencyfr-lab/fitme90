@@ -40,9 +40,7 @@ export default function ConfidentialitePage() {
         <li>Vercel — hébergement de l'application (région UE, Paris).</li>
         <li>Supabase — base de données, authentification, stockage (région UE).</li>
         <li>Anthropic — génération du programme et coach (traitement à la demande).</li>
-        <li>Stripe — paiement.</li>
-        <li>MarkupGo — génération du PDF (le cas échéant).</li>
-      </ul>
+        <li>Stripe — paiement.</li>      </ul>
       <p className="muted">
         Vérifier les garanties de transfert hors UE (clauses contractuelles types) de
         chaque sous-traitant et compléter cette liste — à valider par un juriste.

@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { accessLabel } from "@/lib/access";
 import { Card, Stat, MonoLabel, ButtonLink, Alert } from "@/components/ui";
-import { PdfButton } from "@/components/pdf-button";
 import { TrainingDaysEditor } from "@/components/training-days";
 import { restPattern } from "@/lib/schedule";
 import { DAYS } from "@/lib/questionnaire";
@@ -150,7 +149,6 @@ export default async function ProgrammePage() {
       <div className="flex flex-wrap gap-3">
         <ButtonLink href="/app/seance" variant="primary">Aller à ma séance</ButtonLink>
         <ButtonLink href="/app/nutrition" variant="outline">Voir la nutrition</ButtonLink>
-        <PdfButton />
       </div>
     </div>
   );

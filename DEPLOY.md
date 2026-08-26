@@ -53,13 +53,6 @@ dans le dépôt : tout passe par des variables d'environnement.
 3. En local : `stripe listen --forward-to localhost:3000/api/stripe/webhook`.
 4. Le prix (190 €) est fixé dans le code (`lib/config.ts`), pas dans Stripe.
 
-## 4. MarkupGo (PDF) — optionnel au lancement
-
-- `MARKUPGO_API_KEY` (serveur uniquement). Sans clé, le bouton PDF renvoie
-  proprement vers l'impression navigateur (même document).
-- ⚠️ **À vérifier** : l'endpoint et le format de corps attendus par MarkupGo
-  (`app/api/pdf/route.ts`). Ajuste `MARKUPGO_ENDPOINT` si besoin.
-
 ## 5. Variables d'environnement
 
 Copie `.env.example` en `.env.local` pour le dev, puis renseigne les mêmes clés
@@ -70,7 +63,6 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 ANTHROPIC_API_KEY=
-MARKUPGO_API_KEY=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 NEXT_PUBLIC_SITE_URL=https://TON-DOMAINE
