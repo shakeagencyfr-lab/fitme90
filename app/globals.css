@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Mode sombre piloté par la classe .dark sur <html> (toggle utilisateur),
+   pas par la préférence système seule — pour que le choix soit explicite. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ------------------------------------------------------------------ *
  * FitMe90 — jetons de design (README §"Jetons de design")
  * Palette claire fixe, sans mode sombre : la hiérarchie repose
@@ -29,6 +33,11 @@
   --color-brand: #e0551f; /* accent */
   --color-brand-hover: #b94215; /* accent survol */
 
+  /* Remplissage fort (boutons/onglets/bulles sombres) + texte dessus.
+     S'inverse en mode sombre pour rester lisible. */
+  --color-fill: #17191b;
+  --color-fillfg: #ffffff;
+
   /* Alerte */
   --color-alert: #fff4ee; /* fond d'alerte */
   --color-alert-line: #f6d6c4; /* bordure d'alerte */
@@ -53,6 +62,42 @@
 
   /* Point de bascule responsive unique (README : 860 px) */
   --breakpoint-nav: 860px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Mode sombre — on redéfinit uniquement les VALEURS des tokens sous
+ * .dark. Tous les composants utilisant bg-paper/text-ink/… basculent
+ * automatiquement, sans réécriture. (specificité :root.dark > :root)
+ * ------------------------------------------------------------------ */
+:root.dark {
+  --color-paper: #0f1113;
+  --color-surface: #171a1d;
+  --color-surface-2: #1d2124;
+
+  --color-ink: #f3f2ef;
+  --color-body: #dcdad4;
+  --color-body-2: #cdcbc4;
+  --color-muted: #a6a49d;
+  --color-muted-2: #86847d;
+  --color-disabled: #5f5d57;
+
+  --color-line: #2b2f33;
+  --color-line-2: #23272a;
+  --color-line-3: #33383c;
+  --color-line-4: #3d4246;
+
+  --color-brand: #f2662f;
+  --color-brand-hover: #ff7a44;
+
+  --color-alert: #2a1c14;
+  --color-alert-line: #4a3122;
+  --color-alert-ink: #f0c3a8;
+
+  --color-cardio: #7fa8c9;
+  --color-rest: #2a2e31;
+
+  --color-fill: #f2f1ee;
+  --color-fillfg: #17191b;
 }
 
 /* ------------------------------------------------------------------ *

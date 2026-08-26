@@ -73,8 +73,9 @@ const ALL: Item[] = [
   { href: "/app/photos", label: "Photos", icon: "photos" },
   { href: "/app/profil", label: "Profil", icon: "profil" },
 ];
-const PRIMARY: Item[] = ALL.filter((i) => !["/app/agenda", "/app/photos"].includes(i.href));
-const SECONDARY: Item[] = ALL.filter((i) => ["/app/agenda", "/app/photos"].includes(i.href));
+const IN_MORE = ["/app/evolution", "/app/photos"];
+const PRIMARY: Item[] = ALL.filter((i) => !IN_MORE.includes(i.href));
+const SECONDARY: Item[] = ALL.filter((i) => IN_MORE.includes(i.href));
 
 function Icon({ children }: { children: ReactNode }) {
   return (
@@ -112,7 +113,7 @@ export function AppNav({ day, dayPct, cycleName }: { day: number; dayPct: number
               href={it.href}
               className={[
                 "tap group flex flex-row items-center justify-start gap-[11px] rounded-control px-3 py-[11px] text-[14px] font-medium transition-colors",
-                on ? "bg-ink text-white" : "text-body-2 hover:bg-paper",
+                on ? "bg-fill text-fillfg" : "text-body-2 hover:bg-paper",
               ].join(" ")}
             >
               <span className="transition-transform group-active:scale-90">

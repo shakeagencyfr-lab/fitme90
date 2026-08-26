@@ -178,7 +178,7 @@ export function CoachWidget() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="tap fixed right-4 bottom-[calc(84px+env(safe-area-inset-bottom))] z-50 flex items-center gap-2.5 rounded-pill bg-ink px-5 py-3.5 text-white shadow-[0_6px_20px_rgba(23,25,27,0.22)] transition-transform hover:scale-[1.03] active:scale-95 nav:bottom-6"
+        className="tap fixed right-4 bottom-[calc(84px+env(safe-area-inset-bottom))] z-50 flex items-center gap-2.5 rounded-pill bg-fill px-5 py-3.5 text-fillfg shadow-[0_6px_20px_rgba(23,25,27,0.22)] transition-transform hover:scale-[1.03] active:scale-95 nav:bottom-6"
         aria-label="Ouvrir le coach"
       >
         <span className="relative flex size-2.5">
@@ -191,8 +191,8 @@ export function CoachWidget() {
   }
 
   return (
-    <div className="fixed inset-x-3 bottom-[calc(84px+env(safe-area-inset-bottom))] z-50 flex max-h-[70dvh] flex-col overflow-hidden rounded-card border border-line bg-surface nav:inset-x-auto nav:right-6 nav:bottom-6 nav:w-[380px]">
-      <div className="flex items-center justify-between border-b border-line px-4 py-3">
+    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-surface nav:inset-auto nav:bottom-6 nav:right-6 nav:max-h-[70dvh] nav:w-[380px] nav:rounded-card nav:border nav:border-line">
+      <div className="safe-top flex items-center justify-between border-b border-line px-4 py-3">
         <div className="font-archivo font-semibold text-[15px] text-ink">Coach FitMe90</div>
         <button onClick={() => setOpen(false)} className="tap text-muted-2" aria-label="Fermer">
           ✕
@@ -205,7 +205,7 @@ export function CoachWidget() {
             key={i}
             className={
               m.role === "user"
-                ? "max-w-[85%] self-end rounded-card bg-ink px-3.5 py-2.5 text-[14px] text-white"
+                ? "max-w-[85%] self-end rounded-card bg-fill px-3.5 py-2.5 text-[14px] text-fillfg"
                 : "max-w-[90%] self-start rounded-card bg-paper px-3.5 py-2.5 text-[14px] leading-relaxed text-body"
             }
           >
@@ -244,7 +244,7 @@ export function CoachWidget() {
         </div>
       ) : null}
 
-      <div className="flex items-end gap-2 border-t border-line p-3">
+      <div className="flex items-end gap-2 border-t border-line p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] nav:pb-3">
         <input
           ref={fileRef}
           type="file"

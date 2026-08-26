@@ -202,12 +202,12 @@ export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, in
 
       {/* Minuteur de repos flottant */}
       {rest > 0 ? (
-        <div className="fixed inset-x-3 bottom-[calc(150px+env(safe-area-inset-bottom))] z-50 flex items-center gap-3 rounded-card border border-white/10 bg-ink px-4 py-3 text-white nav:inset-x-auto nav:right-6 nav:bottom-[92px] nav:w-[340px]">
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-white/60">Repos</span>
+        <div className="fixed inset-x-3 bottom-[calc(150px+env(safe-area-inset-bottom))] z-50 flex items-center gap-3 rounded-card border border-fillfg/10 bg-fill px-4 py-3 text-fillfg nav:inset-x-auto nav:right-6 nav:bottom-[92px] nav:w-[340px]">
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-fillfg/60">Repos</span>
           <span className="font-archivo font-extrabold text-[26px] leading-none tabular-nums">{mm}:{ss}</span>
           <div className="ml-auto flex items-center gap-1.5">
-            <button onClick={() => setRest((s) => Math.max(0, s - 15))} className="tap rounded-pill bg-white/15 px-2.5 text-[13px] font-semibold">−15</button>
-            <button onClick={() => setRestRun((r) => !r)} className="tap rounded-pill bg-white/15 px-3 text-[13px] font-semibold">
+            <button onClick={() => setRest((s) => Math.max(0, s - 15))} className="tap rounded-pill bg-fillfg/15 px-2.5 text-[13px] font-semibold">−15</button>
+            <button onClick={() => setRestRun((r) => !r)} className="tap rounded-pill bg-fillfg/15 px-3 text-[13px] font-semibold">
               {restRun ? "❚❚" : "▶"}
             </button>
             <button onClick={() => { setRest(0); setRestRun(false); }} className="tap rounded-pill bg-brand px-3 text-[13px] font-semibold">

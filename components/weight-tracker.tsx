@@ -66,7 +66,7 @@ export function WeightTracker({ weights }: { weights: W[] }) {
             placeholder="Nouvelle pesée"
             className="tap w-[150px] rounded-control border border-line-3 bg-surface-2 px-3.5 text-ink placeholder:text-disabled outline-none focus:border-ink"
           />
-          <Button type="submit" loading={pending} variant="primary" className="h-11 bg-ink hover:bg-ink">
+          <Button type="submit" loading={pending} variant="primary" className="h-11 bg-fill text-fillfg hover:bg-fill">
             Ajouter
           </Button>
         </form>

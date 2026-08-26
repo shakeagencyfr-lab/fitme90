@@ -7,6 +7,7 @@ import { Card, MonoLabel, Stat } from "@/components/ui";
 import { PasswordChange, AccountActions } from "@/components/profil-actions";
 import { ProfileMeasures } from "@/components/profile-measures";
 import { StartDateSetting } from "@/components/start-date-setting";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { isAdminEmail } from "@/lib/admin";
 import { COACH_CREDENTIAL } from "@/lib/config";
 
@@ -58,6 +59,11 @@ export default async function ProfilPage() {
           Programme conçu par un {COACH_CREDENTIAL.toLowerCase()}. Accompagnement
           sportif et de bien-être, sans visée médicale.
         </p>
+      </Card>
+
+      <Card className="flex flex-col gap-3">
+        <MonoLabel>Apparence</MonoLabel>
+        <ThemeToggle className="self-start" />
       </Card>
 
       {isAdminEmail(ctx.email) ? (

@@ -110,7 +110,7 @@ export function NutritionView({
               onClick={() => setWeek(w)}
               className={[
                 "tap shrink-0 rounded-pill border px-3 text-[13px] font-semibold",
-                w === week ? "bg-ink text-white border-ink" : "bg-surface text-body border-line-4",
+                w === week ? "bg-fill text-fillfg border-fill" : "bg-surface text-body border-line-4",
               ].join(" ")}
             >
               S{w}
@@ -244,7 +244,7 @@ export function NutritionView({
                 onClick={() => setSpan(d)}
                 className={[
                   "tap rounded-pill px-3 text-[13px] font-medium border",
-                  span === d ? "bg-ink text-white border-ink" : "bg-surface text-body border-line-4",
+                  span === d ? "bg-fill text-fillfg border-fill" : "bg-surface text-body border-line-4",
                 ].join(" ")}
               >
                 {d} j
