@@ -87,11 +87,6 @@ const S = {
       <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
-  star: (p: IconProps) => (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={p.className} aria-hidden="true">
-      <path d="M12 2.5l2.7 5.9 6.3.7-4.7 4.3 1.3 6.3-5.6-3.2-5.6 3.2 1.3-6.3L3 9.1l6.3-.7L12 2.5Z" />
-    </svg>
-  ),
 };
 
 const features = [
@@ -171,30 +166,21 @@ const nutritionBullets = [
   "Macros journaliers",
 ];
 
-// Témoignages — GABARITS (tag « Exemple »). À remplacer par de vrais avis
-// clients recueillis avec leur accord. Ne jamais publier d'avis inventé.
-const testimonials = [
-  {
-    quote: "Le programme s'est adapté à mon genou opéré et à mon régime halal. Le suivi jour par jour m'a tenu sur les 90 jours.",
-    name: "Prénom N.",
-    context: "Objectif · résultat",
-  },
-  {
-    quote: "J'ai photographié ma petite salle et chaque exercice correspondait exactement à ce que j'avais sous la main.",
-    name: "Prénom N.",
-    context: "Objectif · résultat",
-  },
-  {
-    quote: "Le coach IA dans mon espace m'a guidé chaque semaine. Enfin un entraînement structuré, pas seulement des intuitions.",
-    name: "Prénom N.",
-    context: "Objectif · résultat",
-  },
+// Section « preuve » — arguments FACTUELS et vérifiables (aucun faux avis :
+// publier des témoignages inventés serait une pratique commerciale trompeuse).
+const proofPoints = [
+  { icon: S.shield, title: "Coach diplômé d'État", body: "Programmes conçus par un coach professionnel diplômé d'État et de l'université des sports." },
+  { icon: S.dumbbell, title: "Méthode périodisée", body: "Trois cycles structurés — adaptation, intensification, spécialisation — pas des séances au hasard." },
+  { icon: S.camera, title: "Vraiment sur-mesure", body: "Ta salle scannée, tes pathologies, tes allergies et tes jours pris en compte. Rien de générique." },
+  { icon: S.chat, title: "Coach IA inclus 90 jours", body: "Un accompagnement au quotidien qui répond, motive et adapte le plan et la diète en autonomie." },
+  { icon: S.spark, title: "Sans abonnement", body: "Un paiement unique. Aucune reconduction, aucun prélèvement caché, paiement sécurisé Stripe." },
+  { icon: S.grid, title: "Données protégées (RGPD)", body: "Tes données sont hébergées dans l'Union européenne et traitées conformément au RGPD." },
 ];
 
 const NAV = [
   { href: "#fonctionnalites", label: "Fonctionnalités" },
   { href: "#methode", label: "Comment ça marche" },
-  { href: "#temoignages", label: "Témoignages" },
+  { href: "#garanties", label: "Garanties" },
   { href: "#tarifs", label: "Tarifs" },
 ];
 
@@ -501,37 +487,32 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Témoignages */}
-        <section id="temoignages" className="scroll-mt-24 border-t border-white/10 bg-white/[0.015]">
+        {/* Garanties / preuve (arguments factuels, pas de faux avis) */}
+        <section id="garanties" className="scroll-mt-24 border-t border-white/10 bg-white/[0.015]">
           <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(64px,9vw,110px)] sm:px-8">
             <div className="flex flex-col items-center gap-4 text-center">
-              <span className={chip}>Témoignages</span>
-              <h2 className={sectionTitle}>Des transformations réelles</h2>
+              <span className={chip}>Garanties</span>
+              <h2 className={sectionTitle}>Pourquoi tu peux t'y fier</h2>
+              <p className="max-w-[52ch] text-[16px] leading-[1.6] text-white/60">
+                Pas de promesse en l'air : des engagements concrets et vérifiables.
+              </p>
             </div>
-            <div className="mt-12 grid gap-4 md:grid-cols-3">
-              {testimonials.map((t, i) => (
-                <figure key={i} className="flex flex-col gap-4 rounded-card border border-white/10 bg-white/[0.03] p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex gap-1 text-brand">
-                      {Array.from({ length: 5 }).map((_, s) => (
-                        <S.star key={s} className="h-4 w-4" />
-                      ))}
-                    </div>
-                    <span className="rounded-pill border border-white/15 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.14em] text-white/40">
-                      Exemple
-                    </span>
-                  </div>
-                  <blockquote className="text-[14.5px] leading-[1.6] text-white/80">« {t.quote} »</blockquote>
-                  <figcaption className="mt-auto flex flex-col">
-                    <span className="text-[14px] font-semibold text-white">{t.name}</span>
-                    <span className="text-[12.5px] text-white/45">{t.context}</span>
-                  </figcaption>
-                </figure>
+            <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {proofPoints.map((p) => (
+                <div key={p.title} className="flex flex-col gap-4 rounded-card border border-white/10 bg-white/[0.03] p-6">
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-[12px] border border-brand/30 bg-brand/10 text-brand">
+                    <p.icon className="h-6 w-6" />
+                  </span>
+                  <h3 className="font-archivo text-[18px] font-bold leading-snug tracking-[-0.01em] text-white">
+                    {p.title}
+                  </h3>
+                  <p className="text-[14px] leading-[1.6] text-white/60">{p.body}</p>
+                </div>
               ))}
             </div>
-            <p className="mt-6 text-center text-[12.5px] text-white/40">
-              Exemples de mise en page — à remplacer par de vrais témoignages
-              clients, recueillis avec leur accord.
+            <p className="mt-8 text-center text-[12.5px] text-white/40">
+              Les premiers témoignages clients enrichiront cette page au fil des
+              accompagnements.
             </p>
           </div>
         </section>
