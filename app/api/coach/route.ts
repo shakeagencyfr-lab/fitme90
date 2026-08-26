@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
 import { anthropic, MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
-import { describeAnswers, coachTone } from "@/lib/questionnaire";
+import { describeAnswers, coachTone, DAYS } from "@/lib/questionnaire";
 import { generateProgram, readAdaptations } from "@/lib/program";
 import { LIMIT_COACH_PER_DAY, COACH_CREDENTIAL } from "@/lib/config";
 
@@ -134,10 +134,42 @@ ${JSON.stringify(logs ?? [])}`;
         required: ["contrainte"],
       },
     },
+    {
+      name: "changer_jours_entrainement",
+      description:
+        "Change les jours d'entraînement du client (et donc leur nombre) quand son emploi du temps change (ex : « je ne peux plus m'entraîner que 3 fois par semaine »). À utiliser quand le client a confirmé les jours voulus. Le calendrier, les séances et la nutrition se recalent automatiquement sur ces jours.",
+      input_schema: {
+        type: "object",
+        properties: {
+          jours: {
+            type: "array",
+            items: { type: "string", enum: DAYS },
+            description:
+              "Liste des jours d'entraînement retenus, codes parmi LUN, MAR, MER, JEU, VEN, SAM, DIM (ex : [\"LUN\",\"MER\",\"VEN\"]).",
+          },
+        },
+        required: ["jours"],
+      },
+    },
   ];
 
   const totalUsage = { input_tokens: 0, output_tokens: 0 };
   let adapted = false;
+
+  // Change réellement les jours d'entraînement (train_days) → tout le planning suit.
+  async function runChangeDays(jours: string[]): Promise<string> {
+    const clean = Array.from(new Set(jours.filter((d) => DAYS.includes(d))));
+    if (!clean.length) return "Aucun jour valide fourni : rien changé.";
+    const { error } = await supabase
+      .from("questionnaires")
+      .update({ train_days: clean })
+      .eq("user_id", ctx!.userId);
+    if (error) return "Impossible de mettre à jour les jours pour l'instant.";
+    adapted = true;
+    // Ordonne selon la semaine pour la confirmation.
+    const ordered = DAYS.filter((d) => clean.includes(d));
+    return `Jours d'entraînement mis à jour : ${ordered.join(", ")} (${ordered.length} séances/semaine). Le calendrier, les séances et la nutrition se sont recalés. Confirme-le au client.`;
+  }
 
   async function callModel(msgs: Anthropic.MessageParam[]) {
     const m = await anthropic().messages.create({
@@ -188,25 +220,36 @@ ${JSON.stringify(logs ?? [])}`;
     { role: "user" as const, content: userContent },
   ];
 
+  async function execTool(name: string, input: unknown): Promise<string> {
+    if (name === "adapter_programme") {
+      const c = (input as { contrainte?: string }).contrainte ?? "adaptation demandée";
+      return runAdaptation(c);
+    }
+    if (name === "changer_jours_entrainement") {
+      const j = (input as { jours?: unknown }).jours;
+      return runChangeDays(Array.isArray(j) ? j.map(String) : []);
+    }
+    return "Action inconnue.";
+  }
+
   let messages: string[];
   try {
     let resp = await callModel(convo);
 
-    // Un tour d'outil au maximum.
-    if (resp.stop_reason === "tool_use") {
-      const toolUse = resp.content.find(
+    // Jusqu'à 2 tours d'outils, en traitant tous les appels d'une réponse.
+    for (let round = 0; round < 2 && resp.stop_reason === "tool_use"; round++) {
+      const toolUses = resp.content.filter(
         (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
       );
-      if (toolUse && toolUse.name === "adapter_programme") {
-        const input = toolUse.input as { contrainte?: string };
-        const toolResult = await runAdaptation(input.contrainte ?? "adaptation demandée");
-        convo.push({ role: "assistant", content: resp.content });
-        convo.push({
-          role: "user",
-          content: [{ type: "tool_result", tool_use_id: toolUse.id, content: toolResult }],
-        });
-        resp = await callModel(convo);
+      if (!toolUses.length) break;
+      convo.push({ role: "assistant", content: resp.content });
+      const results: Anthropic.ToolResultBlockParam[] = [];
+      for (const tu of toolUses) {
+        const out = await execTool(tu.name, tu.input);
+        results.push({ type: "tool_result", tool_use_id: tu.id, content: out });
       }
+      convo.push({ role: "user", content: results });
+      resp = await callModel(convo);
     }
 
     const raw = textOf(resp);
