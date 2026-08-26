@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 // Icônes line (stroke) — cohérentes, lisibles à petite taille.
 const I = {
@@ -51,17 +51,30 @@ const I = {
       <path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" />
     </>
   ),
+  plus: (
+    <>
+      <circle cx="5" cy="12" r="1.4" />
+      <circle cx="12" cy="12" r="1.4" />
+      <circle cx="19" cy="12" r="1.4" />
+    </>
+  ),
 } as const;
 
-const NAV: [href: string, label: string, icon: keyof typeof I][] = [
-  ["/app", "Programme", "programme"],
-  ["/app/agenda", "Agenda", "agenda"],
-  ["/app/seance", "Séance", "seance"],
-  ["/app/nutrition", "Nutrition", "nutrition"],
-  ["/app/evolution", "Évolution", "evolution"],
-  ["/app/photos", "Photos", "photos"],
-  ["/app/profil", "Profil", "profil"],
+type IconKey = keyof typeof I;
+type Item = { href: string; label: string; icon: IconKey };
+
+// Ordre complet (sidebar desktop). Sur mobile : 5 principaux + « Plus ».
+const ALL: Item[] = [
+  { href: "/app", label: "Programme", icon: "programme" },
+  { href: "/app/agenda", label: "Agenda", icon: "agenda" },
+  { href: "/app/seance", label: "Séance", icon: "seance" },
+  { href: "/app/nutrition", label: "Nutrition", icon: "nutrition" },
+  { href: "/app/evolution", label: "Évolution", icon: "evolution" },
+  { href: "/app/photos", label: "Photos", icon: "photos" },
+  { href: "/app/profil", label: "Profil", icon: "profil" },
 ];
+const PRIMARY: Item[] = ALL.filter((i) => !["/app/agenda", "/app/photos"].includes(i.href));
+const SECONDARY: Item[] = ALL.filter((i) => ["/app/agenda", "/app/photos"].includes(i.href));
 
 function Icon({ children }: { children: ReactNode }) {
   return (
@@ -73,58 +86,123 @@ function Icon({ children }: { children: ReactNode }) {
 
 export function AppNav({ day, dayPct, cycleName }: { day: number; dayPct: number; cycleName?: string }) {
   const pathname = usePathname();
+  const [more, setMore] = useState(false);
   const isActive = (href: string) =>
     href === "/app" ? pathname === "/app" : pathname.startsWith(href);
+  const secondaryActive = SECONDARY.some((i) => isActive(i.href));
 
   return (
-    <nav className="nav:sticky nav:top-0 nav:h-dvh nav:w-[228px] nav:shrink-0 nav:flex-col nav:gap-0.5 nav:overflow-auto nav:border-r nav:border-b-0 nav:px-3.5 nav:py-6 fixed bottom-0 left-0 right-0 z-40 flex gap-0.5 border-t border-line bg-surface/95 backdrop-blur px-1.5 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
-      <div className="nav:flex hidden flex-col gap-1 px-2.5 pb-4">
-        <div className="font-archivo font-extrabold text-[22px] tracking-[-0.02em] text-ink">
-          FitMe<span className="text-brand">90</span>
+    <>
+      {/* ───────── Sidebar (desktop ≥ nav) : tous les onglets ───────── */}
+      <nav className="hidden nav:sticky nav:top-0 nav:flex nav:h-dvh nav:w-[228px] nav:shrink-0 nav:flex-col nav:gap-0.5 nav:overflow-auto nav:border-r nav:border-line nav:px-3.5 nav:py-6">
+        <div className="flex flex-col gap-1 px-2.5 pb-4">
+          <div className="font-archivo font-extrabold text-[22px] tracking-[-0.02em] text-ink">
+            FitMe<span className="text-brand">90</span>
+          </div>
+          <div className="font-mono uppercase tracking-[0.14em] text-[10px] text-muted-2">
+            Jour {day} sur 90
+          </div>
         </div>
-        <div className="font-mono uppercase tracking-[0.14em] text-[10px] text-muted-2">
-          Jour {day} sur 90
-        </div>
-      </div>
 
-      {NAV.map(([href, label, icon]) => {
-        const on = isActive(href);
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={[
-              "tap group flex items-center rounded-control transition-colors",
-              "nav:gap-[11px] nav:px-3 nav:py-[11px] nav:text-[14px] nav:font-medium nav:flex-row nav:justify-start",
-              "flex-1 flex-col justify-center gap-[3px] px-0.5 py-[7px] min-w-0",
-              on
-                ? "nav:bg-ink nav:text-white bg-paper text-brand"
-                : "nav:text-body-2 text-muted-2 nav:hover:bg-paper",
-            ].join(" ")}
-          >
-            <span className={["transition-transform group-active:scale-90", on ? "" : "group-hover:scale-105"].join(" ")}>
-              <Icon>{I[icon]}</Icon>
-            </span>
-            <span className="nav:text-[14px] text-[9.5px] font-semibold tracking-[-0.01em]">
-              {label}
-            </span>
-          </Link>
-        );
-      })}
+        {ALL.map((it) => {
+          const on = isActive(it.href);
+          return (
+            <Link
+              key={it.href}
+              href={it.href}
+              className={[
+                "tap group flex flex-row items-center justify-start gap-[11px] rounded-control px-3 py-[11px] text-[14px] font-medium transition-colors",
+                on ? "bg-ink text-white" : "text-body-2 hover:bg-paper",
+              ].join(" ")}
+            >
+              <span className="transition-transform group-active:scale-90">
+                <Icon>{I[it.icon]}</Icon>
+              </span>
+              <span className="font-semibold tracking-[-0.01em]">{it.label}</span>
+            </Link>
+          );
+        })}
 
-      <div className="nav:flex hidden mt-auto flex-col gap-2 rounded-card bg-paper p-4">
-        <div className="font-mono uppercase tracking-[0.12em] text-[10px] text-muted-2">
-          Progression
+        <div className="mt-auto flex flex-col gap-2 rounded-card bg-paper p-4">
+          <div className="font-mono uppercase tracking-[0.12em] text-[10px] text-muted-2">Progression</div>
+          <div className="font-archivo font-extrabold text-[34px] leading-[0.9] tracking-[-0.03em] text-ink">
+            {day}
+            <span className="text-[16px] text-muted-2">/90</span>
+          </div>
+          <div className="h-[5px] overflow-hidden rounded-[3px] bg-line">
+            <div className="h-full bg-brand transition-[width] duration-500" style={{ width: `${dayPct}%` }} />
+          </div>
+          {cycleName ? <div className="text-[12px] text-muted">{cycleName}</div> : null}
         </div>
-        <div className="font-archivo font-extrabold text-[34px] leading-[0.9] tracking-[-0.03em] text-ink">
-          {day}
-          <span className="text-[16px] text-muted-2">/90</span>
-        </div>
-        <div className="h-[5px] overflow-hidden rounded-[3px] bg-line">
-          <div className="h-full bg-brand transition-[width] duration-500" style={{ width: `${dayPct}%` }} />
-        </div>
-        {cycleName ? <div className="text-[12px] text-muted">{cycleName}</div> : null}
-      </div>
-    </nav>
+      </nav>
+
+      {/* ───────── Feuille « Plus » (mobile) ───────── */}
+      {more ? (
+        <>
+          <button
+            aria-label="Fermer"
+            onClick={() => setMore(false)}
+            className="fixed inset-0 z-40 bg-ink/20 backdrop-blur-[1px] nav:hidden"
+          />
+          <div className="fixed inset-x-3 bottom-[calc(76px+env(safe-area-inset-bottom))] z-50 flex flex-col overflow-hidden rounded-card border border-line bg-surface nav:hidden">
+            {SECONDARY.map((it) => {
+              const on = isActive(it.href);
+              return (
+                <Link
+                  key={it.href}
+                  href={it.href}
+                  onClick={() => setMore(false)}
+                  className={[
+                    "tap flex items-center gap-3 border-b border-line-2 px-4 py-3.5 text-[15px] font-semibold last:border-0",
+                    on ? "text-brand" : "text-body",
+                  ].join(" ")}
+                >
+                  <Icon>{I[it.icon]}</Icon>
+                  {it.label}
+                </Link>
+              );
+            })}
+          </div>
+        </>
+      ) : null}
+
+      {/* ───────── Barre du bas (mobile < nav) : 5 + Plus ───────── */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 flex gap-0.5 border-t border-line bg-surface/95 px-1.5 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur nav:hidden">
+        {PRIMARY.map((it) => {
+          const on = isActive(it.href);
+          return (
+            <Link
+              key={it.href}
+              href={it.href}
+              onClick={() => setMore(false)}
+              className={[
+                "tap group flex min-w-0 flex-1 flex-col items-center justify-center gap-[3px] rounded-control px-0.5 py-[7px] transition-colors",
+                on ? "bg-paper text-brand" : "text-muted-2",
+              ].join(" ")}
+            >
+              <span className={["transition-transform group-active:scale-90", on ? "" : "group-hover:scale-105"].join(" ")}>
+                <Icon>{I[it.icon]}</Icon>
+              </span>
+              <span className="text-[9.5px] font-semibold tracking-[-0.01em]">{it.label}</span>
+            </Link>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setMore((v) => !v)}
+          aria-label="Plus d'onglets"
+          aria-expanded={more}
+          className={[
+            "tap group flex min-w-0 flex-1 flex-col items-center justify-center gap-[3px] rounded-control px-0.5 py-[7px] transition-colors",
+            more || secondaryActive ? "bg-paper text-brand" : "text-muted-2",
+          ].join(" ")}
+        >
+          <span className="transition-transform group-active:scale-90">
+            <Icon>{I.plus}</Icon>
+          </span>
+          <span className="text-[9.5px] font-semibold tracking-[-0.01em]">Plus</span>
+        </button>
+      </nav>
+    </>
   );
 }
