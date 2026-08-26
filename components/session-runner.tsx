@@ -202,7 +202,7 @@ export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, in
 
       {/* Minuteur de repos flottant */}
       {rest > 0 ? (
-        <div className="fixed inset-x-3 bottom-[calc(84px+env(safe-area-inset-bottom))] z-40 flex items-center gap-3 rounded-card border border-line bg-ink px-4 py-3 text-white nav:inset-x-auto nav:right-6 nav:bottom-6 nav:w-[320px]">
+        <div className="fixed inset-x-3 bottom-[calc(150px+env(safe-area-inset-bottom))] z-50 flex items-center gap-3 rounded-card border border-white/10 bg-ink px-4 py-3 text-white nav:inset-x-auto nav:right-6 nav:bottom-[92px] nav:w-[340px]">
           <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-white/60">Repos</span>
           <span className="font-archivo font-extrabold text-[26px] leading-none tabular-nums">{mm}:{ss}</span>
           <div className="ml-auto flex items-center gap-1.5">
