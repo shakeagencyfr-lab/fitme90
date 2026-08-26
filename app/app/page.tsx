@@ -3,6 +3,7 @@ import { getSessionContext } from "@/lib/guard";
 import { accessLabel } from "@/lib/access";
 import { Card, Stat, MonoLabel, ButtonLink, Alert } from "@/components/ui";
 import { TrainingDaysEditor } from "@/components/training-days";
+import { CyclesCarousel } from "@/components/cycles-carousel";
 import { restPattern } from "@/lib/schedule";
 import { DAYS } from "@/lib/questionnaire";
 import type { Plan } from "@/lib/program";
@@ -115,16 +116,8 @@ export default async function ProgrammePage() {
         </Alert>
       ) : null}
 
-      {/* Cycles */}
-      <section className="grid gap-3 sm:grid-cols-3">
-        {plan.cycles.slice(0, 3).map((c, i) => (
-          <Card key={i} className="flex flex-col gap-2">
-            <MonoLabel className="text-brand">{c.label} · {c.weeks}</MonoLabel>
-            <div className="font-archivo font-semibold text-[17px] text-ink">{c.name}</div>
-            <p className="text-[13.5px] leading-[1.55] text-muted">{c.body}</p>
-          </Card>
-        ))}
-      </section>
+      {/* Cycles, en carrousel horizontal avec explications approfondies */}
+      <CyclesCarousel cycles={plan.cycles.slice(0, 3)} />
 
       {/* Semaine type, reflète les jours choisis. Défilement horizontal sur
           mobile : cartes larges lisibles, on glisse pour voir la suite. */}

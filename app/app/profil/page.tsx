@@ -8,6 +8,7 @@ import { PasswordChange, AccountActions } from "@/components/profil-actions";
 import { ProfileMeasures } from "@/components/profile-measures";
 import { StartDateSetting } from "@/components/start-date-setting";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { RestartOnboarding } from "@/components/onboarding-tour";
 import { isAdminEmail } from "@/lib/admin";
 import { COACH_CREDENTIAL } from "@/lib/config";
 
@@ -64,6 +65,9 @@ export default async function ProfilPage() {
       <Card className="flex flex-col gap-3">
         <MonoLabel>Apparence</MonoLabel>
         <ThemeToggle className="self-start" />
+        <div className="h-px bg-line-2" />
+        <MonoLabel>Prise en main</MonoLabel>
+        <RestartOnboarding className="self-start" />
       </Card>
 
       {isAdminEmail(ctx.email) ? (
