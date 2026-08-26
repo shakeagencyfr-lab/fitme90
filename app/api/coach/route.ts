@@ -191,7 +191,9 @@ ${JSON.stringify(logs ?? [])}`;
   const totalUsage = { input_tokens: 0, output_tokens: 0 };
   let adapted = false;
 
-  // Change réellement les jours d'entraînement (train_days) → tout le planning suit.
+  // Change réellement les jours d'entraînement (train_days) ET régénère le
+  // programme complet, sinon le texte de présentation et la répartition des
+  // séances restaient sur les jours d'origine.
   async function runChangeDays(jours: string[]): Promise<string> {
     const clean = Array.from(new Set(jours.filter((d) => DAYS.includes(d))));
     if (!clean.length) return "Aucun jour valide fourni : rien changé.";
@@ -201,8 +203,37 @@ ${JSON.stringify(logs ?? [])}`;
       .eq("user_id", ctx!.userId);
     if (error) return "Impossible de mettre à jour les jours pour l'instant.";
     adapted = true;
-    // Ordonne selon la semaine pour la confirmation.
     const ordered = DAYS.filter((d) => clean.includes(d));
+
+    // Régénère TOUT le plan (présentation, cycles, répartition, cardio) sur les
+    // nouveaux jours. En cas d'échec, les jours restent modifiés (agenda,
+    // séance, nutrition recalés) — on le signale sans casser la réponse.
+    if (quiz) {
+      quiz.train_days = clean;
+      try {
+        const { data: equipRows } = await supabase
+          .from("equipment")
+          .select("name")
+          .eq("user_id", ctx!.userId)
+          .eq("enabled", true);
+        const equipment = (equipRows ?? []).map((e) => e.name as string);
+        const result = await generateProgram({
+          answers: quiz.answers,
+          trainDays: clean,
+          equipment,
+        });
+        totalUsage.input_tokens += result.usage.input_tokens;
+        totalUsage.output_tokens += result.usage.output_tokens;
+        await supabase.from("programs").insert({
+          user_id: ctx!.userId,
+          plan: result.plan,
+          model: result.model,
+        });
+        return `Jours d'entraînement mis à jour : ${ordered.join(", ")} (${ordered.length} séances/semaine). J'ai régénéré tout le programme (présentation, cycles, cardio) pour coller à ces jours. Confirme-le au client.`;
+      } catch {
+        return `Jours d'entraînement mis à jour : ${ordered.join(", ")} (${ordered.length} séances/semaine). Le calendrier, les séances et la nutrition se sont recalés ; la réécriture du plan complet n'a pas abouti cette fois — redis-moi « mets à jour mon programme » si la présentation ne reflète pas encore les nouveaux jours.`;
+      }
+    }
     return `Jours d'entraînement mis à jour : ${ordered.join(", ")} (${ordered.length} séances/semaine). Le calendrier, les séances et la nutrition se sont recalés. Confirme-le au client.`;
   }
 
