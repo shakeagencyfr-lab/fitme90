@@ -221,6 +221,14 @@ ${JSON.stringify(logs ?? [])}`;
     // séance, nutrition recalés) — on le signale sans casser la réponse.
     if (quiz) {
       quiz.train_days = clean;
+      // Synchronise la fréquence et les jours dans les réponses, sinon le brief
+      // de régénération dit encore « 3 séances » et le modèle réécrit l'ancien.
+      const syncedAnswers = { ...quiz.answers, freq: String(clean.length), train_days: clean };
+      quiz.answers = syncedAnswers;
+      await supabase
+        .from("questionnaires")
+        .update({ answers: syncedAnswers })
+        .eq("user_id", ctx!.userId);
       try {
         const { data: equipRows } = await supabase
           .from("equipment")
@@ -229,7 +237,7 @@ ${JSON.stringify(logs ?? [])}`;
           .eq("enabled", true);
         const equipment = (equipRows ?? []).map((e) => e.name as string);
         const result = await generateProgram({
-          answers: quiz.answers,
+          answers: syncedAnswers,
           trainDays: clean,
           equipment,
         });

@@ -41,6 +41,13 @@ export async function updateTrainDays(days: string[]): Promise<DaysState> {
       .limit(1)
       .maybeSingle<{ answers: Record<string, unknown> }>();
     if (quiz?.answers) {
+      // Synchronise fréquence + jours dans les réponses, sinon le brief de
+      // régénération garde l'ancienne fréquence (« 3 séances ») dans le texte.
+      const syncedAnswers = { ...quiz.answers, freq: String(clean.length), train_days: clean };
+      await supabase
+        .from("questionnaires")
+        .update({ answers: syncedAnswers })
+        .eq("user_id", ctx.userId);
       const { data: equipRows } = await supabase
         .from("equipment")
         .select("name")
@@ -48,7 +55,7 @@ export async function updateTrainDays(days: string[]): Promise<DaysState> {
         .eq("enabled", true);
       const equipment = (equipRows ?? []).map((e) => e.name as string);
       const result = await generateProgram({
-        answers: quiz.answers,
+        answers: syncedAnswers,
         trainDays: clean,
         equipment,
       });
