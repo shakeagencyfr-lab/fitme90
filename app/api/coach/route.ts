@@ -236,11 +236,10 @@ ${JSON.stringify(logs ?? [])}`;
           .eq("user_id", ctx!.userId)
           .eq("enabled", true);
         const equipment = (equipRows ?? []).map((e) => e.name as string);
-        const result = await generateProgram({
-          answers: syncedAnswers,
-          trainDays: clean,
-          equipment,
-        });
+        const result = await generateProgram(
+          { answers: syncedAnswers, trainDays: clean, equipment },
+          "low", // rapide : la requête coach doit tenir sous ~60 s (Vercel Hobby)
+        );
         totalUsage.input_tokens += result.usage.input_tokens;
         totalUsage.output_tokens += result.usage.output_tokens;
         await supabase.from("programs").insert({
@@ -345,11 +344,10 @@ ${JSON.stringify(logs ?? [])}`;
       .eq("enabled", true);
     const equipment = (equipRows ?? []).map((e) => e.name as string);
 
-    const result = await generateProgram({
-      answers: mergedAnswers,
-      trainDays: quiz.train_days ?? [],
-      equipment,
-    });
+    const result = await generateProgram(
+      { answers: mergedAnswers, trainDays: quiz.train_days ?? [], equipment },
+      "low", // rapide : tenir sous ~60 s dans la requête coach (Vercel Hobby)
+    );
     totalUsage.input_tokens += result.usage.input_tokens;
     totalUsage.output_tokens += result.usage.output_tokens;
     await supabase.from("programs").insert({

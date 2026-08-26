@@ -54,11 +54,10 @@ export async function updateTrainDays(days: string[]): Promise<DaysState> {
         .eq("user_id", ctx.userId)
         .eq("enabled", true);
       const equipment = (equipRows ?? []).map((e) => e.name as string);
-      const result = await generateProgram({
-        answers: syncedAnswers,
-        trainDays: clean,
-        equipment,
-      });
+      const result = await generateProgram(
+        { answers: syncedAnswers, trainDays: clean, equipment },
+        "medium", // régénération seule : budget temps plus large que via le coach
+      );
       await supabase.from("programs").insert({
         user_id: ctx.userId,
         plan: result.plan,

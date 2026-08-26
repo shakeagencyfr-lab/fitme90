@@ -118,14 +118,22 @@ export interface GenerateResult {
   usage: { input_tokens: number; output_tokens: number };
 }
 
-/** Appelle le modèle (streaming) et renvoie un plan validé. */
-export async function generateProgram(brief: Brief): Promise<GenerateResult> {
+/**
+ * Appelle le modèle (streaming) et renvoie un plan validé.
+ * `effort` : "high" pour la 1re génération ; réduit ("low"/"medium") pour les
+ * régénérations rapides (changement de jours, adaptation) afin de tenir dans le
+ * budget temps d'une requête coach (Vercel Hobby ≈ 60 s).
+ */
+export async function generateProgram(
+  brief: Brief,
+  effort: "low" | "medium" | "high" = "high",
+): Promise<GenerateResult> {
   const client = anthropic();
   // Streaming : la sortie est volumineuse (~8000 tokens), on évite le timeout.
   const stream = client.messages.stream({
     model: MODELS.generate,
     max_tokens: 12000,
-    output_config: { effort: "high" },
+    output_config: { effort },
     system: SYSTEM,
     messages: [
       {
