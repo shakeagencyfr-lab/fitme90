@@ -25,7 +25,8 @@ export function CoachLoadSuggestion() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Indisponible.");
-      setAnswer(data.answer);
+      const text = Array.isArray(data.messages) ? data.messages.join("\n\n") : data.answer;
+      setAnswer(text);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Indisponible.");
     } finally {

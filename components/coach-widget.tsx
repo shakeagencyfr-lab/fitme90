@@ -44,7 +44,14 @@ export function CoachWidget() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
-      setMessages((m) => [...m, { role: "assistant", content: data.answer }]);
+      const list: string[] = Array.isArray(data.messages)
+        ? data.messages
+        : [data.answer].filter(Boolean);
+      // Révélation rythmée : une bulle après l'autre, avec un temps de « frappe ».
+      for (let i = 0; i < list.length; i++) {
+        if (i > 0) await new Promise((r) => setTimeout(r, 650));
+        setMessages((m) => [...m, { role: "assistant", content: list[i] }]);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Le coach est indisponible.");
     } finally {

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
-import { anthropic, MODELS, textOf } from "@/lib/anthropic";
+import { anthropic, MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
 import { describeAnswers, coachTone } from "@/lib/questionnaire";
 import { LIMIT_COACH_PER_DAY, COACH_CREDENTIAL } from "@/lib/config";
 
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
   const past = (history ?? []).reverse() as { role: "user" | "assistant"; content: string }[];
 
   const toneLine = tone ? ` Adopte un ton ${tone.toLowerCase()}.` : "";
-  const system = `Tu es le coach personnel de FitMe90 (${COACH_CREDENTIAL}).${toneLine} Tu réponds en français, brièvement et concrètement, en t'appuyant sur le PROFIL, le PROGRAMME et les SÉANCES VALIDÉES ci-dessous — utilise les préférences, contraintes de temps, mode de vie et objectifs du client pour personnaliser tes réponses. Les charges ne sont jamais imposées : elles se règlent au ressenti (RPE 7 au cycle 1, RPE 8 aux cycles 2-3). Quand on te demande des charges, propose-les à partir des volumes et séries déjà relevés, en progressant prudemment. Tu donnes des conseils d'entraînement et d'hygiène alimentaire, jamais d'avis médical : en cas de douleur, de pathologie ou de blessure, invite à consulter un professionnel de santé.
+  const system = `Tu es le coach personnel de FitMe90 (${COACH_CREDENTIAL}).${toneLine} Tu écris comme dans une vraie messagerie : découpe ta réponse en 1 à 4 messages COURTS et naturels (une idée par message, pas de pavé). Réponds STRICTEMENT au format JSON, sans aucun texte autour : {"messages":["premier message","deuxième message"]}. Tu réponds en français, concrètement, en t'appuyant sur le PROFIL, le PROGRAMME et les SÉANCES VALIDÉES ci-dessous — utilise les préférences, contraintes de temps, mode de vie et objectifs du client pour personnaliser tes réponses. Les charges ne sont jamais imposées : elles se règlent au ressenti (RPE 7 au cycle 1, RPE 8 aux cycles 2-3). Quand on te demande des charges, propose-les à partir des volumes et séries déjà relevés, en progressant prudemment. Tu donnes des conseils d'entraînement et d'hygiène alimentaire, jamais d'avis médical : en cas de douleur, de pathologie ou de blessure, invite à consulter un professionnel de santé.
 
 PROFIL DU CLIENT :
 ${profileLines.length ? profileLines.join("\n") : "Non renseigné."}
@@ -113,12 +113,12 @@ ${JSON.stringify(logs ?? [])}`;
   }
   userContent.push({ type: "text", text: parsed.data.message });
 
-  let answer: string;
+  let messages: string[];
   let usage: { input_tokens: number; output_tokens: number };
   try {
     const message = await anthropic().messages.create({
       model: MODELS.coach,
-      max_tokens: 1024,
+      max_tokens: 1200,
       output_config: { effort: "low" },
       system,
       messages: [
@@ -126,7 +126,16 @@ ${JSON.stringify(logs ?? [])}`;
         { role: "user" as const, content: userContent },
       ],
     });
-    answer = textOf(message) || "Je n'ai pas de réponse pour l'instant.";
+    const raw = textOf(message);
+    // Découpe en plusieurs messages (format JSON). Repli : un seul message.
+    try {
+      const parsedOut = parseJsonLoose<{ messages?: unknown }>(raw);
+      const arr = Array.isArray(parsedOut.messages) ? parsedOut.messages : [];
+      messages = arr.map((m) => String(m).trim()).filter(Boolean).slice(0, 4);
+    } catch {
+      messages = [];
+    }
+    if (!messages.length) messages = [raw.trim() || "Je n'ai pas de réponse pour l'instant."];
     usage = {
       input_tokens: message.usage.input_tokens,
       output_tokens: message.usage.output_tokens,
@@ -138,12 +147,12 @@ ${JSON.stringify(logs ?? [])}`;
     );
   }
 
-  // Persistance : message utilisateur (texte) + réponse.
+  // Persistance : message utilisateur + chaque bulle du coach séparément.
   await supabase.from("coach_messages").insert([
     { user_id: ctx.userId, role: "user", content: parsed.data.message },
-    { user_id: ctx.userId, role: "assistant", content: answer },
+    ...messages.map((content) => ({ user_id: ctx.userId, role: "assistant", content })),
   ]);
   await recordCall(ctx.userId, "coach", usage);
 
-  return NextResponse.json({ answer });
+  return NextResponse.json({ messages });
 }
