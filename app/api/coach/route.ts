@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
 import { anthropic, MODELS, textOf } from "@/lib/anthropic";
+import { describeAnswers, coachTone } from "@/lib/questionnaire";
 import { LIMIT_COACH_PER_DAY, COACH_CREDENTIAL } from "@/lib/config";
 
 export const runtime = "nodejs";
@@ -73,9 +74,31 @@ export async function POST(req: NextRequest) {
     .order("day", { ascending: false })
     .limit(12);
 
+  // Profil complet du questionnaire : rend le coach beaucoup plus personnalisé.
+  const { data: quiz } = await supabase
+    .from("questionnaires")
+    .select("answers, train_days")
+    .eq("user_id", ctx.userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ answers: Record<string, unknown>; train_days: string[] }>();
+  const profileLines = quiz?.answers ? describeAnswers(quiz.answers) : [];
+  const tone = quiz?.answers ? coachTone(quiz.answers) : null;
+
   const past = (history ?? []).reverse() as { role: "user" | "assistant"; content: string }[];
 
-  const system = `Tu es le coach de FitMe90 (${COACH_CREDENTIAL}). Tu réponds en français, brièvement et concrètement, UNIQUEMENT à partir du profil, du programme et des séances validées de l'utilisateur ci-dessous. Les charges ne sont jamais imposées : elles se règlent au ressenti (RPE 7 au cycle 1, RPE 8 aux cycles 2-3). Quand on te demande des charges, propose-les à partir des volumes et séries déjà relevés, en progressant prudemment. Tu donnes des conseils d'entraînement et d'hygiène alimentaire, jamais d'avis médical : en cas de douleur, de pathologie ou de blessure, invite à consulter un professionnel de santé.\n\nProgramme (JSON) :\n${JSON.stringify(program?.plan ?? {})}\n\nSéances validées (les plus récentes d'abord) :\n${JSON.stringify(logs ?? [])}`;
+  const toneLine = tone ? ` Adopte un ton ${tone.toLowerCase()}.` : "";
+  const system = `Tu es le coach personnel de FitMe90 (${COACH_CREDENTIAL}).${toneLine} Tu réponds en français, brièvement et concrètement, en t'appuyant sur le PROFIL, le PROGRAMME et les SÉANCES VALIDÉES ci-dessous — utilise les préférences, contraintes de temps, mode de vie et objectifs du client pour personnaliser tes réponses. Les charges ne sont jamais imposées : elles se règlent au ressenti (RPE 7 au cycle 1, RPE 8 aux cycles 2-3). Quand on te demande des charges, propose-les à partir des volumes et séries déjà relevés, en progressant prudemment. Tu donnes des conseils d'entraînement et d'hygiène alimentaire, jamais d'avis médical : en cas de douleur, de pathologie ou de blessure, invite à consulter un professionnel de santé.
+
+PROFIL DU CLIENT :
+${profileLines.length ? profileLines.join("\n") : "Non renseigné."}
+Jours d'entraînement : ${quiz?.train_days?.join(", ") || "non précisés"}.
+
+PROGRAMME (JSON) :
+${JSON.stringify(program?.plan ?? {})}
+
+SÉANCES VALIDÉES (les plus récentes d'abord) :
+${JSON.stringify(logs ?? [])}`;
 
   const userContent: Anthropic.ContentBlockParam[] = [];
   if (parsed.data.image) {

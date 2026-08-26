@@ -66,7 +66,8 @@ export async function POST() {
     `Objectifs du jour : ${n.kcal || "2 580"} kcal, ${n.protein || "148"} g de protéines, ${n.carbs || "276"} g de glucides, ${n.fat || "78"} g de lipides.\n` +
     `Allergies à exclure strictement : ${arr("allerg") || "aucune"}.\n` +
     `Régime : ${(a.diet as string) || "omnivore"}. Cadre religieux : ${(a.religion as string) || "aucun"}. Aliments refusés : ${(a.dislikes as string) || "aucun"}.\n` +
-    `Propose 3 recettes simples qui s'intègrent dans ces objectifs, avec quantités précises.`;
+    `Aliments appréciés : ${(a.loved_foods as string) || "non précisé"}. Temps de cuisine : ${(a.cook_time as string) || "peu importe"}.\n` +
+    `Propose 3 recettes simples, adaptées à ces goûts et à ce temps de préparation, avec quantités précises.`;
 
   try {
     const message = await anthropic().messages.create({

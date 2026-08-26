@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { anthropic, MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
+import { describeAnswers } from "@/lib/questionnaire";
 import { COACH_CREDENTIAL } from "@/lib/config";
 
 // Schéma du plan retourné par le modèle (structure de la maquette).
@@ -82,17 +83,9 @@ export interface Brief {
   equipment: string[];
 }
 
-/** Construit le texte de brief envoyé au modèle. */
+/** Construit le texte de brief envoyé au modèle (réponses en clair). */
 export function buildBrief({ answers, trainDays, equipment }: Brief): string {
-  const lines: string[] = [];
-  for (const [key, value] of Object.entries(answers)) {
-    if (value == null) continue;
-    if (Array.isArray(value)) {
-      if (value.length) lines.push(`${key} : ${value.join(", ")}`);
-    } else if (String(value).trim()) {
-      lines.push(`${key} : ${String(value)}`);
-    }
-  }
+  const lines = describeAnswers(answers);
   return [
     "Profil client FitMe90 — transformation sur 90 jours.",
     lines.length
@@ -100,7 +93,7 @@ export function buildBrief({ answers, trainDays, equipment }: Brief): string {
       : "Profil par défaut : femme 34 ans, 68 kg, 170 cm, 3 séances/semaine.",
     `Jours d'entraînement : ${trainDays.length ? trainDays.join(", ") : "à répartir"}.`,
     `Matériel disponible : ${equipment.length ? equipment.join(", ") : "poids du corps uniquement"}. Aucun exercice hors de cette liste.`,
-    "Respecte strictement les allergies et le cadre alimentaire déclarés.",
+    "Personnalise fortement le programme et les consignes à partir de ces réponses (préférences d'exercices, contraintes de temps, mode de vie, motivation). Respecte strictement les allergies et le cadre alimentaire déclarés.",
   ].join("\n\n");
 }
 
