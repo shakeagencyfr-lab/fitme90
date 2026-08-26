@@ -1,44 +1,60 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 const KEY = "fitme90_onboarded";
 
-const STEPS = [
+// Chaque étape ouvre la page correspondante (href) pendant l'explication.
+const STEPS: { tag: string; title: string; body: string; href?: string }[] = [
   {
     tag: "Bienvenue",
     title: "Bienvenue dans ton espace 👋",
-    body: "Voici l'essentiel en quelques étapes. Tu peux passer ce guide à tout moment et le revoir depuis ton profil.",
+    body: "En 6 étapes rapides, on te montre où tout se trouve. Chaque page va s'ouvrir au fur et à mesure. Tu peux passer ce guide quand tu veux, et le revoir plus tard depuis ton profil.",
   },
   {
     tag: "Programme",
-    title: "Ton programme",
-    body: "Dans l'onglet Programme, retrouve tes 3 cycles (fais-les défiler) et ta semaine type. Tu peux aussi y changer tes jours d'entraînement.",
+    title: "1. Ton programme",
+    body: "C'est ta page d'accueil. Tout en haut, le résumé de ton plan. Juste en dessous, tes 3 cycles : fais-les glisser du doigt pour comprendre chaque phase (adaptation, intensification, spécialisation). Plus bas, tu peux changer tes jours d'entraînement quand ton emploi du temps évolue.",
+    href: "/app",
   },
   {
     tag: "Agenda",
-    title: "Ton agenda",
-    body: "Dans Agenda, un vrai calendrier daté. Touche un jour pour voir la séance prévue et suivre ta progression.",
+    title: "2. Ton agenda",
+    body: "Un vrai calendrier avec de vraies dates. Les jours d'entraînement sont marqués d'un point, aujourd'hui est encadré, et un ✓ apparaît sur les séances que tu as validées. Touche n'importe quel jour pour ouvrir la séance de ce jour.",
+    href: "/app/agenda",
   },
   {
     tag: "Séance",
-    title: "Ta séance du jour",
-    body: "Dans Séance, lance ton entraînement : minuteur de repos intégré, charges au ressenti et validation série par série.",
+    title: "3. Ta séance du jour",
+    body: "Pour chaque exercice, tu notes tes charges et tes répétitions, série par série. Le minuteur de repos se déclenche tout seul entre les séries. Quand tu as terminé, tu valides la séance : elle passe en ✓ dans ton agenda.",
+    href: "/app/seance",
   },
   {
     tag: "Nutrition",
-    title: "Ta nutrition",
-    body: "Dans Nutrition, tes repas, tes macros et ta liste de courses, calés sur tes contraintes (allergies, régime, budget).",
+    title: "4. Ta nutrition",
+    body: "Tes repas du jour, tes macros (avec deux réglages : jour d'entraînement et jour de repos) et ta liste de courses, en respectant tes allergies et ton régime. Tu peux naviguer semaine par semaine et générer des recettes adaptées.",
+    href: "/app/nutrition",
   },
   {
     tag: "Coach IA",
-    title: "Ton coach, en bas à droite",
-    body: "Le bouton Coach t'accompagne 24/7 : pose tes questions, envoie une photo de ton repas ou d'une machine, il adapte même ton programme. Actif pendant tes 90 jours.",
+    title: "5. Ton coach, disponible 24h/24",
+    body: "Le bouton Coach, en bas à droite, est là 24 heures sur 24, 7 jours sur 7, pendant tes 90 jours. Pose-lui tes questions, envoie une photo d'un repas ou d'une machine de la salle, ou demande une adaptation : il modifie ton programme et ta nutrition en direct.",
+    href: "/app",
   },
 ];
 
 export function OnboardingTour() {
   const [step, setStep] = useState<number | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Change d'étape ET ouvre la page correspondante pendant l'explication.
+  function goTo(next: number) {
+    setStep(next);
+    const href = STEPS[next]?.href;
+    if (href && href !== pathname) router.push(href);
+  }
 
   useEffect(() => {
     try {
@@ -104,14 +120,14 @@ export function OnboardingTour() {
           <div className="flex items-center gap-2">
             {step > 0 ? (
               <button
-                onClick={() => setStep((v) => (v ?? 0) - 1)}
+                onClick={() => goTo(step - 1)}
                 className="tap rounded-btn border border-line-4 bg-surface px-4 py-2.5 text-[14px] font-semibold text-ink transition-colors hover:border-ink"
               >
                 Précédent
               </button>
             ) : null}
             <button
-              onClick={() => (last ? finish() : setStep((v) => (v ?? 0) + 1))}
+              onClick={() => (last ? finish() : goTo(step + 1))}
               className="tap rounded-btn bg-brand px-5 py-2.5 text-[14px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]"
             >
               {last ? "C'est parti" : "Suivant"}
