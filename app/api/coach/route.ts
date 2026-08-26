@@ -7,7 +7,10 @@ import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
 import { anthropic, MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
 import { describeAnswers, coachTone, DAYS } from "@/lib/questionnaire";
 import { generateProgram, readAdaptations } from "@/lib/program";
+import { pnum, grp } from "@/lib/nutrition";
 import { LIMIT_COACH_PER_DAY, COACH_CREDENTIAL } from "@/lib/config";
+
+const DIETS = ["Omnivore", "Flexitarien", "Végétarien", "Végétalien", "Sans porc", "Sans bœuf"];
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // l'adaptation peut déclencher une régénération
@@ -151,6 +154,32 @@ ${JSON.stringify(logs ?? [])}`;
         required: ["jours"],
       },
     },
+    {
+      name: "modifier_nutrition",
+      description:
+        "Modifie la nutrition du client quand il le demande : changer de régime, ajouter une allergie/intolérance, ou ajuster l'objectif calorique. Les repas, macros et la liste de courses se recalculent automatiquement. Renseigne uniquement les champs concernés par la demande.",
+      input_schema: {
+        type: "object",
+        properties: {
+          regime: {
+            type: "string",
+            enum: DIETS,
+            description: "Nouveau régime alimentaire, si le client en change.",
+          },
+          allergies: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "Allergies/intolérances à ajouter (ex : [\"Lactose\"]). Elles s'ajoutent aux existantes.",
+          },
+          calories: {
+            type: "number",
+            description:
+              "Nouvel objectif calorique par jour d'entraînement (kcal), entre 1200 et 5000, si le client veut manger plus ou moins.",
+          },
+        },
+      },
+    },
   ];
 
   const totalUsage = { input_tokens: 0, output_tokens: 0 };
@@ -169,6 +198,59 @@ ${JSON.stringify(logs ?? [])}`;
     // Ordonne selon la semaine pour la confirmation.
     const ordered = DAYS.filter((d) => clean.includes(d));
     return `Jours d'entraînement mis à jour : ${ordered.join(", ")} (${ordered.length} séances/semaine). Le calendrier, les séances et la nutrition se sont recalés. Confirme-le au client.`;
+  }
+
+  // Modifie la nutrition : régime, allergies, objectif calorique.
+  async function runNutrition(input: {
+    regime?: string;
+    allergies?: string[];
+    calories?: number;
+  }): Promise<string> {
+    if (!quiz) return "Impossible : questionnaire introuvable.";
+    const changes: string[] = [];
+    const answers: Record<string, unknown> = { ...quiz.answers };
+
+    if (input.regime && DIETS.includes(input.regime)) {
+      answers.diet = input.regime;
+      changes.push(`régime → ${input.regime}`);
+    }
+    if (Array.isArray(input.allergies) && input.allergies.length) {
+      const prev = Array.isArray(answers.allerg)
+        ? (answers.allerg as string[]).filter((x) => x !== "Aucune")
+        : [];
+      const merged = Array.from(new Set([...prev, ...input.allergies.map(String)]));
+      answers.allerg = merged;
+      changes.push(`allergies → ${merged.join(", ") || "aucune"}`);
+    }
+    if (changes.length) {
+      await supabase.from("questionnaires").update({ answers }).eq("user_id", ctx!.userId);
+      quiz.answers = answers; // pour d'éventuels outils suivants
+    }
+
+    if (typeof input.calories === "number" && input.calories >= 1200 && input.calories <= 5000) {
+      const { data: prog } = await supabase
+        .from("programs")
+        .select("id, plan")
+        .eq("user_id", ctx!.userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle<{ id: string; plan: { nutrition?: Record<string, string> } }>();
+      if (prog?.plan?.nutrition) {
+        const nut = prog.plan.nutrition;
+        const oldKcal = pnum(nut.kcal) || 2580;
+        const ratio = input.calories / oldKcal;
+        nut.kcal = grp(input.calories);
+        nut.protein = String(Math.round(pnum(nut.protein) * ratio));
+        nut.carbs = String(Math.round(pnum(nut.carbs) * ratio));
+        nut.fat = String(Math.round(pnum(nut.fat) * ratio));
+        await supabase.from("programs").update({ plan: prog.plan }).eq("id", prog.id);
+        changes.push(`objectif calorique → ${input.calories} kcal/jour`);
+      }
+    }
+
+    if (!changes.length) return "Aucune modification nutrition valide fournie.";
+    adapted = true;
+    return `Nutrition mise à jour : ${changes.join(" ; ")}. Les repas, macros et la liste de courses se recalculent. Confirme-le au client (le filtrage des allergènes reste une aide, il doit vérifier les étiquettes).`;
   }
 
   async function callModel(msgs: Anthropic.MessageParam[]) {
@@ -228,6 +310,10 @@ ${JSON.stringify(logs ?? [])}`;
     if (name === "changer_jours_entrainement") {
       const j = (input as { jours?: unknown }).jours;
       return runChangeDays(Array.isArray(j) ? j.map(String) : []);
+    }
+    if (name === "modifier_nutrition") {
+      const i = input as { regime?: string; allergies?: string[]; calories?: number };
+      return runNutrition(i);
     }
     return "Action inconnue.";
   }
