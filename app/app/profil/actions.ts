@@ -46,6 +46,40 @@ export async function updateMeasures(
   return { ok: true };
 }
 
+// Change la date de début du programme (profiles.start_date). Cette colonne
+// n'est pas modifiable par le client (grant restreint) : on passe par le service
+// role après contrôle de session. Recale agenda, séances et nutrition.
+export async function updateStartDate(
+  _prev: ProfilState,
+  formData: FormData,
+): Promise<ProfilState> {
+  const ctx = await getSessionContext();
+  if (!ctx) return { error: "Non authentifié." };
+
+  const raw = String(formData.get("start_date") ?? "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return { error: "Date invalide." };
+  const picked = new Date(`${raw}T00:00:00Z`);
+  if (Number.isNaN(picked.getTime())) return { error: "Date invalide." };
+
+  const now = new Date();
+  const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const diffDays = Math.round((picked.getTime() - todayUTC) / 86_400_000);
+  if (diffDays < -30 || diffDays > 60) {
+    return { error: "Choisis une date entre il y a 30 jours et dans 60 jours." };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("profiles").update({ start_date: raw }).eq("id", ctx.userId);
+  if (error) return { error: "Enregistrement impossible." };
+
+  revalidatePath("/app");
+  revalidatePath("/app/agenda");
+  revalidatePath("/app/seance");
+  revalidatePath("/app/nutrition");
+  revalidatePath("/app/profil");
+  return { ok: true };
+}
+
 // Changement de mot de passe depuis l'espace client (session active).
 export async function changePassword(
   _prev: ProfilState,

@@ -6,6 +6,7 @@ import { accessLabel } from "@/lib/access";
 import { Card, MonoLabel, Stat } from "@/components/ui";
 import { PasswordChange, AccountActions } from "@/components/profil-actions";
 import { ProfileMeasures } from "@/components/profile-measures";
+import { StartDateSetting } from "@/components/start-date-setting";
 import { COACH_CREDENTIAL } from "@/lib/config";
 
 export const metadata = { title: "Profil — FitMe90" };
@@ -18,9 +19,9 @@ export default async function ProfilPage() {
   const [{ data: prof }, { data: lastWeight }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("age, height_cm, rest_hr")
+      .select("age, height_cm, rest_hr, start_date")
       .eq("id", ctx.userId)
-      .maybeSingle<{ age: number | null; height_cm: number | null; rest_hr: number | null }>(),
+      .maybeSingle<{ age: number | null; height_cm: number | null; rest_hr: number | null; start_date: string | null }>(),
     supabase
       .from("weights")
       .select("kg")
@@ -43,6 +44,10 @@ export default async function ProfilPage() {
         height={str(prof?.height_cm)}
         rest={str(prof?.rest_hr)}
       />
+
+      {["scheduled", "active", "grace"].includes(ctx.access.phase) ? (
+        <StartDateSetting current={prof?.start_date ?? ""} />
+      ) : null}
 
       <Card className="flex flex-col gap-3">
         <MonoLabel>Compte</MonoLabel>
