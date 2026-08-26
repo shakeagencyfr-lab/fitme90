@@ -7,7 +7,7 @@ import type {
 } from "react";
 
 // ------------------------------------------------------------------ *
-// Kit UI FitMe90 — composants primitifs partagés (README : Card, Stat,
+// Kit UI FitMe90, composants primitifs partagés (README : Card, Stat,
 // NavItem, MonoLabel, Button…). Sans ombre : bordures et fonds seulement.
 // Mobile-first : cibles 44px, texte lisible, plein largeur par défaut.
 // ------------------------------------------------------------------ */

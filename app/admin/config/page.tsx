@@ -2,7 +2,7 @@ import { readCoachConfig, BASE_METHODOLOGY } from "@/lib/methodology";
 import { CoachConfigForm } from "@/components/coach-config-form";
 import { MonoLabel } from "@/components/ui";
 
-export const metadata = { title: "Configuration IA — Admin FitMe90" };
+export const metadata = { title: "Configuration IA, Admin FitMe90" };
 
 export default async function AdminConfigPage() {
   const cfg = await readCoachConfig();

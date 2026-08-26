@@ -4,7 +4,7 @@ import { Card, MonoLabel } from "@/components/ui";
 import { WeightTracker } from "@/components/weight-tracker";
 import { MeasurementForm } from "@/components/evolution-forms";
 
-export const metadata = { title: "Évolution — FitMe90" };
+export const metadata = { title: "Évolution, FitMe90" };
 
 type Measure = {
   waist: number | null;
@@ -132,7 +132,7 @@ export default async function EvolutionPage() {
                     <td className="py-2 pr-3 text-muted">{fmtDate(r.measured_at)}</td>
                     {MEAS_COLS.map(([k]) => (
                       <td key={k} className="py-2 pr-3 tabular-nums text-body">
-                        {r[k] != null ? String(r[k]).replace(".", ",") : "—"}
+                        {r[k] != null ? String(r[k]).replace(".", ",") : "·"}
                       </td>
                     ))}
                   </tr>

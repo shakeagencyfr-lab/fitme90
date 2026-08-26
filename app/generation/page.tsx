@@ -3,7 +3,7 @@ import { getSessionContext } from "@/lib/guard";
 import { GenerateStep } from "@/components/generate-step";
 import { Wordmark } from "@/components/brand";
 
-export const metadata = { title: "Génération — FitMe90" };
+export const metadata = { title: "Génération, FitMe90" };
 
 export default async function GenerationPage() {
   const ctx = await getSessionContext();

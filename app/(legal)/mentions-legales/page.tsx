@@ -1,4 +1,4 @@
-export const metadata = { title: "Mentions légales — FitMe90" };
+export const metadata = { title: "Mentions légales, FitMe90" };
 
 export default function MentionsLegalesPage() {
   return (
@@ -8,9 +8,9 @@ export default function MentionsLegalesPage() {
 
       <h2>Éditeur du site</h2>
       <p>
-        FitMe90 — [Nom / raison sociale de l'exploitant à compléter]. Coach
+        FitMe90, [Nom / raison sociale de l'exploitant à compléter]. Coach
         professionnel diplômé d'État et de l'université des sports. [Statut :
-        entrepreneur individuel / société — à
+        entrepreneur individuel / société, à
         préciser]. SIRET : [à compléter]. Numéro de carte professionnelle
         d'éducateur sportif : [à compléter].
       </p>
@@ -19,7 +19,7 @@ export default function MentionsLegalesPage() {
       </p>
 
       <h2>Directeur de la publication</h2>
-      <p>[Nom du responsable — à compléter].</p>
+      <p>[Nom du responsable, à compléter].</p>
 
       <h2>Hébergement</h2>
       <p>

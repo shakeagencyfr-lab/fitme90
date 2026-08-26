@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
-// Icônes line (stroke) — cohérentes, lisibles à petite taille.
+// Icônes line (stroke), cohérentes, lisibles à petite taille.
 const I = {
   programme: (
     <>

@@ -3,7 +3,7 @@ import { getSessionContext } from "@/lib/guard";
 import { Questionnaire } from "@/components/questionnaire";
 import { Wordmark } from "@/components/brand";
 
-export const metadata = { title: "Questionnaire — FitMe90" };
+export const metadata = { title: "Questionnaire, FitMe90" };
 
 export default async function QuestionnairePage() {
   const ctx = await getSessionContext();

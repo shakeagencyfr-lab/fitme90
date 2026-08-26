@@ -5,7 +5,7 @@ import { Card, MonoLabel, Button } from "@/components/ui";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { giveConsent } from "./actions";
 
-export const metadata = { title: "Photos — FitMe90" };
+export const metadata = { title: "Photos, FitMe90" };
 
 export default async function PhotosPage() {
   const ctx = await getSessionContext();

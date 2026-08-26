@@ -8,7 +8,7 @@ import { DAYS } from "@/lib/questionnaire";
 import type { Plan } from "@/lib/program";
 import { PROGRAM_DAYS } from "@/lib/config";
 
-export const metadata = { title: "Programme — FitMe90" };
+export const metadata = { title: "Programme, FitMe90" };
 
 async function loadPlanAndDays(userId: string): Promise<{ plan: Plan | null; trainDays: string[] }> {
   const supabase = await createClient();
@@ -43,7 +43,7 @@ export default async function ProgrammePage() {
       <Empty
         title="Débloque ton programme"
         body="Le paiement unique de 190 € donne accès à ton programme d'entraînement et nutrition sur 90 jours, coach IA inclus."
-        cta={{ href: "/app/paiement", label: "Débloquer — 190 €" }}
+        cta={{ href: "/app/paiement", label: "Débloquer, 190 €" }}
       />
     );
   }
@@ -126,7 +126,7 @@ export default async function ProgrammePage() {
         ))}
       </section>
 
-      {/* Semaine type — reflète les jours choisis. Défilement horizontal sur
+      {/* Semaine type, reflète les jours choisis. Défilement horizontal sur
           mobile : cartes larges lisibles, on glisse pour voir la suite. */}
       <Card className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">

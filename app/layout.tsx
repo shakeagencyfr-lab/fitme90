@@ -27,7 +27,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FitMe90 — Ton programme sport & nutrition sur 90 jours",
+  title: "FitMe90, Ton programme sport & nutrition sur 90 jours",
   description:
     "Un programme d'entraînement et d'accompagnement nutritionnel personnalisé sur 90 jours, conçu par un coach professionnel diplômé d'État.",
   applicationName: "FitMe90",

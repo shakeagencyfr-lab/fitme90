@@ -5,7 +5,7 @@ import { CheckoutButton } from "@/components/checkout-button";
 import { RedeemForm } from "@/components/redeem-form";
 import { PRICE_EUR, COACH_CREDENTIAL } from "@/lib/config";
 
-export const metadata = { title: "Débloquer mon programme — FitMe90" };
+export const metadata = { title: "Débloquer mon programme, FitMe90" };
 
 export default async function PaiementPage() {
   const ctx = await getSessionContext();

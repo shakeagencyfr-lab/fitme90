@@ -107,7 +107,7 @@ export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, in
   return (
     <div className="flex flex-col gap-4 pb-24">
       <p className="text-[13.5px] text-muted leading-relaxed">
-        Note tes séries — le poids (kg) et les répétitions. Touche <strong>Repos</strong> après
+        Note tes séries, le poids (kg) et les répétitions. Touche <strong>Repos</strong> après
         une série pour lancer le minuteur. Tu peux refaire cette séance quand tu veux.
       </p>
 

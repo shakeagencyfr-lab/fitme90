@@ -9,19 +9,19 @@ import { LandingHeader } from "@/components/landing-header";
 export const viewport: Viewport = { themeColor: "#0a0b0c" };
 
 export const metadata = {
-  title: "FitMe90 — Ta transformation en 90 jours, ultra-personnalisée",
+  title: "FitMe90, Ta transformation en 90 jours, ultra-personnalisée",
   description:
     "90 jours pour transformer ton corps : programme d'entraînement périodisé sur ta salle et accompagnement nutritionnel personnalisés, conçus par un coach professionnel diplômé d'État. Paiement unique, sans abonnement.",
 };
 
 /* ------------------------------------------------------------------ *
- * Landing de vente — thème sombre « sport premium », autonome.
+ * Landing de vente, thème sombre « sport premium », autonome.
  * Emplacements photo : fond en dégradé + photo optionnelle superposée
  * (public/img/hero.jpg, public/img/salle.jpg). Si le fichier manque,
- * le dégradé s'affiche seul — aucune image cassée.
+ * le dégradé s'affiche seul, aucune image cassée.
  * ------------------------------------------------------------------ */
 
-// — Icônes (stroke, currentColor) ---------------------------------------
+//, Icônes (stroke, currentColor) ---------------------------------------
 type IconProps = { className?: string };
 const S = {
   ai: (p: IconProps) => (
@@ -96,12 +96,12 @@ const S = {
 };
 
 const features = [
-  { icon: S.ai, title: "IA de dernière génération", body: "Le programme complet — exercices, séries, charges, progressions, menus et macros — écrit sur mesure à partir de ton profil." },
+  { icon: S.ai, title: "IA de dernière génération", body: "Le programme complet, exercices, séries, charges, progressions, menus et macros, écrit sur mesure à partir de ton profil." },
   { icon: S.camera, title: "Analyse de ta salle", body: "Tu photographies tes machines : le plan n'utilise que le matériel réellement disponible, rien d'inaccessible." },
   { icon: S.shield, title: "100 % personnalisé", body: "Pathologies, allergies, régime, cadre religieux : chaque contrainte est prise en compte pour un programme sûr." },
-  { icon: S.dumbbell, title: "3 cycles périodisés", body: "Adaptation, intensification, spécialisation — 90 jours structurés, charges progressives et logique expliquée." },
+  { icon: S.dumbbell, title: "3 cycles périodisés", body: "Adaptation, intensification, spécialisation, 90 jours structurés, charges progressives et logique expliquée." },
   { icon: S.heart, title: "Zones cardiaques Karvonen", body: "Tes zones d'intensité calculées précisément pour tirer le meilleur de chaque séance de cardio." },
-  { icon: S.grid, title: "Espace client complet", body: "Séances interactives, calendrier, journal, courbe de poids — tout ton suivi au quotidien, au même endroit." },
+  { icon: S.grid, title: "Espace client complet", body: "Séances interactives, calendrier, journal, courbe de poids, tout ton suivi au quotidien, au même endroit." },
   { icon: S.timer, title: "Outils d'entraînement", body: "Minuteur de repos intégré, journal série par série (kg × reps), coches et progression pour rester focus." },
   { icon: S.chat, title: "Coach IA personnel", body: "Disponible en continu, formé sur ton profil. Il répond, motive, et adapte le plan et la diète tout seul." },
 ];
@@ -138,16 +138,16 @@ const includes = [
   "Programme d'entraînement périodisé sur 90 jours, calé sur ta salle",
   "Accompagnement nutritionnel jour par jour (menus, macros, liste de courses)",
   "Séance guidée : minuteur, journal série par série, progression",
-  "Coach IA inclus toute la durée — il adapte le plan et la diète en autonomie",
+  "Coach IA inclus toute la durée, il adapte le plan et la diète en autonomie",
   "Suivi visuel : courbe de poids, mensurations, IMC, zones cardio",
   `Plan consultable ${GRACE_DAYS} jours de plus après la fin (lecture seule)`,
 ];
 
 const faqs = [
-  { q: "Faut-il une salle ou du matériel particulier ?", a: "Non. Tu photographies ce que tu as — salle complète, home-gym ou quelques haltères — et le programme se construit uniquement avec ce matériel." },
+  { q: "Faut-il une salle ou du matériel particulier ?", a: "Non. Tu photographies ce que tu as, salle complète, home-gym ou quelques haltères, et le programme se construit uniquement avec ce matériel." },
   { q: "Je suis débutant, est-ce que c'est adapté ?", a: "Oui. Le premier cycle (J1 → J30) est dédié à la technique et à l'installation de l'habitude. On progresse ensuite graduellement, sans brûler les étapes." },
   { q: "Le coach IA remplace-t-il un vrai coach ?", a: `Le programme est conçu par un ${COACH_CREDENTIAL.toLowerCase()}. Le coach IA prolonge cet accompagnement au quotidien : il répond, motive et ajuste le plan. C'est un accompagnement sportif et de bien-être, sans visée thérapeutique.` },
-  { q: "Et la nutrition, tu es diététicien ?", a: "Non, et je ne prétends pas l'être. FitMe90 propose un accompagnement nutritionnel et une aide au choix des repas adaptée à ton profil — ce n'est pas une prescription diététique ni le traitement d'une pathologie. Pour tout suivi médical ou nutritionnel thérapeutique, adresse-toi à un professionnel de santé." },
+  { q: "Et la nutrition, tu es diététicien ?", a: "Non, et je ne prétends pas l'être. FitMe90 propose un accompagnement nutritionnel et une aide au choix des repas adaptée à ton profil, ce n'est pas une prescription diététique ni le traitement d'une pathologie. Pour tout suivi médical ou nutritionnel thérapeutique, adresse-toi à un professionnel de santé." },
   { q: "Que se passe-t-il après les 90 jours ?", a: `Le coach IA se désactive à la fin du programme, mais ton plan d'entraînement reste consultable ${GRACE_DAYS} jours de plus en lecture seule.` },
   { q: "J'ai une blessure, une pathologie ou une grossesse ?", a: "Un écran santé au démarrage repère les situations à risque. Selon les cas, le programme est adapté ou mis en pause en attendant l'avis de ton médecin. FitMe90 ne remplace jamais un avis médical." },
   { q: "Y a-t-il un abonnement ?", a: `Aucun. C'est un paiement unique de ${PRICE_EUR} €, sans reconduction ni prélèvement caché. Le paiement est sécurisé par Stripe.` },
@@ -172,11 +172,11 @@ const nutritionBullets = [
   "Macros journaliers",
 ];
 
-// Section « preuve » — arguments FACTUELS et vérifiables (aucun faux avis :
+// Section « preuve », arguments FACTUELS et vérifiables (aucun faux avis :
 // publier des témoignages inventés serait une pratique commerciale trompeuse).
 const proofPoints = [
   { icon: S.shield, title: "Coach diplômé d'État", body: "Programmes conçus par un coach professionnel diplômé d'État et de l'université des sports." },
-  { icon: S.dumbbell, title: "Méthode périodisée", body: "Trois cycles structurés — adaptation, intensification, spécialisation — pas des séances au hasard." },
+  { icon: S.dumbbell, title: "Méthode périodisée", body: "Trois cycles structurés, adaptation, intensification, spécialisation, pas des séances au hasard." },
   { icon: S.camera, title: "Vraiment sur-mesure", body: "Ta salle scannée, tes pathologies, tes allergies et tes jours pris en compte. Rien de générique." },
   { icon: S.chat, title: "Coach IA inclus 90 jours", body: "Un accompagnement au quotidien qui répond, motive et adapte le plan et la diète en autonomie." },
   { icon: S.spark, title: "Sans abonnement", body: "Un paiement unique. Aucune reconduction, aucun prélèvement caché, paiement sécurisé Stripe." },
@@ -313,7 +313,7 @@ export default function LandingPage() {
                 Ta salle analysée. Ton programme adapté.
               </h2>
               <p className="max-w-[52ch] text-[16px] leading-[1.65] text-white/65">
-                Photographie ta salle de sport — qu'il s'agisse d'une salle
+                Photographie ta salle de sport, qu'il s'agisse d'une salle
                 commerciale, d'un home-gym ou d'une salle communautaire. L'IA
                 identifie le matériel disponible et s'assure que chaque exercice
                 de ton programme est réalisable avec ce que tu as.
@@ -328,7 +328,7 @@ export default function LandingPage() {
               </ul>
             </div>
             {/* Visuel animé : scan de la salle */}
-            <GridScan label="IA en cours d'analyse — matériel détecté" />
+            <GridScan label="IA en cours d'analyse, matériel détecté" />
           </div>
         </section>
 
@@ -347,7 +347,7 @@ export default function LandingPage() {
                 Ton programme, vivant au quotidien.
               </h2>
               <p className="max-w-[52ch] text-[16px] leading-[1.65] text-white/65">
-                Plus qu'un document — ton programme est interactif. Coche tes
+                Plus qu'un document, ton programme est interactif. Coche tes
                 exercices, lance ton chronomètre, consulte ta nutrition du jour
                 et dialogue avec ton coach IA, directement depuis ton espace.
               </p>
@@ -372,7 +372,7 @@ export default function LandingPage() {
                 Une nutrition aussi précise que ton entraînement.
               </h2>
               <p className="max-w-[52ch] text-[16px] leading-[1.65] text-white/65">
-                Calories, macros, timing des repas et recettes adaptées — et
+                Calories, macros, timing des repas et recettes adaptées, et
                 surtout, tes allergies, tes intolérances et ton cadre religieux
                 (halal, casher, végétarien…) pris en compte. C'est une aide au
                 choix des repas, pas une prescription diététique.
@@ -413,7 +413,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Programme — les 3 cycles */}
+        {/* Programme, les 3 cycles */}
         <section id="programme" className="scroll-mt-24 border-t border-white/10 bg-white/[0.015]">
           <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(64px,9vw,110px)] sm:px-8">
             <div className="flex flex-col gap-4">

@@ -30,7 +30,7 @@ export function TrainingDaysEditor({ initial }: { initial: string[] }) {
       <div className="flex flex-col gap-0.5">
         <MonoLabel>Mes jours d'entraînement</MonoLabel>
         <p className="text-[13px] text-muted">
-          Ton emploi du temps change ? Ajuste tes jours — le programme est réécrit
+          Ton emploi du temps change ? Ajuste tes jours, le programme est réécrit
           sur ces jours (quelques secondes) et le calendrier, les séances et la
           nutrition suivent.
         </p>

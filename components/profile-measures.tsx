@@ -62,7 +62,7 @@ export function ProfileMeasures(initial: Props) {
               <div className="flex flex-col gap-0.5">
                 <MonoLabel>IMC</MonoLabel>
                 <div className="font-archivo font-extrabold text-[42px] leading-none tracking-[-0.03em] text-ink">
-                  {bmiVal ? bmiVal.toFixed(1).replace(".", ",") : "—"}
+                  {bmiVal ? bmiVal.toFixed(1).replace(".", ",") : "·"}
                 </div>
               </div>
               <span
@@ -95,7 +95,7 @@ export function ProfileMeasures(initial: Props) {
       <Card className="flex flex-col gap-3.5">
         <div className="flex items-baseline justify-between gap-2 flex-wrap">
           <div className="font-archivo font-bold text-[17px] text-ink">
-            Zones cardiaques — Karvonen
+            Zones cardiaques, Karvonen
           </div>
           <span className="font-mono text-[11px] text-muted-2">FC max {hrMax}</span>
         </div>

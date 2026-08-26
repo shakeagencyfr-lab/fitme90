@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { computeAccess, accessLabel } from "@/lib/access";
 import { Card, MonoLabel } from "@/components/ui";
 
-export const metadata = { title: "Clients — Admin FitMe90" };
+export const metadata = { title: "Clients, Admin FitMe90" };
 
 type Prof = {
   id: string;
@@ -15,7 +15,7 @@ type Prof = {
 };
 
 const fmt = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "UTC" }) : "—";
+  d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "UTC" }) : "·";
 
 export default async function AdminClientsPage() {
   const admin = createAdminClient();
@@ -64,7 +64,7 @@ export default async function AdminClientsPage() {
               {withAccess.map(({ p, access }) => (
                 <tr key={p.id} className="border-b border-line-2 last:border-0">
                   <td className="px-4 py-3">
-                    <div className="font-semibold text-ink">{p.name || "—"}</div>
+                    <div className="font-semibold text-ink">{p.name || "·"}</div>
                     <div className="text-[12px] text-muted-2">{p.email}</div>
                   </td>
                   <td className="px-4 py-3">
@@ -78,7 +78,7 @@ export default async function AdminClientsPage() {
                   </td>
                   <td className="px-4 py-3 text-body">{accessLabel(access)}</td>
                   <td className="px-4 py-3 tabular-nums text-body">
-                    {access.phase === "active" ? `${access.day}/90` : "—"}
+                    {access.phase === "active" ? `${access.day}/90` : "·"}
                   </td>
                   <td className="px-4 py-3 tabular-nums text-body">{sessionCount.get(p.id) ?? 0}</td>
                   <td className="px-4 py-3 tabular-nums text-muted">{fmt(p.start_date)}</td>
@@ -96,7 +96,7 @@ export default async function AdminClientsPage() {
       </Card>
 
       <p className="text-[12.5px] text-muted-2">
-        Données clients (RGPD) — usage strictement professionnel, réservé au coach.
+        Données clients (RGPD), usage strictement professionnel, réservé au coach.
       </p>
     </div>
   );

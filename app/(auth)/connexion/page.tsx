@@ -1,7 +1,7 @@
 import { LoginForm } from "@/components/auth-forms";
 import { Alert } from "@/components/ui";
 
-export const metadata = { title: "Connexion — FitMe90" };
+export const metadata = { title: "Connexion, FitMe90" };
 
 export default async function ConnexionPage({
   searchParams,

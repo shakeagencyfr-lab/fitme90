@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getAdminOrNull } from "@/lib/admin";
 import { Wordmark } from "@/components/brand";
 
-export const metadata = { title: "Admin — FitMe90" };
+export const metadata = { title: "Admin, FitMe90" };
 
 // Toutes les pages /admin/* passent par ce garde : accès réservé aux e-mails
 // listés dans ADMIN_EMAILS. Sinon 404 (on ne révèle pas l'existence de l'espace).

@@ -181,7 +181,7 @@ export function NutritionView({
 
       {/* Repas du jour */}
       <section className="flex flex-col gap-3">
-        <MonoLabel>Repas — jour {day}</MonoLabel>
+        <MonoLabel>Repas, jour {day}</MonoLabel>
         {meals.map((m, i) => (
           <Card key={i} className="flex flex-col gap-2">
             <div className="flex items-baseline justify-between gap-2">

@@ -61,7 +61,7 @@ export async function POST() {
   const arr = (k: string) => (Array.isArray(a[k]) ? (a[k] as string[]).join(", ") : "");
   const n = program?.plan?.nutrition ?? {};
 
-  const system = `Tu es ${COACH_CREDENTIAL}. Réponds UNIQUEMENT par un JSON valide en français : {"recipes":[{"name":"","kcal":"620","protein":"42 g","time":"20 min","ingredients":[{"food":"","qty":""}],"steps":"3 phrases max"}]} — exactement 3 recettes. Conseils culinaires uniquement, aucune allégation médicale.`;
+  const system = `Tu es ${COACH_CREDENTIAL}. Réponds UNIQUEMENT par un JSON valide en français : {"recipes":[{"name":"","kcal":"620","protein":"42 g","time":"20 min","ingredients":[{"food":"","qty":""}],"steps":"3 phrases max"}]} — exactement 3 recettes. Conseils culinaires uniquement, aucune allégation médicale. N'utilise jamais de tiret cadratin (—) ni demi-cadratin (–).`;
   const user =
     `Objectifs du jour : ${n.kcal || "2 580"} kcal, ${n.protein || "148"} g de protéines, ${n.carbs || "276"} g de glucides, ${n.fat || "78"} g de lipides.\n` +
     `Allergies à exclure strictement : ${arr("allerg") || "aucune"}.\n` +

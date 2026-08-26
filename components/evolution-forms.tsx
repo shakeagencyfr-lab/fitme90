@@ -39,7 +39,7 @@ export function MeasurementForm() {
         {state.ok ? <Alert tone="info">Mensurations enregistrées.</Alert> : null}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {MEAS.map(([k, label]) => (
-            <Field key={k} id={k} name={k} type="text" inputMode="decimal" label={label} placeholder="—" />
+            <Field key={k} id={k} name={k} type="text" inputMode="decimal" label={label} placeholder="·" />
           ))}
         </div>
         <Button type="submit" loading={pending} className="self-start h-11">Enregistrer</Button>

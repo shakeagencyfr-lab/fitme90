@@ -3,7 +3,7 @@ import { getSessionContext } from "@/lib/guard";
 import { GymStep } from "@/components/gym-step";
 import { Wordmark } from "@/components/brand";
 
-export const metadata = { title: "Ma salle — FitMe90" };
+export const metadata = { title: "Ma salle, FitMe90" };
 
 export default async function SallePage() {
   const ctx = await getSessionContext();

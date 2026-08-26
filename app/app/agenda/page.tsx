@@ -10,7 +10,7 @@ import {
 import { DAYS } from "@/lib/questionnaire";
 import { MonoLabel } from "@/components/ui";
 
-export const metadata = { title: "Agenda — FitMe90" };
+export const metadata = { title: "Agenda, FitMe90" };
 
 const DAY_MS = 86_400_000;
 const cycleOf = (d: number) => (d <= 30 ? 0 : d <= 60 ? 1 : 2);
@@ -112,7 +112,7 @@ export default async function AgendaPage() {
                     <Link
                       key={dUTC}
                       href={`/app/seance?jour=${pd}`}
-                      aria-label={`${dom} — jour ${pd}${rest ? " repos" : ""}${isDone ? " validé" : ""}`}
+                      aria-label={`${dom}, jour ${pd}${rest ? " repos" : ""}${isDone ? " validé" : ""}`}
                       title={`Jour ${pd}${rest ? " · repos" : ""}${isDone ? " · validé" : ""}`}
                       className={base}
                     >

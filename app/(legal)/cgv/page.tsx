@@ -1,6 +1,6 @@
 import { PRICE_EUR } from "@/lib/config";
 
-export const metadata = { title: "Conditions générales de vente — FitMe90" };
+export const metadata = { title: "Conditions générales de vente, FitMe90" };
 
 export default function CgvPage() {
   return (

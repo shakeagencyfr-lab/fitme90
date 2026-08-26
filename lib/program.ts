@@ -76,7 +76,7 @@ const SCHEMA_HINT =
 // Positionnement coach (pas « diététicien ») : accompagnement de forme, pas
 // de visée thérapeutique. Le public à risque médical est déjà écarté en amont
 // (lib/screening.ts).
-const SYSTEM = `Tu es ${COACH_CREDENTIAL}, tu accompagnes des personnes en bonne santé vers un objectif de forme. Tu réponds UNIQUEMENT par un objet JSON valide en français, sans texte autour. Exactement 3 cycles, 7 jours dans weekPlan (repos les jours non travaillés indiqués), 5 à 7 exercices avec sets entier, 4 à 6 repas. Conseils d'entraînement et d'hygiène alimentaire uniquement : aucune allégation médicale ni thérapeutique.`;
+const SYSTEM = `Tu es ${COACH_CREDENTIAL}, tu accompagnes des personnes en bonne santé vers un objectif de forme. Tu réponds UNIQUEMENT par un objet JSON valide en français, sans texte autour. Exactement 3 cycles, 7 jours dans weekPlan (repos les jours non travaillés indiqués), 5 à 7 exercices avec sets entier, 4 à 6 repas. Conseils d'entraînement et d'hygiène alimentaire uniquement : aucune allégation médicale ni thérapeutique. RÈGLE DE STYLE : n'utilise JAMAIS de tiret cadratin (—) ni de tiret demi-cadratin (–) dans les textes ; écris avec une ponctuation naturelle (virgules, deux-points, points, parenthèses).`;
 
 export interface Brief {
   answers: Record<string, unknown>;

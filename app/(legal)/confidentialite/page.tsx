@@ -1,4 +1,4 @@
-export const metadata = { title: "Politique de confidentialité — FitMe90" };
+export const metadata = { title: "Politique de confidentialité, FitMe90" };
 
 export default function ConfidentialitePage() {
   return (
@@ -7,7 +7,7 @@ export default function ConfidentialitePage() {
       <p className="muted">Dernière mise à jour : à compléter. Conforme au RGPD.</p>
 
       <h2>Responsable du traitement</h2>
-      <p>[Exploitant de FitMe90 — voir mentions légales]. Contact : [e-mail].</p>
+      <p>[Exploitant de FitMe90, voir mentions légales]. Contact : [e-mail].</p>
 
       <h2>Données collectées</h2>
       <ul>
@@ -37,13 +37,13 @@ export default function ConfidentialitePage() {
 
       <h2>Sous-traitants</h2>
       <ul>
-        <li>Vercel — hébergement de l'application (région UE, Paris).</li>
-        <li>Supabase — base de données, authentification, stockage (région UE).</li>
-        <li>Anthropic — génération du programme et coach (traitement à la demande).</li>
-        <li>Stripe — paiement.</li>      </ul>
+        <li>Vercel, hébergement de l'application (région UE, Paris).</li>
+        <li>Supabase, base de données, authentification, stockage (région UE).</li>
+        <li>Anthropic, génération du programme et coach (traitement à la demande).</li>
+        <li>Stripe, paiement.</li>      </ul>
       <p className="muted">
         Vérifier les garanties de transfert hors UE (clauses contractuelles types) de
-        chaque sous-traitant et compléter cette liste — à valider par un juriste.
+        chaque sous-traitant et compléter cette liste, à valider par un juriste.
       </p>
 
       <h2>Durées de conservation</h2>

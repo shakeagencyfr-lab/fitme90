@@ -8,7 +8,7 @@ import { CoachLoadSuggestion } from "@/components/coach-loads";
 import { RPE, RPE_INTRO, targetRpe } from "@/lib/fitness";
 import { PROGRAM_DAYS } from "@/lib/config";
 
-export const metadata = { title: "Séance — FitMe90" };
+export const metadata = { title: "Séance, FitMe90" };
 
 interface SavedEntry {
   exercise: string;
@@ -129,7 +129,7 @@ export default async function SeancePage({
                   </span>
                   <div className="min-w-0">
                     <span className="text-[13.5px] font-semibold text-ink">{r.label}</span>
-                    <span className="text-[13px] text-muted"> — {r.body}</span>
+                    <span className="text-[13px] text-muted">, {r.body}</span>
                   </div>
                 </div>
               );

@@ -12,7 +12,7 @@ interface Msg {
 
 type Attached = { data: string; media_type: "image/jpeg"; preview: string };
 
-// — Web Speech API (dictée vocale) : typage minimal, sans `any`. -----------
+//, Web Speech API (dictée vocale) : typage minimal, sans `any`. -----------
 interface SpeechResultList {
   readonly length: number;
   [i: number]: { readonly isFinal: boolean; [j: number]: { transcript: string } };
@@ -59,7 +59,7 @@ function loadImage(file: File): Promise<HTMLImageElement> {
 
 // Coach flottant : accessible depuis tout l'espace client (README).
 // Texte + photo (vision) + dictée vocale. Monté uniquement si le coach est
-// activé (avant J90) — le layout ne le rend pas au-delà.
+// activé (avant J90), le layout ne le rend pas au-delà.
 export function CoachWidget() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -67,7 +67,7 @@ export function CoachWidget() {
     {
       role: "assistant",
       content:
-        "Salut. Pose-moi une question sur ta séance, un exercice, une substitution ou un repas — tu peux aussi m'envoyer une photo (repas, machine) ou dicter à la voix.",
+        "Salut. Pose-moi une question sur ta séance, un exercice, une substitution ou un repas, tu peux aussi m'envoyer une photo (repas, machine) ou dicter à la voix.",
     },
   ]);
   const [input, setInput] = useState("");
