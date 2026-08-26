@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { loadEspaceOrRedirect } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
+import { restPattern, isRestDay } from "@/lib/schedule";
 import { MonoLabel } from "@/components/ui";
 
 export const metadata = { title: "Agenda — FitMe90" };
@@ -8,11 +9,10 @@ export const metadata = { title: "Agenda — FitMe90" };
 const CYCLE_DOT = ["bg-brand", "bg-ink", "bg-cardio"];
 
 export default async function AgendaPage() {
-  const { ctx, plan } = await loadEspaceOrRedirect();
+  const { ctx, plan, trainDays } = await loadEspaceOrRedirect();
   const today = Math.max(1, ctx.access.day);
-  const restPattern = plan.weekPlan.slice(0, 7).map((d) => d.rest);
-  const isRest = (d: number) =>
-    restPattern.length ? restPattern[(d - 1) % restPattern.length] : false;
+  const pattern = restPattern(trainDays, plan.weekPlan.slice(0, 7).map((d) => d.rest));
+  const isRest = (d: number) => isRestDay(d, pattern);
   const cycleOf = (d: number) => (d <= 30 ? 0 : d <= 60 ? 1 : 2);
 
   const supabase = await createClient();

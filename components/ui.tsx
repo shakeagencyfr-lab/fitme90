@@ -98,7 +98,7 @@ export function Stat({
 type ButtonVariant = "primary" | "outline" | "ghost" | "danger";
 
 const buttonBase =
-  "tap inline-flex items-center justify-center gap-2 rounded-btn px-5 font-plex font-semibold text-[15px] leading-none transition-colors disabled:cursor-not-allowed select-none";
+  "tap inline-flex items-center justify-center gap-2 rounded-btn px-5 font-plex font-semibold text-[15px] leading-none transition-[transform,background-color,border-color,color] duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:active:scale-100 select-none";
 
 const buttonVariants: Record<ButtonVariant, string> = {
   primary:

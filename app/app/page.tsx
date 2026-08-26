@@ -3,21 +3,33 @@ import { getSessionContext } from "@/lib/guard";
 import { accessLabel } from "@/lib/access";
 import { Card, Stat, MonoLabel, ButtonLink, Alert } from "@/components/ui";
 import { PdfButton } from "@/components/pdf-button";
+import { TrainingDaysEditor } from "@/components/training-days";
+import { restPattern } from "@/lib/schedule";
+import { DAYS } from "@/lib/questionnaire";
 import type { Plan } from "@/lib/program";
 import { PROGRAM_DAYS } from "@/lib/config";
 
 export const metadata = { title: "Programme — FitMe90" };
 
-async function latestPlan(userId: string): Promise<Plan | null> {
+async function loadPlanAndDays(userId: string): Promise<{ plan: Plan | null; trainDays: string[] }> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("programs")
-    .select("plan")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ plan: Plan }>();
-  return data?.plan ?? null;
+  const [{ data: prog }, { data: quiz }] = await Promise.all([
+    supabase
+      .from("programs")
+      .select("plan")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ plan: Plan }>(),
+    supabase
+      .from("questionnaires")
+      .select("train_days")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ train_days: string[] }>(),
+  ]);
+  return { plan: prog?.plan ?? null, trainDays: quiz?.train_days ?? [] };
 }
 
 export default async function ProgrammePage() {
@@ -55,7 +67,7 @@ export default async function ProgrammePage() {
     );
   }
 
-  const plan = await latestPlan(ctx.userId);
+  const { plan, trainDays } = await loadPlanAndDays(ctx.userId);
   if (!plan) {
     return (
       <Empty
@@ -65,6 +77,10 @@ export default async function ProgrammePage() {
       />
     );
   }
+
+  const planRest = plan.weekPlan.slice(0, 7).map((d) => d.rest);
+  const pattern = restPattern(trainDays, planRest);
+  const trainNames = plan.weekPlan.filter((d) => !d.rest).map((d) => d.name);
 
   return (
     <div className="mx-auto flex max-w-[880px] flex-col gap-6">
@@ -94,28 +110,36 @@ export default async function ProgrammePage() {
         ))}
       </section>
 
-      {/* Semaine type */}
+      {/* Semaine type — reflète les jours choisis par le client */}
       <Card className="flex flex-col gap-3">
         <MonoLabel>Semaine type</MonoLabel>
         <div className="grid grid-cols-7 gap-1.5">
-          {plan.weekPlan.slice(0, 7).map((d, i) => (
-            <div
-              key={i}
-              className={[
-                "flex flex-col items-center gap-1 rounded-control border px-1 py-2 text-center",
-                d.rest ? "border-line bg-surface-2" : "border-line-4 bg-surface",
-              ].join(" ")}
-            >
-              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">
-                {d.day}
-              </span>
-              <span className="text-[11px] leading-tight text-body">
-                {d.rest ? "Repos" : d.name}
-              </span>
-            </div>
-          ))}
+          {DAYS.map((code, i) => {
+            const rest = pattern[i];
+            // Nom de séance : on répartit les séances du plan sur les jours actifs.
+            const trainIdx = pattern.slice(0, i).filter((r) => !r).length;
+            const name = rest ? "Repos" : trainNames[trainIdx % (trainNames.length || 1)] || "Séance";
+            return (
+              <div
+                key={code}
+                className={[
+                  "flex flex-col items-center gap-1 rounded-control border px-1 py-2 text-center transition-colors",
+                  rest ? "border-line bg-surface-2" : "border-brand/40 bg-alert",
+                ].join(" ")}
+              >
+                <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">
+                  {code}
+                </span>
+                <span className={["text-[11px] leading-tight", rest ? "text-muted-2" : "text-ink font-medium"].join(" ")}>
+                  {name}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </Card>
+
+      <TrainingDaysEditor initial={trainDays} />
 
       {/* Résumé chiffré */}
       <section className="grid gap-3 grid-cols-2">

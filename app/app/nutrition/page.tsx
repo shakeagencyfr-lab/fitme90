@@ -1,16 +1,17 @@
 import { loadEspaceOrRedirect } from "@/lib/queries";
 import { bannedTags, pnum } from "@/lib/nutrition";
+import { restPattern } from "@/lib/schedule";
+import { DAYS } from "@/lib/questionnaire";
 import { NutritionView } from "@/components/nutrition-view";
 
 export const metadata = { title: "Nutrition — FitMe90" };
 
 export default async function NutritionPage() {
-  const { ctx, plan, answers } = await loadEspaceOrRedirect();
+  const { ctx, plan, answers, trainDays } = await loadEspaceOrRedirect();
 
   const baseKcal = pnum(plan.nutrition.kcal) || 2580;
   const week = plan.weekPlan.slice(0, 7);
-  const restPattern = week.map((d) => d.rest);
-  const dayNames = week.map((d) => d.day);
+  const pattern = restPattern(trainDays, week.map((d) => d.rest));
   const banned = bannedTags(
     (answers.allerg as string[]) ?? [],
     (answers.diet as string) ?? undefined,
@@ -24,8 +25,8 @@ export default async function NutritionPage() {
       <NutritionView
         currentDay={Math.max(1, ctx.access.day)}
         baseKcal={baseKcal}
-        restPattern={restPattern.length ? restPattern : [false, false, true, false, false, true, true]}
-        dayNames={dayNames.length ? dayNames : ["LUN", "MAR", "MER", "JEU", "VEN", "SAM", "DIM"]}
+        restPattern={pattern}
+        dayNames={DAYS}
         banned={banned}
         macros={{ protein: plan.nutrition.protein, carbs: plan.nutrition.carbs, fat: plan.nutrition.fat }}
         canGenerate={ctx.access.coachEnabled}
