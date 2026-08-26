@@ -7,6 +7,7 @@ import { Card, MonoLabel, Stat } from "@/components/ui";
 import { PasswordChange, AccountActions } from "@/components/profil-actions";
 import { ProfileMeasures } from "@/components/profile-measures";
 import { StartDateSetting } from "@/components/start-date-setting";
+import { isAdminEmail } from "@/lib/admin";
 import { COACH_CREDENTIAL } from "@/lib/config";
 
 export const metadata = { title: "Profil — FitMe90" };
@@ -58,6 +59,16 @@ export default async function ProfilPage() {
           sportif et de bien-être, sans visée médicale.
         </p>
       </Card>
+
+      {isAdminEmail(ctx.email) ? (
+        <Card className="flex flex-col gap-2">
+          <MonoLabel className="text-brand">Espace coach</MonoLabel>
+          <Link href="/admin" className="font-archivo font-semibold text-[16px] text-ink hover:text-brand">
+            Ouvrir le dashboard admin →
+          </Link>
+          <p className="text-[12.5px] text-muted-2">Clients inscrits et configuration de l&apos;IA de génération.</p>
+        </Card>
+      ) : null}
 
       <PasswordChange />
       <AccountActions />

@@ -199,3 +199,18 @@ revoke all on public.gift_codes from authenticated, anon;
 -- Vérification (BUILD_PLAN étape 2) : connecte-toi avec deux comptes de test
 -- et confirme qu'aucun ne voit les lignes ni les fichiers de l'autre.
 -- Ne pas sauter cette étape.
+
+-- ------------------------------------------------------------- config coach
+-- Configuration globale de la génération (singleton). Le coach choisit, depuis
+-- le dashboard admin, de laisser l'IA décider (base evidence-based) ou de
+-- personnaliser la méthodologie. Aucune policy : seul le service role y accède.
+create table if not exists public.coach_config (
+  id                 boolean primary key default true,
+  generation_mode    text not null default 'auto',
+  custom_methodology text not null default '',
+  updated_at         timestamptz not null default now(),
+  constraint coach_config_singleton check (id = true),
+  constraint coach_config_mode check (generation_mode in ('auto','custom'))
+);
+alter table public.coach_config enable row level security;
+insert into public.coach_config (id) values (true) on conflict (id) do nothing;

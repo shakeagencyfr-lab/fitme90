@@ -3,6 +3,7 @@ import { z } from "zod";
 import { anthropic, MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
 import { describeAnswers } from "@/lib/questionnaire";
 import { COACH_CREDENTIAL } from "@/lib/config";
+import { effectiveMethodology } from "@/lib/methodology";
 
 // Schéma du plan retourné par le modèle (structure de la maquette).
 // Validé après génération : on n'écrit jamais en base un JSON hors-forme.
@@ -129,12 +130,14 @@ export async function generateProgram(
   effort: "low" | "medium" | "high" = "high",
 ): Promise<GenerateResult> {
   const client = anthropic();
+  // Méthodologie (base evidence-based, ou personnalisée par le coach en admin).
+  const methodology = await effectiveMethodology();
   // Streaming : la sortie est volumineuse (~8000 tokens), on évite le timeout.
   const stream = client.messages.stream({
     model: MODELS.generate,
     max_tokens: 12000,
     output_config: { effort },
-    system: SYSTEM,
+    system: `${SYSTEM}\n\n${methodology}`,
     messages: [
       {
         role: "user",
