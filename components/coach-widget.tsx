@@ -178,6 +178,7 @@ export function CoachWidget() {
     return (
       <button
         onClick={() => setOpen(true)}
+        data-tour="coach"
         className="tap fixed right-4 bottom-[calc(84px+env(safe-area-inset-bottom))] z-50 flex items-center gap-2.5 rounded-pill bg-fill px-5 py-3.5 text-fillfg shadow-[0_6px_20px_rgba(23,25,27,0.22)] transition-transform hover:scale-[1.03] active:scale-95 nav:bottom-6"
         aria-label="Ouvrir le coach"
       >

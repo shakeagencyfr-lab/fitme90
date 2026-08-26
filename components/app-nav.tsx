@@ -77,6 +77,14 @@ const IN_MORE = ["/app/evolution", "/app/photos"];
 const PRIMARY: Item[] = ALL.filter((i) => !IN_MORE.includes(i.href));
 const SECONDARY: Item[] = ALL.filter((i) => IN_MORE.includes(i.href));
 
+// Repères pour le tutoriel guidé (surbrillance des onglets).
+const TOUR: Record<string, string> = {
+  "/app": "programme",
+  "/app/agenda": "agenda",
+  "/app/seance": "seance",
+  "/app/nutrition": "nutrition",
+};
+
 function Icon({ children }: { children: ReactNode }) {
   return (
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -111,6 +119,7 @@ export function AppNav({ day, dayPct, cycleName }: { day: number; dayPct: number
             <Link
               key={it.href}
               href={it.href}
+              data-tour={TOUR[it.href]}
               className={[
                 "tap group flex flex-row items-center justify-start gap-[11px] rounded-control px-3 py-[11px] text-[14px] font-medium transition-colors",
                 on ? "bg-fill text-fillfg" : "text-body-2 hover:bg-paper",
@@ -175,6 +184,7 @@ export function AppNav({ day, dayPct, cycleName }: { day: number; dayPct: number
             <Link
               key={it.href}
               href={it.href}
+              data-tour={TOUR[it.href]}
               onClick={() => setMore(false)}
               className={[
                 "tap group flex min-w-0 flex-1 flex-col items-center justify-center gap-[3px] rounded-control px-0.5 py-[7px] transition-colors",
