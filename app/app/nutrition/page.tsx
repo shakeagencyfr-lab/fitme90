@@ -1,5 +1,5 @@
 import { loadEspaceOrRedirect } from "@/lib/queries";
-import { bannedTags, pnum } from "@/lib/nutrition";
+import { bannedTags, pnum, dislikeTerms } from "@/lib/nutrition";
 import { restPattern } from "@/lib/schedule";
 import { DAYS } from "@/lib/questionnaire";
 import { NutritionView } from "@/components/nutrition-view";
@@ -16,6 +16,7 @@ export default async function NutritionPage() {
     (answers.allerg as string[]) ?? [],
     (answers.diet as string) ?? undefined,
   );
+  const dislikes = dislikeTerms(answers.dislikes as string | string[] | undefined);
 
   return (
     <div className="mx-auto flex max-w-[720px] flex-col gap-5">
@@ -28,6 +29,7 @@ export default async function NutritionPage() {
         restPattern={pattern}
         dayNames={DAYS}
         banned={banned}
+        dislikes={dislikes}
         macros={{ protein: plan.nutrition.protein, carbs: plan.nutrition.carbs, fat: plan.nutrition.fat }}
         canGenerate={ctx.access.coachEnabled}
       />

@@ -155,15 +155,39 @@ export function scaleFactor(targetKcal: number, baseSum: number): number {
 }
 
 /**
- * Choisit une variante par créneau, en écartant les variantes contenant un
- * allergène/catégorie interdit. Si tout est exclu pour un créneau, on
- * retombe sur la liste complète (mieux vaut proposer que rien afficher).
- * Rotation déterministe selon `dayIndex` pour varier d'un jour à l'autre.
+ * Normalise une liste d'aliments non aimés (texte libre ou tableau) en termes
+ * minuscules exploitables pour le filtrage (« Brocoli, fromage bleu » → …).
  */
-function pickVariants(dayIndex: number, banned: Record<string, 1>): MealVariant[] {
+export function dislikeTerms(dislikes?: string | string[] | null): string[] {
+  const raw = Array.isArray(dislikes) ? dislikes.join(",") : dislikes ?? "";
+  return raw
+    .split(/[,;\n]/)
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => s.length >= 3 && s !== "aucun" && s !== "aucune" && s !== "non");
+}
+
+/** Une variante contient-elle un aliment non aimé (nom ou ingrédient) ? */
+function hasDislikedFood(v: MealVariant, terms: string[]): boolean {
+  if (!terms.length) return false;
+  const hay = (v.name + " " + v.items.map((i) => i[0]).join(" ")).toLowerCase();
+  return terms.some((t) => hay.includes(t));
+}
+
+/**
+ * Choisit une variante par créneau, en écartant les variantes contenant un
+ * allergène/catégorie interdit OU un aliment non aimé. Repli progressif :
+ * on garde toujours au minimum les variantes sans allergène (les allergies
+ * priment sur les préférences). Rotation déterministe selon `dayIndex`.
+ */
+function pickVariants(
+  dayIndex: number,
+  banned: Record<string, 1>,
+  terms: string[] = [],
+): MealVariant[] {
   return BANK.map((b, si) => {
-    const ok = b.v.filter((v) => !v.tags.some((t) => banned[t]));
-    const pool = ok.length ? ok : b.v;
+    const allergenSafe = b.v.filter((v) => !v.tags.some((t) => banned[t]));
+    const liked = allergenSafe.filter((v) => !hasDislikedFood(v, terms));
+    const pool = liked.length ? liked : allergenSafe.length ? allergenSafe : b.v;
     return pool[(dayIndex + si * 3) % pool.length];
   });
 }
@@ -190,9 +214,10 @@ export function dayMeals(
   isRestDay: boolean,
   baseKcal: number,
   banned: Record<string, 1>,
+  dislikes: string[] = [],
 ): ScaledMeal[] {
   const target = targetKcalForDay(baseKcal, isRestDay);
-  const chosen = pickVariants(dayIndex, banned);
+  const chosen = pickVariants(dayIndex, banned, dislikes);
   const baseSum = chosen.reduce((a, v) => a + v.kcal, 0) || 1;
   const scale = scaleFactor(target, baseSum);
   return chosen.map((v, i) => ({
@@ -221,9 +246,10 @@ function itemsForDay(
   isRestDay: boolean,
   baseKcal: number,
   banned: Record<string, 1>,
+  dislikes: string[] = [],
 ): RawItem[] {
   const target = targetKcalForDay(baseKcal, isRestDay);
-  const chosen = pickVariants(dayIndex, banned);
+  const chosen = pickVariants(dayIndex, banned, dislikes);
   const sum = chosen.reduce((a, v) => a + v.kcal, 0) || 1;
   const sc = scaleFactor(target, sum);
   const out: RawItem[] = [];
@@ -269,11 +295,12 @@ export function shoppingList(
   baseKcal: number,
   banned: Record<string, 1>,
   maxDay = 90,
+  dislikes: string[] = [],
 ): ShoppingGroup[] {
   const acc: Record<string, RawItem> = {};
   const end = Math.min(maxDay, startDay + spanDays - 1);
   for (let d = startDay; d <= end; d++) {
-    itemsForDay(d, isRestOf(d), baseKcal, banned).forEach(({ food, qty, unit }) => {
+    itemsForDay(d, isRestOf(d), baseKcal, banned, dislikes).forEach(({ food, qty, unit }) => {
       const k = food + "|" + unit;
       if (!acc[k]) acc[k] = { food, unit, qty: 0 };
       acc[k].qty += qty;

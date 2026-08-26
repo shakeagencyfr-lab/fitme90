@@ -6,6 +6,7 @@ import {
   dayMeals,
   shoppingList,
   shoppingListText,
+  dislikeTerms,
   BANK,
 } from "./nutrition";
 
@@ -90,6 +91,35 @@ describe("dayMeals — respect des exclusions", () => {
       "Collation",
       "Dîner",
     ]);
+  });
+});
+
+describe("dislikeTerms & filtrage des aliments non aimés", () => {
+  it("normalise le texte libre en termes", () => {
+    expect(dislikeTerms("Brocoli, fromage bleu")).toEqual(["brocoli", "fromage bleu"]);
+    expect(dislikeTerms("Aucun")).toEqual([]);
+    expect(dislikeTerms(["Poulet", "  "])).toEqual(["poulet"]);
+    expect(dislikeTerms(undefined)).toEqual([]);
+  });
+
+  it("retire un aliment non aimé des repas quand une alternative existe", () => {
+    for (let d = 1; d <= 14; d++) {
+      const meals = dayMeals(d, false, 2580, {}, ["poulet"]);
+      const hitName = meals.some((m) => m.name.toLowerCase().includes("poulet"));
+      const hitItem = meals.some((m) => m.items.some((i) => i.food.toLowerCase().includes("poulet")));
+      expect(hitName).toBe(false);
+      expect(hitItem).toBe(false);
+    }
+  });
+
+  it("l'allergène prime sur la préférence (le filtrage reste sûr)", () => {
+    // Régime végétalien + on « n'aime pas » tout : on doit quand même rester végétalien.
+    const banned = bannedTags([], "Végétalien");
+    const groups = shoppingList(1, 7, () => false, 2580, banned, 90, ["riz", "tofu", "pois"]);
+    const foods = groups.flatMap((g) => g.items.map((i) => i.food.toLowerCase()));
+    for (const forbidden of ["poulet", "bœuf", "saumon", "œufs"]) {
+      expect(foods.some((f) => f.includes(forbidden))).toBe(false);
+    }
   });
 });
 

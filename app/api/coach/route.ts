@@ -157,10 +157,16 @@ ${JSON.stringify(logs ?? [])}`;
     {
       name: "modifier_nutrition",
       description:
-        "Modifie la nutrition du client quand il le demande : changer de régime, ajouter une allergie/intolérance, ou ajuster l'objectif calorique. Les repas, macros et la liste de courses se recalculent automatiquement. Renseigne uniquement les champs concernés par la demande.",
+        "Modifie la nutrition du client quand il le demande : retirer un aliment qu'il n'aime pas, changer de régime, ajouter une allergie/intolérance, ou ajuster l'objectif calorique. Les repas, macros et la liste de courses se recalculent automatiquement. Renseigne uniquement les champs concernés par la demande.",
       input_schema: {
         type: "object",
         properties: {
+          aliments_a_retirer: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "Aliments que le client n'aime pas / veut retirer de ses repas (ex : [\"brocoli\",\"fromage bleu\"]). Ils s'ajoutent aux aliments déjà refusés.",
+          },
           regime: {
             type: "string",
             enum: DIETS,
@@ -202,6 +208,7 @@ ${JSON.stringify(logs ?? [])}`;
 
   // Modifie la nutrition : régime, allergies, objectif calorique.
   async function runNutrition(input: {
+    aliments_a_retirer?: string[];
     regime?: string;
     allergies?: string[];
     calories?: number;
@@ -210,6 +217,13 @@ ${JSON.stringify(logs ?? [])}`;
     const changes: string[] = [];
     const answers: Record<string, unknown> = { ...quiz.answers };
 
+    if (Array.isArray(input.aliments_a_retirer) && input.aliments_a_retirer.length) {
+      const current = typeof answers.dislikes === "string" ? answers.dislikes : "";
+      const prev = current.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean);
+      const merged = Array.from(new Set([...prev, ...input.aliments_a_retirer.map(String).map((s) => s.trim()).filter(Boolean)]));
+      answers.dislikes = merged.join(", ");
+      changes.push(`aliments retirés → ${input.aliments_a_retirer.join(", ")}`);
+    }
     if (input.regime && DIETS.includes(input.regime)) {
       answers.diet = input.regime;
       changes.push(`régime → ${input.regime}`);
@@ -312,7 +326,12 @@ ${JSON.stringify(logs ?? [])}`;
       return runChangeDays(Array.isArray(j) ? j.map(String) : []);
     }
     if (name === "modifier_nutrition") {
-      const i = input as { regime?: string; allergies?: string[]; calories?: number };
+      const i = input as {
+        aliments_a_retirer?: string[];
+        regime?: string;
+        allergies?: string[];
+        calories?: number;
+      };
       return runNutrition(i);
     }
     return "Action inconnue.";

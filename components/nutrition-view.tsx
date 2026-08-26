@@ -26,6 +26,7 @@ interface Props {
   restPattern: boolean[]; // 7 booléens, ordre du weekPlan
   dayNames: string[]; // 7 codes (LUN…DIM)
   banned: Record<string, 1>;
+  dislikes: string[]; // aliments non aimés (termes minuscules)
   macros: { protein: string; carbs: string; fat: string };
   canGenerate: boolean;
 }
@@ -38,6 +39,7 @@ export function NutritionView({
   restPattern,
   dayNames,
   banned,
+  dislikes,
   macros,
   canGenerate,
 }: Props) {
@@ -58,8 +60,8 @@ export function NutritionView({
   const isRestOf = useMemo(() => (d: number) => (restPattern.length ? restPattern[(d - 1) % len] : false), [restPattern, len]);
   const dayRest = isRestOf(day);
 
-  const meals = useMemo(() => dayMeals(day, dayRest, baseKcal, banned), [day, dayRest, baseKcal, banned]);
-  const groups = useMemo(() => shoppingList(day, span, isRestOf, baseKcal, banned), [day, span, isRestOf, baseKcal, banned]);
+  const meals = useMemo(() => dayMeals(day, dayRest, baseKcal, banned, dislikes), [day, dayRest, baseKcal, banned, dislikes]);
+  const groups = useMemo(() => shoppingList(day, span, isRestOf, baseKcal, banned, 90, dislikes), [day, span, isRestOf, baseKcal, banned, dislikes]);
 
   // Macros deux états (README/PDF : jour de repos ≈ −10 % kcal, glucides −1/5, protéines maintenues).
   const P = pnum(macros.protein), C = pnum(macros.carbs), F = pnum(macros.fat);
