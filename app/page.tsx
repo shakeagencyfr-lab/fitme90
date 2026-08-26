@@ -1,6 +1,12 @@
+import type { Viewport } from "next";
 import Link from "next/link";
 import { PRICE_EUR, PROGRAM_DAYS, GRACE_DAYS, COACH_CREDENTIAL, COACH_ORIGIN } from "@/lib/config";
 import { GridScan, AppPreview, MacroOrbit } from "@/components/landing-visuals";
+import { LandingHeader } from "@/components/landing-header";
+
+// Landing en thème sombre : barre d'adresse mobile assortie (le layout racine
+// reste clair pour l'espace client).
+export const viewport: Viewport = { themeColor: "#0a0b0c" };
 
 export const metadata = {
   title: "FitMe90 — Ta transformation en 90 jours, ultra-personnalisée",
@@ -177,13 +183,6 @@ const proofPoints = [
   { icon: S.grid, title: "Données protégées (RGPD)", body: "Tes données sont hébergées dans l'Union européenne et traitées conformément au RGPD." },
 ];
 
-const NAV = [
-  { href: "#fonctionnalites", label: "Fonctionnalités" },
-  { href: "#methode", label: "Comment ça marche" },
-  { href: "#garanties", label: "Garanties" },
-  { href: "#tarifs", label: "Tarifs" },
-];
-
 // Classes réutilisées
 const chip =
   "inline-flex items-center gap-2 rounded-pill border border-brand/40 bg-brand/10 px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] text-brand";
@@ -193,33 +192,7 @@ const sectionTitle =
 export default function LandingPage() {
   return (
     <div className="min-h-dvh scroll-smooth bg-[#0a0b0c] text-white [scrollbar-color:#333_#0a0b0c]">
-      {/* Header sticky */}
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0a0b0c]/85 backdrop-blur-md safe-top">
-        <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between gap-4 px-5 py-4 sm:px-8">
-          <Link href="#top" className="font-archivo text-[21px] font-extrabold tracking-[-0.02em] text-white">
-            FitMe<span className="text-brand">90</span>
-          </Link>
-          <nav className="hidden items-center gap-8 md:flex">
-            {NAV.map((n) => (
-              <a key={n.href} href={n.href} className="text-[14px] font-medium text-white/70 transition-colors hover:text-white">
-                {n.label}
-              </a>
-            ))}
-          </nav>
-          <div className="flex items-center gap-2">
-            <Link href="/connexion" className="hidden text-[14px] font-medium text-white/70 transition-colors hover:text-white sm:inline">
-              Connexion
-            </Link>
-            <Link
-              href="/inscription"
-              className="tap inline-flex items-center gap-1.5 rounded-btn bg-brand px-4 py-2.5 text-[14px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]"
-            >
-              Commencer
-              <S.arrow className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </header>
+      <LandingHeader />
 
       <main id="top">
         {/* Hero */}
