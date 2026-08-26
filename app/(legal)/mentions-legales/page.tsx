@@ -8,8 +8,9 @@ export default function MentionsLegalesPage() {
 
       <h2>Éditeur du site</h2>
       <p>
-        FitMe90 — [Nom / raison sociale de l'exploitant à compléter]. Coach sportif
-        diplômé BPJEPS AGFF. [Statut : entrepreneur individuel / société — à
+        FitMe90 — [Nom / raison sociale de l'exploitant à compléter]. Coach
+        professionnel diplômé d'État et de l'université des sports. [Statut :
+        entrepreneur individuel / société — à
         préciser]. SIRET : [à compléter]. Numéro de carte professionnelle
         d'éducateur sportif : [à compléter].
       </p>

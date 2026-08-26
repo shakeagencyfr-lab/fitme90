@@ -7,7 +7,7 @@ dans le dépôt : tout passe par des variables d'environnement.
 
 > Rappel juridique : les CGV, mentions et politique de confidentialité sont des
 > **brouillons à faire relire par un juriste** avant d'encaisser. Vérifie aussi
-> ta **carte professionnelle d'éducateur sportif** (BPJEPS AGFF).
+> ta **carte professionnelle d'éducateur sportif** (diplôme d'État).
 
 ---
 

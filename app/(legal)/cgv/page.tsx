@@ -12,7 +12,7 @@ export default function CgvPage() {
       <p>
         Les présentes CGV encadrent la vente du programme FitMe90 : un programme
         d'entraînement et un accompagnement nutritionnel personnalisés sur 90 jours,
-        conçus par un coach diplômé BPJEPS AGFF. Il s'agit d'un accompagnement
+        conçus par un coach professionnel diplômé d'État. Il s'agit d'un accompagnement
         sportif et de bien-être, sans visée médicale ni thérapeutique.
       </p>
 

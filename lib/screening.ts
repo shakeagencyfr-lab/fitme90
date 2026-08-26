@@ -1,7 +1,7 @@
 // ------------------------------------------------------------------ *
 // FitMe90 — EXCLUSION MÉDICALE (garde-fou juridique central)
 //
-// Un coach BPJEPS accompagne un public EN BONNE SANTÉ vers un objectif de
+// Un coach professionnel diplômé d'État accompagne un public EN BONNE SANTÉ vers un objectif de
 // forme. Dès qu'une pathologie, une grossesse ou un traitement médical est
 // déclaré, générer un programme personnalisé bascule vers l'acte médical
 // (exercice illégal de la médecine). Cette fonction met alors le compte en

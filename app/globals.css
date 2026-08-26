@@ -66,6 +66,9 @@ html {
   /* Empêche l'ajustement automatique de la taille du texte sur iOS
      lors du passage portrait/paysage. */
   -webkit-text-size-adjust: 100%;
+  /* Défilement fluide sur les ancres du menu (le conteneur de défilement
+     est <html>, pas un div interne). */
+  scroll-behavior: smooth;
 }
 
 body {
@@ -224,6 +227,9 @@ input:not([type="checkbox"]):not([type="radio"]) {
 
 /* Réduction des animations selon la préférence système. */
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
   *,
   *::before,
   *::after {

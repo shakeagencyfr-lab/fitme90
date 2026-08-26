@@ -1,7 +1,7 @@
 # FitMe90
 
 Programme de sport et de nutrition personnalisé sur 90 jours (190 €, paiement
-unique), conçu par un coach diplômé BPJEPS AGFF. Questionnaire → photos de la
+unique), conçu par un coach professionnel diplômé d'État. Questionnaire → photos de la
 salle → génération par un modèle Claude → espace client (séance guidée,
 nutrition, agenda, suivi, coach conversationnel).
 

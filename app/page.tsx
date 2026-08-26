@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { PRICE_EUR, PROGRAM_DAYS, GRACE_DAYS, COACH_CREDENTIAL } from "@/lib/config";
+import { PRICE_EUR, PROGRAM_DAYS, GRACE_DAYS, COACH_CREDENTIAL, COACH_ORIGIN } from "@/lib/config";
 import { GridScan, AppPreview, MacroOrbit } from "@/components/landing-visuals";
 
 export const metadata = {
   title: "FitMe90 — Ta transformation en 90 jours, ultra-personnalisée",
   description:
-    "90 jours pour transformer ton corps : programme d'entraînement périodisé sur ta salle et accompagnement nutritionnel personnalisés, conçus par un coach diplômé BPJEPS. Paiement unique, sans abonnement.",
+    "90 jours pour transformer ton corps : programme d'entraînement périodisé sur ta salle et accompagnement nutritionnel personnalisés, conçus par un coach professionnel diplômé d'État. Paiement unique, sans abonnement.",
 };
 
 /* ------------------------------------------------------------------ *
@@ -298,7 +298,7 @@ export default function LandingPage() {
               { v: "90", l: "jours de programme périodisé" },
               { v: "100 %", l: "adapté à ta salle & ta santé" },
               { v: `${PRICE_EUR} €`, l: "paiement unique, sans abonnement" },
-              { v: "BPJEPS", l: "coach diplômé AGFF" },
+              { v: "D.E.", l: "coach professionnel diplômé d'État" },
             ].map((s) => (
               <div key={s.l} className="flex flex-col gap-1 px-2">
                 <div className="font-archivo text-[clamp(26px,4vw,36px)] font-extrabold leading-none tracking-[-0.03em] text-white">
@@ -628,9 +628,10 @@ export default function LandingPage() {
             FitMe<span className="text-brand">90</span>
           </Link>
           <p className="max-w-[70ch] text-[13px] leading-[1.6] text-white/50">
-            Programme conçu par un {COACH_CREDENTIAL}. Accompagnement sportif et
-            de bien-être, sans visée thérapeutique. L'accompagnement nutritionnel
-            est une aide au choix des repas, pas une prescription diététique.
+            Application et programmes conçus par un {COACH_ORIGIN}.
+            Accompagnement sportif et de bien-être, sans visée thérapeutique.
+            L'accompagnement nutritionnel est une aide au choix des repas, pas
+            une prescription diététique.
           </p>
           <p className="max-w-[70ch] text-[12.5px] leading-[1.6] text-white/40">
             FitMe90 ne remplace pas un avis médical. En cas de pathologie, de

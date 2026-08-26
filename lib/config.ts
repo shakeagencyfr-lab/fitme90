@@ -25,4 +25,8 @@ export const LIMIT_RECIPES_PER_DAY = 20;
 export const LIMIT_ANALYZE_GYM_TOTAL = 10;
 
 export const PRODUCT_NAME = "FitMe90";
-export const COACH_CREDENTIAL = "Coach diplômé BPJEPS AGFF";
+/** Persona / signature du coach affichée dans l'app et les prompts. */
+export const COACH_CREDENTIAL = "Coach professionnel diplômé d'État";
+/** Phrase « créé par » pour la landing et les pages légales. */
+export const COACH_ORIGIN =
+  "coach professionnel diplômé d'État et de l'université des sports";
