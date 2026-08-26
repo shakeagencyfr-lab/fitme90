@@ -164,6 +164,64 @@ input:not([type="checkbox"]):not([type="radio"]) {
   font-size: 13.5px;
 }
 
+/* ------------------------------------------------------------------ *
+ * Visuels animés de la landing — 3D en CSS pur (aucune librairie,
+ * aucune requête réseau). Transform/opacity uniquement (GPU-friendly).
+ * ------------------------------------------------------------------ */
+@keyframes lv-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+@keyframes lv-tilt {
+  0%, 100% { transform: rotateX(7deg) rotateY(-15deg); }
+  50% { transform: rotateX(3deg) rotateY(-7deg); }
+}
+@keyframes lv-grid {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 0 44px, 44px 0; }
+}
+@keyframes lv-ping {
+  0% { transform: scale(0.5); opacity: 0.9; }
+  70%, 100% { transform: scale(2.4); opacity: 0; }
+}
+@keyframes lv-spin { to { transform: rotate(360deg); } }
+@keyframes lv-spin-rev { to { transform: rotate(-360deg); } }
+@keyframes lv-ringfill {
+  from { stroke-dashoffset: 232; }
+  to { stroke-dashoffset: 96; }
+}
+@keyframes lv-bar {
+  0% { width: 14%; }
+  60%, 100% { width: 76%; }
+}
+@keyframes lv-tick {
+  0%, 100% { transform: scale(1); opacity: 1; }
+}
+@keyframes lv-bubble {
+  0%, 10% { opacity: 0; transform: translateY(10px); }
+  22%, 78% { opacity: 1; transform: translateY(0); }
+  90%, 100% { opacity: 0; transform: translateY(10px); }
+}
+@keyframes lv-glow {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.85; }
+}
+
+/* Grille en perspective (sol de salle qui défile vers l'écran). */
+.lv-grid-plane {
+  position: absolute;
+  inset: -60% -20% -12% -20%;
+  background-image:
+    linear-gradient(rgba(224, 85, 31, 0.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 44px 44px, 44px 44px;
+  transform: perspective(520px) rotateX(60deg);
+  transform-origin: center bottom;
+  animation: lv-grid 3.6s linear infinite;
+  -webkit-mask-image: linear-gradient(to top, #000 18%, transparent 82%);
+  mask-image: linear-gradient(to top, #000 18%, transparent 82%);
+}
+
 /* Réduction des animations selon la préférence système. */
 @media (prefers-reduced-motion: reduce) {
   *,

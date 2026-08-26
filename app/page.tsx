@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PRICE_EUR, PROGRAM_DAYS, GRACE_DAYS, COACH_CREDENTIAL } from "@/lib/config";
+import { GridScan, AppPreview, MacroOrbit } from "@/components/landing-visuals";
 
 export const metadata = {
   title: "FitMe90 — Ta transformation en 90 jours, ultra-personnalisée",
@@ -86,6 +87,11 @@ const S = {
       <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  star: (p: IconProps) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={p.className} aria-hidden="true">
+      <path d="M12 2.5l2.7 5.9 6.3.7-4.7 4.3 1.3 6.3-5.6-3.2-5.6 3.2 1.3-6.3L3 9.1l6.3-.7L12 2.5Z" />
+    </svg>
+  ),
 };
 
 const features = [
@@ -147,10 +153,48 @@ const faqs = [
   { q: "Puis-je l'offrir à quelqu'un ?", a: "Oui. FitMe90 peut être offert : un code cadeau débloque le programme complet de 90 jours, sans passer par le paiement." },
 ];
 
+const espaceBullets = [
+  "Séances interactives",
+  "Checklist des exercices",
+  "Chronomètre & minuteur",
+  "Nutrition du jour",
+  "Suivi de progression",
+  "Coach IA en un tap",
+];
+
+const nutritionBullets = [
+  "Halal / casher",
+  "Végétarien / végétalien",
+  "Allergies personnalisées",
+  "Intolérances (lactose, gluten…)",
+  "Recettes par semaine",
+  "Macros journaliers",
+];
+
+// Témoignages — GABARITS (tag « Exemple »). À remplacer par de vrais avis
+// clients recueillis avec leur accord. Ne jamais publier d'avis inventé.
+const testimonials = [
+  {
+    quote: "Le programme s'est adapté à mon genou opéré et à mon régime halal. Le suivi jour par jour m'a tenu sur les 90 jours.",
+    name: "Prénom N.",
+    context: "Objectif · résultat",
+  },
+  {
+    quote: "J'ai photographié ma petite salle et chaque exercice correspondait exactement à ce que j'avais sous la main.",
+    name: "Prénom N.",
+    context: "Objectif · résultat",
+  },
+  {
+    quote: "Le coach IA dans mon espace m'a guidé chaque semaine. Enfin un entraînement structuré, pas seulement des intuitions.",
+    name: "Prénom N.",
+    context: "Objectif · résultat",
+  },
+];
+
 const NAV = [
   { href: "#fonctionnalites", label: "Fonctionnalités" },
   { href: "#methode", label: "Comment ça marche" },
-  { href: "#programme", label: "Programme" },
+  { href: "#temoignages", label: "Témoignages" },
   { href: "#tarifs", label: "Tarifs" },
 ];
 
@@ -195,14 +239,11 @@ export default function LandingPage() {
         {/* Hero */}
         <section className="relative isolate overflow-hidden">
           <div className="absolute inset-0 -z-10 bg-[#0a0b0c]" />
-          {/* Photo optionnelle + dégradé (public/img/hero.jpg) */}
-          <div
-            className="absolute inset-0 -z-10 bg-cover bg-center"
-            style={{
-              backgroundImage:
-                "linear-gradient(90deg, rgba(10,11,12,0.97) 0%, rgba(10,11,12,0.82) 42%, rgba(10,11,12,0.55) 100%), url('/img/hero.jpg')",
-            }}
-          />
+          {/* Grille animée en perspective (côté droit), masquée derrière le texte */}
+          <div className="pointer-events-none absolute inset-y-0 right-0 -z-10 w-[62%] overflow-hidden opacity-60 [mask-image:linear-gradient(to_left,#000,transparent)]">
+            <div className="lv-grid-plane" />
+          </div>
+          <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-r from-[#0a0b0c] via-[#0a0b0c]/85 to-transparent" />
           {/* Halo orange */}
           <div className="pointer-events-none absolute -right-40 -top-40 -z-10 h-[520px] w-[520px] rounded-full bg-brand/25 blur-[130px]" />
           {/* Filigrane 90 */}
@@ -327,29 +368,66 @@ export default function LandingPage() {
                 ))}
               </ul>
             </div>
-            {/* Emplacement photo salle (public/img/salle.jpg) */}
-            <div
-              className="relative overflow-hidden rounded-card-lg border border-white/10 bg-cover bg-center"
-              style={{
-                aspectRatio: "4 / 3",
-                backgroundImage:
-                  "linear-gradient(160deg, rgba(224,85,31,0.14), rgba(10,11,12,0.65) 55%), url('/img/salle.jpg')",
-                backgroundColor: "#141517",
-              }}
-            >
-              <div className="pointer-events-none absolute right-5 top-5 h-24 w-24 rounded-full bg-brand/20 blur-3xl" />
-              <div className="absolute inset-x-4 bottom-4">
-                <div className="flex items-center gap-3 rounded-control border border-white/10 bg-black/55 px-4 py-3 backdrop-blur-sm">
-                  <span className="flex h-2.5 w-2.5 shrink-0">
-                    <span className="absolute h-2.5 w-2.5 animate-ping rounded-full bg-brand/70" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-brand" />
-                  </span>
-                  <span className="text-[13.5px] font-medium text-white/90">
-                    IA en cours d'analyse — matériel détecté
-                  </span>
-                </div>
-              </div>
+            {/* Visuel animé : scan de la salle */}
+            <GridScan label="IA en cours d'analyse — matériel détecté" />
+          </div>
+        </section>
+
+        {/* Espace client */}
+        <section id="espace" className="scroll-mt-24">
+          <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(56px,8vw,96px)] sm:px-8 lg:grid-cols-2">
+            <div className="order-2 lg:order-1">
+              <AppPreview />
             </div>
+            <div className="order-1 flex flex-col gap-5 lg:order-2">
+              <span className={chip}>
+                <S.grid className="h-3.5 w-3.5" />
+                Espace client
+              </span>
+              <h2 className="font-archivo text-[clamp(28px,4.5vw,44px)] font-extrabold leading-[1.05] tracking-[-0.03em] text-white">
+                Ton programme, vivant au quotidien.
+              </h2>
+              <p className="max-w-[52ch] text-[16px] leading-[1.65] text-white/65">
+                Plus qu'un document — ton programme est interactif. Coche tes
+                exercices, lance ton chronomètre, consulte ta nutrition du jour
+                et dialogue avec ton coach IA, directement depuis ton espace.
+              </p>
+              <ul className="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-2">
+                {espaceBullets.map((b) => (
+                  <li key={b} className="flex items-center gap-2.5 text-[14.5px] text-white/75">
+                    <S.check className="h-4.5 w-4.5 shrink-0 text-brand" />
+                    {b}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* Nutrition */}
+        <section id="nutrition" className="scroll-mt-24 border-t border-white/10 bg-white/[0.015]">
+          <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(56px,8vw,96px)] sm:px-8 lg:grid-cols-2">
+            <div className="flex flex-col gap-5">
+              <span className={chip}>Nutrition</span>
+              <h2 className="font-archivo text-[clamp(28px,4.5vw,44px)] font-extrabold leading-[1.05] tracking-[-0.03em] text-white">
+                Une nutrition aussi précise que ton entraînement.
+              </h2>
+              <p className="max-w-[52ch] text-[16px] leading-[1.65] text-white/65">
+                Calories, macros, timing des repas et recettes adaptées — et
+                surtout, tes allergies, tes intolérances et ton cadre religieux
+                (halal, casher, végétarien…) pris en compte. C'est une aide au
+                choix des repas, pas une prescription diététique.
+              </p>
+              <ul className="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-2">
+                {nutritionBullets.map((b) => (
+                  <li key={b} className="flex items-center gap-2.5 text-[14.5px] text-white/75">
+                    <S.check className="h-4.5 w-4.5 shrink-0 text-brand" />
+                    {b}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <MacroOrbit />
           </div>
         </section>
 
@@ -420,6 +498,41 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* Témoignages */}
+        <section id="temoignages" className="scroll-mt-24 border-t border-white/10 bg-white/[0.015]">
+          <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(64px,9vw,110px)] sm:px-8">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <span className={chip}>Témoignages</span>
+              <h2 className={sectionTitle}>Des transformations réelles</h2>
+            </div>
+            <div className="mt-12 grid gap-4 md:grid-cols-3">
+              {testimonials.map((t, i) => (
+                <figure key={i} className="flex flex-col gap-4 rounded-card border border-white/10 bg-white/[0.03] p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-1 text-brand">
+                      {Array.from({ length: 5 }).map((_, s) => (
+                        <S.star key={s} className="h-4 w-4" />
+                      ))}
+                    </div>
+                    <span className="rounded-pill border border-white/15 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.14em] text-white/40">
+                      Exemple
+                    </span>
+                  </div>
+                  <blockquote className="text-[14.5px] leading-[1.6] text-white/80">« {t.quote} »</blockquote>
+                  <figcaption className="mt-auto flex flex-col">
+                    <span className="text-[14px] font-semibold text-white">{t.name}</span>
+                    <span className="text-[12.5px] text-white/45">{t.context}</span>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+            <p className="mt-6 text-center text-[12.5px] text-white/40">
+              Exemples de mise en page — à remplacer par de vrais témoignages
+              clients, recueillis avec leur accord.
+            </p>
           </div>
         </section>
 
