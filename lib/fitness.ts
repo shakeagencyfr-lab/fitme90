@@ -55,6 +55,29 @@ export function karvonen(age: number, restHr: number): { hrMax: number; hrReserv
   return { hrMax, hrReserve, zones };
 }
 
+// Détection des exercices cardio (pas de séries/charges : on affiche une zone).
+const CARDIO_RE =
+  /(cardio|rameur|aviron|v[ée]lo|elliptique|tapis|course|courir|jogging|footing|\brun\b|marche|hiit|fractionn|intervalle|corde\s*à?\s*sauter|natation|\bnage\b|assault|air\s*bike|airbike|ski\s*erg|stair|escalier|sprint|liss|zone\s*[12345])/i;
+
+export function isCardioExercise(name: string, note?: string, cardio?: boolean): boolean {
+  if (cardio) return true;
+  return CARDIO_RE.test(`${name} ${note ?? ""}`);
+}
+
+/** Choisit la zone cardiaque cible d'un cardio selon un indice explicite ou des
+ *  mots-clés (défaut : endurance Z2). */
+export function cardioZone(zones: HeartZone[], hint: string, name: string, note?: string): HeartZone {
+  const txt = `${hint} ${name} ${note ?? ""}`.toLowerCase();
+  const byId = (id: string) => zones.find((z) => z.id === id) ?? zones[1];
+  const explicit = /z(?:one)?\s*([1-5])/.exec(txt);
+  if (explicit) return byId(`Z${explicit[1]}`);
+  if (/(r[ée]cup|retour au calme|\bmarche\b|calme)/.test(txt)) return byId("Z1");
+  if (/(vo2|sprint|max\b)/.test(txt)) return byId("Z5");
+  if (/(hiit|fractionn|intervalle|seuil|court)/.test(txt)) return byId("Z4");
+  if (/(tempo)/.test(txt)) return byId("Z3");
+  return byId("Z2"); // endurance par défaut
+}
+
 export interface RpeStep {
   id: string;
   label: string;

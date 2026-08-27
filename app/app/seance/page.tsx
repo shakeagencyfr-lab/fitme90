@@ -5,7 +5,7 @@ import { restPattern, isRestDay, startWeekday } from "@/lib/schedule";
 import { Card, MonoLabel } from "@/components/ui";
 import { SessionRunner, type Exercise } from "@/components/session-runner";
 import { CoachLoadSuggestion } from "@/components/coach-loads";
-import { RPE, RPE_INTRO, targetRpe } from "@/lib/fitness";
+import { RPE, RPE_INTRO, targetRpe, karvonen } from "@/lib/fitness";
 import { PROGRAM_DAYS } from "@/lib/config";
 
 export const metadata = { title: "Séance, FitMe90" };
@@ -39,16 +39,27 @@ export default async function SeancePage({
     sets: e.sets,
     reps: e.reps,
     note: e.note,
+    cardio: e.cardio,
+    duration: e.duration,
+    zone: e.zone,
   }));
 
   const supabase = await createClient();
-  const { data: log } = await supabase
-    .from("session_logs")
-    .select("entries")
-    .eq("user_id", ctx.userId)
-    .eq("day", day)
-    .maybeSingle<{ entries: SavedEntry[] | null }>();
+  const [{ data: log }, { data: prof }] = await Promise.all([
+    supabase
+      .from("session_logs")
+      .select("entries")
+      .eq("user_id", ctx.userId)
+      .eq("day", day)
+      .maybeSingle<{ entries: SavedEntry[] | null }>(),
+    supabase
+      .from("profiles")
+      .select("age, rest_hr")
+      .eq("id", ctx.userId)
+      .maybeSingle<{ age: number | null; rest_hr: number | null }>(),
+  ]);
   const alreadyDone = !!log;
+  const zones = karvonen(prof?.age || 34, prof?.rest_hr || 62).zones;
 
   // Reconstruit l'état initial {exIdx-setIdx: {kg, reps}} depuis les entrées.
   const initial: Record<string, { kg: string; reps: string }> = {};
@@ -147,6 +158,7 @@ export default async function SeancePage({
         canLog={ctx.access.canLog}
         alreadyDone={alreadyDone}
         initial={initial}
+        zones={zones}
       />
     </div>
   );

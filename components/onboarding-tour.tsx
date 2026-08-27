@@ -32,7 +32,7 @@ const STEPS: { tag: string; title: string; body: string; href?: string; target?:
   {
     tag: "Séance",
     title: "3. Ta séance du jour",
-    body: "Pour chaque exercice, note tes charges et répétitions série par série. Le minuteur de repos se lance tout seul entre les séries. À la fin, tu valides la séance.",
+    body: "Pour chaque exercice, note tes charges et répétitions série par série. Important : remplis bien tes charges à chaque fois, c'est grâce à ces repères que le coach peut te caler les bonnes charges pour les prochaines séances. Le minuteur de repos se lance tout seul, et à la fin tu valides la séance.",
     href: "/app/seance",
     target: "seance",
   },
