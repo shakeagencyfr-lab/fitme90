@@ -1,5 +1,39 @@
 import { describe, it, expect } from "vitest";
-import { isCardioExercise, cardioZone, karvonen } from "./fitness";
+import { isCardioExercise, cardioZone, karvonen, parseRestSeconds, resolveRestSeconds, formatRest } from "./fitness";
+
+describe("parseRestSeconds — seulement précédé d'un mot de repos", () => {
+  it("lit un vrai temps de repos", () => {
+    expect(parseRestSeconds("Repos 75s")).toBe(75);
+    expect(parseRestSeconds("récup 90 s")).toBe(90);
+    expect(parseRestSeconds("repos 1mn30 entre les séries")).toBe(90);
+    expect(parseRestSeconds("récupération 2 min")).toBe(120);
+  });
+  it("ignore les durées qui ne sont PAS du repos (bug 5 min)", () => {
+    expect(parseRestSeconds("Rameur 5 min allure conversationnelle")).toBeNull();
+    expect(parseRestSeconds("Séance 45 min")).toBeNull();
+    expect(parseRestSeconds("20 min de cardio")).toBeNull();
+  });
+});
+
+describe("resolveRestSeconds — champ structuré prioritaire", () => {
+  it("préfère restSec quand il est valide", () => {
+    expect(resolveRestSeconds(75, "repos 120s")).toBe(75);
+  });
+  it("retombe sur le texte de repos, sinon 90", () => {
+    expect(resolveRestSeconds(undefined, "Repos 75s")).toBe(75);
+    expect(resolveRestSeconds(undefined, "Rameur 5 min")).toBe(90);
+    expect(resolveRestSeconds(0)).toBe(90);
+  });
+});
+
+describe("formatRest", () => {
+  it("formate en 1mn15 / 45s / 2mn", () => {
+    expect(formatRest(75)).toBe("1mn15");
+    expect(formatRest(45)).toBe("45s");
+    expect(formatRest(120)).toBe("2mn");
+    expect(formatRest(90)).toBe("1mn30");
+  });
+});
 
 describe("isCardioExercise — détection par mots entiers (nom seul)", () => {
   it("reconnaît les vrais exercices cardio", () => {
