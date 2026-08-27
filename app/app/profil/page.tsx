@@ -22,9 +22,9 @@ export default async function ProfilPage() {
   const [{ data: prof }, { data: lastWeight }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("age, height_cm, rest_hr, start_date")
+      .select("age, height_cm, rest_hr, start_date, sex")
       .eq("id", ctx.userId)
-      .maybeSingle<{ age: number | null; height_cm: number | null; rest_hr: number | null; start_date: string | null }>(),
+      .maybeSingle<{ age: number | null; height_cm: number | null; rest_hr: number | null; start_date: string | null; sex: string | null }>(),
     supabase
       .from("weights")
       .select("kg")
@@ -46,6 +46,7 @@ export default async function ProfilPage() {
         weight={str(lastWeight?.kg)}
         height={str(prof?.height_cm)}
         rest={str(prof?.rest_hr)}
+        sex={prof?.sex ?? ""}
       />
 
       {["scheduled", "active", "grace"].includes(ctx.access.phase) ? (

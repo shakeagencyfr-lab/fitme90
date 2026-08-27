@@ -32,9 +32,14 @@ export interface HeartZone {
   range: string; // "124–136"
 }
 
-/** FC max estimée (220 − âge) et zones de Karvonen (réserve cardiaque). */
-export function karvonen(age: number, restHr: number): { hrMax: number; hrReserve: number; zones: HeartZone[] } {
-  const hrMax = 220 - age;
+/** FC max estimée (220 − âge, 226 − âge pour les femmes) et zones de Karvonen. */
+export function karvonen(
+  age: number,
+  restHr: number,
+  sex?: string,
+): { hrMax: number; hrReserve: number; zones: HeartZone[] } {
+  const female = /^f/i.test(sex ?? "");
+  const hrMax = (female ? 226 : 220) - age;
   const hrReserve = hrMax - restHr;
   const z = (p: number) => Math.round(restHr + (p / 100) * hrReserve);
   const defs: [string, string, string, number, number, string, string][] = [

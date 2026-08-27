@@ -19,7 +19,7 @@ const FIELDS: [key: keyof Props, label: string, placeholder: string][] = [
   ["rest", "FC repos", "62"],
 ];
 
-export function ProfileMeasures(initial: Props) {
+export function ProfileMeasures({ sex, ...initial }: Props & { sex?: string }) {
   const [state, action, pending] = useActionState(updateMeasures, {} as ProfilState);
   const [vals, setVals] = useState<Props>(initial);
 
@@ -28,10 +28,11 @@ export function ProfileMeasures(initial: Props) {
   const weight = n(vals.weight) || 68;
   const height = n(vals.height) || 170;
   const rest = n(vals.rest) || 62;
+  const female = /^f/i.test(sex ?? "");
 
   const bmiVal = bmi(weight, height);
   const badge = bmiBadge(bmiVal);
-  const { hrMax, zones } = karvonen(age, rest);
+  const { hrMax, zones } = karvonen(age, rest, sex);
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -125,7 +126,7 @@ export function ProfileMeasures(initial: Props) {
         </div>
         <p className="text-[12px] text-muted-2">
           Réserve cardiaque (Karvonen) : à partir de ta FC de repos et de ta FC max
-          estimée (220 − âge).
+          estimée ({female ? "226" : "220"} − âge).
         </p>
       </Card>
     </div>

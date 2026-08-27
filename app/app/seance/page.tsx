@@ -54,12 +54,12 @@ export default async function SeancePage({
       .maybeSingle<{ entries: SavedEntry[] | null }>(),
     supabase
       .from("profiles")
-      .select("age, rest_hr")
+      .select("age, rest_hr, sex")
       .eq("id", ctx.userId)
-      .maybeSingle<{ age: number | null; rest_hr: number | null }>(),
+      .maybeSingle<{ age: number | null; rest_hr: number | null; sex: string | null }>(),
   ]);
   const alreadyDone = !!log;
-  const zones = karvonen(prof?.age || 34, prof?.rest_hr || 62).zones;
+  const zones = karvonen(prof?.age || 34, prof?.rest_hr || 62, prof?.sex ?? undefined).zones;
 
   // Reconstruit l'état initial {exIdx-setIdx: {kg, reps}} depuis les entrées.
   const initial: Record<string, { kg: string; reps: string }> = {};
