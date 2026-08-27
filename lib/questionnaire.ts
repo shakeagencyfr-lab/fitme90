@@ -119,7 +119,6 @@ export const QUIZ: Section[] = [
       { key: "coach_tone", label: "Le ton du coach que tu préfères", type: "choice", options: ["Bienveillant", "Direct / cash", "Technique / pédagogue", "Motivateur"] },
       { key: "obstacles", label: "Ce qui te fait décrocher d'habitude", type: "multi", options: ["Manque de temps", "Manque de motivation", "Blessures", "Vie sociale", "Résultats trop lents", "Ennui"] },
       { key: "weigh", label: "Pesée", type: "choice", options: ["Quotidienne", "Hebdomadaire", "Jamais"] },
-      { key: "progress_photos", label: "Photos de progression", type: "choice", options: ["Toutes les 2 semaines", "Une fois par mois", "Non"] },
     ],
   },
 ];

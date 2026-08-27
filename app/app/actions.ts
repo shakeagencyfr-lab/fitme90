@@ -56,7 +56,8 @@ export async function updateTrainDays(days: string[]): Promise<DaysState> {
       const equipment = (equipRows ?? []).map((e) => e.name as string);
       const result = await generateProgram(
         { answers: syncedAnswers, trainDays: clean, equipment },
-        "medium", // régénération seule : budget temps plus large que via le coach
+        "low", // doit tenir sous ~60 s (Vercel Hobby), sinon la régénération échoue
+        // et la présentation reste figée sur les anciens jours.
       );
       await supabase.from("programs").insert({
         user_id: ctx.userId,

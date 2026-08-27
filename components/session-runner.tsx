@@ -17,6 +17,37 @@ export interface Exercise {
   zone?: string;
 }
 
+// Brouillon local de la séance : ce qui est saisi est sauvegardé en continu sur
+// l'appareil, pour ne rien perdre si on quitte l'onglet puis on revient.
+type Draft = { log: Record<string, { kg: string; reps: string }>; cardio: string[] };
+const draftKey = (day: number) => `fitme90:seance:${day}`;
+
+function loadDraft(day: number): Draft | null {
+  try {
+    const raw = localStorage.getItem(draftKey(day));
+    if (!raw) return null;
+    const d = JSON.parse(raw) as Draft;
+    if (d && typeof d === "object") return d;
+  } catch {
+    /* stockage indisponible */
+  }
+  return null;
+}
+function saveDraft(day: number, draft: Draft) {
+  try {
+    localStorage.setItem(draftKey(day), JSON.stringify(draft));
+  } catch {
+    /* stockage indisponible */
+  }
+}
+function clearDraft(day: number) {
+  try {
+    localStorage.removeItem(draftKey(day));
+  } catch {
+    /* stockage indisponible */
+  }
+}
+
 interface Props {
   day: number;
   exercises: Exercise[];
@@ -41,13 +72,27 @@ export function SessionRunner({
   initialCardio = [],
 }: Props) {
   const router = useRouter();
-  const [log, setLog] = useState<Record<string, { kg: string; reps: string }>>(initial);
-  const [cardioDone, setCardioDone] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(initialCardio.map((n) => [n, true])),
+  // État initial : brouillon local prioritaire (saisie en cours non validée),
+  // sinon les données déjà enregistrées côté serveur.
+  const [log, setLog] = useState<Record<string, { kg: string; reps: string }>>(
+    () => (typeof window !== "undefined" ? loadDraft(day)?.log : null) ?? initial,
   );
+  const [cardioDone, setCardioDone] = useState<Record<string, boolean>>(() => {
+    const d = typeof window !== "undefined" ? loadDraft(day) : null;
+    return Object.fromEntries((d?.cardio ?? initialCardio).map((n) => [n, true]));
+  });
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(alreadyDone);
+  const [saved, setSaved] = useState(
+    () => alreadyDone && (typeof window === "undefined" || !loadDraft(day)),
+  );
   const [error, setError] = useState("");
+
+  // Sauvegarde continue du brouillon à chaque changement (charges, reps, cardio).
+  useEffect(() => {
+    if (!canLog) return;
+    const cardio = Object.keys(cardioDone).filter((k) => cardioDone[k]);
+    saveDraft(day, { log, cardio });
+  }, [log, cardioDone, day, canLog]);
 
   // Minuteur de repos intégré, valeur par défaut adaptée au programme.
   const [rest, setRest] = useState(0);
@@ -133,8 +178,11 @@ export function SessionRunner({
     setSaving(false);
     if (res.error) return setError(res.error);
     setSaved(true);
+    clearDraft(day); // enregistré côté serveur : le brouillon local n'est plus utile
     router.refresh();
   }
+
+  const pct = totalSets ? Math.round((done / totalSets) * 100) : 0;
 
   // Premier exercice de musculation : sert d'ancre au tutoriel (surbrillance
   // précise des champs charge / reps / Repos sur sa première série).
@@ -142,10 +190,21 @@ export function SessionRunner({
 
   return (
     <div className="flex flex-col gap-4 pb-24">
+      {/* Progression flottante : reste visible en haut pendant qu'on scrolle. */}
+      {canLog ? (
+        <div className="sticky top-0 z-30 -mx-4 flex items-center gap-3 border-b border-line bg-surface/95 px-4 py-2.5 backdrop-blur nav:-mx-8 nav:px-8">
+          <MonoLabel>Progression</MonoLabel>
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-line">
+            <div className="h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="font-archivo font-extrabold text-[14px] tabular-nums text-ink">{pct}%</span>
+        </div>
+      ) : null}
+
       <p className="text-[13.5px] text-muted leading-relaxed">
         Note tes séries, le poids (kg) et les répétitions. Touche <strong>Repos</strong> après
         une série pour lancer le minuteur ({formatRest(restSec)} par défaut, ajustable). Tu peux
-        refaire cette séance quand tu veux.
+        refaire cette séance quand tu veux. Ta saisie est sauvegardée automatiquement.
       </p>
 
       {exercises.map((ex, ei) => {

@@ -7,7 +7,7 @@ import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
 import { anthropic, MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
 import { buildPersona } from "@/lib/coach-persona";
-import { restPattern, startWeekday } from "@/lib/schedule";
+import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
 import { missedDays } from "@/lib/streak";
 import { generateProgram, readAdaptations } from "@/lib/program";
 import { pnum, grp } from "@/lib/nutrition";
@@ -154,11 +154,14 @@ export async function POST(req: NextRequest) {
     .maybeSingle<{ answers: Record<string, unknown>; train_days: string[] }>();
   const profileLines = quiz?.answers ? describeAnswers(quiz.answers) : [];
 
-  // Retards : séances d'entraînement passées non validées (calendrier fixe).
+  // Calendrier réel : jours d'entraînement à jour + statut du jour + retards.
+  const coachPattern = restPattern(quiz?.train_days ?? []);
+  const coachStartWd = startWeekday(ctx.profile?.start_date);
+  const todayIsTraining = ctx.access.day >= 1 && !isRestDay(ctx.access.day, coachPattern, coachStartWd);
   const missedList = ctx.profile?.start_date
     ? missedDays({
-        pattern: restPattern(quiz?.train_days ?? []),
-        startWd: startWeekday(ctx.profile.start_date),
+        pattern: coachPattern,
+        startWd: coachStartWd,
         currentDay: ctx.access.day,
         completedDays: (doneRows ?? []).map((r) => r.day as number),
         programDays: PROGRAM_DAYS,
@@ -180,6 +183,7 @@ CALENDRIER (suis la progression avec ces repères réels) :
       : "non défini"
   }.
 - Aujourd'hui : ${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" })} — jour ${ctx.access.day} sur ${PROGRAM_DAYS}.
+- STATUT DU JOUR : aujourd'hui est un jour ${todayIsTraining ? "D'ENTRAÎNEMENT, une séance est prévue" : "DE REPOS, aucune séance n'est prévue"}. Fie-toi à CETTE information (jours d'entraînement à jour : ${quiz?.train_days?.join(", ") || "non précisés"}), pas au texte du programme qui peut dater d'avant un changement de jours.
 - Les séances tombent aux vrais jours de la semaine choisis. Parle en dates concrètes et repère les séances validées vs prévues pour suivre les retards éventuels.
 - Séances en retard (passées, non validées) : ${missedList.length ? `${missedList.length} (jours ${missedList.slice(0, 8).join(", ")}${missedList.length > 8 ? "…" : ""}). Le calendrier ne bouge pas : encourage à les RATTRAPER quand le client peut, sur un ton bienveillant et sans culpabiliser. Rappelle qu'il peut ouvrir une séance passée depuis l'agenda pour la rattraper. N'en parle QUE si c'est pertinent (le client en parle, demande un bilan, ou s'inquiète de son retard).` : "aucune, félicite la régularité si le sujet vient."}
 

@@ -156,6 +156,36 @@ export function CoachWidget() {
     setShowList(false);
   }
 
+  async function renameConversation(id: string, current: string) {
+    const title = window.prompt("Renommer la conversation", current)?.trim();
+    if (!title || title === current) return;
+    setConversations((cs) => cs.map((c) => (c.id === id ? { ...c, title } : c)));
+    try {
+      await fetch("/api/coach/conversations", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id, title }),
+      });
+    } catch {
+      refreshConversations();
+    }
+  }
+
+  async function deleteConversation(id: string) {
+    if (!window.confirm("Supprimer cette conversation ? Cette action est définitive.")) return;
+    setConversations((cs) => cs.filter((c) => c.id !== id));
+    if (id === convId) newConversation();
+    try {
+      await fetch("/api/coach/conversations", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+    } catch {
+      refreshConversations();
+    }
+  }
+
   async function openConversation(id: string) {
     setShowList(false);
     if (id === convId) return;
@@ -340,17 +370,39 @@ export function CoachWidget() {
               conversations.map((c) => {
                 const active = c.id === convId;
                 return (
-                  <button
+                  <div
                     key={c.id}
-                    onClick={() => openConversation(c.id)}
                     className={[
-                      "tap flex w-full items-center justify-between gap-3 rounded-control border px-3.5 py-3 text-left transition-colors",
+                      "mb-1.5 flex items-center gap-1 rounded-control border pr-1 transition-colors",
                       active ? "border-ink bg-surface-2" : "border-line hover:border-line-4",
                     ].join(" ")}
                   >
-                    <span className="min-w-0 flex-1 truncate text-[14px] text-ink">{c.title}</span>
-                    <span className="shrink-0 font-mono text-[11px] text-muted-2">{relDate(c.updated_at)}</span>
-                  </button>
+                    <button
+                      onClick={() => openConversation(c.id)}
+                      className="tap flex min-w-0 flex-1 items-center justify-between gap-3 px-3.5 py-3 text-left"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-[14px] text-ink">{c.title}</span>
+                      <span className="shrink-0 font-mono text-[11px] text-muted-2">{relDate(c.updated_at)}</span>
+                    </button>
+                    <button
+                      onClick={() => renameConversation(c.id, c.title)}
+                      className="tap flex size-8 shrink-0 items-center justify-center rounded-control text-muted-2 hover:text-ink"
+                      aria-label="Renommer"
+                    >
+                      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => deleteConversation(c.id)}
+                      className="tap flex size-8 shrink-0 items-center justify-center rounded-control text-muted-2 hover:text-[#C4471A]"
+                      aria-label="Supprimer"
+                    >
+                      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13" />
+                      </svg>
+                    </button>
+                  </div>
                 );
               })
             )}
