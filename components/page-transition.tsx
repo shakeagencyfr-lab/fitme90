@@ -8,7 +8,7 @@ import type { ReactNode } from "react";
 export function PageTransition({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   return (
-    <div key={pathname} className="animate-[fadeup_0.28s_ease-out] motion-reduce:animate-none">
+    <div key={pathname} className="animate-[fadeup_0.16s_ease-out] motion-reduce:animate-none">
       {children}
     </div>
   );

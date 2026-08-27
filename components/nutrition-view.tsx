@@ -11,6 +11,7 @@ import {
 } from "@/lib/nutrition";
 import { Card, MonoLabel, Button, Alert } from "@/components/ui";
 import { setShoppingCheck } from "@/app/app/nutrition/actions";
+import { dateOfProgramDay } from "@/lib/schedule";
 
 interface Recipe {
   name: string;
@@ -37,6 +38,7 @@ interface Props {
   macros: { protein: string; carbs: string; fat: string };
   canGenerate: boolean;
   initialChecks?: string[]; // clés d'articles déjà cochées (persistées)
+  startDate?: string; // date de début du programme (pour les vraies dates)
 }
 
 const WEEKS = 13; // 90 jours ≈ 13 semaines
@@ -52,7 +54,13 @@ export function NutritionView({
   macros,
   canGenerate,
   initialChecks = [],
+  startDate = "",
 }: Props) {
+  // Vraie date d'un jour de programme (numéro + mois court), si connue.
+  const dateOf = (d: number) =>
+    startDate
+      ? dateOfProgramDay(startDate, d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" })
+      : `J${d}`;
   const initialWeek = Math.min(WEEKS, Math.floor((currentDay - 1) / 7) + 1);
   const initialDow = (currentDay - 1) % 7;
   const [week, setWeek] = useState(initialWeek);
@@ -144,26 +152,30 @@ export function NutritionView({
             const rest = isRestOf(d);
             const on = i === dow;
             const disabled = d > 90;
+            const dom = startDate ? dateOfProgramDay(startDate, d).getUTCDate() : d;
             return (
               <button
                 key={i}
                 disabled={disabled}
                 onClick={() => setDow(i)}
+                title={disabled ? undefined : `${dateOf(d)}${rest ? " · repos" : " · entraînement"}`}
                 className={[
-                  "tap flex flex-col items-center gap-0.5 rounded-control border py-2 text-center",
-                  on ? "border-ink border-2" : "border-line",
-                  rest ? "bg-surface-2" : "bg-surface",
+                  "tap flex flex-col items-center gap-0.5 rounded-control border py-2 text-center transition-colors",
+                  on ? "border-ink border-2" : rest ? "border-line" : "border-brand/35",
+                  rest ? "bg-surface-2" : "bg-brand/5",
                   disabled ? "opacity-30" : "",
                 ].join(" ")}
               >
                 <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-muted-2">{name}</span>
-                <span className="text-[11px] text-body tabular-nums">J{d}</span>
+                <span className={["text-[13px] font-semibold tabular-nums", rest ? "text-body" : "text-brand"].join(" ")}>
+                  {dom}
+                </span>
               </button>
             );
           })}
         </div>
         <p className="text-[12px] text-muted-2">
-          Jour {day} · {dayRest ? "sans entraînement" : "entraînement"}. Les menus varient au fil des 90 jours.
+          {dateOf(day)} · jour {day} · {dayRest ? "sans entraînement" : "entraînement"}. Les menus varient au fil des 90 jours.
         </p>
       </section>
 
@@ -173,6 +185,7 @@ export function NutritionView({
         <div className="grid gap-3 sm:grid-cols-2">
           <MacroCard
             title="Jour d'entraînement"
+            tone="train"
             active={!dayRest}
             kcal={grp(trainKcal)}
             protein={`${Math.round(P)} g`}
@@ -181,6 +194,7 @@ export function NutritionView({
           />
           <MacroCard
             title="Jour de repos"
+            tone="rest"
             active={dayRest}
             kcal={grp(restKcal)}
             protein={`${Math.round(P)} g`}
@@ -357,6 +371,7 @@ export function NutritionView({
 
 function MacroCard({
   title,
+  tone,
   active,
   kcal,
   protein,
@@ -364,19 +379,26 @@ function MacroCard({
   fat,
 }: {
   title: string;
+  tone: "train" | "rest";
   active: boolean;
   kcal: string;
   protein: string;
   carbs: string;
   fat: string;
 }) {
+  // Jour d'entraînement : accent orange (brand). Jour de repos : accent vert
+  // (récupération). Le jour actif est encadré et teinté pour se repérer d'un œil.
+  const accent =
+    tone === "train"
+      ? { border: "border-brand", bg: "bg-brand/5", text: "text-brand" }
+      : { border: "border-[#2F6B3C]", bg: "bg-[#2F6B3C]/8", text: "text-[#2F6B3C]" };
   return (
-    <Card className={active ? "border-brand" : ""}>
+    <Card className={active ? `${accent.border} border-2 ${accent.bg}` : ""}>
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <span className="font-archivo font-semibold text-[14px] text-ink">{title}</span>
           {active ? (
-            <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-brand">aujourd'hui</span>
+            <span className={`font-mono text-[9px] uppercase tracking-[0.1em] ${accent.text}`}>aujourd&apos;hui</span>
           ) : null}
         </div>
         <div className="font-archivo font-extrabold text-[30px] leading-none tracking-[-0.03em] text-ink">

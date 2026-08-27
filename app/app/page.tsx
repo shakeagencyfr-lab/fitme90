@@ -5,8 +5,9 @@ import { Card, Stat, MonoLabel, ButtonLink, Alert } from "@/components/ui";
 import { TrainingDaysEditor } from "@/components/training-days";
 import { CyclesCarousel } from "@/components/cycles-carousel";
 import { RegularityScore } from "@/components/regularity-score";
-import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
-import { computeAdherence } from "@/lib/streak";
+import { CatchUp } from "@/components/catch-up";
+import { restPattern, startWeekday, isRestDay, dateOfProgramDay } from "@/lib/schedule";
+import { computeAdherence, missedDays } from "@/lib/streak";
 import { DAYS } from "@/lib/questionnaire";
 import type { Plan } from "@/lib/program";
 import { PROGRAM_DAYS } from "@/lib/config";
@@ -102,6 +103,23 @@ export default async function ProgrammePage() {
     programDays: PROGRAM_DAYS,
   });
   const todayTraining = access.day >= 1 && !isRestDay(access.day, pattern, startWd);
+
+  // Séances manquées à rattraper (calendrier fixe) : jours d'entraînement passés
+  // non validés, avec leur vraie date.
+  const missed = showAdherence
+    ? missedDays({ pattern, startWd, currentDay: access.day, completedDays: doneDays, programDays: PROGRAM_DAYS })
+    : [];
+  const missedItems = ctx.profile?.start_date
+    ? missed.map((day) => ({
+        day,
+        date: dateOfProgramDay(ctx.profile!.start_date!, day).toLocaleDateString("fr-FR", {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+          timeZone: "UTC",
+        }),
+      }))
+    : missed.map((day) => ({ day, date: `jour ${day}` }));
   const startFmt = ctx.profile?.start_date
     ? new Date(`${ctx.profile.start_date}T00:00:00Z`).toLocaleDateString("fr-FR", {
         weekday: "long",
@@ -193,6 +211,9 @@ export default async function ProgrammePage() {
       {showAdherence ? (
         <RegularityScore stats={adherence} todayTraining={todayTraining} />
       ) : null}
+
+      {/* Séances à rattraper (calendrier fixe) */}
+      <CatchUp items={missedItems} />
 
       <div className="flex flex-wrap gap-3">
         <ButtonLink href="/app/seance" variant="primary">Aller à ma séance</ButtonLink>

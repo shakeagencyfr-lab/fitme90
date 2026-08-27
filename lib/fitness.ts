@@ -93,6 +93,44 @@ export function cardioZone(zones: HeartZone[], hint: string, name: string, note?
   return byId("Z2"); // endurance par défaut
 }
 
+/**
+ * Repos entre séries, en secondes. Priorité au champ structuré du plan
+ * (restSec) ; sinon on tente de lire un temps dans un texte (meta, note), ex
+ * « 75 s », « 90s », « 1mn30 », « 1'30 », « 2 min ». Défaut 90 s.
+ */
+export function parseRestSeconds(text: string | undefined | null): number | null {
+  if (!text) return null;
+  const t = text.toLowerCase();
+  // Formats minute + secondes : 1mn30, 1'30, 1 min 30, 1m30
+  const mmss = /(\d)\s*(?:mn|min|m|')\s*(\d{1,2})/.exec(t);
+  if (mmss) return Number(mmss[1]) * 60 + Number(mmss[2]);
+  // Minutes seules : 2 min, 1mn
+  const min = /(\d)\s*(?:mn|min|m|')(?!\d)/.exec(t);
+  if (min) return Number(min[1]) * 60;
+  // Secondes : 75 s, 90s, 45 sec
+  const sec = /(\d{2,3})\s*(?:s|sec|"|secondes?)/.exec(t);
+  if (sec) return Number(sec[1]);
+  return null;
+}
+
+export function resolveRestSeconds(restSec: number | undefined, ...texts: (string | undefined)[]): number {
+  if (typeof restSec === "number" && restSec >= 15 && restSec <= 600) return restSec;
+  for (const t of texts) {
+    const s = parseRestSeconds(t);
+    if (s && s >= 15 && s <= 600) return s;
+  }
+  return 90;
+}
+
+/** Formate un repos en « 1mn30 », « 45s », « 2mn ». */
+export function formatRest(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  if (m === 0) return `${s}s`;
+  if (s === 0) return `${m}mn`;
+  return `${m}mn${String(s).padStart(2, "0")}`;
+}
+
 export interface RpeStep {
   id: string;
   label: string;

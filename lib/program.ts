@@ -33,6 +33,8 @@ export const planSchema = z.object({
     cycleLabel: z.string(),
     title: z.string(),
     meta: z.string().optional().default(""),
+    /** Repos entre séries, en secondes (adapté à l'objectif). */
+    restSec: z.number().optional().default(90),
     exercises: z
       .array(
         z.object({
@@ -74,12 +76,12 @@ export const planSchema = z.object({
 export type Plan = z.infer<typeof planSchema>;
 
 const SCHEMA_HINT =
-  '{"summary":"2 phrases","cycles":[{"label":"","name":"","weeks":"SEMAINES 1 → 4","body":""}],"weekPlan":[{"day":"LUN","name":"","dur":"55 min","rest":false}],"session":{"cycleLabel":"Cycle 1 · Semaine 1 · Séance A","title":"","meta":"","exercises":[{"name":"","sets":4,"reps":"8-10","load":"60 kg","note":"","cardio":false},{"name":"Rameur","cardio":true,"duration":"12 min","zone":"Z2","sets":0,"reps":"","load":"","note":"allure conversationnelle"}]},"nutrition":{"kcal":"2 580","protein":"148","carbs":"276","fat":"78","tags":[{"kind":"ALLERGIE","label":""}],"meals":[{"time":"7 h 30","name":"","kcal":"612","items":[{"food":"","qty":"80 g"}]}]},"warning":"1 phrase sur les contraintes prises en compte"}';
+  '{"summary":"2 phrases","cycles":[{"label":"","name":"","weeks":"SEMAINES 1 → 4","body":""}],"weekPlan":[{"day":"LUN","name":"","dur":"55 min","rest":false}],"session":{"cycleLabel":"Cycle 1 · Semaine 1 · Séance A","title":"","meta":"","restSec":90,"exercises":[{"name":"","sets":4,"reps":"8-10","load":"60 kg","note":"","cardio":false},{"name":"Rameur","cardio":true,"duration":"12 min","zone":"Z2","sets":0,"reps":"","load":"","note":"allure conversationnelle"}]},"nutrition":{"kcal":"2 580","protein":"148","carbs":"276","fat":"78","tags":[{"kind":"ALLERGIE","label":""}],"meals":[{"time":"7 h 30","name":"","kcal":"612","items":[{"food":"","qty":"80 g"}]}]},"warning":"1 phrase sur les contraintes prises en compte"}';
 
 // Positionnement coach (pas « diététicien ») : accompagnement de forme, pas
 // de visée thérapeutique. Le public à risque médical est déjà écarté en amont
 // (lib/screening.ts).
-const SYSTEM = `Tu es ${COACH_CREDENTIAL}, tu accompagnes des personnes en bonne santé vers un objectif de forme. Tu réponds UNIQUEMENT par un objet JSON valide en français, sans texte autour. Exactement 3 cycles, 7 jours dans weekPlan (repos les jours non travaillés indiqués), 5 à 7 exercices avec sets entier, 4 à 6 repas. Conseils d'entraînement et d'hygiène alimentaire uniquement : aucune allégation médicale ni thérapeutique. CARDIO : pour tout exercice cardio (rameur, vélo, course, elliptique, tapis, HIIT, marche, corde à sauter…), NE mets PAS de séries/répétitions/charge — mets cardio:true, une durée dans "duration" (ex "20 min") et la zone cardiaque cible dans "zone" (Z1 récupération, Z2 endurance, Z3 tempo, Z4 seuil/intervalles, Z5 VO2 max ; ex "Z2"), et sets:0, reps:"". Pour la musculation : cardio:false avec sets et reps normaux. RÈGLE DE STYLE : n'utilise JAMAIS de tiret cadratin (—) ni de tiret demi-cadratin (–) dans les textes ; écris avec une ponctuation naturelle (virgules, deux-points, points, parenthèses).`;
+const SYSTEM = `Tu es ${COACH_CREDENTIAL}, tu accompagnes des personnes en bonne santé vers un objectif de forme. Tu réponds UNIQUEMENT par un objet JSON valide en français, sans texte autour. Exactement 3 cycles, 7 jours dans weekPlan (repos les jours non travaillés indiqués), 5 à 7 exercices avec sets entier, 4 à 6 repas. Conseils d'entraînement et d'hygiène alimentaire uniquement : aucune allégation médicale ni thérapeutique. CARDIO : pour tout exercice cardio (rameur, vélo, course, elliptique, tapis, HIIT, marche, corde à sauter…), NE mets PAS de séries/répétitions/charge — mets cardio:true, une durée dans "duration" (ex "20 min") et la zone cardiaque cible dans "zone" (Z1 récupération, Z2 endurance, Z3 tempo, Z4 seuil/intervalles, Z5 VO2 max ; ex "Z2"), et sets:0, reps:"". Pour la musculation : cardio:false avec sets et reps normaux. REPOS : renseigne "restSec" (repos entre séries, en secondes) adapté à l'objectif (environ 60 à 90 s en hypertrophie, 120 à 180 s en force, 45 à 60 s en perte de masse / circuit). RÈGLE DE STYLE : n'utilise JAMAIS de tiret cadratin (—) ni de tiret demi-cadratin (–) dans les textes ; écris avec une ponctuation naturelle (virgules, deux-points, points, parenthèses).`;
 
 export interface Brief {
   answers: Record<string, unknown>;
