@@ -4,16 +4,20 @@ import { accessLabel } from "@/lib/access";
 import { Card, Stat, MonoLabel, ButtonLink, Alert } from "@/components/ui";
 import { TrainingDaysEditor } from "@/components/training-days";
 import { CyclesCarousel } from "@/components/cycles-carousel";
-import { restPattern } from "@/lib/schedule";
+import { AdherencePanel } from "@/components/adherence-panel";
+import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
+import { computeAdherence } from "@/lib/streak";
 import { DAYS } from "@/lib/questionnaire";
 import type { Plan } from "@/lib/program";
 import { PROGRAM_DAYS } from "@/lib/config";
 
 export const metadata = { title: "Programme, FitMe90" };
 
-async function loadPlanAndDays(userId: string): Promise<{ plan: Plan | null; trainDays: string[] }> {
+async function loadPlanAndDays(
+  userId: string,
+): Promise<{ plan: Plan | null; trainDays: string[]; doneDays: number[] }> {
   const supabase = await createClient();
-  const [{ data: prog }, { data: quiz }] = await Promise.all([
+  const [{ data: prog }, { data: quiz }, { data: logs }] = await Promise.all([
     supabase
       .from("programs")
       .select("plan")
@@ -28,8 +32,13 @@ async function loadPlanAndDays(userId: string): Promise<{ plan: Plan | null; tra
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle<{ train_days: string[] }>(),
+    supabase.from("session_logs").select("day").eq("user_id", userId),
   ]);
-  return { plan: prog?.plan ?? null, trainDays: quiz?.train_days ?? [] };
+  return {
+    plan: prog?.plan ?? null,
+    trainDays: quiz?.train_days ?? [],
+    doneDays: (logs ?? []).map((l: { day: number }) => l.day),
+  };
 }
 
 export default async function ProgrammePage() {
@@ -67,7 +76,7 @@ export default async function ProgrammePage() {
     );
   }
 
-  const { plan, trainDays } = await loadPlanAndDays(ctx.userId);
+  const { plan, trainDays, doneDays } = await loadPlanAndDays(ctx.userId);
   if (!plan) {
     return (
       <Empty
@@ -80,7 +89,19 @@ export default async function ProgrammePage() {
 
   const planRest = plan.weekPlan.slice(0, 7).map((d) => d.rest);
   const pattern = restPattern(trainDays, planRest);
+  const startWd = startWeekday(ctx.profile?.start_date);
   const trainNames = plan.weekPlan.filter((d) => !d.rest).map((d) => d.name);
+
+  // Adhérence / série : seulement une fois le programme démarré (jour ≥ 1).
+  const showAdherence = access.phase !== "scheduled";
+  const adherence = computeAdherence({
+    pattern,
+    startWd,
+    currentDay: access.day,
+    completedDays: doneDays,
+    programDays: PROGRAM_DAYS,
+  });
+  const todayTraining = access.day >= 1 && !isRestDay(access.day, pattern, startWd);
   const startFmt = ctx.profile?.start_date
     ? new Date(`${ctx.profile.start_date}T00:00:00Z`).toLocaleDateString("fr-FR", {
         weekday: "long",
@@ -114,6 +135,11 @@ export default async function ProgrammePage() {
           déjà tout consulter ; le coach IA et le journal des séances s'activent le
           jour J.
         </Alert>
+      ) : null}
+
+      {/* Rétention : série, adhérence, prochain palier */}
+      {showAdherence ? (
+        <AdherencePanel stats={adherence} todayTraining={todayTraining} />
       ) : null}
 
       {/* Cycles, en carrousel horizontal avec explications approfondies */}
