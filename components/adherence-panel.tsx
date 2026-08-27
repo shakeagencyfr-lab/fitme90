@@ -1,5 +1,9 @@
 "use client";
 
+// La célébration se décide au montage à partir de localStorage (état externe) :
+// un setState en effet est ici volontaire et sans cascade problématique.
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { AdherenceStats } from "@/lib/streak";

@@ -7,6 +7,7 @@ import { Card, MonoLabel, Stat } from "@/components/ui";
 import { PasswordChange, AccountActions } from "@/components/profil-actions";
 import { ProfileMeasures } from "@/components/profile-measures";
 import { StartDateSetting } from "@/components/start-date-setting";
+import { NotificationSetting } from "@/components/notification-setting";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { RestartOnboarding } from "@/components/onboarding-tour";
 import { isAdminEmail } from "@/lib/admin";
@@ -52,6 +53,8 @@ export default async function ProfilPage() {
       {["scheduled", "active", "grace"].includes(ctx.access.phase) ? (
         <StartDateSetting current={prof?.start_date ?? ""} />
       ) : null}
+
+      <NotificationSetting />
 
       <Card className="flex flex-col gap-3">
         <MonoLabel>Compte</MonoLabel>
