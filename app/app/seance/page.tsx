@@ -40,6 +40,7 @@ export default async function SeancePage({
     sets: e.sets,
     reps: e.reps,
     note: e.note,
+    rest: e.rest,
     cardio: e.cardio,
     duration: e.duration,
     zone: e.zone,
