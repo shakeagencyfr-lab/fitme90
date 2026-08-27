@@ -106,6 +106,19 @@ create table public.shopping_checks (
   primary key (user_id, item_key)
 );
 
+-- abonnements Web Push (rappels de séance, relances). Une ligne par appareil
+-- (endpoint unique). Le client écrit SA ligne (RLS own_rows) ; l'envoi se fait
+-- côté serveur en service role (cron). `endpoint` est la clé : un même appareil
+-- qui se ré-abonne écrase proprement l'ancienne entrée.
+create table public.push_subscriptions (
+  endpoint    text primary key,
+  user_id     uuid not null references auth.users on delete cascade,
+  p256dh      text not null,
+  auth        text not null,
+  created_at  timestamptz not null default now()
+);
+create index on public.push_subscriptions (user_id);
+
 -- compteur d'appels au modèle, sert au rate limit et au suivi des coûts
 create table public.ai_calls (
   id          bigserial primary key,
@@ -127,7 +140,8 @@ declare t text;
 begin
   foreach t in array array[
     'questionnaires','equipment','programs','session_logs',
-    'weights','measurements','photos','coach_messages','shopping_checks'
+    'weights','measurements','photos','coach_messages','shopping_checks',
+    'push_subscriptions'
   ]
   loop
     execute format('alter table public.%I enable row level security', t);

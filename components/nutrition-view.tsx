@@ -10,6 +10,7 @@ import {
   grp,
 } from "@/lib/nutrition";
 import { Card, MonoLabel, Button, Alert } from "@/components/ui";
+import { setShoppingCheck } from "@/app/app/nutrition/actions";
 
 interface Recipe {
   name: string;
@@ -35,6 +36,7 @@ interface Props {
   dislikes: string[]; // aliments non aimés (termes minuscules)
   macros: { protein: string; carbs: string; fat: string };
   canGenerate: boolean;
+  initialChecks?: string[]; // clés d'articles déjà cochées (persistées)
 }
 
 const WEEKS = 13; // 90 jours ≈ 13 semaines
@@ -49,14 +51,28 @@ export function NutritionView({
   dislikes,
   macros,
   canGenerate,
+  initialChecks = [],
 }: Props) {
   const initialWeek = Math.min(WEEKS, Math.floor((currentDay - 1) / 7) + 1);
   const initialDow = (currentDay - 1) % 7;
   const [week, setWeek] = useState(initialWeek);
   const [dow, setDow] = useState(initialDow);
   const [span, setSpan] = useState<3 | 7 | 14>(7);
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [checked, setChecked] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(initialChecks.map((k) => [k, true])),
+  );
   const [copied, setCopied] = useState(false);
+
+  // Coche/décoche un article et persiste l'état (optimiste, retour arrière en
+  // cas d'échec réseau). La coche survit ainsi au rechargement et se synchronise
+  // entre appareils.
+  function toggleItem(key: string) {
+    const next = !checked[key];
+    setChecked((c) => ({ ...c, [key]: next }));
+    setShoppingCheck(key, next).then((r) => {
+      if (!r?.ok) setChecked((c) => ({ ...c, [key]: !next }));
+    });
+  }
 
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [recipeBusy, setRecipeBusy] = useState(false);
@@ -309,7 +325,7 @@ export function NutritionView({
                 return (
                   <button
                     key={it.key}
-                    onClick={() => setChecked((c) => ({ ...c, [it.key]: !on }))}
+                    onClick={() => toggleItem(it.key)}
                     className="tap flex items-center gap-3 border-b border-line-2 py-2 text-left last:border-0"
                   >
                     <span
