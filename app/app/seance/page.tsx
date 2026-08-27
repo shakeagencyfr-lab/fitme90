@@ -5,7 +5,7 @@ import { restPattern, isRestDay, startWeekday, dateOfProgramDay } from "@/lib/sc
 import { Card, MonoLabel } from "@/components/ui";
 import { SessionRunner, type Exercise } from "@/components/session-runner";
 import { CoachLoadSuggestion } from "@/components/coach-loads";
-import { RPE, RPE_INTRO, targetRpe, karvonen, resolveRestSeconds, formatRest } from "@/lib/fitness";
+import { RPE, RPE_INTRO, targetRpe, karvonen, resolveRestSeconds } from "@/lib/fitness";
 import { PROGRAM_DAYS } from "@/lib/config";
 
 export const metadata = { title: "Séance, FitMe90" };
@@ -139,7 +139,7 @@ export default async function SeancePage({
           {s.title || "Séance du jour"}
         </h1>
         <p className="text-[14px] text-muted">
-          {[dateLabel, dur, `repos ${formatRest(restSec)}`].filter(Boolean).join(" · ")}
+          {[dateLabel, dur].filter(Boolean).join(" · ")}
         </p>
       </header>
 
