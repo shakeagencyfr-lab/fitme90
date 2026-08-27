@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
+import { COACH_NAME } from "@/lib/config";
 
 interface Msg {
   role: "user" | "assistant";
@@ -10,7 +11,37 @@ interface Msg {
   image?: string; // aperçu (data URL) pour la bulle utilisateur
 }
 
+interface Conv {
+  id: string;
+  title: string;
+  updated_at: string;
+}
+
 type Attached = { data: string; media_type: "image/jpeg"; preview: string };
+
+const GREETING: Msg = {
+  role: "assistant",
+  content: `Salut, moi c'est ${COACH_NAME}, ton coach. Pose-moi une question sur ta séance, un exercice, une substitution ou un repas. Tu peux aussi m'envoyer une photo (repas, machine) ou dicter à la voix.`,
+};
+
+function mapMsgs(raw: unknown): Msg[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((m: { content?: string }) => m?.content)
+    .map((m: { role: string; content: string }) => ({
+      role: m.role === "user" ? "user" : "assistant",
+      content: m.content,
+    }));
+}
+
+function relDate(iso: string): string {
+  const d = new Date(iso);
+  const diff = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+  if (diff <= 0) return "aujourd'hui";
+  if (diff === 1) return "hier";
+  if (diff < 7) return `il y a ${diff} j`;
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
 
 //, Web Speech API (dictée vocale) : typage minimal, sans `any`. -----------
 interface SpeechResultList {
@@ -63,19 +94,16 @@ function loadImage(file: File): Promise<HTMLImageElement> {
 export function CoachWidget() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Msg[]>([
-    {
-      role: "assistant",
-      content:
-        "Salut. Pose-moi une question sur ta séance, un exercice, une substitution ou un repas, tu peux aussi m'envoyer une photo (repas, machine) ou dicter à la voix.",
-    },
-  ]);
+  const [messages, setMessages] = useState<Msg[]>([GREETING]);
   const [input, setInput] = useState("");
   const [image, setImage] = useState<Attached | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [listening, setListening] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [conversations, setConversations] = useState<Conv[]>([]);
+  const [convId, setConvId] = useState<string | null>(null);
+  const [showList, setShowList] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const recRef = useRef<Recognition | null>(null);
@@ -85,24 +113,23 @@ export function CoachWidget() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
 
-  // À la première ouverture, on charge tout l'historique persisté : la
-  // conversation ne repart plus de zéro, le fil complet réapparaît.
+  // À la première ouverture : liste des conversations + fil de la plus récente.
+  // La conversation ne repart plus de zéro, tout l'historique réapparaît.
   useEffect(() => {
     if (!open || historyLoaded.current) return;
     historyLoaded.current = true;
     setLoadingHistory(true);
     (async () => {
       try {
-        const res = await fetch("/api/coach", { method: "GET" });
-        const data = await res.json();
-        const past: Msg[] = Array.isArray(data.messages)
-          ? data.messages
-              .filter((m: { role?: string; content?: string }) => m?.content)
-              .map((m: { role: string; content: string }) => ({
-                role: m.role === "user" ? "user" : "assistant",
-                content: m.content,
-              }))
-          : [];
+        const [cRes, mRes] = await Promise.all([
+          fetch("/api/coach/conversations"),
+          fetch("/api/coach"),
+        ]);
+        const cData = await cRes.json();
+        const mData = await mRes.json();
+        if (Array.isArray(cData.conversations)) setConversations(cData.conversations);
+        setConvId(mData.conversationId ?? null);
+        const past = mapMsgs(mData.messages);
         if (past.length) setMessages(past);
       } catch {
         /* on garde le message d'accueil par défaut */
@@ -111,6 +138,41 @@ export function CoachWidget() {
       }
     })();
   }, [open]);
+
+  async function refreshConversations() {
+    try {
+      const r = await fetch("/api/coach/conversations");
+      const d = await r.json();
+      if (Array.isArray(d.conversations)) setConversations(d.conversations);
+    } catch {
+      /* silencieux */
+    }
+  }
+
+  function newConversation() {
+    setConvId(null);
+    setMessages([GREETING]);
+    setError("");
+    setShowList(false);
+  }
+
+  async function openConversation(id: string) {
+    setShowList(false);
+    if (id === convId) return;
+    setError("");
+    setLoadingHistory(true);
+    try {
+      const r = await fetch(`/api/coach?conversation=${encodeURIComponent(id)}`);
+      const d = await r.json();
+      const past = mapMsgs(d.messages);
+      setConvId(id);
+      setMessages(past.length ? past : [GREETING]);
+    } catch {
+      /* silencieux */
+    } finally {
+      setLoadingHistory(false);
+    }
+  }
 
   async function onFile(file: File | undefined) {
     if (!file) return;
@@ -183,11 +245,13 @@ export function CoachWidget() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           message: outText,
+          conversation_id: convId ?? undefined,
           image: sent ? { data: sent.data, media_type: sent.media_type } : undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
+      if (data.conversationId && data.conversationId !== convId) setConvId(data.conversationId);
       const list: string[] = Array.isArray(data.messages)
         ? data.messages
         : [data.answer].filter(Boolean);
@@ -195,6 +259,7 @@ export function CoachWidget() {
         if (i > 0) await new Promise((r) => setTimeout(r, 650));
         setMessages((m) => [...m, { role: "assistant", content: list[i] }]);
       }
+      refreshConversations(); // titre + ordre à jour
       if (data.adapted) router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Le coach est indisponible.");
@@ -215,19 +280,83 @@ export function CoachWidget() {
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#4FBF6A] opacity-60" />
           <span className="relative inline-flex size-2.5 rounded-full bg-[#4FBF6A]" />
         </span>
-        <span className="font-plex font-semibold text-[15px]">Coach</span>
+        <span className="font-plex font-semibold text-[15px]">{COACH_NAME}</span>
       </button>
     );
   }
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-surface nav:inset-auto nav:bottom-6 nav:right-6 nav:max-h-[70dvh] nav:w-[380px] nav:rounded-card nav:border nav:border-line">
-      <div className="safe-top flex items-center justify-between border-b border-line px-4 py-3">
-        <div className="font-archivo font-semibold text-[15px] text-ink">Coach FitMe90</div>
-        <button onClick={() => setOpen(false)} className="tap text-muted-2" aria-label="Fermer">
+      <div className="safe-top flex items-center justify-between gap-2 border-b border-line px-4 py-3">
+        <button
+          onClick={() => setShowList(true)}
+          className="tap flex size-9 shrink-0 items-center justify-center rounded-control border border-line-4 text-muted transition-colors hover:border-ink hover:text-ink"
+          aria-label="Mes conversations"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+            <path d="M4 6h16M4 12h16M4 18h10" />
+          </svg>
+        </button>
+        <div className="min-w-0 flex-1 text-center">
+          <div className="truncate font-archivo font-semibold text-[15px] text-ink">{COACH_NAME}</div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">Coach FitMe90</div>
+        </div>
+        <button
+          onClick={newConversation}
+          className="tap flex size-9 shrink-0 items-center justify-center rounded-control border border-line-4 text-muted transition-colors hover:border-ink hover:text-ink"
+          aria-label="Nouvelle conversation"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden>
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
+        <button onClick={() => setOpen(false)} className="tap shrink-0 pl-1 text-muted-2" aria-label="Fermer">
           ✕
         </button>
       </div>
+
+      {/* Tiroir des conversations */}
+      {showList ? (
+        <div className="absolute inset-0 z-10 flex flex-col bg-surface animate-[fadein_0.15s_ease-out]">
+          <div className="safe-top flex items-center justify-between border-b border-line px-4 py-3">
+            <div className="font-archivo font-semibold text-[15px] text-ink">Mes conversations</div>
+            <button onClick={() => setShowList(false)} className="tap text-muted-2" aria-label="Fermer la liste">
+              ✕
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3">
+            <button
+              onClick={newConversation}
+              className="tap mb-2 flex w-full items-center gap-2.5 rounded-control border border-brand/40 bg-brand/10 px-3.5 py-3 text-left font-semibold text-brand"
+            >
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Nouvelle conversation
+            </button>
+            {conversations.length === 0 ? (
+              <p className="px-1 py-3 text-[13px] text-muted-2">Aucune conversation pour l&apos;instant.</p>
+            ) : (
+              conversations.map((c) => {
+                const active = c.id === convId;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => openConversation(c.id)}
+                    className={[
+                      "tap flex w-full items-center justify-between gap-3 rounded-control border px-3.5 py-3 text-left transition-colors",
+                      active ? "border-ink bg-surface-2" : "border-line hover:border-line-4",
+                    ].join(" ")}
+                  >
+                    <span className="min-w-0 flex-1 truncate text-[14px] text-ink">{c.title}</span>
+                    <span className="shrink-0 font-mono text-[11px] text-muted-2">{relDate(c.updated_at)}</span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      ) : null}
 
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
         {loadingHistory ? (

@@ -91,13 +91,25 @@ create table public.photos (
   taken_at    date not null default current_date
 );
 
+-- conversations avec le coach : plusieurs fils, listables et consultables
+create table public.coach_conversations (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references auth.users on delete cascade,
+  title       text not null default 'Nouvelle conversation',
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+create index on public.coach_conversations (user_id, updated_at desc);
+
 create table public.coach_messages (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users on delete cascade,
+  conversation_id uuid references public.coach_conversations(id) on delete cascade,
   role        text not null check (role in ('user','assistant')),
   content     text not null,
   created_at  timestamptz not null default now()
 );
+create index on public.coach_messages (conversation_id, created_at);
 
 -- liste des courses : uniquement l'état coché, la liste elle-même est recalculée
 create table public.shopping_checks (
@@ -141,7 +153,7 @@ begin
   foreach t in array array[
     'questionnaires','equipment','programs','session_logs',
     'weights','measurements','photos','coach_messages','shopping_checks',
-    'push_subscriptions'
+    'push_subscriptions','coach_conversations'
   ]
   loop
     execute format('alter table public.%I enable row level security', t);

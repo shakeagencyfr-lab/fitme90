@@ -8,7 +8,7 @@ import { anthropic, MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
 import { describeAnswers, coachTone, DAYS } from "@/lib/questionnaire";
 import { generateProgram, readAdaptations } from "@/lib/program";
 import { pnum, grp } from "@/lib/nutrition";
-import { LIMIT_COACH_PER_DAY, COACH_CREDENTIAL, PROGRAM_DAYS } from "@/lib/config";
+import { LIMIT_COACH_PER_DAY, COACH_CREDENTIAL, COACH_NAME, PROGRAM_DAYS } from "@/lib/config";
 
 const DIETS = ["Omnivore", "Flexitarien", "Végétarien", "Végétalien", "Sans porc", "Sans bœuf"];
 
@@ -17,6 +17,7 @@ export const maxDuration = 300; // l'adaptation peut déclencher une régénéra
 
 const bodySchema = z.object({
   message: z.string().min(1).max(2000),
+  conversation_id: z.string().uuid().optional(),
   image: z
     .object({
       data: z.string(), // base64 (sans en-tête data:)
@@ -25,19 +26,34 @@ const bodySchema = z.object({
     .optional(),
 });
 
-// Historique de la conversation, pour ré-afficher le fil quand le client
-// rouvre le coach (la mémoire existe côté serveur, il faut la RENDRE visible).
-export async function GET() {
+// Messages d'UNE conversation, pour ré-afficher le fil. Sans paramètre, on
+// renvoie la conversation la plus récente (et son id).
+export async function GET(req: NextRequest) {
   const ctx = await getSessionContext();
   if (!ctx) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   const supabase = await createClient();
+
+  let conversationId = new URL(req.url).searchParams.get("conversation");
+  if (!conversationId) {
+    const { data: last } = await supabase
+      .from("coach_conversations")
+      .select("id")
+      .eq("user_id", ctx.userId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ id: string }>();
+    conversationId = last?.id ?? null;
+  }
+  if (!conversationId) return NextResponse.json({ messages: [], conversationId: null });
+
   const { data } = await supabase
     .from("coach_messages")
     .select("role, content")
     .eq("user_id", ctx.userId)
+    .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true })
     .limit(200);
-  return NextResponse.json({ messages: data ?? [] });
+  return NextResponse.json({ messages: data ?? [], conversationId });
 }
 
 export async function POST(req: NextRequest) {
@@ -72,7 +88,29 @@ export async function POST(req: NextRequest) {
 
   const supabase = await createClient();
 
-  // Contexte : dernier programme + historique récent du coach.
+  // Conversation cible : celle fournie (si elle appartient bien au client),
+  // sinon on en ouvre une nouvelle, titrée d'après le premier message.
+  const convTitle = parsed.data.message.slice(0, 48).trim() || "Nouvelle conversation";
+  let conversationId = parsed.data.conversation_id ?? null;
+  if (conversationId) {
+    const { data: conv } = await supabase
+      .from("coach_conversations")
+      .select("id")
+      .eq("user_id", ctx.userId)
+      .eq("id", conversationId)
+      .maybeSingle<{ id: string }>();
+    if (!conv) conversationId = null; // id inconnu / pas au client
+  }
+  if (!conversationId) {
+    const { data: created } = await supabase
+      .from("coach_conversations")
+      .insert({ user_id: ctx.userId, title: convTitle })
+      .select("id")
+      .single<{ id: string }>();
+    conversationId = created?.id ?? null;
+  }
+
+  // Contexte : dernier programme + historique récent DE CETTE conversation.
   const { data: program } = await supabase
     .from("programs")
     .select("plan")
@@ -85,6 +123,7 @@ export async function POST(req: NextRequest) {
     .from("coach_messages")
     .select("role, content")
     .eq("user_id", ctx.userId)
+    .eq("conversation_id", conversationId)
     .order("created_at", { ascending: false })
     .limit(24);
 
@@ -110,7 +149,7 @@ export async function POST(req: NextRequest) {
   const past = (history ?? []).reverse() as { role: "user" | "assistant"; content: string }[];
 
   const toneLine = tone ? ` Adopte un ton ${tone.toLowerCase()}.` : "";
-  const system = `Tu es le coach personnel de FitMe90 (${COACH_CREDENTIAL}).${toneLine} Tu écris comme dans une vraie messagerie : découpe ta réponse en 1 à 4 messages COURTS et naturels (une idée par message, pas de pavé). Réponds STRICTEMENT au format JSON, sans aucun texte autour : {"messages":["premier message","deuxième message"]}. Tu réponds en français, concrètement, en t'appuyant sur le PROFIL, le PROGRAMME et les SÉANCES VALIDÉES ci-dessous — utilise les préférences, contraintes de temps, mode de vie et objectifs du client pour personnaliser tes réponses. Les charges ne sont jamais imposées : elles se règlent au ressenti (RPE 7 au cycle 1, RPE 8 aux cycles 2-3). Quand on te demande des charges, propose-les à partir des volumes et séries déjà relevés, en progressant prudemment. Le client peut joindre une PHOTO (un repas, une machine de la salle, un exercice) : analyse-la et réponds concrètement (ex : estimer les macros d'une assiette, reconnaître une machine et proposer un exercice). Tu donnes des conseils d'entraînement et d'hygiène alimentaire, jamais d'avis médical : en cas de douleur, de pathologie ou de blessure, invite à consulter un professionnel de santé. N'utilise jamais de tiret cadratin (—) ni demi-cadratin (–) : ponctuation naturelle uniquement (virgules, deux-points, points).
+  const system = `Tu es ${COACH_NAME}, le coach personnel de FitMe90 (${COACH_CREDENTIAL}). Tu te présentes par ton prénom quand c'est naturel et tu réponds comme une vraie personne.${toneLine} Tu écris comme dans une vraie messagerie : découpe ta réponse en 1 à 4 messages COURTS et naturels (une idée par message, pas de pavé). Réponds STRICTEMENT au format JSON, sans aucun texte autour : {"messages":["premier message","deuxième message"]}. Tu réponds en français, concrètement, en t'appuyant sur le PROFIL, le PROGRAMME et les SÉANCES VALIDÉES ci-dessous — utilise les préférences, contraintes de temps, mode de vie et objectifs du client pour personnaliser tes réponses. Les charges ne sont jamais imposées : elles se règlent au ressenti (RPE 7 au cycle 1, RPE 8 aux cycles 2-3). Quand on te demande des charges, propose-les à partir des volumes et séries déjà relevés, en progressant prudemment. Le client peut joindre une PHOTO (un repas, une machine de la salle, un exercice) : analyse-la et réponds concrètement (ex : estimer les macros d'une assiette, reconnaître une machine et proposer un exercice). Tu donnes des conseils d'entraînement et d'hygiène alimentaire, jamais d'avis médical : en cas de douleur, de pathologie ou de blessure, invite à consulter un professionnel de santé. N'utilise jamais de tiret cadratin (—) ni demi-cadratin (–) : ponctuation naturelle uniquement (virgules, deux-points, points).
 
 PROFIL DU CLIENT :
 ${profileLines.length ? profileLines.join("\n") : "Non renseigné."}
@@ -438,12 +477,27 @@ ${JSON.stringify(logs ?? [])}`;
     );
   }
 
-  // Persistance : message utilisateur + chaque bulle du coach séparément.
+  // Persistance : message utilisateur + chaque bulle du coach, dans la conversation.
   await supabase.from("coach_messages").insert([
-    { user_id: ctx.userId, role: "user", content: parsed.data.message },
-    ...messages.map((content) => ({ user_id: ctx.userId, role: "assistant", content })),
+    { user_id: ctx.userId, conversation_id: conversationId, role: "user", content: parsed.data.message },
+    ...messages.map((content) => ({ user_id: ctx.userId, conversation_id: conversationId, role: "assistant", content })),
   ]);
+  // Remonte la conversation en tête de liste ; titre depuis le 1er message
+  // s'il était resté au défaut (conversation créée vide auparavant).
+  if (conversationId) {
+    await supabase
+      .from("coach_conversations")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", conversationId)
+      .eq("user_id", ctx.userId);
+    await supabase
+      .from("coach_conversations")
+      .update({ title: convTitle })
+      .eq("id", conversationId)
+      .eq("user_id", ctx.userId)
+      .eq("title", "Nouvelle conversation");
+  }
   await recordCall(ctx.userId, "coach", totalUsage);
 
-  return NextResponse.json({ messages, adapted });
+  return NextResponse.json({ messages, adapted, conversationId });
 }

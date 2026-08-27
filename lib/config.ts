@@ -25,6 +25,9 @@ export const LIMIT_RECIPES_PER_DAY = 20;
 export const LIMIT_ANALYZE_GYM_TOTAL = 10;
 
 export const PRODUCT_NAME = "FitMe90";
+/** Prénom du coach IA (persona). Deviendra un réglage par tenant en marque
+ *  blanche ; centralisé ici pour n'avoir qu'une seule source. */
+export const COACH_NAME = "Sébastien";
 /** Persona / signature du coach affichée dans l'app et les prompts. */
 export const COACH_CREDENTIAL = "Coach professionnel diplômé d'État";
 /** Phrase « créé par » pour la landing et les pages légales. */
