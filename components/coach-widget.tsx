@@ -280,7 +280,7 @@ export function CoachWidget() {
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#4FBF6A] opacity-60" />
           <span className="relative inline-flex size-2.5 rounded-full bg-[#4FBF6A]" />
         </span>
-        <span className="font-plex font-semibold text-[15px]">{COACH_NAME}</span>
+        <span className="font-plex font-semibold text-[15px]">Coach IA</span>
       </button>
     );
   }

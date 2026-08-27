@@ -15,6 +15,7 @@ export interface SetEntry {
   set: number;
   kg: number | null;
   reps: number | null;
+  cardio?: boolean; // séance cardio cochée « faite » (pas de charge / reps)
 }
 
 // Enregistre (ou re-enregistre) la séance d'un jour donné : détail série par
@@ -33,9 +34,11 @@ export async function saveSession(payload: {
   if (!(day >= 1 && day <= PROGRAM_DAYS)) return { error: "Jour invalide." };
 
   const entries = Array.isArray(payload.entries) ? payload.entries : [];
-  const filled = entries.filter((e) => e.reps && e.reps > 0);
-  const volume = filled.reduce((a, e) => a + (e.kg ?? 0) * (e.reps ?? 0), 0);
-  const sets = filled.length;
+  const muscu = entries.filter((e) => e.reps && e.reps > 0);
+  const cardio = entries.filter((e) => e.cardio);
+  const kept = [...muscu, ...cardio]; // on garde muscu remplie ET cardio cochée
+  const volume = muscu.reduce((a, e) => a + (e.kg ?? 0) * (e.reps ?? 0), 0);
+  const sets = muscu.length;
 
   const supabase = await createClient();
   const { error } = await supabase.from("session_logs").upsert(
@@ -44,7 +47,7 @@ export async function saveSession(payload: {
       day,
       sets_done: sets,
       volume,
-      entries: filled,
+      entries: kept,
       validated_at: new Date().toISOString(),
     },
     { onConflict: "user_id,day" },

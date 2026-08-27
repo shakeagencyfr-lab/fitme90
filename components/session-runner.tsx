@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveSession, type SetEntry } from "@/app/app/seance/actions";
 import { Button, Alert, MonoLabel } from "@/components/ui";
-import { isCardioExercise, cardioZone, type HeartZone } from "@/lib/fitness";
+import { isCardioExercise, cardioZone, formatRest, type HeartZone } from "@/lib/fitness";
 
 export interface Exercise {
   name: string;
@@ -24,18 +24,31 @@ interface Props {
   alreadyDone: boolean;
   initial: Record<string, { kg: string; reps: string }>;
   zones?: HeartZone[];
+  restSec?: number;
+  initialCardio?: string[]; // noms des exercices cardio déjà cochés
 }
 
-const REST_DEFAULT = 90;
-
-export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, initial, zones }: Props) {
+export function SessionRunner({
+  day,
+  exercises,
+  rpeGoal,
+  canLog,
+  alreadyDone,
+  initial,
+  zones,
+  restSec = 90,
+  initialCardio = [],
+}: Props) {
   const router = useRouter();
   const [log, setLog] = useState<Record<string, { kg: string; reps: string }>>(initial);
+  const [cardioDone, setCardioDone] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(initialCardio.map((n) => [n, true])),
+  );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(alreadyDone);
   const [error, setError] = useState("");
 
-  // Minuteur de repos intégré
+  // Minuteur de repos intégré, valeur par défaut adaptée au programme.
   const [rest, setRest] = useState(0);
   const [restRun, setRestRun] = useState(false);
 
@@ -59,7 +72,7 @@ export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, in
   }, [restRun]);
 
   function startRest() {
-    setRest(REST_DEFAULT);
+    setRest(restSec);
     setRestRun(true);
   }
 
@@ -68,12 +81,21 @@ export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, in
     setLog((l) => ({ ...l, [key]: { kg: l[key]?.kg ?? "", reps: l[key]?.reps ?? "", [field]: value } }));
   }
 
+  function toggleCardio(name: string) {
+    setSaved(false);
+    setCardioDone((c) => ({ ...c, [name]: !c[name] }));
+  }
+
   const { volume, done, totalSets } = useMemo(() => {
     let volume = 0;
     let done = 0;
     let totalSets = 0;
     exercises.forEach((ex, ei) => {
-      if (isCardioExercise(ex.name, ex.note, ex.cardio)) return; // cardio : pas de séries
+      if (isCardioExercise(ex.name, ex.note, ex.cardio)) {
+        totalSets++; // le cardio compte comme une unité à cocher
+        if (cardioDone[ex.name]) done++;
+        return;
+      }
       for (let si = 0; si < ex.sets; si++) {
         totalSets++;
         const e = log[`${ei}-${si}`];
@@ -85,14 +107,19 @@ export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, in
       }
     });
     return { volume, done, totalSets };
-  }, [log, exercises]);
+  }, [log, exercises, cardioDone]);
 
   async function validate() {
     setSaving(true);
     setError("");
     const entries: SetEntry[] = [];
     exercises.forEach((ex, ei) => {
-      if (isCardioExercise(ex.name, ex.note, ex.cardio)) return; // cardio : rien à logger
+      if (isCardioExercise(ex.name, ex.note, ex.cardio)) {
+        if (cardioDone[ex.name]) {
+          entries.push({ exercise: ex.name, set: 1, kg: null, reps: null, cardio: true });
+        }
+        return;
+      }
       for (let si = 0; si < ex.sets; si++) {
         const e = log[`${ei}-${si}`];
         const reps = Number(e?.reps || 0);
@@ -108,9 +135,6 @@ export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, in
     router.refresh();
   }
 
-  const mm = String(Math.floor(rest / 60)).padStart(2, "0");
-  const ss = String(rest % 60).padStart(2, "0");
-
   // Premier exercice de musculation : sert d'ancre au tutoriel (surbrillance
   // précise des champs charge / reps / Repos sur sa première série).
   const firstStrengthIdx = exercises.findIndex((e) => !isCardioExercise(e.name, e.note, e.cardio));
@@ -119,7 +143,8 @@ export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, in
     <div className="flex flex-col gap-4 pb-24">
       <p className="text-[13.5px] text-muted leading-relaxed">
         Note tes séries, le poids (kg) et les répétitions. Touche <strong>Repos</strong> après
-        une série pour lancer le minuteur. Tu peux refaire cette séance quand tu veux.
+        une série pour lancer le minuteur ({formatRest(restSec)} par défaut, ajustable). Tu peux
+        refaire cette séance quand tu veux.
       </p>
 
       {exercises.map((ex, ei) => {
@@ -162,6 +187,27 @@ export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, in
                 </div>
               )}
               <div className="text-[12px] text-muted-2">Garde cette intensité pendant l&apos;effort. Rien à noter ici : ni charge, ni répétitions.</div>
+              {canLog ? (
+                <button
+                  onClick={() => toggleCardio(ex.name)}
+                  className={[
+                    "tap flex items-center gap-2.5 rounded-control border px-3.5 py-3 text-left transition-colors",
+                    cardioDone[ex.name] ? "border-[#2F6B3C] bg-[#2F6B3C]/10" : "border-line-4 bg-surface hover:border-ink",
+                  ].join(" ")}
+                >
+                  <span
+                    className={[
+                      "inline-flex size-5 shrink-0 items-center justify-center rounded-[6px] border text-[12px] text-white",
+                      cardioDone[ex.name] ? "border-[#2F6B3C] bg-[#2F6B3C]" : "border-line-4 bg-surface",
+                    ].join(" ")}
+                  >
+                    {cardioDone[ex.name] ? "✓" : ""}
+                  </span>
+                  <span className="text-[14px] font-medium text-ink">
+                    {cardioDone[ex.name] ? "Cardio fait" : "Marquer ce cardio comme fait"}
+                  </span>
+                </button>
+              ) : null}
             </div>
           );
         }
@@ -262,7 +308,7 @@ export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, in
       {rest > 0 ? (
         <div className="fixed inset-x-3 bottom-[calc(150px+env(safe-area-inset-bottom))] z-50 flex items-center gap-3 rounded-card border border-fillfg/10 bg-fill px-4 py-3 text-fillfg nav:inset-x-auto nav:right-6 nav:bottom-[92px] nav:w-[340px]">
           <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-fillfg/60">Repos</span>
-          <span className="font-archivo font-extrabold text-[26px] leading-none tabular-nums">{mm}:{ss}</span>
+          <span className="font-archivo font-extrabold text-[26px] leading-none tabular-nums">{formatRest(rest)}</span>
           <div className="ml-auto flex items-center gap-1.5">
             <button onClick={() => setRest((s) => Math.max(0, s - 15))} className="tap rounded-pill bg-fillfg/15 px-2.5 text-[13px] font-semibold">−15</button>
             <button onClick={() => setRestRun((r) => !r)} className="tap rounded-pill bg-fillfg/15 px-3 text-[13px] font-semibold">

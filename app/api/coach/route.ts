@@ -5,12 +5,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
 import { anthropic, MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
-import { describeAnswers, coachTone, DAYS } from "@/lib/questionnaire";
+import { describeAnswers, DAYS } from "@/lib/questionnaire";
+import { buildPersona } from "@/lib/coach-persona";
 import { restPattern, startWeekday } from "@/lib/schedule";
 import { missedDays } from "@/lib/streak";
 import { generateProgram, readAdaptations } from "@/lib/program";
 import { pnum, grp } from "@/lib/nutrition";
-import { LIMIT_COACH_PER_DAY, COACH_CREDENTIAL, COACH_NAME, PROGRAM_DAYS } from "@/lib/config";
+import { LIMIT_COACH_PER_DAY, PROGRAM_DAYS } from "@/lib/config";
 
 const DIETS = ["Omnivore", "Flexitarien", "Végétarien", "Végétalien", "Sans porc", "Sans bœuf"];
 
@@ -152,7 +153,6 @@ export async function POST(req: NextRequest) {
     .limit(1)
     .maybeSingle<{ answers: Record<string, unknown>; train_days: string[] }>();
   const profileLines = quiz?.answers ? describeAnswers(quiz.answers) : [];
-  const tone = quiz?.answers ? coachTone(quiz.answers) : null;
 
   // Retards : séances d'entraînement passées non validées (calendrier fixe).
   const missedList = ctx.profile?.start_date
@@ -167,8 +167,7 @@ export async function POST(req: NextRequest) {
 
   const past = (history ?? []).reverse() as { role: "user" | "assistant"; content: string }[];
 
-  const toneLine = tone ? ` Adopte un ton ${tone.toLowerCase()}.` : "";
-  const system = `Tu es ${COACH_NAME}, le coach personnel de FitMe90 (${COACH_CREDENTIAL}). Tu te présentes par ton prénom quand c'est naturel et tu réponds comme une vraie personne.${toneLine} Tu écris comme dans une vraie messagerie : découpe ta réponse en 1 à 4 messages COURTS et naturels (une idée par message, pas de pavé). Réponds STRICTEMENT au format JSON, sans aucun texte autour : {"messages":["premier message","deuxième message"]}. Tu réponds en français, concrètement, en t'appuyant sur le PROFIL, le PROGRAMME et les SÉANCES VALIDÉES ci-dessous — utilise les préférences, contraintes de temps, mode de vie et objectifs du client pour personnaliser tes réponses. Les charges ne sont jamais imposées : elles se règlent au ressenti (RPE 7 au cycle 1, RPE 8 aux cycles 2-3). Quand on te demande des charges, propose-les à partir des volumes et séries déjà relevés, en progressant prudemment. Le client peut joindre une PHOTO (un repas, une machine de la salle, un exercice) : analyse-la et réponds concrètement (ex : estimer les macros d'une assiette, reconnaître une machine et proposer un exercice). Tu donnes des conseils d'entraînement et d'hygiène alimentaire, jamais d'avis médical : en cas de douleur, de pathologie ou de blessure, invite à consulter un professionnel de santé. N'utilise jamais de tiret cadratin (—) ni demi-cadratin (–) : ponctuation naturelle uniquement (virgules, deux-points, points).
+  const system = `${buildPersona(quiz?.answers ?? {})}
 
 PROFIL DU CLIENT :
 ${profileLines.length ? profileLines.join("\n") : "Non renseigné."}

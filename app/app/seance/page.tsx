@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { loadEspaceOrRedirect } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
-import { restPattern, isRestDay, startWeekday } from "@/lib/schedule";
+import { restPattern, isRestDay, startWeekday, dateOfProgramDay } from "@/lib/schedule";
 import { Card, MonoLabel } from "@/components/ui";
 import { SessionRunner, type Exercise } from "@/components/session-runner";
 import { CoachLoadSuggestion } from "@/components/coach-loads";
-import { RPE, RPE_INTRO, targetRpe, karvonen } from "@/lib/fitness";
+import { RPE, RPE_INTRO, targetRpe, karvonen, resolveRestSeconds, formatRest } from "@/lib/fitness";
 import { PROGRAM_DAYS } from "@/lib/config";
 
 export const metadata = { title: "Séance, FitMe90" };
@@ -15,6 +15,7 @@ interface SavedEntry {
   set: number;
   kg: number | null;
   reps: number | null;
+  cardio?: boolean;
 }
 
 export default async function SeancePage({
@@ -22,7 +23,7 @@ export default async function SeancePage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const { ctx, plan, trainDays } = await loadEspaceOrRedirect();
+  const { ctx, plan, answers, trainDays } = await loadEspaceOrRedirect();
   const sp = await searchParams;
   const today = Math.max(1, ctx.access.day);
 
@@ -61,9 +62,33 @@ export default async function SeancePage({
   const alreadyDone = !!log;
   const zones = karvonen(prof?.age || 34, prof?.rest_hr || 62, prof?.sex ?? undefined).zones;
 
-  // Reconstruit l'état initial {exIdx-setIdx: {kg, reps}} depuis les entrées.
+  // Vraie date du jour de séance (le plan a UNE séance type ; on n'affiche donc
+  // jamais le jour figé du modèle, mais la vraie date calculée du jour choisi).
+  const realDate = ctx.profile?.start_date
+    ? dateOfProgramDay(ctx.profile.start_date, day).toLocaleDateString("fr-FR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        timeZone: "UTC",
+      })
+    : "";
+  const dateLabel = realDate ? realDate.charAt(0).toUpperCase() + realDate.slice(1) : "";
+  const dur = (answers.dur as string) || plan.weekPlan.find((d) => !d.rest)?.dur || "";
+  // Repos entre séries : champ structuré du plan, sinon lu dans meta/notes.
+  const restSec = resolveRestSeconds(
+    plan.session.restSec,
+    plan.session.meta,
+    ...plan.session.exercises.map((e) => e.note),
+  );
+
+  // Reconstruit l'état initial {exIdx-setIdx: {kg, reps}} + les cardio cochés.
   const initial: Record<string, { kg: string; reps: string }> = {};
+  const initialCardio: string[] = [];
   for (const e of log?.entries ?? []) {
+    if (e.cardio) {
+      initialCardio.push(e.exercise);
+      continue;
+    }
     const exIdx = exercises.findIndex((x) => x.name === e.exercise);
     if (exIdx >= 0 && e.set) {
       initial[`${exIdx}-${e.set - 1}`] = {
@@ -113,7 +138,9 @@ export default async function SeancePage({
         <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
           {s.title || "Séance du jour"}
         </h1>
-        {s.meta ? <p className="text-[14px] text-muted">{s.meta}</p> : null}
+        <p className="text-[14px] text-muted">
+          {[dateLabel, dur, `repos ${formatRest(restSec)}`].filter(Boolean).join(" · ")}
+        </p>
       </header>
 
       {/* Charges au ressenti (RPE) */}
@@ -159,6 +186,8 @@ export default async function SeancePage({
         alreadyDone={alreadyDone}
         initial={initial}
         zones={zones}
+        restSec={restSec}
+        initialCardio={initialCardio}
       />
     </div>
   );

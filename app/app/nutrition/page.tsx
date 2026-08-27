@@ -42,6 +42,7 @@ export default async function NutritionPage() {
         macros={{ protein: plan.nutrition.protein, carbs: plan.nutrition.carbs, fat: plan.nutrition.fat }}
         canGenerate={ctx.access.coachEnabled}
         initialChecks={initialChecks}
+        startDate={ctx.profile?.start_date ?? ""}
       />
     </div>
   );
