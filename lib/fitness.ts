@@ -55,13 +55,19 @@ export function karvonen(age: number, restHr: number): { hrMax: number; hrReserv
   return { hrMax, hrReserve, zones };
 }
 
-// Détection des exercices cardio (pas de séries/charges : on affiche une zone).
+// Détection des exercices cardio. On se fie d'abord au flag explicite du plan ;
+// sinon on teste le NOM SEUL (jamais la note, pour éviter la contamination) par
+// MOTS ENTIERS, accents retirés — sinon « développé » contient « velo », etc.
 const CARDIO_RE =
-  /(cardio|rameur|aviron|v[ée]lo|elliptique|tapis|course|courir|jogging|footing|\brun\b|marche|hiit|fractionn|intervalle|corde\s*à?\s*sauter|natation|\bnage\b|assault|air\s*bike|airbike|ski\s*erg|stair|escalier|sprint|liss|zone\s*[12345])/i;
+  /\b(cardio|rameur|aviron|velo|elliptique|tapis|course|courir|jogging|footing|run|running|marche|marches|hiit|fractionne|fractionnes|intervalle|intervalles|corde|natation|nage|nager|assault|airbike|skierg|stairmaster|escalier|escaliers|sprint|sprints|burpee|burpees)\b/;
 
-export function isCardioExercise(name: string, note?: string, cardio?: boolean): boolean {
+function deburr(s: string): string {
+  return (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+export function isCardioExercise(name: string, _note?: string, cardio?: boolean): boolean {
   if (cardio) return true;
-  return CARDIO_RE.test(`${name} ${note ?? ""}`);
+  return CARDIO_RE.test(deburr(name));
 }
 
 /** Choisit la zone cardiaque cible d'un cardio selon un indice explicite ou des
