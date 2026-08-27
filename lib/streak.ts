@@ -38,6 +38,26 @@ export function scheduledTrainingDays(pattern: boolean[], startWd: number, upto:
   return days;
 }
 
+/**
+ * Jours d'entraînement PLANIFIÉS et PASSÉS (strictement avant aujourd'hui) sans
+ * séance validée : les séances manquées, à rattraper. Aujourd'hui n'en fait
+ * jamais partie (la journée n'est pas finie).
+ */
+export function missedDays(opts: {
+  pattern: boolean[];
+  startWd: number;
+  currentDay: number;
+  completedDays: number[];
+  programDays?: number;
+}): number[] {
+  const programDays = opts.programDays ?? 90;
+  const currentDay = Math.max(0, Math.min(opts.currentDay, programDays));
+  const done = new Set(opts.completedDays);
+  return scheduledTrainingDays(opts.pattern, opts.startWd, currentDay).filter(
+    (d) => d < currentDay && !done.has(d),
+  );
+}
+
 export function computeAdherence(opts: {
   pattern: boolean[];
   startWd: number;

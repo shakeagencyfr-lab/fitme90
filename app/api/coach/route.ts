@@ -6,6 +6,8 @@ import { getSessionContext } from "@/lib/guard";
 import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
 import { anthropic, MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
 import { describeAnswers, coachTone, DAYS } from "@/lib/questionnaire";
+import { restPattern, startWeekday } from "@/lib/schedule";
+import { missedDays } from "@/lib/streak";
 import { generateProgram, readAdaptations } from "@/lib/program";
 import { pnum, grp } from "@/lib/nutrition";
 import { LIMIT_COACH_PER_DAY, COACH_CREDENTIAL, COACH_NAME, PROGRAM_DAYS } from "@/lib/config";
@@ -135,6 +137,12 @@ export async function POST(req: NextRequest) {
     .order("day", { ascending: false })
     .limit(12);
 
+  // Toutes les séances validées (jours) : pour repérer les retards à rattraper.
+  const { data: doneRows } = await supabase
+    .from("session_logs")
+    .select("day")
+    .eq("user_id", ctx.userId);
+
   // Profil complet du questionnaire : rend le coach beaucoup plus personnalisé.
   const { data: quiz } = await supabase
     .from("questionnaires")
@@ -145,6 +153,17 @@ export async function POST(req: NextRequest) {
     .maybeSingle<{ answers: Record<string, unknown>; train_days: string[] }>();
   const profileLines = quiz?.answers ? describeAnswers(quiz.answers) : [];
   const tone = quiz?.answers ? coachTone(quiz.answers) : null;
+
+  // Retards : séances d'entraînement passées non validées (calendrier fixe).
+  const missedList = ctx.profile?.start_date
+    ? missedDays({
+        pattern: restPattern(quiz?.train_days ?? []),
+        startWd: startWeekday(ctx.profile.start_date),
+        currentDay: ctx.access.day,
+        completedDays: (doneRows ?? []).map((r) => r.day as number),
+        programDays: PROGRAM_DAYS,
+      })
+    : [];
 
   const past = (history ?? []).reverse() as { role: "user" | "assistant"; content: string }[];
 
@@ -163,6 +182,7 @@ CALENDRIER (suis la progression avec ces repères réels) :
   }.
 - Aujourd'hui : ${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" })} — jour ${ctx.access.day} sur ${PROGRAM_DAYS}.
 - Les séances tombent aux vrais jours de la semaine choisis. Parle en dates concrètes et repère les séances validées vs prévues pour suivre les retards éventuels.
+- Séances en retard (passées, non validées) : ${missedList.length ? `${missedList.length} (jours ${missedList.slice(0, 8).join(", ")}${missedList.length > 8 ? "…" : ""}). Le calendrier ne bouge pas : encourage à les RATTRAPER quand le client peut, sur un ton bienveillant et sans culpabiliser. Rappelle qu'il peut ouvrir une séance passée depuis l'agenda pour la rattraper. N'en parle QUE si c'est pertinent (le client en parle, demande un bilan, ou s'inquiète de son retard).` : "aucune, félicite la régularité si le sujet vient."}
 
 PROGRAMME (JSON) :
 ${JSON.stringify(program?.plan ?? {})}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeAdherence, scheduledTrainingDays, MILESTONES } from "./streak";
+import { computeAdherence, scheduledTrainingDays, missedDays, MILESTONES } from "./streak";
 import { restPatternFromTrainDays } from "./schedule";
 
 // Motif : entraînement LUN / MER / VEN, repos ailleurs. Départ un lundi
@@ -67,6 +67,14 @@ describe("computeAdherence", () => {
   it("prochain palier suit le total de séances", () => {
     const s = computeAdherence({ pattern, startWd: 0, currentDay: 8, completedDays: [1, 3, 5] });
     expect(s.nextMilestone).toBe(MILESTONES.find((m) => m > 3));
+  });
+
+  it("liste les séances manquées, aujourd'hui exclu", () => {
+    // jour 8 (LUN) : planifiés passés 1,3,5 ; faits 1,5 → manqué = [3].
+    // le 8 (aujourd'hui) n'est jamais compté comme manqué.
+    expect(missedDays({ pattern, startWd: 0, currentDay: 8, completedDays: [1, 5] })).toEqual([3]);
+    expect(missedDays({ pattern, startWd: 0, currentDay: 8, completedDays: [1, 3, 5] })).toEqual([]);
+    expect(missedDays({ pattern, startWd: 0, currentDay: 6, completedDays: [] })).toEqual([1, 3, 5]);
   });
 
   it("respecte le décalage de départ (départ un mercredi)", () => {

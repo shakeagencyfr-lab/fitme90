@@ -89,6 +89,8 @@ export default async function AgendaPage() {
                   const rest = pattern[weekdayIndexUTC(date)];
                   const isDone = done.has(pd);
                   const isToday = inWindow && pd === today;
+                  // Séance manquée : jour d'entraînement passé, non validé.
+                  const isMissed = inWindow && !rest && !isDone && pd < today;
                   const dom = date.getUTCDate();
 
                   if (!inWindow) {
@@ -104,16 +106,20 @@ export default async function AgendaPage() {
 
                   const base = [
                     "relative flex aspect-square flex-col items-center justify-center rounded-[8px] border text-[12px] transition-colors hover:border-ink",
-                    isToday ? "border-ink border-2" : "border-line",
-                    rest ? "bg-surface-2 text-muted-2" : "bg-surface text-body",
+                    isToday ? "border-ink border-2" : isMissed ? "border-[#C4471A]/45" : "border-line",
+                    isMissed
+                      ? "bg-alert text-alert-ink"
+                      : rest
+                        ? "bg-surface-2 text-muted-2"
+                        : "bg-surface text-body",
                   ].join(" ");
 
                   return (
                     <Link
                       key={dUTC}
                       href={`/app/seance?jour=${pd}`}
-                      aria-label={`${dom}, jour ${pd}${rest ? " repos" : ""}${isDone ? " validé" : ""}`}
-                      title={`Jour ${pd}${rest ? " · repos" : ""}${isDone ? " · validé" : ""}`}
+                      aria-label={`${dom}, jour ${pd}${rest ? " repos" : ""}${isDone ? " validé" : isMissed ? " manquée, à rattraper" : ""}`}
+                      title={`Jour ${pd}${rest ? " · repos" : ""}${isDone ? " · validé" : isMissed ? " · manquée, à rattraper" : ""}`}
                       className={base}
                     >
                       {isDone ? (
@@ -121,6 +127,9 @@ export default async function AgendaPage() {
                       ) : (
                         <span className="tabular-nums font-medium">{dom}</span>
                       )}
+                      {isMissed ? (
+                        <span className="absolute right-1 top-1 text-[10px] font-bold leading-none text-[#C4471A]">!</span>
+                      ) : null}
                       {!rest ? (
                         <span
                           className={`absolute bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full ${CYCLE_DOT[cycleOf(pd)]}`}
@@ -136,7 +145,7 @@ export default async function AgendaPage() {
       </div>
 
       <MonoLabel>
-        Vraies dates · aujourd&apos;hui encadré · ✓ séance validée · point = jour d&apos;entraînement (couleur = cycle)
+        Vraies dates · aujourd&apos;hui encadré · ✓ séance validée · « ! » en orange = séance manquée (touche-la pour la rattraper) · point = jour d&apos;entraînement (couleur = cycle)
       </MonoLabel>
     </div>
   );
