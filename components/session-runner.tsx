@@ -144,8 +144,8 @@ export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, in
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="font-archivo font-extrabold text-[13px]" style={{ color: zone.fg }}>{zone.id}</span>
                     <div className="min-w-0">
-                      <div className="font-archivo font-semibold text-[15px] leading-tight text-ink">Zone {zone.name}</div>
-                      <div className="truncate text-[12.5px] text-muted">{zone.use}</div>
+                      <div className="font-archivo font-semibold text-[15px] leading-tight text-[#1b1d1f]">Zone {zone.name}</div>
+                      <div className="truncate text-[12.5px] text-[#5c5a54]">{zone.use}</div>
                     </div>
                   </div>
                   <span className="shrink-0 font-archivo font-extrabold text-[16px] tabular-nums" style={{ color: zone.fg }}>
@@ -194,7 +194,7 @@ export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, in
                       key={si}
                       className={[
                         "flex items-center gap-2 rounded-control px-2 py-1.5 transition-colors",
-                        ok ? "bg-[#F3F8F3]" : "bg-surface-2",
+                        ok ? "bg-brand/10" : "bg-surface-2",
                       ].join(" ")}
                     >
                       <span className="w-6 text-center font-mono text-[11px] text-muted-2">S{si + 1}</span>

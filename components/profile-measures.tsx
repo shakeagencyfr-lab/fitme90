@@ -111,10 +111,10 @@ export function ProfileMeasures(initial: Props) {
                   {z.id}
                 </span>
                 <div className="min-w-0">
-                  <div className="font-archivo font-semibold text-[15px] text-ink leading-tight">
+                  <div className="font-archivo font-semibold text-[15px] leading-tight text-[#1b1d1f]">
                     {z.name}
                   </div>
-                  <div className="text-[12.5px] text-muted truncate">{z.use}</div>
+                  <div className="truncate text-[12.5px] text-[#5c5a54]">{z.use}</div>
                 </div>
               </div>
               <span className="font-archivo font-extrabold text-[16px] tabular-nums shrink-0" style={{ color: z.fg }}>
