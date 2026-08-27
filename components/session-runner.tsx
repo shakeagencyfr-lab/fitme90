@@ -11,6 +11,7 @@ export interface Exercise {
   sets: number;
   reps: string;
   note?: string;
+  rest?: number; // repos entre séries de cet exercice (secondes)
   cardio?: boolean;
   duration?: string;
   zone?: string;
@@ -71,8 +72,8 @@ export function SessionRunner({
     return () => clearInterval(id);
   }, [restRun]);
 
-  function startRest() {
-    setRest(restSec);
+  function startRest(seconds: number = restSec) {
+    setRest(seconds);
     setRestRun(true);
   }
 
@@ -228,7 +229,7 @@ export function SessionRunner({
                 <div className="font-archivo font-semibold text-[16px] text-ink truncate">{ex.name}</div>
               </div>
               <div className="font-mono text-[11px] text-brand shrink-0 whitespace-nowrap">
-                {ex.sets} × {ex.reps} · RPE {rpeGoal}
+                {ex.sets} × {ex.reps} · RPE {rpeGoal} · récup {formatRest(ex.rest ?? restSec)}
               </div>
             </div>
             {ex.note ? <div className="text-[12.5px] text-muted leading-[1.5]">{ex.note}</div> : null}
@@ -267,7 +268,7 @@ export function SessionRunner({
                         className="tap w-full min-w-0 flex-1 rounded-[7px] border border-line-4 bg-surface px-2.5 text-center text-ink placeholder:text-disabled outline-none focus:border-ink"
                       />
                       <button
-                        onClick={startRest}
+                        onClick={() => startRest(ex.rest ?? restSec)}
                         data-tour={tourRow ? "repos" : undefined}
                         className="tap shrink-0 rounded-[7px] border border-line-4 bg-surface px-3 text-[12px] font-semibold text-body active:bg-paper"
                       >

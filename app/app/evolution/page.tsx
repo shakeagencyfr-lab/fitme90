@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, MonoLabel } from "@/components/ui";
 import { WeightTracker } from "@/components/weight-tracker";
 import { MeasurementForm } from "@/components/evolution-forms";
+import { RecordsTable } from "@/components/records-table";
+import { personalRecords, type LogEntry } from "@/lib/records";
 
 export const metadata = { title: "Évolution, FitMe90" };
 
@@ -34,7 +36,7 @@ function fmtDate(d: string) {
 export default async function EvolutionPage() {
   const { ctx } = await loadEspaceOrRedirect();
   const supabase = await createClient();
-  const [{ data: weights }, { data: measures }] = await Promise.all([
+  const [{ data: weights }, { data: measures }, { data: logs }] = await Promise.all([
     supabase
       .from("weights")
       .select("kg, measured_at")
@@ -47,7 +49,17 @@ export default async function EvolutionPage() {
       .eq("user_id", ctx.userId)
       .order("measured_at", { ascending: false })
       .limit(60),
+    supabase
+      .from("session_logs")
+      .select("entries")
+      .eq("user_id", ctx.userId)
+      .returns<{ entries: LogEntry[] | null }[]>(),
   ]);
+
+  // Records de charges : agrégés depuis toutes les séries validées.
+  const allEntries: LogEntry[] = [];
+  for (const l of logs ?? []) for (const e of l.entries ?? []) allEntries.push(e);
+  const records = personalRecords(allEntries);
 
   const canLog = ctx.access.canLog;
   const rows = (measures ?? []) as Measure[];
@@ -66,6 +78,8 @@ export default async function EvolutionPage() {
       </h1>
 
       <WeightTracker weights={(weights ?? []) as { kg: number; measured_at: string }[]} />
+
+      <RecordsTable records={records} />
 
       {canLog ? (
         <MeasurementForm />

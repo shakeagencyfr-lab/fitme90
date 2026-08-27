@@ -94,23 +94,21 @@ export function cardioZone(zones: HeartZone[], hint: string, name: string, note?
 }
 
 /**
- * Repos entre séries, en secondes. Priorité au champ structuré du plan
- * (restSec) ; sinon on tente de lire un temps dans un texte (meta, note), ex
- * « 75 s », « 90s », « 1mn30 », « 1'30 », « 2 min ». Défaut 90 s.
+ * Repos entre séries, en secondes, lu dans un texte (meta, note). Pour éviter
+ * de confondre avec une durée de cardio ou de séance, on n'accepte un temps
+ * QUE s'il est précédé d'un mot de repos (« repos », « récup », « rest »).
+ * Ex : « Repos 75s », « récup 1mn30 », « repos 90 s ». Sinon null.
  */
 export function parseRestSeconds(text: string | undefined | null): number | null {
   if (!text) return null;
   const t = text.toLowerCase();
-  // Formats minute + secondes : 1mn30, 1'30, 1 min 30, 1m30
-  const mmss = /(\d)\s*(?:mn|min|m|')\s*(\d{1,2})/.exec(t);
-  if (mmss) return Number(mmss[1]) * 60 + Number(mmss[2]);
-  // Minutes seules : 2 min, 1mn
-  const min = /(\d)\s*(?:mn|min|m|')(?!\d)/.exec(t);
-  if (min) return Number(min[1]) * 60;
-  // Secondes : 75 s, 90s, 45 sec
-  const sec = /(\d{2,3})\s*(?:s|sec|"|secondes?)/.exec(t);
-  if (sec) return Number(sec[1]);
-  return null;
+  const m = /(?:repos|r[ée]cup(?:[ée]ration)?|rest)\D{0,10}?(\d{1,3})\s*(mn|min|m|'|s|sec|secondes?|")?\s*(\d{1,2})?/.exec(t);
+  if (!m) return null;
+  const n1 = Number(m[1]);
+  const unit = m[2] || "";
+  const n2 = m[3] ? Number(m[3]) : 0;
+  if (/^(mn|min|m|')$/.test(unit)) return n1 * 60 + n2; // minutes (+ secondes)
+  return n1; // secondes (s/sec/") ou sans unité, traité en secondes
 }
 
 export function resolveRestSeconds(restSec: number | undefined, ...texts: (string | undefined)[]): number {
