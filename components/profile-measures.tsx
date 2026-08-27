@@ -126,7 +126,7 @@ export function ProfileMeasures({ sex, ...initial }: Props & { sex?: string }) {
         </div>
         <p className="text-[12px] text-muted-2">
           Réserve cardiaque (Karvonen) : à partir de ta FC de repos et de ta FC max
-          estimée ({female ? "226" : "220"} − âge).
+          estimée ({female ? "Gulati : 206 − 0,88 × âge" : "220 − âge"}).
         </p>
       </Card>
     </div>

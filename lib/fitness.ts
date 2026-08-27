@@ -32,14 +32,18 @@ export interface HeartZone {
   range: string; // "124–136"
 }
 
-/** FC max estimée (220 − âge, 226 − âge pour les femmes) et zones de Karvonen. */
+/**
+ * FC max estimée et zones de Karvonen (réserve cardiaque).
+ * Hommes / non précisé : 220 − âge. Femmes : formule de Gulati (206 − 0,88 × âge),
+ * validée spécifiquement sur une population féminine.
+ */
 export function karvonen(
   age: number,
   restHr: number,
   sex?: string,
 ): { hrMax: number; hrReserve: number; zones: HeartZone[] } {
   const female = /^f/i.test(sex ?? "");
-  const hrMax = (female ? 226 : 220) - age;
+  const hrMax = female ? Math.round(206 - 0.88 * age) : 220 - age;
   const hrReserve = hrMax - restHr;
   const z = (p: number) => Math.round(restHr + (p / 100) * hrReserve);
   const defs: [string, string, string, number, number, string, string][] = [
