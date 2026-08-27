@@ -1,5 +1,9 @@
 "use client";
 
+// L'envoi différé d'une demande externe (bouton dépannage) déclenche un
+// setState en effet, volontairement, en réaction à un événement.
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
@@ -104,6 +108,7 @@ export function CoachWidget() {
   const [conversations, setConversations] = useState<Conv[]>([]);
   const [convId, setConvId] = useState<string | null>(null);
   const [showList, setShowList] = useState(false);
+  const [pendingAsk, setPendingAsk] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const recRef = useRef<Recognition | null>(null);
@@ -138,6 +143,29 @@ export function CoachWidget() {
       }
     })();
   }, [open]);
+
+  // Demande externe (ex. bouton « je n'ai pas mon matériel » sur la séance) :
+  // on ouvre le coach et on mémorise le message à envoyer.
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const msg = (e as CustomEvent<{ message?: string }>).detail?.message;
+      if (!msg) return;
+      setOpen(true);
+      setShowList(false);
+      setPendingAsk(msg);
+    };
+    window.addEventListener("fitme90:coach-ask", onAsk as EventListener);
+    return () => window.removeEventListener("fitme90:coach-ask", onAsk as EventListener);
+  }, []);
+
+  // Envoi différé : une fois le panneau ouvert et l'historique chargé.
+  useEffect(() => {
+    if (!open || !pendingAsk || busy || loadingHistory) return;
+    const msg = pendingAsk;
+    setPendingAsk(null);
+    pushMessage(msg, null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, pendingAsk, busy, loadingHistory]);
 
   async function refreshConversations() {
     try {
@@ -258,15 +286,9 @@ export function CoachWidget() {
     rec.start();
   }
 
-  async function send() {
-    const text = input.trim();
-    if ((!text && !image) || busy) return;
-    if (listening) recRef.current?.stop();
+  // Envoie un message (texte + image éventuelle) au coach et affiche la réponse.
+  async function pushMessage(outText: string, sent: Attached | null) {
     setError("");
-    const outText = text || "Peux-tu regarder cette image ?";
-    const sent = image;
-    setInput("");
-    setImage(null);
     setMessages((m) => [...m, { role: "user", content: outText, image: sent?.preview }]);
     setBusy(true);
     try {
@@ -296,6 +318,17 @@ export function CoachWidget() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function send() {
+    const text = input.trim();
+    if ((!text && !image) || busy) return;
+    if (listening) recRef.current?.stop();
+    const outText = text || "Peux-tu regarder cette image ?";
+    const sent = image;
+    setInput("");
+    setImage(null);
+    pushMessage(outText, sent);
   }
 
   if (!open) {

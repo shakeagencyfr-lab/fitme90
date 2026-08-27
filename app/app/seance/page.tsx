@@ -5,6 +5,7 @@ import { restPattern, isRestDay, startWeekday, dateOfProgramDay } from "@/lib/sc
 import { Card, MonoLabel } from "@/components/ui";
 import { SessionRunner, type Exercise } from "@/components/session-runner";
 import { CoachLoadSuggestion } from "@/components/coach-loads";
+import { DepannageButton } from "@/components/depannage-button";
 import { RPE, RPE_INTRO, targetRpe, karvonen, resolveRestSeconds } from "@/lib/fitness";
 import { PROGRAM_DAYS } from "@/lib/config";
 
@@ -142,6 +143,11 @@ export default async function SeancePage({
         <p className="text-[14px] text-muted">
           {[dateLabel, dur].filter(Boolean).join(" · ")}
         </p>
+        {ctx.access.coachEnabled ? (
+          <div className="pt-1">
+            <DepannageButton />
+          </div>
+        ) : null}
       </header>
 
       {/* Charges au ressenti (RPE) */}
