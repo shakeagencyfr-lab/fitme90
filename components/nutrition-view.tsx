@@ -13,11 +13,16 @@ import { Card, MonoLabel, Button, Alert } from "@/components/ui";
 
 interface Recipe {
   name: string;
+  level?: string;
+  time: string;
+  servings?: string;
   kcal: string;
   protein: string;
-  time: string;
+  carbs?: string;
+  fat?: string;
   ingredients: { food: string; qty: string }[];
-  steps: string;
+  steps: string[];
+  tip?: string;
 }
 
 interface Props {
@@ -211,20 +216,57 @@ export function NutritionView({
           </div>
           {recipeErr ? <Alert>{recipeErr}</Alert> : null}
           {recipes.map((r, i) => (
-            <Card key={i} className="flex flex-col gap-2">
-              <div className="flex items-baseline justify-between gap-2">
-                <div className="font-archivo font-semibold text-[16px] text-ink">{r.name}</div>
-                <div className="font-mono text-[11px] text-brand">{r.kcal} kcal · {r.protein} · {r.time}</div>
+            <Card key={i} className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="font-archivo font-semibold text-[16.5px] leading-tight text-ink">{r.name}</div>
+                  {r.level ? (
+                    <span className="shrink-0 rounded-pill border border-brand/40 bg-brand/10 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-brand">
+                      {r.level}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] text-muted-2">
+                  <span>{r.time}</span>
+                  {r.servings ? <span>· {r.servings}</span> : null}
+                  <span>· {r.kcal} kcal</span>
+                  <span>· P {r.protein}</span>
+                  {r.carbs ? <span>· G {r.carbs}</span> : null}
+                  {r.fat ? <span>· L {r.fat}</span> : null}
+                </div>
               </div>
+
               <div className="flex flex-col gap-1">
+                <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">Ingrédients</div>
                 {r.ingredients.map((it, j) => (
-                  <div key={j} className="flex justify-between text-[14px] text-body border-b border-line-2 py-1 last:border-0">
+                  <div key={j} className="flex justify-between border-b border-line-2 py-1 text-[14px] text-body last:border-0">
                     <span>{it.food}</span>
                     <span className="text-muted-2">{it.qty}</span>
                   </div>
                 ))}
               </div>
-              {r.steps ? <p className="text-[13.5px] text-muted leading-[1.55]">{r.steps}</p> : null}
+
+              {r.steps && r.steps.length ? (
+                <div className="flex flex-col gap-1.5">
+                  <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">Préparation</div>
+                  <ol className="flex flex-col gap-2">
+                    {r.steps.map((st, j) => (
+                      <li key={j} className="flex items-start gap-2.5 text-[13.5px] leading-[1.5] text-body">
+                        <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-brand/15 font-mono text-[11px] font-bold text-brand">
+                          {j + 1}
+                        </span>
+                        <span>{st}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ) : null}
+
+              {r.tip ? (
+                <div className="rounded-control bg-surface-2 px-3.5 py-2.5 text-[13px] leading-[1.5] text-muted">
+                  <span className="font-semibold text-body">Astuce :</span> {r.tip}
+                </div>
+              ) : null}
             </Card>
           ))}
           <Button variant="outline" onClick={genRecipes} loading={recipeBusy} className="self-start h-11">

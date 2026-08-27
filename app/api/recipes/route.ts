@@ -13,11 +13,20 @@ const recipesSchema = z.object({
     .array(
       z.object({
         name: z.string(),
+        level: z.string().optional().default(""),
+        time: z.string(),
+        servings: z.string().optional().default(""),
         kcal: z.string(),
         protein: z.string(),
-        time: z.string(),
+        carbs: z.string().optional().default(""),
+        fat: z.string().optional().default(""),
         ingredients: z.array(z.object({ food: z.string(), qty: z.string() })),
-        steps: z.string(),
+        // Étapes détaillées ; on accepte aussi une chaîne pour la rétrocompat.
+        steps: z
+          .union([z.array(z.string()), z.string()])
+          .transform((v) => (Array.isArray(v) ? v : [v]).map((s) => s.trim()).filter(Boolean))
+          .default([]),
+        tip: z.string().optional().default(""),
       }),
     )
     .default([]),
@@ -61,18 +70,31 @@ export async function POST() {
   const arr = (k: string) => (Array.isArray(a[k]) ? (a[k] as string[]).join(", ") : "");
   const n = program?.plan?.nutrition ?? {};
 
-  const system = `Tu es ${COACH_CREDENTIAL}. Réponds UNIQUEMENT par un JSON valide en français : {"recipes":[{"name":"","kcal":"620","protein":"42 g","time":"20 min","ingredients":[{"food":"","qty":""}],"steps":"3 phrases max"}]} — exactement 3 recettes. Conseils culinaires uniquement, aucune allégation médicale. N'utilise jamais de tiret cadratin (—) ni demi-cadratin (–).`;
+  const cook = (a.cook_time as string) || "";
+  const level =
+    /non/i.test(cook)
+      ? "Assemblage rapide, sans cuisson ou minimale, étapes très simples et courtes."
+      : /temps en temps/i.test(cook)
+        ? "Recettes simples, cuisson basique, temps de préparation modéré."
+        : /oui/i.test(cook)
+          ? "Recettes plus élaborées et gourmandes, techniques un peu plus poussées, davantage d'étapes."
+          : "Recettes simples et efficaces.";
+
+  const system = `Tu es ${COACH_CREDENTIAL}. Réponds UNIQUEMENT par un objet JSON valide en français, sans texte autour. Exactement 3 recettes, chacune DÉTAILLÉE et facile à suivre. Schéma EXACT :
+{"recipes":[{"name":"","level":"Simple","time":"20 min","servings":"1 portion","kcal":"620","protein":"42 g","carbs":"55 g","fat":"18 g","ingredients":[{"food":"","qty":"120 g"}],"steps":["Étape 1 claire et précise","Étape 2","Étape 3","Étape 4"],"tip":"une astuce courte"}]}
+Consignes : 4 à 7 étapes numérotées, chaque étape est une instruction concrète (température, temps de cuisson, ustensile, indice de cuisson). Donne des quantités précises pour chaque ingrédient, les macros complètes (kcal, protéines, glucides, lipides) et le nombre de portions. Ajoute une astuce ("tip") utile (variante, conservation, gain de temps). Conseils culinaires uniquement, aucune allégation médicale. N'utilise jamais de tiret cadratin (—) ni demi-cadratin (–).`;
   const user =
-    `Objectifs du jour : ${n.kcal || "2 580"} kcal, ${n.protein || "148"} g de protéines, ${n.carbs || "276"} g de glucides, ${n.fat || "78"} g de lipides.\n` +
+    `Objectifs du jour : ${n.kcal || "2 580"} kcal, ${n.protein || "148"} g de protéines, ${n.carbs || "276"} g de glucides, ${n.fat || "78"} g de lipides. Vise des recettes cohérentes avec ces apports (une portion = un repas).\n` +
     `Allergies à exclure strictement : ${arr("allerg") || "aucune"}.\n` +
     `Régime : ${(a.diet as string) || "omnivore"}. Cadre religieux : ${(a.religion as string) || "aucun"}. Aliments refusés : ${(a.dislikes as string) || "aucun"}.\n` +
-    `Aliments appréciés : ${(a.loved_foods as string) || "non précisé"}. Temps de cuisine : ${(a.cook_time as string) || "peu importe"}.\n` +
-    `Propose 3 recettes simples, adaptées à ces goûts et à ce temps de préparation, avec quantités précises.`;
+    `Aliments appréciés : ${(a.loved_foods as string) || "non précisé"}. Budget : ${(a.budget as string) || "moyen"}.\n` +
+    `NIVEAU des recettes (selon le temps de cuisine du client) : ${level} Indique ce niveau dans le champ "level" (ex "Assemblage rapide", "Simple", "Élaborée").\n` +
+    `Propose 3 recettes distinctes, adaptées à ces goûts, à ce budget et à ce niveau, avec des étapes détaillées.`;
 
   try {
     const message = await anthropic().messages.create({
       model: MODELS.recipes,
-      max_tokens: 2048,
+      max_tokens: 3800,
       output_config: { effort: "low" },
       system,
       messages: [{ role: "user", content: user }],

@@ -86,7 +86,7 @@ export const QUIZ: Section[] = [
       { key: "dislikes", label: "Aliments que tu refuses", type: "text", optional: true, placeholder: "Brocoli, fromage bleu…" },
       { key: "loved_foods", label: "Aliments que tu adores", type: "text", optional: true, placeholder: "Poulet, patate douce, chocolat noir…" },
       { key: "meals_per_day", label: "Repas par jour", type: "choice", options: ["2", "3", "4", "5 et +"] },
-      { key: "cook_time", label: "Temps de cuisine par repas", type: "choice", options: ["Moins de 15 min", "15 à 30 min", "Plus de 30 min"] },
+      { key: "cook_time", label: "As-tu le temps de cuisiner ?", type: "choice", options: ["Oui", "De temps en temps", "Non"], help: "Détermine le niveau des recettes proposées (élaborées, simples ou en assemblage rapide)." },
       { key: "budget", label: "Budget alimentaire", type: "choice", options: ["Serré", "Moyen", "Confortable"] },
       { key: "supplements", label: "Compléments actuels", type: "text", optional: true, placeholder: "Whey, créatine, vitamine D…" },
       { key: "alcohol", label: "Alcool", type: "choice", options: ["Jamais", "Occasionnel", "Régulier"] },
