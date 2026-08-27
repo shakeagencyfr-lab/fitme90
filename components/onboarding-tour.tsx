@@ -9,7 +9,7 @@ const KEY = "fitme90_onboarded";
 type Rect = { top: number; left: number; width: number; height: number };
 
 // Chaque étape ouvre la page (href) ET met en surbrillance l'élément (target).
-const STEPS: { tag: string; title: string; body: string; href?: string; target?: string }[] = [
+const STEPS: { tag: string; title: string; body: string; href?: string; target?: string; bullets?: string[] }[] = [
   {
     tag: "Bienvenue",
     title: "Bienvenue dans ton espace 👋",
@@ -32,7 +32,14 @@ const STEPS: { tag: string; title: string; body: string; href?: string; target?:
   {
     tag: "Séance",
     title: "3. Ta séance du jour",
-    body: "Pour chaque exercice, note tes charges et répétitions série par série. Important : remplis bien tes charges à chaque fois, c'est grâce à ces repères que le coach peut te caler les bonnes charges pour les prochaines séances. Le minuteur de repos se lance tout seul, et à la fin tu valides la séance.",
+    body: "C'est ici que tu suis ton entraînement du jour, exercice par exercice. Voici comment ça marche :",
+    bullets: [
+      "Pour chaque série, entre ton poids en kg dans la première case, puis ton nombre de répétitions dans la seconde.",
+      "Touche le bouton « Repos » à côté d'une série : le minuteur de récupération se lance automatiquement.",
+      "Le minuteur s'affiche en bas de l'écran. Tu peux le mettre en pause, retirer 15 secondes ou l'arrêter.",
+      "Remplis bien tes charges à chaque séance : c'est le repère qui permet au coach de te caler les bonnes charges ensuite.",
+      "Quand tu as terminé, touche « Valider ma séance ». Tu peux la refaire ou la mettre à jour quand tu veux.",
+    ],
     href: "/app/seance",
     target: "seance",
   },
@@ -162,7 +169,7 @@ export function OnboardingTour() {
         style={below && rect ? { alignItems: "flex-end", paddingBottom: vh - rect.top + 18 } : { alignItems: "center" }}
       >
         <div className="pointer-events-auto w-full max-w-[420px] overflow-hidden rounded-card-lg border border-line bg-surface animate-[popin_0.24s_ease-out] motion-reduce:animate-none">
-          <div className="flex flex-col gap-3 p-6 pb-5">
+          <div className="flex max-h-[70dvh] flex-col gap-3 overflow-y-auto p-6 pb-5">
             <div className="flex items-center justify-between">
               <span className="rounded-pill border border-brand/40 bg-brand/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-brand">
                 {s.tag}
@@ -175,6 +182,19 @@ export function OnboardingTour() {
               {s.title}
             </h2>
             <p className="text-[15px] leading-[1.6] text-body">{s.body}</p>
+
+            {s.bullets ? (
+              <ol className="flex flex-col gap-2">
+                {s.bullets.map((b, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-[13.5px] leading-[1.5] text-body">
+                    <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-brand/15 font-mono text-[11px] font-bold text-brand">
+                      {i + 1}
+                    </span>
+                    <span>{b}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
 
             <div className="flex justify-center gap-1.5 pt-1">
               {STEPS.map((_, i) => (
