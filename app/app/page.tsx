@@ -4,7 +4,7 @@ import { accessLabel } from "@/lib/access";
 import { Card, Stat, MonoLabel, ButtonLink, Alert } from "@/components/ui";
 import { TrainingDaysEditor } from "@/components/training-days";
 import { CyclesCarousel } from "@/components/cycles-carousel";
-import { AdherencePanel } from "@/components/adherence-panel";
+import { RegularityScore } from "@/components/regularity-score";
 import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
 import { computeAdherence } from "@/lib/streak";
 import { DAYS } from "@/lib/questionnaire";
@@ -137,11 +137,6 @@ export default async function ProgrammePage() {
         </Alert>
       ) : null}
 
-      {/* Rétention : série, adhérence, prochain palier */}
-      {showAdherence ? (
-        <AdherencePanel stats={adherence} todayTraining={todayTraining} />
-      ) : null}
-
       {/* Cycles, en carrousel horizontal avec explications approfondies */}
       <CyclesCarousel cycles={plan.cycles.slice(0, 3)} />
 
@@ -193,6 +188,11 @@ export default async function ProgrammePage() {
         <Card><Stat label="Jour" value={dayStat} sub={access.phase === "scheduled" ? "Avant le départ" : "Programme en cours"} /></Card>
         <Card><Stat label="Calories / jour" value={`${plan.nutrition.kcal}`} sub="Jour d'entraînement" /></Card>
       </section>
+
+      {/* Score de régularité : une fois le programme démarré (jour ≥ 1) */}
+      {showAdherence ? (
+        <RegularityScore stats={adherence} todayTraining={todayTraining} />
+      ) : null}
 
       <div className="flex flex-wrap gap-3">
         <ButtonLink href="/app/seance" variant="primary">Aller à ma séance</ButtonLink>
