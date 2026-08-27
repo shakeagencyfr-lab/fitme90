@@ -111,6 +111,10 @@ export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, in
   const mm = String(Math.floor(rest / 60)).padStart(2, "0");
   const ss = String(rest % 60).padStart(2, "0");
 
+  // Premier exercice de musculation : sert d'ancre au tutoriel (surbrillance
+  // précise des champs charge / reps / Repos sur sa première série).
+  const firstStrengthIdx = exercises.findIndex((e) => !isCardioExercise(e.name, e.note, e.cardio));
+
   return (
     <div className="flex flex-col gap-4 pb-24">
       <p className="text-[13.5px] text-muted leading-relaxed">
@@ -189,6 +193,7 @@ export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, in
                   const key = `${ei}-${si}`;
                   const e = log[key] ?? { kg: "", reps: "" };
                   const ok = Number(e.reps || 0) > 0;
+                  const tourRow = ei === firstStrengthIdx && si === 0;
                   return (
                     <div
                       key={si}
@@ -203,6 +208,7 @@ export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, in
                         value={e.kg}
                         onChange={(ev) => setField(key, "kg", ev.target.value)}
                         placeholder="kg"
+                        data-tour={tourRow ? "charge" : undefined}
                         className="tap w-full min-w-0 flex-1 rounded-[7px] border border-line-4 bg-surface px-2.5 text-center text-ink placeholder:text-disabled outline-none focus:border-ink"
                       />
                       <span className="text-muted-2">×</span>
@@ -211,10 +217,12 @@ export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, in
                         value={e.reps}
                         onChange={(ev) => setField(key, "reps", ev.target.value)}
                         placeholder="reps"
+                        data-tour={tourRow ? "reps" : undefined}
                         className="tap w-full min-w-0 flex-1 rounded-[7px] border border-line-4 bg-surface px-2.5 text-center text-ink placeholder:text-disabled outline-none focus:border-ink"
                       />
                       <button
                         onClick={startRest}
+                        data-tour={tourRow ? "repos" : undefined}
                         className="tap shrink-0 rounded-[7px] border border-line-4 bg-surface px-3 text-[12px] font-semibold text-body active:bg-paper"
                       >
                         Repos
@@ -242,7 +250,7 @@ export function SessionRunner({ day, exercises, rpeGoal, canLog, alreadyDone, in
           </div>
           {error ? <Alert>{error}</Alert> : null}
           {saved ? <Alert tone="info">Séance enregistrée. Tu peux la refaire quand tu veux.</Alert> : null}
-          <Button onClick={validate} loading={saving} full className="h-[52px]">
+          <Button onClick={validate} loading={saving} full className="h-[52px]" data-tour="valider">
             {saved ? "Mettre à jour ma séance" : "Valider ma séance"}
           </Button>
         </div>

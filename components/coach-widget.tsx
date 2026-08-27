@@ -75,13 +75,42 @@ export function CoachWidget() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [listening, setListening] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const recRef = useRef<Recognition | null>(null);
+  const historyLoaded = useRef(false);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
+
+  // À la première ouverture, on charge tout l'historique persisté : la
+  // conversation ne repart plus de zéro, le fil complet réapparaît.
+  useEffect(() => {
+    if (!open || historyLoaded.current) return;
+    historyLoaded.current = true;
+    setLoadingHistory(true);
+    (async () => {
+      try {
+        const res = await fetch("/api/coach", { method: "GET" });
+        const data = await res.json();
+        const past: Msg[] = Array.isArray(data.messages)
+          ? data.messages
+              .filter((m: { role?: string; content?: string }) => m?.content)
+              .map((m: { role: string; content: string }) => ({
+                role: m.role === "user" ? "user" : "assistant",
+                content: m.content,
+              }))
+          : [];
+        if (past.length) setMessages(past);
+      } catch {
+        /* on garde le message d'accueil par défaut */
+      } finally {
+        setLoadingHistory(false);
+      }
+    })();
+  }, [open]);
 
   async function onFile(file: File | undefined) {
     if (!file) return;
@@ -201,6 +230,9 @@ export function CoachWidget() {
       </div>
 
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
+        {loadingHistory ? (
+          <div className="self-center text-[12.5px] text-muted-2">Chargement de la conversation…</div>
+        ) : null}
         {messages.map((m, i) => (
           <div
             key={i}

@@ -9,7 +9,17 @@ const KEY = "fitme90_onboarded";
 type Rect = { top: number; left: number; width: number; height: number };
 
 // Chaque étape ouvre la page (href) ET met en surbrillance l'élément (target).
-const STEPS: { tag: string; title: string; body: string; href?: string; target?: string; bullets?: string[] }[] = [
+// `scroll` : la cible est DANS la page (un champ, un bouton) et doit être
+// amenée à l'écran avant d'être encadrée.
+const STEPS: {
+  tag: string;
+  title: string;
+  body: string;
+  href?: string;
+  target?: string;
+  bullets?: string[];
+  scroll?: boolean;
+}[] = [
   {
     tag: "Bienvenue",
     title: "Bienvenue dans ton espace 👋",
@@ -32,16 +42,41 @@ const STEPS: { tag: string; title: string; body: string; href?: string; target?:
   {
     tag: "Séance",
     title: "3. Ta séance du jour",
-    body: "C'est ici que tu suis ton entraînement du jour, exercice par exercice. Voici comment ça marche :",
-    bullets: [
-      "Pour chaque série, entre ton poids en kg dans la première case, puis ton nombre de répétitions dans la seconde.",
-      "Touche le bouton « Repos » à côté d'une série : le minuteur de récupération se lance automatiquement.",
-      "Le minuteur s'affiche en bas de l'écran. Tu peux le mettre en pause, retirer 15 secondes ou l'arrêter.",
-      "Remplis bien tes charges à chaque séance : c'est le repère qui permet au coach de te caler les bonnes charges ensuite.",
-      "Quand tu as terminé, touche « Valider ma séance ». Tu peux la refaire ou la mettre à jour quand tu veux.",
-    ],
+    body: "C'est ici que tu suis ton entraînement, exercice par exercice. Je te montre maintenant, un par un, exactement où toucher pour remplir une série.",
     href: "/app/seance",
     target: "seance",
+  },
+  {
+    tag: "Séance · 1 sur 4",
+    title: "La charge, en kilos",
+    body: "Pour chaque série, tape ici le poids soulevé, en kilos. Par exemple 40. Laisse vide au poids du corps (pompes, gainage).",
+    href: "/app/seance",
+    target: "charge",
+    scroll: true,
+  },
+  {
+    tag: "Séance · 2 sur 4",
+    title: "Les répétitions",
+    body: "Juste à côté, indique le nombre de répétitions réellement faites. Par exemple 10. C'est ce chiffre qui valide la série.",
+    href: "/app/seance",
+    target: "reps",
+    scroll: true,
+  },
+  {
+    tag: "Séance · 3 sur 4",
+    title: "Le minuteur de repos",
+    body: "Touche « Repos » après ta série : un minuteur de récupération se lance en bas de l'écran. Tu peux le mettre en pause, retirer 15 secondes ou l'arrêter.",
+    href: "/app/seance",
+    target: "repos",
+    scroll: true,
+  },
+  {
+    tag: "Séance · 4 sur 4",
+    title: "Valider ta séance",
+    body: "Quand tes séries sont remplies, touche ce bouton. Remplir tes charges à chaque fois permet au coach de te caler les bonnes charges ensuite. Tu peux refaire ou mettre à jour une séance quand tu veux.",
+    href: "/app/seance",
+    target: "valider",
+    scroll: true,
   },
   {
     tag: "Nutrition",
@@ -59,15 +94,27 @@ const STEPS: { tag: string; title: string; body: string; href?: string; target?:
   },
 ];
 
-function findTarget(target: string): Rect | null {
+function findTargetEl(target: string): HTMLElement | null {
   const els = Array.from(document.querySelectorAll<HTMLElement>(`[data-tour="${target}"]`));
-  const el = els.find((e) => {
-    const r = e.getBoundingClientRect();
-    return r.width > 0 && r.height > 0;
-  });
-  if (!el) return null;
+  return (
+    els.find((e) => {
+      const r = e.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    }) ?? null
+  );
+}
+
+function rectOf(el: HTMLElement): Rect {
   const r = el.getBoundingClientRect();
   return { top: r.top, left: r.left, width: r.width, height: r.height };
+}
+
+// Amène une cible interne à la page dans la moitié basse de l'écran, pour que
+// la carte d'explication se place au-dessus avec la flèche qui pointe dessus.
+function scrollIntoLowerHalf(el: HTMLElement) {
+  const vh = window.innerHeight;
+  const delta = el.getBoundingClientRect().top - vh * 0.58;
+  if (Math.abs(delta) > 6) window.scrollBy({ top: delta, behavior: "auto" });
 }
 
 export function OnboardingTour() {
@@ -98,19 +145,26 @@ export function OnboardingTour() {
   useEffect(() => {
     if (step === null) return;
     const target = STEPS[step]?.target;
+    const wantsScroll = !!STEPS[step]?.scroll;
     if (!target) {
       setRect(null);
       return;
     }
-    const measure = () => setRect(findTarget(target));
+    const measure = () => {
+      const el = findTargetEl(target);
+      if (el && wantsScroll) scrollIntoLowerHalf(el);
+      setRect(el ? rectOf(el) : null);
+    };
     measure();
-    const t1 = setTimeout(measure, 120);
-    const t2 = setTimeout(measure, 400); // après navigation/animation
+    // Plusieurs passes : après navigation, rendu de la séance, puis stabilisation
+    // du défilement (les champs de la séance peuvent être plus bas dans la page).
+    const timers = [120, 400, 800, 1200].map((d) => setTimeout(measure, d));
     window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, { passive: true });
     return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
+      timers.forEach(clearTimeout);
       window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure);
     };
   }, [step]);
 

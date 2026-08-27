@@ -25,6 +25,21 @@ const bodySchema = z.object({
     .optional(),
 });
 
+// Historique de la conversation, pour ré-afficher le fil quand le client
+// rouvre le coach (la mémoire existe côté serveur, il faut la RENDRE visible).
+export async function GET() {
+  const ctx = await getSessionContext();
+  if (!ctx) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("coach_messages")
+    .select("role, content")
+    .eq("user_id", ctx.userId)
+    .order("created_at", { ascending: true })
+    .limit(200);
+  return NextResponse.json({ messages: data ?? [] });
+}
+
 export async function POST(req: NextRequest) {
   const ctx = await getSessionContext();
   if (!ctx) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
@@ -71,7 +86,7 @@ export async function POST(req: NextRequest) {
     .select("role, content")
     .eq("user_id", ctx.userId)
     .order("created_at", { ascending: false })
-    .limit(10);
+    .limit(24);
 
   // Séances validées récentes : servent au coach pour proposer les charges.
   const { data: logs } = await supabase
