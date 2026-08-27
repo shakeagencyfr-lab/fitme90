@@ -5,6 +5,7 @@ import { AppNav } from "@/components/app-nav";
 import { CoachWidget } from "@/components/coach-widget";
 import { PageTransition } from "@/components/page-transition";
 import { OnboardingTour } from "@/components/onboarding-tour";
+import { isShopEnabled } from "@/lib/shop";
 import { PROGRAM_DAYS } from "@/lib/config";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
@@ -13,10 +14,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   const day = ctx.access.day;
   const dayPct = Math.max(1, Math.round((Math.min(day, PROGRAM_DAYS) / PROGRAM_DAYS) * 100));
+  const shopEnabled = await isShopEnabled();
 
   return (
     <div className="min-h-dvh bg-paper nav:flex nav:items-start">
-      <AppNav day={day} dayPct={dayPct} />
+      <AppNav day={day} dayPct={dayPct} shopEnabled={shopEnabled} />
       <main className="min-w-0 flex-1 px-4 pt-5 pb-[110px] nav:px-8 nav:pt-8 nav:pb-20">
         <PageTransition>{children}</PageTransition>
       </main>

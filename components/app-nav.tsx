@@ -38,11 +38,10 @@ const I = {
       <path d="M7 15l3.5-4 3 2.5L20 7" />
     </>
   ),
-  photos: (
+  shop: (
     <>
-      <rect x="3.5" y="5.5" width="17" height="14" rx="2" />
-      <circle cx="9" cy="10" r="1.6" />
-      <path d="M4 17l4.5-4 3 2.5 3-3L20 16" />
+      <path d="M5 8h14l-1 12H6L5 8Z" />
+      <path d="M9 8V6a3 3 0 0 1 6 0v2" />
     </>
   ),
   profil: (
@@ -63,19 +62,21 @@ const I = {
 type IconKey = keyof typeof I;
 type Item = { href: string; label: string; icon: IconKey };
 
-// Ordre complet (sidebar desktop). Sur mobile : 5 principaux + « Plus ».
-const ALL: Item[] = [
-  { href: "/app", label: "Programme", icon: "programme" },
-  { href: "/app/agenda", label: "Agenda", icon: "agenda" },
-  { href: "/app/seance", label: "Séance", icon: "seance" },
-  { href: "/app/nutrition", label: "Nutrition", icon: "nutrition" },
-  { href: "/app/evolution", label: "Évolution", icon: "evolution" },
-  { href: "/app/photos", label: "Photos", icon: "photos" },
-  { href: "/app/profil", label: "Profil", icon: "profil" },
-];
-const IN_MORE = ["/app/evolution", "/app/photos"];
-const PRIMARY: Item[] = ALL.filter((i) => !IN_MORE.includes(i.href));
-const SECONDARY: Item[] = ALL.filter((i) => IN_MORE.includes(i.href));
+// Onglets rangés dans « Plus » sur mobile (le reste va dans la barre du bas).
+const IN_MORE = ["/app/evolution", "/app/shop"];
+
+// Construit la liste des onglets selon que la boutique est activée ou non.
+function buildItems(shopEnabled: boolean): Item[] {
+  return [
+    { href: "/app", label: "Programme", icon: "programme" },
+    { href: "/app/agenda", label: "Agenda", icon: "agenda" },
+    { href: "/app/seance", label: "Séance", icon: "seance" },
+    { href: "/app/nutrition", label: "Nutrition", icon: "nutrition" },
+    { href: "/app/evolution", label: "Évolution", icon: "evolution" },
+    ...(shopEnabled ? [{ href: "/app/shop", label: "Boutique", icon: "shop" } as Item] : []),
+    { href: "/app/profil", label: "Profil", icon: "profil" },
+  ];
+}
 
 // Repères pour le tutoriel guidé (surbrillance des onglets).
 const TOUR: Record<string, string> = {
@@ -93,9 +94,22 @@ function Icon({ children }: { children: ReactNode }) {
   );
 }
 
-export function AppNav({ day, dayPct, cycleName }: { day: number; dayPct: number; cycleName?: string }) {
+export function AppNav({
+  day,
+  dayPct,
+  cycleName,
+  shopEnabled = false,
+}: {
+  day: number;
+  dayPct: number;
+  cycleName?: string;
+  shopEnabled?: boolean;
+}) {
   const pathname = usePathname();
   const [more, setMore] = useState(false);
+  const ALL = buildItems(shopEnabled);
+  const PRIMARY = ALL.filter((i) => !IN_MORE.includes(i.href));
+  const SECONDARY = ALL.filter((i) => IN_MORE.includes(i.href));
   const isActive = (href: string) =>
     href === "/app" ? pathname === "/app" : pathname.startsWith(href);
   const secondaryActive = SECONDARY.some((i) => isActive(i.href));

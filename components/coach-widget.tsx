@@ -1,5 +1,9 @@
 "use client";
 
+// L'envoi différé d'une demande externe (bouton dépannage) déclenche un
+// setState en effet, volontairement, en réaction à un événement.
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
@@ -104,6 +108,7 @@ export function CoachWidget() {
   const [conversations, setConversations] = useState<Conv[]>([]);
   const [convId, setConvId] = useState<string | null>(null);
   const [showList, setShowList] = useState(false);
+  const [pendingAsk, setPendingAsk] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const recRef = useRef<Recognition | null>(null);
@@ -139,6 +144,29 @@ export function CoachWidget() {
     })();
   }, [open]);
 
+  // Demande externe (ex. bouton « je n'ai pas mon matériel » sur la séance) :
+  // on ouvre le coach et on mémorise le message à envoyer.
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const msg = (e as CustomEvent<{ message?: string }>).detail?.message;
+      if (!msg) return;
+      setOpen(true);
+      setShowList(false);
+      setPendingAsk(msg);
+    };
+    window.addEventListener("fitme90:coach-ask", onAsk as EventListener);
+    return () => window.removeEventListener("fitme90:coach-ask", onAsk as EventListener);
+  }, []);
+
+  // Envoi différé : une fois le panneau ouvert et l'historique chargé.
+  useEffect(() => {
+    if (!open || !pendingAsk || busy || loadingHistory) return;
+    const msg = pendingAsk;
+    setPendingAsk(null);
+    pushMessage(msg, null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, pendingAsk, busy, loadingHistory]);
+
   async function refreshConversations() {
     try {
       const r = await fetch("/api/coach/conversations");
@@ -154,6 +182,36 @@ export function CoachWidget() {
     setMessages([GREETING]);
     setError("");
     setShowList(false);
+  }
+
+  async function renameConversation(id: string, current: string) {
+    const title = window.prompt("Renommer la conversation", current)?.trim();
+    if (!title || title === current) return;
+    setConversations((cs) => cs.map((c) => (c.id === id ? { ...c, title } : c)));
+    try {
+      await fetch("/api/coach/conversations", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id, title }),
+      });
+    } catch {
+      refreshConversations();
+    }
+  }
+
+  async function deleteConversation(id: string) {
+    if (!window.confirm("Supprimer cette conversation ? Cette action est définitive.")) return;
+    setConversations((cs) => cs.filter((c) => c.id !== id));
+    if (id === convId) newConversation();
+    try {
+      await fetch("/api/coach/conversations", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+    } catch {
+      refreshConversations();
+    }
   }
 
   async function openConversation(id: string) {
@@ -228,15 +286,9 @@ export function CoachWidget() {
     rec.start();
   }
 
-  async function send() {
-    const text = input.trim();
-    if ((!text && !image) || busy) return;
-    if (listening) recRef.current?.stop();
+  // Envoie un message (texte + image éventuelle) au coach et affiche la réponse.
+  async function pushMessage(outText: string, sent: Attached | null) {
     setError("");
-    const outText = text || "Peux-tu regarder cette image ?";
-    const sent = image;
-    setInput("");
-    setImage(null);
     setMessages((m) => [...m, { role: "user", content: outText, image: sent?.preview }]);
     setBusy(true);
     try {
@@ -266,6 +318,17 @@ export function CoachWidget() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function send() {
+    const text = input.trim();
+    if ((!text && !image) || busy) return;
+    if (listening) recRef.current?.stop();
+    const outText = text || "Peux-tu regarder cette image ?";
+    const sent = image;
+    setInput("");
+    setImage(null);
+    pushMessage(outText, sent);
   }
 
   if (!open) {
@@ -340,17 +403,39 @@ export function CoachWidget() {
               conversations.map((c) => {
                 const active = c.id === convId;
                 return (
-                  <button
+                  <div
                     key={c.id}
-                    onClick={() => openConversation(c.id)}
                     className={[
-                      "tap flex w-full items-center justify-between gap-3 rounded-control border px-3.5 py-3 text-left transition-colors",
+                      "mb-1.5 flex items-center gap-1 rounded-control border pr-1 transition-colors",
                       active ? "border-ink bg-surface-2" : "border-line hover:border-line-4",
                     ].join(" ")}
                   >
-                    <span className="min-w-0 flex-1 truncate text-[14px] text-ink">{c.title}</span>
-                    <span className="shrink-0 font-mono text-[11px] text-muted-2">{relDate(c.updated_at)}</span>
-                  </button>
+                    <button
+                      onClick={() => openConversation(c.id)}
+                      className="tap flex min-w-0 flex-1 items-center justify-between gap-3 px-3.5 py-3 text-left"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-[14px] text-ink">{c.title}</span>
+                      <span className="shrink-0 font-mono text-[11px] text-muted-2">{relDate(c.updated_at)}</span>
+                    </button>
+                    <button
+                      onClick={() => renameConversation(c.id, c.title)}
+                      className="tap flex size-8 shrink-0 items-center justify-center rounded-control text-muted-2 hover:text-ink"
+                      aria-label="Renommer"
+                    >
+                      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => deleteConversation(c.id)}
+                      className="tap flex size-8 shrink-0 items-center justify-center rounded-control text-muted-2 hover:text-[#C4471A]"
+                      aria-label="Supprimer"
+                    >
+                      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13" />
+                      </svg>
+                    </button>
+                  </div>
                 );
               })
             )}

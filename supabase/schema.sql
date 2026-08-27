@@ -234,9 +234,25 @@ create table if not exists public.coach_config (
   id                 boolean primary key default true,
   generation_mode    text not null default 'auto',
   custom_methodology text not null default '',
+  shop_enabled       boolean not null default false,
   updated_at         timestamptz not null default now(),
   constraint coach_config_singleton check (id = true),
   constraint coach_config_mode check (generation_mode in ('auto','custom'))
 );
 alter table public.coach_config enable row level security;
 insert into public.coach_config (id) values (true) on conflict (id) do nothing;
+
+-- boutique d'affiliation : produits mis en avant par le coach. Lecture pour les
+-- clients connectés, écriture réservée au serveur (service role / dashboard).
+create table if not exists public.shop_products (
+  id          uuid primary key default gen_random_uuid(),
+  title       text not null,
+  description text not null default '',
+  image_url   text not null default '',
+  link_url    text not null default '',
+  position    int not null default 0,
+  created_at  timestamptz not null default now()
+);
+alter table public.shop_products enable row level security;
+create policy "shop_read" on public.shop_products for select to authenticated using (true);
+grant select on public.shop_products to authenticated;
