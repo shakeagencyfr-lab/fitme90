@@ -136,11 +136,12 @@ function rectOf(el: HTMLElement): Rect {
   return { top: r.top, left: r.left, width: r.width, height: r.height };
 }
 
-// Amène une cible interne à la page dans la moitié basse de l'écran, pour que
-// la carte d'explication se place au-dessus avec la flèche qui pointe dessus.
-function scrollIntoLowerHalf(el: HTMLElement) {
+// Amène une cible interne à la page à `ratio` de la hauteur d'écran (haut =
+// petit ratio). On la met en HAUT (~28 %) pour les étapes de séance, afin que la
+// carte d'explication, posée en bas, ne recouvre jamais l'élément surligné.
+function scrollTargetTo(el: HTMLElement, ratio: number) {
   const vh = window.innerHeight;
-  const delta = el.getBoundingClientRect().top - vh * 0.58;
+  const delta = el.getBoundingClientRect().top - vh * ratio;
   if (Math.abs(delta) > 6) window.scrollBy({ top: delta, behavior: "auto" });
 }
 
@@ -179,7 +180,7 @@ export function OnboardingTour() {
     }
     const measure = () => {
       const el = findTargetEl(target);
-      if (el && wantsScroll) scrollIntoLowerHalf(el);
+      if (el && wantsScroll) scrollTargetTo(el, 0.28);
       setRect(el ? rectOf(el) : null);
     };
     measure();
@@ -209,7 +210,10 @@ export function OnboardingTour() {
   const last = step === STEPS.length - 1;
   const spotlight = !!(rect && s.target);
   const vh = typeof window !== "undefined" ? window.innerHeight : 0;
-  const below = spotlight && rect ? rect.top > vh * 0.5 : false;
+  const scrollStep = !!s.scroll && spotlight;
+  // Étape de séance : cible en haut, carte en bas (ne recouvre pas l'élément).
+  // Sinon : carte au-dessus si la cible est en bas de l'écran.
+  const below = scrollStep ? true : spotlight && rect ? rect.top > vh * 0.5 : false;
 
   return (
     <>
@@ -232,8 +236,9 @@ export function OnboardingTour() {
         />
       ) : null}
 
-      {/* Flèche animée pointant la cible (par le haut) */}
-      {spotlight && rect && below ? (
+      {/* Flèche animée pointant la cible (par le haut). Masquée pour les étapes
+          séance où la cible est en haut et la carte en bas (l'anneau suffit). */}
+      {spotlight && rect && below && !scrollStep ? (
         <div
           className="pointer-events-none fixed z-[61] animate-bounce text-brand"
           style={{ top: rect.top - 32, left: rect.left + rect.width / 2 - 11 }}
@@ -244,13 +249,20 @@ export function OnboardingTour() {
         </div>
       ) : null}
 
-      {/* Carte d'explication : au-dessus de la cible si elle est en bas, sinon centrée */}
+      {/* Carte d'explication : en bas pour les étapes séance (cible en haut),
+          au-dessus de la cible si elle est en bas, sinon centrée. */}
       <div
         className="pointer-events-none fixed inset-0 z-[62] flex justify-center px-4"
-        style={below && rect ? { alignItems: "flex-end", paddingBottom: vh - rect.top + 18 } : { alignItems: "center" }}
+        style={
+          scrollStep
+            ? { alignItems: "flex-end", paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }
+            : below && rect
+              ? { alignItems: "flex-end", paddingBottom: vh - rect.top + 18 }
+              : { alignItems: "center" }
+        }
       >
         <div className="pointer-events-auto w-full max-w-[420px] overflow-hidden rounded-card-lg border border-line bg-surface animate-[popin_0.24s_ease-out] motion-reduce:animate-none">
-          <div className="flex max-h-[70dvh] flex-col gap-3 overflow-y-auto p-6 pb-5">
+          <div className={`flex ${scrollStep ? "max-h-[50dvh]" : "max-h-[70dvh]"} flex-col gap-3 overflow-y-auto p-6 pb-5`}>
             <div className="flex items-center justify-between">
               <span className="rounded-pill border border-brand/40 bg-brand/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-brand">
                 {s.tag}

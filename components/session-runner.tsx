@@ -180,8 +180,17 @@ export function SessionRunner({
   const startRest = (seconds: number = restSec) => startTimer(seconds, "Repos");
 
   function setField(key: string, field: "kg" | "reps", value: string) {
+    // Chiffres uniquement : reps = entier ; kg = décimal avec un seul séparateur.
+    let clean: string;
+    if (field === "reps") {
+      clean = value.replace(/\D/g, "");
+    } else {
+      clean = value.replace(/[^\d.,]/g, "");
+      const sep = clean.search(/[.,]/);
+      if (sep !== -1) clean = clean.slice(0, sep + 1) + clean.slice(sep + 1).replace(/[.,]/g, "");
+    }
     setSaved(false);
-    setLog((l) => ({ ...l, [key]: { kg: l[key]?.kg ?? "", reps: l[key]?.reps ?? "", [field]: value } }));
+    setLog((l) => ({ ...l, [key]: { kg: l[key]?.kg ?? "", reps: l[key]?.reps ?? "", [field]: clean } }));
   }
 
   function toggleCardio(name: string) {

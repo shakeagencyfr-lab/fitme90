@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { computeAccess, type AccessState } from "@/lib/access";
 
@@ -21,8 +22,11 @@ export interface SessionContext {
  * Récupère l'utilisateur connecté, son profil et son état d'accès calculé.
  * Retourne null si aucune session valide. À appeler en tête de chaque
  * route API et page serveur protégée.
+ *
+ * `cache()` (React) dédoublonne les appels d'un même rendu serveur : le layout
+ * et la page partagent le résultat, on divise par deux les allers-retours auth.
  */
-export async function getSessionContext(): Promise<SessionContext | null> {
+export const getSessionContext = cache(async (): Promise<SessionContext | null> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -46,4 +50,4 @@ export async function getSessionContext(): Promise<SessionContext | null> {
     profile: profile ?? null,
     access,
   };
-}
+});

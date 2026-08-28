@@ -350,7 +350,7 @@ export function CoachWidget() {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-surface nav:inset-auto nav:bottom-6 nav:right-6 nav:max-h-[70dvh] nav:w-[380px] nav:rounded-card nav:border nav:border-line">
-      <div className="safe-top flex items-center justify-between gap-2 border-b border-line px-4 py-3">
+      <div className="flex items-center justify-between gap-2 border-b border-line px-4 pb-3 pt-[calc(env(safe-area-inset-top)+18px)] nav:pt-4">
         <button
           onClick={() => setShowList(true)}
           className="tap flex size-9 shrink-0 items-center justify-center rounded-control border border-line-4 text-muted transition-colors hover:border-ink hover:text-ink"
@@ -381,7 +381,7 @@ export function CoachWidget() {
       {/* Tiroir des conversations */}
       {showList ? (
         <div className="absolute inset-0 z-10 flex flex-col bg-surface animate-[fadein_0.15s_ease-out]">
-          <div className="safe-top flex items-center justify-between border-b border-line px-4 py-3">
+          <div className="flex items-center justify-between border-b border-line px-4 pb-3 pt-[calc(env(safe-area-inset-top)+18px)] nav:pt-4">
             <div className="font-archivo font-semibold text-[15px] text-ink">Mes conversations</div>
             <button onClick={() => setShowList(false)} className="tap text-muted-2" aria-label="Fermer la liste">
               ✕

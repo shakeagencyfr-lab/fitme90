@@ -1,7 +1,8 @@
 import "server-only";
 import { z } from "zod";
 import { anthropic, MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
-import { describeAnswers } from "@/lib/questionnaire";
+import { describeAnswers, DAYS } from "@/lib/questionnaire";
+import { restPatternFromTrainDays } from "@/lib/schedule";
 import { COACH_CREDENTIAL } from "@/lib/config";
 import { effectiveMethodology } from "@/lib/methodology";
 
@@ -76,6 +77,32 @@ export const planSchema = z.object({
 });
 
 export type Plan = z.infer<typeof planSchema>;
+
+/**
+ * Recale un plan sur de nouveaux jours d'entraînement, SANS appel IA (instantané
+ * et fiable, pas de dépassement de temps Vercel). Reconstruit la semaine type
+ * (weekPlan) sur les nouveaux jours et met à jour la fréquence citée dans le
+ * résumé. Les exercices de la séance type ne changent pas (une seule séance
+ * modèle dans l'app).
+ */
+export function patchPlanForTrainDays(plan: Plan, trainDays: string[]): Plan {
+  const rest = restPatternFromTrainDays(trainDays); // 7 booléens LUN→DIM
+  const count = trainDays.length;
+  const names = plan.weekPlan.filter((d) => !d.rest).map((d) => d.name).filter(Boolean);
+  const dur = plan.weekPlan.find((d) => !d.rest)?.dur || "";
+  let ti = 0;
+  const weekPlan = DAYS.map((day, i) => {
+    if (rest[i]) return { day, name: "Repos", dur: "", rest: true };
+    const name = names.length ? names[ti % names.length] : "Séance";
+    ti++;
+    return { day, name, dur, rest: false };
+  });
+  const summary = plan.summary.replace(
+    /\b\d+\s*(?:s[ée]ances?|entra[iî]nements?|fois)\b/i,
+    `${count} séances`,
+  );
+  return { ...plan, summary, weekPlan };
+}
 
 const SCHEMA_HINT =
   '{"summary":"2 phrases","cycles":[{"label":"","name":"","weeks":"SEMAINES 1 → 4","body":""}],"weekPlan":[{"day":"LUN","name":"","dur":"55 min","rest":false}],"session":{"cycleLabel":"Cycle 1 · Semaine 1 · Séance A","title":"","meta":"","restSec":90,"exercises":[{"name":"","sets":4,"reps":"8-10","load":"60 kg","rest":75,"note":"","cardio":false},{"name":"Rameur","cardio":true,"duration":"12 min","zone":"Z2","sets":0,"reps":"","load":"","note":"allure conversationnelle"}]},"nutrition":{"kcal":"2 580","protein":"148","carbs":"276","fat":"78","tags":[{"kind":"ALLERGIE","label":""}],"meals":[{"time":"7 h 30","name":"","kcal":"612","items":[{"food":"","qty":"80 g"}]}]},"warning":"1 phrase sur les contraintes prises en compte"}';

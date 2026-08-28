@@ -9,12 +9,13 @@ import { isShopEnabled } from "@/lib/shop";
 import { PROGRAM_DAYS } from "@/lib/config";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const ctx = await getSessionContext();
+  // En parallèle : le contexte (mis en cache, partagé avec la page) et l'état
+  // de la boutique, pour ne pas enchaîner deux allers-retours.
+  const [ctx, shopEnabled] = await Promise.all([getSessionContext(), isShopEnabled()]);
   if (!ctx) redirect("/connexion?suite=/app");
 
   const day = ctx.access.day;
   const dayPct = Math.max(1, Math.round((Math.min(day, PROGRAM_DAYS) / PROGRAM_DAYS) * 100));
-  const shopEnabled = await isShopEnabled();
 
   return (
     <div className="min-h-dvh bg-paper nav:flex nav:items-start">
