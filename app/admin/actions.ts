@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminOrNull } from "@/lib/admin";
+import { broadcastPush } from "@/lib/push";
 
 export interface ConfigState {
   ok?: boolean;
@@ -87,4 +88,54 @@ export async function deleteShopProduct(formData: FormData): Promise<void> {
   await admin.from("shop_products").delete().eq("id", id);
   revalidatePath("/admin/shop");
   revalidatePath("/app/shop");
+}
+
+// --------------------------------------------------------------- notifications
+export interface NotifState {
+  ok?: boolean;
+  error?: string;
+  sent?: number;
+}
+
+/** Envoie une notification push à tous les clients abonnés, immédiatement. */
+export async function sendBroadcastNow(_prev: NotifState, formData: FormData): Promise<NotifState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const title = String(formData.get("title") ?? "").trim().slice(0, 80);
+  const body = String(formData.get("body") ?? "").trim().slice(0, 300);
+  const url = String(formData.get("url") ?? "").trim().slice(0, 300) || "/app";
+  if (!title || !body) return { error: "Titre et message sont obligatoires." };
+  const { sent } = await broadcastPush({ title, body, url, tag: "coach-broadcast" });
+  return { ok: true, sent };
+}
+
+/** Programme une notification pour une date/heure future. */
+export async function scheduleBroadcast(_prev: NotifState, formData: FormData): Promise<NotifState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const title = String(formData.get("title") ?? "").trim().slice(0, 80);
+  const body = String(formData.get("body") ?? "").trim().slice(0, 300);
+  const url = String(formData.get("url") ?? "").trim().slice(0, 300) || "/app";
+  const when = String(formData.get("send_at") ?? "");
+  if (!title || !body) return { error: "Titre et message sont obligatoires." };
+  const at = new Date(when);
+  if (Number.isNaN(at.getTime()) || at.getTime() < Date.now()) return { error: "Choisis une date future." };
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("scheduled_pushes")
+    .insert({ title, body, url, send_at: at.toISOString() });
+  if (error) return { error: "Programmation impossible." };
+  revalidatePath("/admin/notifications");
+  return { ok: true };
+}
+
+/** Annule une notification programmée non encore envoyée (form action directe). */
+export async function deleteScheduled(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const admin = createAdminClient();
+  await admin.from("scheduled_pushes").delete().eq("id", id).is("sent_at", null);
+  revalidatePath("/admin/notifications");
 }

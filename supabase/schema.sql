@@ -131,6 +131,20 @@ create table public.push_subscriptions (
 );
 create index on public.push_subscriptions (user_id);
 
+-- notifications programmées par le coach vers tous les abonnés (serveur seul).
+create table public.scheduled_pushes (
+  id          uuid primary key default gen_random_uuid(),
+  title       text not null,
+  body        text not null,
+  url         text not null default '/app',
+  send_at     timestamptz not null,
+  sent_at     timestamptz,
+  created_at  timestamptz not null default now()
+);
+create index on public.scheduled_pushes (send_at) where sent_at is null;
+alter table public.scheduled_pushes enable row level security;
+revoke all on public.scheduled_pushes from authenticated, anon;
+
 -- compteur d'appels au modèle, sert au rate limit et au suivi des coûts
 create table public.ai_calls (
   id          bigserial primary key,

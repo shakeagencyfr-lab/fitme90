@@ -1,5 +1,6 @@
 import "server-only";
 import webpush from "web-push";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Envoi Web Push (rappels de séance, relances). Les clés VAPID viennent des
 // variables d'environnement ; sans elles, l'envoi est simplement désactivé
@@ -52,4 +53,32 @@ export async function sendPush(sub: StoredSub, payload: PushPayload): Promise<"o
     if (code === 404 || code === 410) return "gone"; // abonnement expiré / révoqué
     return "error";
   }
+}
+
+interface SubRow {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
+/**
+ * Envoie une notification à TOUS les abonnés (diffusion coach). Nettoie les
+ * abonnements morts. Retourne le nombre d'envois réussis et de suppressions.
+ */
+export async function broadcastPush(payload: PushPayload): Promise<{ sent: number; removed: number }> {
+  if (!vapidReady()) return { sent: 0, removed: 0 };
+  const db = createAdminClient();
+  const { data: subs } = await db
+    .from("push_subscriptions")
+    .select("endpoint, p256dh, auth")
+    .returns<SubRow[]>();
+  let sent = 0;
+  const dead: string[] = [];
+  for (const s of subs ?? []) {
+    const res = await sendPush(s, payload);
+    if (res === "ok") sent++;
+    else if (res === "gone") dead.push(s.endpoint);
+  }
+  if (dead.length) await db.from("push_subscriptions").delete().in("endpoint", dead);
+  return { sent, removed: dead.length };
 }

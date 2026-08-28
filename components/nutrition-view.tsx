@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   dayMeals,
   shoppingList,
@@ -85,6 +85,7 @@ export function NutritionView({
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [recipeBusy, setRecipeBusy] = useState(false);
   const [recipeErr, setRecipeErr] = useState("");
+  const photoRef = useRef<HTMLInputElement>(null);
 
   const day = Math.min(90, (week - 1) * 7 + dow + 1);
   const len = restPattern.length || 7;
@@ -122,6 +123,48 @@ export function NutritionView({
       setRecipes(data.recipes ?? []);
     } catch (e) {
       setRecipeErr(e instanceof Error ? e.message : "Indisponible.");
+    } finally {
+      setRecipeBusy(false);
+    }
+  }
+
+  // Photo d'aliments → recette : compression côté client puis analyse (vision).
+  async function onFoodPhoto(file: File | undefined) {
+    if (!file) return;
+    setRecipeErr("");
+    setRecipeBusy(true);
+    try {
+      const url = URL.createObjectURL(file);
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const im = new Image();
+        im.onload = () => resolve(im);
+        im.onerror = () => reject(new Error("image"));
+        im.src = url;
+      });
+      URL.revokeObjectURL(url);
+      const max = 1024;
+      let { width, height } = img;
+      if (width > max || height > max) {
+        const r = Math.min(max / width, max / height);
+        width = Math.round(width * r);
+        height = Math.round(height * r);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d")?.drawImage(img, 0, 0, width, height);
+      const data = canvas.toDataURL("image/jpeg", 0.82).split(",")[1] ?? "";
+      const res = await fetch("/api/recipes/photo", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ image: { data, media_type: "image/jpeg" } }),
+      });
+      const out = await res.json();
+      if (!res.ok) throw new Error(out.error || "Indisponible.");
+      if (out.error) throw new Error(out.error);
+      setRecipes(out.recipes ?? []);
+    } catch (e) {
+      setRecipeErr(e instanceof Error ? e.message : "Analyse impossible.");
     } finally {
       setRecipeBusy(false);
     }
@@ -299,9 +342,29 @@ export function NutritionView({
               ) : null}
             </Card>
           ))}
-          <Button variant="outline" onClick={genRecipes} loading={recipeBusy} className="self-start h-11">
-            {recipes.length ? "De nouvelles idées" : "Générer des idées de recettes"}
-          </Button>
+          <input
+            ref={photoRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              onFoodPhoto(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={genRecipes} loading={recipeBusy} className="h-11">
+              {recipes.length ? "De nouvelles idées" : "Générer des idées de recettes"}
+            </Button>
+            <Button variant="outline" onClick={() => photoRef.current?.click()} loading={recipeBusy} className="h-11">
+              Photo de mes aliments
+            </Button>
+          </div>
+          <p className="text-[12px] text-muted-2">
+            Prends en photo tes aliments ou ton frigo : le coach identifie ce qu&apos;il y a et te
+            propose une recette réalisable avec.
+          </p>
         </section>
       ) : null}
 
@@ -387,19 +450,33 @@ function MacroCard({
   fat: string;
 }) {
   // Jour d'entraînement : accent orange (brand). Jour de repos : accent vert
-  // (récupération). Le jour actif est encadré et teinté pour se repérer d'un œil.
+  // (récupération). Le jour actif est nettement mis en avant (bandeau, relief),
+  // l'autre est atténué pour ne pas distraire.
+  const solid = tone === "train" ? "#E0551F" : "#2F6B3C";
   const accent =
     tone === "train"
-      ? { border: "border-brand", bg: "bg-brand/5", text: "text-brand" }
-      : { border: "border-[#2F6B3C]", bg: "bg-[#2F6B3C]/8", text: "text-[#2F6B3C]" };
+      ? { border: "border-brand", bg: "bg-brand/[0.07]", text: "text-brand" }
+      : { border: "border-[#2F6B3C]", bg: "bg-[#2F6B3C]/[0.08]", text: "text-[#2F6B3C]" };
   return (
-    <Card className={active ? `${accent.border} border-2 ${accent.bg}` : ""}>
-      <div className="flex flex-col gap-3">
+    <Card
+      className={[
+        "relative overflow-hidden transition-all",
+        active
+          ? `${accent.border} border-2 ${accent.bg} shadow-[0_8px_24px_rgba(23,25,27,0.10)]`
+          : "opacity-60",
+      ].join(" ")}
+    >
+      {active ? (
+        <div
+          className="absolute inset-x-0 top-0 flex items-center justify-center py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white"
+          style={{ background: solid }}
+        >
+          Aujourd&apos;hui
+        </div>
+      ) : null}
+      <div className={["flex flex-col gap-3", active ? "pt-5" : ""].join(" ")}>
         <div className="flex items-center justify-between">
-          <span className="font-archivo font-semibold text-[14px] text-ink">{title}</span>
-          {active ? (
-            <span className={`font-mono text-[9px] uppercase tracking-[0.1em] ${accent.text}`}>aujourd&apos;hui</span>
-          ) : null}
+          <span className={["font-archivo font-semibold text-[14px]", active ? accent.text : "text-ink"].join(" ")}>{title}</span>
         </div>
         <div className="font-archivo font-extrabold text-[30px] leading-none tracking-[-0.03em] text-ink">
           {kcal}
