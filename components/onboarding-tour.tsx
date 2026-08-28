@@ -88,9 +88,36 @@ const STEPS: {
   {
     tag: "Coach IA",
     title: "5. Ton coach, disponible 24h/24",
-    body: "Ce bouton, en bas à droite, est là 24 heures sur 24, 7 jours sur 7, pendant tes 90 jours. Pose tes questions, envoie une photo d'un repas ou d'une machine, ou demande une adaptation : il modifie ton programme et ta nutrition en direct.",
+    body: "Ce bouton, en bas à droite, est là 24 heures sur 24, 7 jours sur 7, pendant tes 90 jours. Ouvre-le pour discuter :",
+    bullets: [
+      "Pose tes questions, envoie une photo d'un repas ou d'une machine, ou dicte à la voix.",
+      "Tu peux créer plusieurs conversations (icône ≡ en haut) et les retrouver quand tu veux.",
+      "Sur ta séance, le bouton « Je n'ai pas mon matériel » lui demande une version adaptée (voyage, hôtel).",
+    ],
     href: "/app",
     target: "coach",
+  },
+  {
+    tag: "Régularité",
+    title: "6. Reste sur la durée",
+    body: "Tout est pensé pour t'aider à aller au bout des 90 jours :",
+    bullets: [
+      "Ton score de régularité et tes séances validées s'affichent sur l'accueil.",
+      "Une séance oubliée apparaît « à rattraper » : tu peux la faire quand tu veux, ton programme ne se décale pas.",
+      "Sur les cardios, un chrono se lance pour la durée prévue, avec un bip sur les dernières secondes.",
+    ],
+    href: "/app",
+  },
+  {
+    tag: "Installe l'app",
+    title: "7. Installe l'app et active les rappels",
+    body: "Pour ne rien oublier, installe FitMe90 sur ton téléphone et active les notifications. C'est ce qui fait la différence sur la régularité.",
+    bullets: [
+      "Android / Chrome : menu ⋮ en haut à droite, puis « Installer l'application » (ou « Ajouter à l'écran d'accueil »).",
+      "iPhone / Safari : bouton Partager (le carré avec la flèche), puis « Sur l'écran d'accueil ». Ouvre ensuite l'app depuis son icône.",
+      "Enfin, dans Profil → « Rappels de séance », touche « Activer » et autorise les notifications.",
+    ],
+    href: "/app/profil",
   },
 ];
 

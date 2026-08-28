@@ -25,6 +25,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link href="/admin" className="font-medium text-body-2 hover:text-ink">Clients</Link>
             <Link href="/admin/config" className="font-medium text-body-2 hover:text-ink">Configuration IA</Link>
             <Link href="/admin/shop" className="font-medium text-body-2 hover:text-ink">Boutique</Link>
+            <Link href="/admin/notifications" className="font-medium text-body-2 hover:text-ink">Notifications</Link>
             <Link href="/app" className="font-medium text-muted-2 hover:text-ink">← Retour à l&apos;app</Link>
           </nav>
         </header>

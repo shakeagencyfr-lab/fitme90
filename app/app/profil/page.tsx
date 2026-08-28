@@ -23,9 +23,9 @@ export default async function ProfilPage() {
   const [{ data: prof }, { data: lastWeight }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("age, height_cm, rest_hr, start_date, sex")
+      .select("name, age, height_cm, rest_hr, start_date, sex")
       .eq("id", ctx.userId)
-      .maybeSingle<{ age: number | null; height_cm: number | null; rest_hr: number | null; start_date: string | null; sex: string | null }>(),
+      .maybeSingle<{ name: string | null; age: number | null; height_cm: number | null; rest_hr: number | null; start_date: string | null; sex: string | null }>(),
     supabase
       .from("weights")
       .select("kg")
@@ -38,9 +38,12 @@ export default async function ProfilPage() {
 
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-5">
-      <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-        Profil
-      </h1>
+      <div className="flex flex-col gap-1">
+        <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
+          {prof?.name?.trim() || "Profil"}
+        </h1>
+        {prof?.name?.trim() ? <MonoLabel>Ton profil</MonoLabel> : null}
+      </div>
 
       <ProfileMeasures
         age={str(prof?.age)}

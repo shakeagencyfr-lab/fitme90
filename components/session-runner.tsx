@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveSession, type SetEntry } from "@/app/app/seance/actions";
 import { Button, Alert, MonoLabel } from "@/components/ui";
@@ -15,6 +15,21 @@ export interface Exercise {
   cardio?: boolean;
   duration?: string;
   zone?: string;
+}
+
+// Durée d'un cardio en secondes, lue dans un texte (« 12 min », « 20 mn »,
+// « 90 s », « 12 »). Sans unité claire, on considère des minutes.
+function durationToSeconds(text: string | undefined): number {
+  if (!text) return 0;
+  const t = text.toLowerCase();
+  const mmss = /(\d+)\s*(?:mn|min|m|')\s*(\d{1,2})/.exec(t);
+  if (mmss) return Number(mmss[1]) * 60 + Number(mmss[2]);
+  const min = /(\d+)\s*(?:mn|min|m|')/.exec(t);
+  if (min) return Number(min[1]) * 60;
+  const sec = /(\d+)\s*(?:s|sec|secondes?|")/.exec(t);
+  if (sec) return Number(sec[1]);
+  const bare = /(\d+)/.exec(t);
+  return bare ? Number(bare[1]) * 60 : 0;
 }
 
 // Brouillon local de la séance : ce qui est saisi est sauvegardé en continu sur
@@ -94,33 +109,75 @@ export function SessionRunner({
     saveDraft(day, { log, cardio });
   }, [log, cardioDone, day, canLog]);
 
-  // Minuteur de repos intégré, valeur par défaut adaptée au programme.
+  // Minuteur intégré : sert au repos entre séries ET au chrono cardio.
   const [rest, setRest] = useState(0);
   const [restRun, setRestRun] = useState(false);
+  const [timerLabel, setTimerLabel] = useState("Repos");
+  const restRef = useRef(0);
+  const audioRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    restRef.current = rest;
+  }, [rest]);
+
+  // Bip court (5 dernières secondes) et bip final via l'API Web Audio.
+  function beep(freq: number, ms: number) {
+    try {
+      const ctx = audioRef.current;
+      if (!ctx) return;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.frequency.value = freq;
+      o.connect(g);
+      g.connect(ctx.destination);
+      const t = ctx.currentTime;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.35, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+      o.start(t);
+      o.stop(t + ms / 1000);
+    } catch {
+      /* audio indisponible */
+    }
+  }
 
   useEffect(() => {
     if (!restRun) return;
     const id = setInterval(() => {
-      setRest((s) => {
-        if (s <= 1) {
-          setRestRun(false);
-          try {
-            navigator.vibrate?.(200);
-          } catch {
-            /* ignore */
-          }
-          return 0;
+      const next = restRef.current - 1;
+      if (next <= 0) {
+        setRest(0);
+        setRestRun(false);
+        beep(1320, 450); // signal de fin
+        try {
+          navigator.vibrate?.(200);
+        } catch {
+          /* ignore */
         }
-        return s - 1;
-      });
+      } else {
+        setRest(next);
+        if (next <= 5) beep(880, 130); // décompte des 5 dernières secondes
+      }
     }, 1000);
     return () => clearInterval(id);
   }, [restRun]);
 
-  function startRest(seconds: number = restSec) {
+  function startTimer(seconds: number, label = "Repos") {
+    // L'AudioContext doit être créé/repris sur un geste utilisateur.
+    try {
+      if (!audioRef.current) {
+        const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        audioRef.current = new Ctor();
+      }
+      audioRef.current?.resume?.();
+    } catch {
+      /* audio indisponible */
+    }
+    setTimerLabel(label);
     setRest(seconds);
     setRestRun(true);
   }
+  const startRest = (seconds: number = restSec) => startTimer(seconds, "Repos");
 
   function setField(key: string, field: "kg" | "reps", value: string) {
     setSaved(false);
@@ -212,6 +269,7 @@ export function SessionRunner({
         if (isCardioExercise(ex.name, ex.note, ex.cardio)) {
           const zone = zones && zones.length ? cardioZone(zones, ex.zone ?? "", ex.name, ex.note) : null;
           const duration = ex.duration || ex.reps || "";
+          const durSec = durationToSeconds(duration);
           return (
             <div key={ei} className="flex flex-col gap-3 rounded-card border border-line bg-surface p-4">
               <div className="flex items-start justify-between gap-3">
@@ -228,6 +286,18 @@ export function SessionRunner({
                 </div>
               </div>
               {ex.note ? <div className="text-[12.5px] leading-[1.5] text-muted">{ex.note}</div> : null}
+              {durSec > 0 ? (
+                <button
+                  onClick={() => startTimer(durSec, ex.name)}
+                  className="tap flex items-center justify-center gap-2 rounded-control border border-cardio/50 bg-cardio/10 px-3.5 py-2.5 text-[13.5px] font-semibold text-cardio transition-colors hover:border-cardio"
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <circle cx="12" cy="13" r="8" />
+                    <path d="M12 9v4l2 2M9 2h6" />
+                  </svg>
+                  Lancer le chrono ({formatRest(durSec)})
+                </button>
+              ) : null}
               {zone ? (
                 <div className="flex items-center justify-between gap-3 rounded-control px-3.5 py-3" style={{ background: zone.bg }}>
                   <div className="flex min-w-0 items-center gap-3">
@@ -367,7 +437,7 @@ export function SessionRunner({
       {/* Minuteur de repos flottant */}
       {rest > 0 ? (
         <div className="fixed inset-x-3 bottom-[calc(150px+env(safe-area-inset-bottom))] z-50 flex items-center gap-3 rounded-card border border-fillfg/10 bg-fill px-4 py-3 text-fillfg nav:inset-x-auto nav:right-6 nav:bottom-[92px] nav:w-[340px]">
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-fillfg/60">Repos</span>
+          <span className="max-w-[120px] truncate font-mono text-[10px] uppercase tracking-[0.12em] text-fillfg/60">{timerLabel}</span>
           <span className="font-archivo font-extrabold text-[26px] leading-none tabular-nums">{formatRest(rest)}</span>
           <div className="ml-auto flex items-center gap-1.5">
             <button onClick={() => setRest((s) => Math.max(0, s - 15))} className="tap rounded-pill bg-fillfg/15 px-2.5 text-[13px] font-semibold">−15</button>

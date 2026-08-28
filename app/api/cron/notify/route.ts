@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendPush, vapidReady, type StoredSub, type PushPayload } from "@/lib/push";
+import { sendPush, broadcastPush, vapidReady, type StoredSub, type PushPayload } from "@/lib/push";
 import { programDay } from "@/lib/access";
 import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
 import { missedDays } from "@/lib/streak";
@@ -40,12 +40,26 @@ export async function GET(req: Request) {
   const db = createAdminClient();
   const now = new Date();
 
+  // Notifications programmées par le coach devenues dues : diffusion à tous.
+  const { data: due } = await db
+    .from("scheduled_pushes")
+    .select("id, title, body, url")
+    .is("sent_at", null)
+    .lte("send_at", now.toISOString())
+    .returns<{ id: string; title: string; body: string; url: string }[]>();
+  let broadcastSent = 0;
+  for (const s of due ?? []) {
+    const r = await broadcastPush({ title: s.title, body: s.body, url: s.url, tag: "coach-broadcast" });
+    broadcastSent += r.sent;
+    await db.from("scheduled_pushes").update({ sent_at: new Date().toISOString() }).eq("id", s.id);
+  }
+
   const { data: subs } = await db
     .from("push_subscriptions")
     .select("endpoint, user_id, p256dh, auth")
     .returns<SubRow[]>();
   if (!subs || subs.length === 0) {
-    return NextResponse.json({ sent: 0, removed: 0, users: 0 });
+    return NextResponse.json({ sent: 0, removed: 0, users: 0, broadcastSent });
   }
 
   // Regroupe les abonnements par utilisateur (plusieurs appareils possibles).

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 // Icônes line (stroke), cohérentes, lisibles à petite taille.
 const I = {
@@ -147,7 +148,11 @@ export function AppNav({
           );
         })}
 
-        <div className="mt-auto flex flex-col gap-2 rounded-card bg-paper p-4">
+        <div className="mt-auto flex justify-center py-3">
+          <ThemeToggle />
+        </div>
+
+        <div className="flex flex-col gap-2 rounded-card bg-paper p-4">
           <div className="font-mono uppercase tracking-[0.12em] text-[10px] text-muted-2">Progression</div>
           <div className="font-archivo font-extrabold text-[34px] leading-[0.9] tracking-[-0.03em] text-ink">
             {day}
