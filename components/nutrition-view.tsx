@@ -61,6 +61,24 @@ export function NutritionView({
     startDate
       ? dateOfProgramDay(startDate, d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" })
       : `J${d}`;
+  // Date longue (jour de semaine + numéro + mois), pour le récapitulatif.
+  const dateLong = (d: number) =>
+    startDate
+      ? dateOfProgramDay(startDate, d).toLocaleDateString("fr-FR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          timeZone: "UTC",
+        })
+      : `Jour ${d}`;
+  // Vrai jour de semaine (abrégé, MAJ) d'un jour de programme, aligné calendrier.
+  const weekdayOf = (d: number, fallback: string) =>
+    startDate
+      ? dateOfProgramDay(startDate, d)
+          .toLocaleDateString("fr-FR", { weekday: "short", timeZone: "UTC" })
+          .replace(".", "")
+          .toUpperCase()
+      : fallback;
   const initialWeek = Math.min(WEEKS, Math.floor((currentDay - 1) / 7) + 1);
   const initialDow = (currentDay - 1) % 7;
   const [week, setWeek] = useState(initialWeek);
@@ -83,7 +101,10 @@ export function NutritionView({
   }
 
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  // Deux actions distinctes (générer / photo) : un état de chargement PAR bouton
+  // pour n'afficher le spinner que sur celui réellement cliqué.
   const [recipeBusy, setRecipeBusy] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [recipeErr, setRecipeErr] = useState("");
   const photoRef = useRef<HTMLInputElement>(null);
 
@@ -132,7 +153,7 @@ export function NutritionView({
   async function onFoodPhoto(file: File | undefined) {
     if (!file) return;
     setRecipeErr("");
-    setRecipeBusy(true);
+    setPhotoBusy(true);
     try {
       const url = URL.createObjectURL(file);
       const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -166,7 +187,7 @@ export function NutritionView({
     } catch (e) {
       setRecipeErr(e instanceof Error ? e.message : "Analyse impossible.");
     } finally {
-      setRecipeBusy(false);
+      setPhotoBusy(false);
     }
   }
 
@@ -209,7 +230,7 @@ export function NutritionView({
                   disabled ? "opacity-30" : "",
                 ].join(" ")}
               >
-                <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-muted-2">{name}</span>
+                <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-muted-2">{weekdayOf(d, name)}</span>
                 <span className={["text-[13px] font-semibold tabular-nums", rest ? "text-body" : "text-brand"].join(" ")}>
                   {dom}
                 </span>
@@ -218,7 +239,8 @@ export function NutritionView({
           })}
         </div>
         <p className="text-[12px] text-muted-2">
-          {dateOf(day)} · jour {day} · {dayRest ? "sans entraînement" : "entraînement"}. Les menus varient au fil des 90 jours.
+          <span className="font-semibold text-body capitalize">{dateLong(day)}</span> · jour {day} ·{" "}
+          {dayRest ? "sans entraînement" : "entraînement"}. Les menus varient au fil des 90 jours.
         </p>
       </section>
 
@@ -354,10 +376,10 @@ export function NutritionView({
             }}
           />
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={genRecipes} loading={recipeBusy} className="h-11">
+            <Button variant="outline" onClick={genRecipes} loading={recipeBusy} disabled={photoBusy} className="h-11">
               {recipes.length ? "De nouvelles idées" : "Générer des idées de recettes"}
             </Button>
-            <Button variant="outline" onClick={() => photoRef.current?.click()} loading={recipeBusy} className="h-11">
+            <Button variant="outline" onClick={() => photoRef.current?.click()} loading={photoBusy} disabled={recipeBusy} className="h-11">
               Photo de mes aliments
             </Button>
           </div>

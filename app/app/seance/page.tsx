@@ -2,6 +2,8 @@ import Link from "next/link";
 import { loadEspaceOrRedirect } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import { restPattern, isRestDay, startWeekday, dateOfProgramDay } from "@/lib/schedule";
+import { scheduledTrainingDays } from "@/lib/streak";
+import { planSessions, warmupSteps } from "@/lib/program";
 import { Card, MonoLabel } from "@/components/ui";
 import { SessionRunner, type Exercise } from "@/components/session-runner";
 import { CoachLoadSuggestion } from "@/components/coach-loads";
@@ -32,11 +34,23 @@ export default async function SeancePage({
   const day = jourParam >= 1 && jourParam <= PROGRAM_DAYS ? jourParam : today;
   const isToday = day === today;
 
+  const startWd = startWeekday(ctx.profile?.start_date);
   const pattern = restPattern(trainDays, plan.weekPlan.slice(0, 7).map((d) => d.rest));
-  const todayRest = isRestDay(day, pattern, startWeekday(ctx.profile?.start_date));
+  const todayRest = isRestDay(day, pattern, startWd);
   const cycle = day <= 30 ? 1 : day <= 60 ? 2 : 3;
   const rpeGoal = targetRpe(day);
-  const exercises: Exercise[] = plan.session.exercises.map((e) => ({
+
+  // Séance du jour : les nouveaux programmes ont une séance DISTINCTE par jour
+  // d'entraînement (A, B, C…). On tourne sur ces séances selon le rang du jour
+  // d'entraînement dans la semaine (ordinal 1er/2e/3e jour travaillé), aligné
+  // sur le vrai calendrier. Les anciens plans n'ont qu'une séance : fallback.
+  const sessions = planSessions(plan);
+  const ordinal = scheduledTrainingDays(pattern, startWd, day).length; // 1..n
+  const slot = sessions.length ? (((ordinal - 1) % sessions.length) + sessions.length) % sessions.length : 0;
+  const s = sessions[slot] ?? plan.session ?? sessions[0];
+  const warmup = warmupSteps(s);
+
+  const exercises: Exercise[] = (s?.exercises ?? []).map((e) => ({
     name: e.name,
     sets: e.sets,
     reps: e.reps,
@@ -64,8 +78,8 @@ export default async function SeancePage({
   const alreadyDone = !!log;
   const zones = karvonen(prof?.age || 34, prof?.rest_hr || 62, prof?.sex ?? undefined).zones;
 
-  // Vraie date du jour de séance (le plan a UNE séance type ; on n'affiche donc
-  // jamais le jour figé du modèle, mais la vraie date calculée du jour choisi).
+  // Vraie date du jour de séance : on n'affiche jamais le jour figé du modèle,
+  // mais la vraie date calculée du jour choisi.
   const realDate = ctx.profile?.start_date
     ? dateOfProgramDay(ctx.profile.start_date, day).toLocaleDateString("fr-FR", {
         weekday: "long",
@@ -76,11 +90,11 @@ export default async function SeancePage({
     : "";
   const dateLabel = realDate ? realDate.charAt(0).toUpperCase() + realDate.slice(1) : "";
   const dur = (answers.dur as string) || plan.weekPlan.find((d) => !d.rest)?.dur || "";
-  // Repos entre séries : champ structuré du plan, sinon lu dans meta/notes.
+  // Repos entre séries : champ structuré de la séance, sinon lu dans meta/notes.
   const restSec = resolveRestSeconds(
-    plan.session.restSec,
-    plan.session.meta,
-    ...plan.session.exercises.map((e) => e.note),
+    s?.restSec,
+    s?.meta,
+    ...(s?.exercises ?? []).map((e) => e.note),
   );
 
   // Reconstruit l'état initial {exIdx-setIdx: {kg, reps}} + les cardio cochés.
@@ -132,13 +146,12 @@ export default async function SeancePage({
     );
   }
 
-  const s = plan.session;
   return (
     <div className="mx-auto flex max-w-[640px] flex-col gap-5">
       {DayNav}
       <header className="flex flex-col gap-1.5">
         <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          {s.title || "Séance du jour"}
+          {s?.title || "Séance du jour"}
         </h1>
         <p className="text-[14px] text-muted">
           {[dateLabel, dur].filter(Boolean).join(" · ")}
@@ -149,6 +162,34 @@ export default async function SeancePage({
           </div>
         ) : null}
       </header>
+
+      {/* Échauffement : préparation avant le travail (obligatoire, 5 à 8 min). */}
+      {warmup.length ? (
+        <details className="group rounded-card border border-line bg-surface p-4" open>
+          <summary className="flex cursor-pointer items-center justify-between gap-2 list-none">
+            <span className="flex items-center gap-2">
+              <span className="font-archivo font-bold text-[16px] text-ink">Échauffement</span>
+              <span className="rounded-full bg-alert px-2 py-0.5 text-[11px] font-semibold text-brand border border-alert-line">
+                avant de commencer
+              </span>
+            </span>
+            <span className="text-muted-2 transition-transform group-open:rotate-180">⌄</span>
+          </summary>
+          <ol className="mt-3 flex flex-col gap-2">
+            {warmup.map((w, i) => (
+              <li key={i} className="flex items-start gap-3 rounded-control bg-surface-2 px-3 py-2">
+                <span className="font-archivo font-extrabold text-[14px] w-5 shrink-0 text-center text-muted-2">
+                  {i + 1}
+                </span>
+                <div className="min-w-0">
+                  <span className="text-[14px] font-semibold text-ink">{w.name}</span>
+                  {w.detail ? <span className="text-[13px] text-muted">, {w.detail}</span> : null}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </details>
+      ) : null}
 
       {/* Charges au ressenti (RPE) */}
       <details className="group rounded-card border border-line bg-surface p-4">

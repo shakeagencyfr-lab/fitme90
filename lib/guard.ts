@@ -9,6 +9,8 @@ export interface ProfileRow {
   paid: boolean;
   start_date: string | null;
   photo_consent_at: string | null;
+  /** Décharge médicale signée (consentement éclairé). null tant que non signée. */
+  medical_ack_at: string | null;
 }
 
 export interface SessionContext {
@@ -35,7 +37,7 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, email, name, paid, start_date, photo_consent_at")
+    .select("id, email, name, paid, start_date, photo_consent_at, medical_ack_at")
     .eq("id", user.id)
     .maybeSingle<ProfileRow>();
 

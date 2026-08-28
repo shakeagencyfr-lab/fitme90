@@ -82,3 +82,30 @@ export async function broadcastPush(payload: PushPayload): Promise<{ sent: numbe
   if (dead.length) await db.from("push_subscriptions").delete().in("endpoint", dead);
   return { sent, removed: dead.length };
 }
+
+/**
+ * Diffusion CIBLÉE : envoie une notification uniquement aux abonnés dont le
+ * user_id figure dans `userIds` (segment filtré côté coach : sexe, objectif,
+ * phase…). Nettoie les abonnements morts. Sans destinataire, n'envoie rien.
+ */
+export async function broadcastPushToUsers(
+  userIds: string[],
+  payload: PushPayload,
+): Promise<{ sent: number; removed: number }> {
+  if (!vapidReady() || userIds.length === 0) return { sent: 0, removed: 0 };
+  const db = createAdminClient();
+  const { data: subs } = await db
+    .from("push_subscriptions")
+    .select("endpoint, p256dh, auth")
+    .in("user_id", userIds)
+    .returns<SubRow[]>();
+  let sent = 0;
+  const dead: string[] = [];
+  for (const s of subs ?? []) {
+    const res = await sendPush(s, payload);
+    if (res === "ok") sent++;
+    else if (res === "gone") dead.push(s.endpoint);
+  }
+  if (dead.length) await db.from("push_subscriptions").delete().in("endpoint", dead);
+  return { sent, removed: dead.length };
+}

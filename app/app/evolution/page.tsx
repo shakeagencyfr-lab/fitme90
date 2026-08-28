@@ -34,7 +34,7 @@ function fmtDate(d: string) {
 }
 
 export default async function EvolutionPage() {
-  const { ctx } = await loadEspaceOrRedirect();
+  const { ctx, answers } = await loadEspaceOrRedirect();
   const supabase = await createClient();
   const [{ data: weights }, { data: measures }, { data: logs }] = await Promise.all([
     supabase
@@ -61,6 +61,21 @@ export default async function EvolutionPage() {
   for (const l of logs ?? []) for (const e of l.entries ?? []) allEntries.push(e);
   const records = personalRecords(allEntries);
 
+  // Poids de départ (renseigné à l'inscription) = 1er point de la courbe, par
+  // défaut, même sans pesée saisie. On l'ajoute au tracé s'il manque une pesée
+  // au (ou avant le) jour de début du programme.
+  const weightRows = (weights ?? []) as { kg: number; measured_at: string }[];
+  const startDate = ctx.profile?.start_date ?? null;
+  const startWeight = Number(String(answers?.weight ?? "").replace(",", "."));
+  if (
+    startDate &&
+    startWeight >= 20 &&
+    startWeight <= 400 &&
+    (weightRows.length === 0 || weightRows[0].measured_at > startDate)
+  ) {
+    weightRows.unshift({ kg: startWeight, measured_at: startDate });
+  }
+
   const canLog = ctx.access.canLog;
   const rows = (measures ?? []) as Measure[];
   // Delta = dernière (rows[0]) vs première mesure (fin du tableau).
@@ -77,7 +92,7 @@ export default async function EvolutionPage() {
         Mon évolution
       </h1>
 
-      <WeightTracker weights={(weights ?? []) as { kg: number; measured_at: string }[]} />
+      <WeightTracker weights={weightRows} />
 
       <RecordsTable records={records} />
 

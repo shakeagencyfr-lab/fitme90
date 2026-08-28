@@ -61,17 +61,20 @@ export async function POST() {
     );
   }
 
-  // 4b. GARDE-FOU MÉDICAL (aussi côté serveur, pas seulement à l'écran).
+  // 4b. GARDE-FOU MÉDICAL, version consentement éclairé (aussi côté serveur) :
+  // une situation de santé déclarée n'empêche PLUS la génération, mais exige la
+  // signature d'une décharge. Si elle manque, on la réclame ; sinon on continue.
   const health = quiz.answers as QuizHealthAnswers;
   const verdict = screen(health);
   if (verdict.hold) {
-    // On mémorise l'attente médicale sur le profil (service role).
     const admin = createAdminClient();
     await admin.from("profiles").update({ medical_hold: true }).eq("id", ctx.userId);
-    return NextResponse.json(
-      { error: "medical_hold", reasons: verdict.reasons },
-      { status: 403 },
-    );
+    if (!ctx.profile?.medical_ack_at) {
+      return NextResponse.json(
+        { error: "medical_waiver_required", reasons: verdict.reasons },
+        { status: 403 },
+      );
+    }
   }
 
   const { data: equipRows } = await supabase
@@ -110,14 +113,32 @@ export async function POST() {
     );
   }
 
-  if (!ctx.profile?.start_date) {
+  let startDate = ctx.profile?.start_date ?? null;
+  if (!startDate) {
     // Date de début choisie au questionnaire (vrai calendrier). On la retient si
     // elle est valide et pas dans le passé ; sinon on démarre aujourd'hui.
     const today = new Date().toISOString().slice(0, 10);
     const picked =
       typeof quiz.answers?.start_date === "string" ? quiz.answers.start_date.slice(0, 10) : "";
-    const startDate = /^\d{4}-\d{2}-\d{2}$/.test(picked) && picked >= today ? picked : today;
+    startDate = /^\d{4}-\d{2}-\d{2}$/.test(picked) && picked >= today ? picked : today;
     await admin.from("profiles").update({ start_date: startDate }).eq("id", ctx.userId);
+  }
+
+  // Poids de départ = 1er point de la courbe d'évolution, sans saisie manuelle.
+  // Posé une seule fois, daté du début de programme, si aucune pesée n'existe.
+  const startWeight = Number(String(quiz.answers?.weight ?? "").replace(",", "."));
+  if (startDate && startWeight >= 20 && startWeight <= 400) {
+    const { data: anyWeight } = await admin
+      .from("weights")
+      .select("id")
+      .eq("user_id", ctx.userId)
+      .limit(1)
+      .maybeSingle<{ id: string }>();
+    if (!anyWeight) {
+      await admin
+        .from("weights")
+        .insert({ user_id: ctx.userId, kg: startWeight, measured_at: startDate });
+    }
   }
 
   await recordCall(ctx.userId, "generate", result.usage);

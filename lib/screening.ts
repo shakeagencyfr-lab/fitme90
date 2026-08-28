@@ -1,12 +1,12 @@
 // ------------------------------------------------------------------ *
 // FitMe90 — EXCLUSION MÉDICALE (garde-fou juridique central)
 //
-// Un coach professionnel diplômé d'État accompagne un public EN BONNE SANTÉ vers un objectif de
-// forme. Dès qu'une pathologie, une grossesse ou un traitement médical est
-// déclaré, générer un programme personnalisé bascule vers l'acte médical
-// (exercice illégal de la médecine). Cette fonction met alors le compte en
-// « attente médicale » : aucune génération, renvoi vers un professionnel de
-// santé (médecin ou diététicien).
+// Un coach professionnel diplômé d'État accompagne un public vers un objectif
+// de forme. Quand une pathologie, une grossesse ou un traitement médical est
+// déclaré, on N'EMPÊCHE PLUS l'accès (l'ancien blocage « attente médicale »
+// est remplacé par un consentement éclairé) : on signale la situation et on
+// fait signer une décharge (voir lib/legal.ts). `hold` = true signifie donc
+// désormais « situation à signaler, décharge requise » et non « accès refusé ».
 //
 // Fonction PURE et testée. Les seuils sont volontairement explicites et
 // ajustables — à faire valider par un juriste (voir DEPLOY.md / CGV).

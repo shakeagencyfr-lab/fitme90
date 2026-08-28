@@ -8,9 +8,42 @@ import { QUIZ } from "@/lib/questionnaire";
 
 export interface SaveResult {
   ok?: boolean;
-  hold?: boolean;
+  /** Situation de santé déclarée : décharge à signer (n'empêche PAS l'accès). */
+  flagged?: boolean;
   reasons?: string[];
   error?: string;
+}
+
+export interface WaiverResult {
+  ok?: boolean;
+  error?: string;
+}
+
+/**
+ * Signature de la décharge médicale (consentement éclairé). On mémorise
+ * l'horodatage, le nom saisi et les motifs présentés. Ne bloque jamais l'accès :
+ * c'est une trace de consentement, pas un refus.
+ */
+export async function signMedicalWaiver(payload: {
+  name: string;
+  reasons?: string[];
+}): Promise<WaiverResult> {
+  const ctx = await getSessionContext();
+  if (!ctx) return { error: "Non authentifié." };
+  const name = (payload.name ?? "").trim();
+  if (name.length < 2) return { error: "Indique ton nom pour signer." };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("profiles")
+    .update({
+      medical_ack_at: new Date().toISOString(),
+      medical_ack_name: name.slice(0, 120),
+      medical_ack_reasons: (payload.reasons ?? []).slice(0, 12),
+    })
+    .eq("id", ctx.userId);
+  if (error) return { error: "Signature impossible, réessaie." };
+  return { ok: true };
 }
 
 export async function saveQuestionnaire(payload: {
@@ -52,12 +85,14 @@ export async function saveQuestionnaire(payload: {
   });
   if (error) return { error: "Enregistrement du questionnaire impossible." };
 
-  // GARDE-FOU MÉDICAL
+  // GARDE-FOU MÉDICAL, version consentement éclairé : une situation de santé
+  // déclarée n'empêche PLUS l'accès. On la signale (medical_hold reste vrai
+  // pour la visibilité côté admin) et on demande la signature d'une décharge.
   const verdict = screen(answers as QuizHealthAnswers);
   if (verdict.hold) {
     const admin = createAdminClient();
     await admin.from("profiles").update({ medical_hold: true }).eq("id", ctx.userId);
-    return { hold: true, reasons: verdict.reasons };
+    return { flagged: true, reasons: verdict.reasons };
   }
 
   return { ok: true };
