@@ -9,7 +9,8 @@ import { describeAnswers, DAYS } from "@/lib/questionnaire";
 import { buildPersona } from "@/lib/coach-persona";
 import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
 import { missedDays } from "@/lib/streak";
-import { generateProgram, readAdaptations } from "@/lib/program";
+import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan } from "@/lib/program";
+import { revalidatePath } from "next/cache";
 import { pnum, grp } from "@/lib/nutrition";
 import { LIMIT_COACH_PER_DAY, PROGRAM_DAYS } from "@/lib/config";
 
@@ -293,43 +294,26 @@ ${JSON.stringify(logs ?? [])}`;
     adapted = true;
     const ordered = DAYS.filter((d) => clean.includes(d));
 
-    // Régénère TOUT le plan (présentation, cycles, répartition, cardio) sur les
-    // nouveaux jours. En cas d'échec, les jours restent modifiés (agenda,
-    // séance, nutrition recalés) — on le signale sans casser la réponse.
+    // Synchronise fréquence + jours, puis recale le plan de façon DÉTERMINISTE
+    // (sans IA) : instantané et fiable, la présentation et la nutrition suivent.
     if (quiz) {
       quiz.train_days = clean;
-      // Synchronise la fréquence et les jours dans les réponses, sinon le brief
-      // de régénération dit encore « 3 séances » et le modèle réécrit l'ancien.
       const syncedAnswers = { ...quiz.answers, freq: String(clean.length), train_days: clean };
       quiz.answers = syncedAnswers;
-      await supabase
-        .from("questionnaires")
-        .update({ answers: syncedAnswers })
-        .eq("user_id", ctx!.userId);
-      try {
-        const { data: equipRows } = await supabase
-          .from("equipment")
-          .select("name")
-          .eq("user_id", ctx!.userId)
-          .eq("enabled", true);
-        const equipment = (equipRows ?? []).map((e) => e.name as string);
-        const result = await generateProgram(
-          { answers: syncedAnswers, trainDays: clean, equipment },
-          "low", // rapide : la requête coach doit tenir sous ~60 s (Vercel Hobby)
-        );
-        totalUsage.input_tokens += result.usage.input_tokens;
-        totalUsage.output_tokens += result.usage.output_tokens;
-        await supabase.from("programs").insert({
-          user_id: ctx!.userId,
-          plan: result.plan,
-          model: result.model,
-        });
-        return `Jours d'entraînement mis à jour : ${ordered.join(", ")} (${ordered.length} séances/semaine). J'ai régénéré tout le programme (présentation, cycles, cardio) pour coller à ces jours. Confirme-le au client.`;
-      } catch {
-        return `Jours d'entraînement mis à jour : ${ordered.join(", ")} (${ordered.length} séances/semaine). Le calendrier, les séances et la nutrition se sont recalés ; la réécriture du plan complet n'a pas abouti cette fois — redis-moi « mets à jour mon programme » si la présentation ne reflète pas encore les nouveaux jours.`;
-      }
+      await supabase.from("questionnaires").update({ answers: syncedAnswers }).eq("user_id", ctx!.userId);
     }
-    return `Jours d'entraînement mis à jour : ${ordered.join(", ")} (${ordered.length} séances/semaine). Le calendrier, les séances et la nutrition se sont recalés. Confirme-le au client.`;
+    const { data: prog } = await supabase
+      .from("programs")
+      .select("id, plan")
+      .eq("user_id", ctx!.userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ id: string; plan: Plan }>();
+    if (prog?.plan) {
+      const patched = patchPlanForTrainDays(prog.plan, clean);
+      await supabase.from("programs").update({ plan: patched }).eq("id", prog.id);
+    }
+    return `Jours d'entraînement mis à jour : ${ordered.join(", ")} (${ordered.length} séances/semaine). Le calendrier, la séance, la nutrition et la présentation du programme se sont recalés. Confirme-le au client.`;
   }
 
   // Modifie la nutrition : régime, allergies, objectif calorique.
@@ -521,6 +505,15 @@ ${JSON.stringify(logs ?? [])}`;
       .eq("title", "Nouvelle conversation");
   }
   await recordCall(ctx.userId, "coach", totalUsage);
+
+  // Une adaptation (jours, nutrition, blessure) a modifié programme/questionnaire :
+  // on purge le cache des pages concernées pour que tout soit à jour à la nav.
+  if (adapted) {
+    revalidatePath("/app");
+    revalidatePath("/app/agenda");
+    revalidatePath("/app/seance");
+    revalidatePath("/app/nutrition");
+  }
 
   return NextResponse.json({ messages, adapted, conversationId });
 }

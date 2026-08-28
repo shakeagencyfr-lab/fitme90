@@ -4,8 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { DAYS } from "@/lib/questionnaire";
-import { generateProgram } from "@/lib/program";
-import { recordCall } from "@/lib/ratelimit";
+import { patchPlanForTrainDays, type Plan } from "@/lib/program";
 
 export interface DaysState {
   ok?: boolean;
@@ -30,44 +29,30 @@ export async function updateTrainDays(days: string[]): Promise<DaysState> {
     .eq("user_id", ctx.userId);
   if (error) return { error: "Enregistrement impossible." };
 
-  // Réécrit le plan sur les nouveaux jours (best-effort : si ça échoue, les
-  // jours restent enregistrés et tout le reste s'est déjà recalé).
-  try {
-    const { data: quiz } = await supabase
-      .from("questionnaires")
-      .select("answers")
-      .eq("user_id", ctx.userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle<{ answers: Record<string, unknown> }>();
-    if (quiz?.answers) {
-      // Synchronise fréquence + jours dans les réponses, sinon le brief de
-      // régénération garde l'ancienne fréquence (« 3 séances ») dans le texte.
-      const syncedAnswers = { ...quiz.answers, freq: String(clean.length), train_days: clean };
-      await supabase
-        .from("questionnaires")
-        .update({ answers: syncedAnswers })
-        .eq("user_id", ctx.userId);
-      const { data: equipRows } = await supabase
-        .from("equipment")
-        .select("name")
-        .eq("user_id", ctx.userId)
-        .eq("enabled", true);
-      const equipment = (equipRows ?? []).map((e) => e.name as string);
-      const result = await generateProgram(
-        { answers: syncedAnswers, trainDays: clean, equipment },
-        "low", // doit tenir sous ~60 s (Vercel Hobby), sinon la régénération échoue
-        // et la présentation reste figée sur les anciens jours.
-      );
-      await supabase.from("programs").insert({
-        user_id: ctx.userId,
-        plan: result.plan,
-        model: result.model,
-      });
-      await recordCall(ctx.userId, "coach", result.usage);
-    }
-  } catch {
-    // Le plan écrit n'a pas pu être régénéré ; les jours sont tout de même à jour.
+  // Synchronise fréquence + jours dans les réponses (utilisés par la génération
+  // et le coach), puis recale le plan de façon DÉTERMINISTE (sans IA, instantané
+  // et fiable) : semaine type + fréquence citée dans le résumé.
+  const { data: quiz } = await supabase
+    .from("questionnaires")
+    .select("answers")
+    .eq("user_id", ctx.userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ answers: Record<string, unknown> }>();
+  if (quiz?.answers) {
+    const syncedAnswers = { ...quiz.answers, freq: String(clean.length), train_days: clean };
+    await supabase.from("questionnaires").update({ answers: syncedAnswers }).eq("user_id", ctx.userId);
+  }
+  const { data: prog } = await supabase
+    .from("programs")
+    .select("id, plan")
+    .eq("user_id", ctx.userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string; plan: Plan }>();
+  if (prog?.plan) {
+    const patched = patchPlanForTrainDays(prog.plan, clean);
+    await supabase.from("programs").update({ plan: patched }).eq("id", prog.id);
   }
 
   revalidatePath("/app");

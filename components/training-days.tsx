@@ -30,9 +30,8 @@ export function TrainingDaysEditor({ initial }: { initial: string[] }) {
       <div className="flex flex-col gap-0.5">
         <MonoLabel>Mes jours d'entraînement</MonoLabel>
         <p className="text-[13px] text-muted">
-          Ton emploi du temps change ? Ajuste tes jours, le programme est réécrit
-          sur ces jours (quelques secondes) et le calendrier, les séances et la
-          nutrition suivent.
+          Ton emploi du temps change ? Ajuste tes jours : le calendrier, les
+          séances, la nutrition et la présentation du programme se recalent aussitôt.
         </p>
       </div>
       <div className="grid grid-cols-7 gap-1.5">
@@ -53,10 +52,7 @@ export function TrainingDaysEditor({ initial }: { initial: string[] }) {
         })}
       </div>
       {msg.error ? <Alert>{msg.error}</Alert> : null}
-      {msg.ok ? <Alert tone="info">Jours mis à jour et programme réécrit.</Alert> : null}
-      {pending ? (
-        <p className="text-[12.5px] text-muted-2">Réécriture du programme en cours…</p>
-      ) : null}
+      {msg.ok ? <Alert tone="info">Jours mis à jour, tout est recalé.</Alert> : null}
       {dirty ? (
         <Button onClick={save} loading={pending} className="self-start h-11">
           Enregistrer mes jours

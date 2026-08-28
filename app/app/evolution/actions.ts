@@ -18,7 +18,17 @@ export async function addWeight(_prev: EvoState, formData: FormData): Promise<Ev
   if (!kg || kg < 20 || kg > 400) return { error: "Poids invalide." };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("weights").insert({ user_id: ctx.userId, kg });
+  // Une seule pesée par jour : si une existe déjà aujourd'hui, on la remplace.
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: existing } = await supabase
+    .from("weights")
+    .select("id")
+    .eq("user_id", ctx.userId)
+    .eq("measured_at", today)
+    .maybeSingle<{ id: string }>();
+  const { error } = existing
+    ? await supabase.from("weights").update({ kg }).eq("id", existing.id)
+    : await supabase.from("weights").insert({ user_id: ctx.userId, kg });
   if (error) return { error: "Enregistrement impossible." };
   revalidatePath("/app/evolution");
   return { ok: true };
