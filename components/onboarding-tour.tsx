@@ -148,6 +148,10 @@ function scrollTargetTo(el: HTMLElement, ratio: number) {
 export function OnboardingTour() {
   const [step, setStep] = useState<number | null>(null);
   const [rect, setRect] = useState<Rect | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  // Sur mobile, les étapes de séance se font en 2 temps : d'abord on RÉVÈLE la
+  // cible (encadré rouge, sans carte qui recouvre le champ), puis on EXPLIQUE.
+  const [phase, setPhase] = useState<"reveal" | "explain">("explain");
   const router = useRouter();
   const pathname = usePathname();
 
@@ -157,17 +161,37 @@ export function OnboardingTour() {
     if (href && href !== pathname) router.push(href);
   }
 
-  // Ouverture (1er accès) + relance depuis le profil.
+  // Ouverture (1er accès), relance depuis le profil, ET auto-activation juste
+  // après le démarrage du programme (redirection /app?genere=1).
   useEffect(() => {
+    const justGenerated =
+      typeof window !== "undefined" && window.location.search.includes("genere=1");
     try {
-      if (!localStorage.getItem(KEY)) setStep(0);
+      if (justGenerated || !localStorage.getItem(KEY)) setStep(0);
     } catch {
-      /* stockage indisponible */
+      if (justGenerated) setStep(0);
     }
     const open = () => setStep(0);
     window.addEventListener("fitme90:onboarding-restart", open);
     return () => window.removeEventListener("fitme90:onboarding-restart", open);
   }, []);
+
+  // Détection mobile (le double-temps ne concerne que le mobile).
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  // À chaque changement d'étape : phase « révélation » pour les étapes de séance
+  // sur mobile (montre l'encadré rouge sans carte), sinon explication directe.
+  useEffect(() => {
+    if (step === null) return;
+    const scrollStepNow = !!STEPS[step]?.scroll;
+    setPhase(scrollStepNow && isMobile ? "reveal" : "explain");
+  }, [step, isMobile]);
 
   // Mesure la position de la cible (et la recalcule au redimensionnement).
   useEffect(() => {
@@ -211,29 +235,57 @@ export function OnboardingTour() {
   const spotlight = !!(rect && s.target);
   const vh = typeof window !== "undefined" ? window.innerHeight : 0;
   const scrollStep = !!s.scroll && spotlight;
+  // Phase de révélation (mobile, étapes séance) : encadré rouge visible SANS la
+  // carte, jusqu'à ce que l'utilisateur touche pour voir l'explication.
+  const revealing = phase === "reveal" && scrollStep;
   // Étape de séance : cible en haut, carte en bas (ne recouvre pas l'élément).
   // Sinon : carte au-dessus si la cible est en bas de l'écran.
   const below = scrollStep ? true : spotlight && rect ? rect.top > vh * 0.5 : false;
+  const ringColor = revealing ? "#DC2626" : "var(--color-brand)";
 
   return (
     <>
       {/* Capteur plein écran : bloque les interactions derrière. Assombri sauf en
-          mode spotlight (l'assombrissement vient alors du box-shadow de l'anneau). */}
-      <div className={`fixed inset-0 z-[60] ${spotlight ? "" : "bg-ink/45 backdrop-blur-[2px]"} animate-[fadein_0.2s_ease-out]`} />
+          mode spotlight (l'assombrissement vient alors du box-shadow de l'anneau).
+          En phase de révélation, un tap n'importe où passe à l'explication. */}
+      <div
+        onClick={revealing ? () => setPhase("explain") : undefined}
+        className={`fixed inset-0 z-[60] ${revealing ? "cursor-pointer" : ""} ${spotlight ? "" : "bg-ink/45 backdrop-blur-[2px]"} animate-[fadein_0.2s_ease-out]`}
+      />
 
-      {/* Anneau de surbrillance autour de la cible */}
+      {/* Anneau de surbrillance autour de la cible (rouge en phase de révélation). */}
       {spotlight && rect ? (
         <div
-          className="pointer-events-none fixed z-[61] rounded-[12px] transition-all duration-300"
+          className={`pointer-events-none fixed z-[61] rounded-[12px] transition-all duration-300 ${revealing ? "animate-pulse" : ""}`}
           style={{
             top: rect.top - 6,
             left: rect.left - 6,
             width: rect.width + 12,
             height: rect.height + 12,
-            border: "2px solid var(--color-brand)",
+            border: `${revealing ? 3 : 2}px solid ${ringColor}`,
             boxShadow: "0 0 0 9999px rgba(10,11,12,0.6)",
           }}
         />
+      ) : null}
+
+      {/* Phase de révélation : indice discret en bas, la cible reste dégagée. */}
+      {revealing ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[62] flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+20px)]">
+          <div className="pointer-events-auto flex items-center gap-3 rounded-pill border border-line bg-surface px-4 py-3 shadow-[0_8px_24px_rgba(23,25,27,0.18)]">
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#DC2626] font-mono text-[11px] font-bold text-white">
+              {["charge", "reps", "repos", "valider"].indexOf(s.target ?? "") + 1 || "?"}
+            </span>
+            <span className="text-[13.5px] font-medium text-body">
+              Regarde l'encadré rouge, puis appuie pour l'explication.
+            </span>
+            <button
+              onClick={() => setPhase("explain")}
+              className="tap rounded-btn bg-brand px-3.5 py-2 text-[13px] font-semibold text-white"
+            >
+              OK
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {/* Flèche animée pointant la cible (par le haut). Masquée pour les étapes
@@ -249,8 +301,10 @@ export function OnboardingTour() {
         </div>
       ) : null}
 
-      {/* Carte d'explication : en bas pour les étapes séance (cible en haut),
-          au-dessus de la cible si elle est en bas, sinon centrée. */}
+      {/* Carte d'explication : masquée en phase de révélation (mobile séance).
+          En bas pour les étapes séance (cible en haut), au-dessus de la cible si
+          elle est en bas, sinon centrée. */}
+      {!revealing ? (
       <div
         className="pointer-events-none fixed inset-0 z-[62] flex justify-center px-4"
         style={
@@ -322,6 +376,7 @@ export function OnboardingTour() {
           </div>
         </div>
       </div>
+      ) : null}
     </>
   );
 }

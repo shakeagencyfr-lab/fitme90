@@ -3,7 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminOrNull } from "@/lib/admin";
-import { broadcastPush } from "@/lib/push";
+import { broadcastPush, broadcastPushToUsers } from "@/lib/push";
+import { resolveAudience, type AudienceFilter } from "@/lib/audience";
+
+/** Normalise les champs de segmentation reçus du formulaire coach. */
+function readFilter(formData: FormData): AudienceFilter {
+  const sex = String(formData.get("filter_sex") ?? "").trim();
+  const goal = String(formData.get("filter_goal") ?? "").trim();
+  const phaseRaw = String(formData.get("filter_phase") ?? "all").trim();
+  const phase = phaseRaw === "active" || phaseRaw === "paid" ? phaseRaw : "all";
+  return { sex, goal, phase };
+}
 
 export interface ConfigState {
   ok?: boolean;
@@ -95,9 +105,29 @@ export interface NotifState {
   ok?: boolean;
   error?: string;
   sent?: number;
+  audience?: number;
 }
 
-/** Envoie une notification push à tous les clients abonnés, immédiatement. */
+/** État renvoyé par l'aperçu d'audience (segmentation). */
+export interface AudienceState {
+  total: number;
+  withPush: number;
+}
+
+const hasFilter = (f: AudienceFilter) => !!(f.sex || f.goal || (f.phase && f.phase !== "all"));
+
+/** Aperçu : combien de clients (et d'abonnés push) correspondent au segment. */
+export async function previewAudience(formData: FormData): Promise<AudienceState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { total: 0, withPush: 0 };
+  const { total, withPush } = await resolveAudience(readFilter(formData));
+  return { total, withPush };
+}
+
+/**
+ * Envoie une notification push immédiatement. Si un segment est précisé
+ * (sexe, objectif, phase), l'envoi est CIBLÉ ; sinon il va à tous les abonnés.
+ */
 export async function sendBroadcastNow(_prev: NotifState, formData: FormData): Promise<NotifState> {
   const ctx = await getAdminOrNull();
   if (!ctx) return { error: "Accès refusé." };
@@ -105,7 +135,30 @@ export async function sendBroadcastNow(_prev: NotifState, formData: FormData): P
   const body = String(formData.get("body") ?? "").trim().slice(0, 300);
   const url = String(formData.get("url") ?? "").trim().slice(0, 300) || "/app";
   if (!title || !body) return { error: "Titre et message sont obligatoires." };
-  const { sent } = await broadcastPush({ title, body, url, tag: "coach-broadcast" });
+
+  const filter = readFilter(formData);
+  const payload = { title, body, url, tag: "coach-broadcast" };
+  if (hasFilter(filter)) {
+    const { userIds, total } = await resolveAudience(filter);
+    if (total === 0) return { error: "Aucun client ne correspond à ce segment." };
+    const { sent } = await broadcastPushToUsers(userIds, payload);
+    return { ok: true, sent, audience: total };
+  }
+  const { sent } = await broadcastPush(payload);
+  return { ok: true, sent };
+}
+
+/** Envoie une notification push à UN seul client (fiche CRM). */
+export async function sendPushToClient(_prev: NotifState, formData: FormData): Promise<NotifState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const userId = String(formData.get("user_id") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim().slice(0, 80);
+  const body = String(formData.get("body") ?? "").trim().slice(0, 300);
+  const url = String(formData.get("url") ?? "").trim().slice(0, 300) || "/app";
+  if (!userId) return { error: "Client introuvable." };
+  if (!title || !body) return { error: "Titre et message sont obligatoires." };
+  const { sent } = await broadcastPushToUsers([userId], { title, body, url, tag: "coach-direct" });
   return { ok: true, sent };
 }
 
@@ -120,10 +173,17 @@ export async function scheduleBroadcast(_prev: NotifState, formData: FormData): 
   if (!title || !body) return { error: "Titre et message sont obligatoires." };
   const at = new Date(when);
   if (Number.isNaN(at.getTime()) || at.getTime() < Date.now()) return { error: "Choisis une date future." };
+  const filter = readFilter(formData);
   const admin = createAdminClient();
-  const { error } = await admin
-    .from("scheduled_pushes")
-    .insert({ title, body, url, send_at: at.toISOString() });
+  const { error } = await admin.from("scheduled_pushes").insert({
+    title,
+    body,
+    url,
+    send_at: at.toISOString(),
+    filter_sex: filter.sex || null,
+    filter_goal: filter.goal || null,
+    filter_phase: filter.phase && filter.phase !== "all" ? filter.phase : null,
+  });
   if (error) return { error: "Programmation impossible." };
   revalidatePath("/admin/notifications");
   return { ok: true };

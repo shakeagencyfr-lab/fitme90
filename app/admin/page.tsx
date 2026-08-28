@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeAccess, accessLabel } from "@/lib/access";
 import { Card, MonoLabel } from "@/components/ui";
@@ -11,6 +12,7 @@ type Prof = {
   paid: boolean;
   start_date: string | null;
   medical_hold: boolean;
+  medical_ack_at: string | null;
   created_at: string;
 };
 
@@ -22,7 +24,7 @@ export default async function AdminClientsPage() {
   const [{ data: profiles }, { data: logs }] = await Promise.all([
     admin
       .from("profiles")
-      .select("id, email, name, paid, start_date, medical_hold, created_at")
+      .select("id, email, name, paid, start_date, medical_hold, medical_ack_at, created_at")
       .order("created_at", { ascending: false })
       .returns<Prof[]>(),
     admin.from("session_logs").select("user_id").returns<{ user_id: string }[]>(),
@@ -62,14 +64,20 @@ export default async function AdminClientsPage() {
             </thead>
             <tbody>
               {withAccess.map(({ p, access }) => (
-                <tr key={p.id} className="border-b border-line-2 last:border-0">
+                <tr key={p.id} className="border-b border-line-2 last:border-0 hover:bg-surface-2">
                   <td className="px-4 py-3">
-                    <div className="font-semibold text-ink">{p.name || "·"}</div>
-                    <div className="text-[12px] text-muted-2">{p.email}</div>
+                    <Link href={`/admin/clients/${p.id}`} className="group block">
+                      <div className="font-semibold text-ink group-hover:text-brand group-hover:underline">
+                        {p.name || "·"}
+                      </div>
+                      <div className="text-[12px] text-muted-2">{p.email}</div>
+                    </Link>
                   </td>
                   <td className="px-4 py-3">
                     {p.medical_hold ? (
-                      <Badge tone="alert">Attente médicale</Badge>
+                      <Badge tone="alert">
+                        {p.medical_ack_at ? "Santé, décharge signée" : "Santé à surveiller"}
+                      </Badge>
                     ) : p.paid ? (
                       <Badge tone="ok">Payé</Badge>
                     ) : (

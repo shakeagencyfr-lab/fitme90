@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { MedicalWaiver } from "@/components/medical-waiver";
 import { Button, Alert, MonoLabel } from "@/components/ui";
 
 const STEPS = [
@@ -13,7 +14,7 @@ const STEPS = [
   "Mise en forme du programme",
 ];
 
-type Status = "running" | "error" | "hold" | "done";
+type Status = "running" | "error" | "waiver" | "done";
 
 export function GenerateStep() {
   const router = useRouter();
@@ -32,9 +33,9 @@ export function GenerateStep() {
       const res = await fetch("/api/generate", { method: "POST" });
       const data = await res.json().catch(() => ({}));
       clearInterval(tick);
-      if (res.status === 403 && data.error === "medical_hold") {
+      if (res.status === 403 && data.error === "medical_waiver_required") {
         setReasons(data.reasons ?? []);
-        setStatus("hold");
+        setStatus("waiver");
         return;
       }
       if (!res.ok) throw new Error(data.error || "La génération a échoué.");
@@ -58,23 +59,17 @@ export function GenerateStep() {
   const pct =
     status === "done" ? 100 : Math.round(((step + 1) / STEPS.length) * 92);
 
-  if (status === "hold") {
+  if (status === "waiver") {
     return (
       <div className="mx-auto flex max-w-[560px] flex-col gap-4">
-        <MonoLabel className="text-brand">Avis médical requis</MonoLabel>
-        <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          Programme en attente
-        </h1>
-        <Alert>Un avis médical est nécessaire avant de générer ton programme :</Alert>
-        <ul className="flex flex-col gap-2">
-          {reasons.map((r, i) => (
-            <li key={i} className="flex gap-2 text-[14.5px] text-body">
-              <span className="text-brand" aria-hidden>•</span>
-              <span>{r}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="text-[14px] text-muted">Ton paiement reste valable une fois l'accord obtenu.</p>
+        <MedicalWaiver
+          reasons={reasons}
+          onSigned={() => {
+            started.current = false;
+            run();
+          }}
+          submitLabel="Signer et générer mon programme"
+        />
       </div>
     );
   }

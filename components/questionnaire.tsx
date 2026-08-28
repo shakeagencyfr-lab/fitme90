@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { QUIZ, DAYS, type Field } from "@/lib/questionnaire";
 import { saveQuestionnaire } from "@/app/questionnaire/actions";
+import { MedicalWaiver } from "@/components/medical-waiver";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
 
 type Answers = Record<string, string | string[]>;
@@ -14,7 +15,8 @@ export function Questionnaire() {
   const [answers, setAnswers] = useState<Answers>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [hold, setHold] = useState<string[] | null>(null);
+  // Situation de santé déclarée : décharge à signer (ne bloque plus l'accès).
+  const [waiver, setWaiver] = useState<string[] | null>(null);
 
   const section = QUIZ[step];
   const total = QUIZ.length;
@@ -45,33 +47,18 @@ export function Questionnaire() {
     const res = await saveQuestionnaire({ answers, trainDays });
     setBusy(false);
     if (res.error) return setError(res.error);
-    if (res.hold) return setHold(res.reasons ?? []);
+    if (res.flagged) return setWaiver(res.reasons ?? []);
     router.push("/salle");
   }
 
-  if (hold) {
+  if (waiver) {
     return (
-      <div className="flex flex-col gap-4">
-        <MonoLabel className="text-brand">Avis médical requis</MonoLabel>
-        <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          On ne peut pas générer ton programme pour l'instant
-        </h1>
-        <Alert>
-          FitMe90 accompagne des personnes en bonne santé vers un objectif de forme.
-          D'après tes réponses, un avis médical est nécessaire avant de commencer :
-        </Alert>
-        <ul className="flex flex-col gap-2">
-          {hold.map((r, i) => (
-            <li key={i} className="flex gap-2 text-[14.5px] text-body">
-              <span className="text-brand" aria-hidden>•</span>
-              <span>{r}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="text-[14px] text-muted leading-relaxed">
-          Rapproche-toi de ton médecin ou d'un diététicien. Une fois leur accord obtenu,
-          reviens vers nous : ton paiement reste valable.
-        </p>
+      <div className="mx-auto max-w-[780px]">
+        <MedicalWaiver
+          reasons={waiver}
+          onSigned={() => router.push("/salle")}
+          submitLabel="Signer et poursuivre"
+        />
       </div>
     );
   }
