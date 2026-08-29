@@ -166,13 +166,15 @@ export function patchPlanForTrainDays(plan: Plan, trainDays: string[]): Plan {
   return { ...plan, summary, weekPlan };
 }
 
+// Le tableau "sessions" montre PLUSIEURS séances distinctes (A, B, C) : le
+// modèle recopie la cardinalité de l'exemple, donc on en montre au moins trois.
 const SCHEMA_HINT =
-  '{"summary":"2 phrases","cycles":[{"label":"","name":"","weeks":"SEMAINES 1 → 4","body":""}],"weekPlan":[{"day":"LUN","name":"Séance A haut du corps","dur":"55 min","rest":false}],"sessions":[{"cycleLabel":"Séance A · haut du corps","title":"Haut du corps","meta":"","restSec":90,"warmup":[{"name":"Cardio léger","detail":"5 min rameur, allure progressive"},{"name":"Mobilité épaules/dos","detail":"6 mouvements lents"},{"name":"Activation","detail":"1 série légère du 1er exercice"}],"exercises":[{"name":"","sets":4,"reps":"8-10","load":"60 kg","rest":75,"note":"","cardio":false},{"name":"Rameur","cardio":true,"duration":"12 min","zone":"Z2","sets":0,"reps":"","load":"","note":"allure conversationnelle"}]}],"nutrition":{"kcal":"2 580","protein":"148","carbs":"276","fat":"78","tags":[{"kind":"ALLERGIE","label":""}],"meals":[{"time":"7 h 30","name":"","kcal":"612","items":[{"food":"","qty":"80 g"}]}]},"warning":"1 phrase sur les contraintes prises en compte"}';
+  '{"summary":"2 phrases","cycles":[{"label":"","name":"","weeks":"SEMAINES 1 → 4","body":""}],"weekPlan":[{"day":"LUN","name":"Haut du corps","dur":"55 min","rest":false},{"day":"MER","name":"Bas du corps","dur":"55 min","rest":false},{"day":"VEN","name":"Full body","dur":"55 min","rest":false}],"sessions":[{"cycleLabel":"Séance A · haut du corps","title":"Haut du corps","meta":"","restSec":90,"warmup":[{"name":"Cardio léger","detail":"5 min rameur"},{"name":"Mobilité épaules","detail":"6 mouvements lents"}],"exercises":[{"name":"Développé couché haltères","sets":4,"reps":"8-10","load":"","rest":90,"note":"","cardio":false},{"name":"Rowing haltère","sets":4,"reps":"8-10","load":"","rest":90,"note":"","cardio":false}]},{"cycleLabel":"Séance B · bas du corps","title":"Bas du corps & gainage","meta":"","restSec":120,"warmup":[{"name":"Vélo","detail":"5 min"},{"name":"Mobilité hanches","detail":"6 mouvements"}],"exercises":[{"name":"Squat","sets":4,"reps":"6-8","load":"","rest":150,"note":"","cardio":false},{"name":"Fentes marchées","sets":3,"reps":"10-12","load":"","rest":90,"note":"","cardio":false}]},{"cycleLabel":"Séance C · full body","title":"Full body & cardio","meta":"","restSec":75,"warmup":[{"name":"Corde à sauter","detail":"3 min"},{"name":"Mobilité générale","detail":"5 mouvements"}],"exercises":[{"name":"Soulevé de terre roumain","sets":3,"reps":"8-10","load":"","rest":120,"note":"","cardio":false},{"name":"Rameur","cardio":true,"duration":"12 min","zone":"Z2","sets":0,"reps":"","load":"","note":"allure conversationnelle"}]}],"nutrition":{"kcal":"2 580","protein":"148","carbs":"276","fat":"78","tags":[{"kind":"ALLERGIE","label":""}],"meals":[{"time":"7 h 30","name":"","kcal":"612","items":[{"food":"","qty":"80 g"}]}]},"warning":"1 phrase sur les contraintes prises en compte"}';
 
 // Positionnement coach (pas « diététicien ») : accompagnement de forme, pas
 // de visée thérapeutique. Le public à risque médical est déjà écarté en amont
 // (lib/screening.ts).
-const SYSTEM = `Tu es ${COACH_CREDENTIAL}, tu accompagnes des personnes en bonne santé vers un objectif de forme. Tu réponds UNIQUEMENT par un objet JSON valide en français, sans texte autour. Exactement 3 cycles, 7 jours dans weekPlan (repos les jours non travaillés indiqués), 4 à 6 repas. SÉANCES : le champ "sessions" est un tableau qui contient EXACTEMENT UNE séance DISTINCTE par jour d'entraînement de la semaine (ex : 3 jours = 3 séances). Chaque séance vise des groupes musculaires DIFFÉRENTS et complémentaires sur la semaine (par ex. 3 jours : A haut du corps, B bas du corps, C full body ; 4 jours : haut/bas ou push/pull/legs/full ; ne répète jamais la même séance). Chaque séance a un "title" court et parlant (ex "Haut du corps", "Bas du corps & gainage"), un "cycleLabel" du type "Séance A · haut du corps", et 5 à 7 exercices avec sets entier. Le "name" de chaque jour travaillé dans weekPlan doit reprendre le titre de la séance correspondante, en tournant A, B, C sur la semaine. ÉCHAUFFEMENT : chaque séance a un "warmup" (tableau de 3 à 5 items {name, detail}) adapté aux muscles travaillés ce jour-là (montée cardio progressive, mobilité ciblée, séries d'activation légères). CARDIO : pour tout exercice cardio (rameur, vélo, course, elliptique, tapis, HIIT, marche, corde à sauter…), NE mets PAS de séries/répétitions/charge — mets cardio:true, une durée dans "duration" (ex "20 min") et la zone cardiaque cible dans "zone" (Z1 récupération, Z2 endurance, Z3 tempo, Z4 seuil/intervalles, Z5 VO2 max ; ex "Z2"), et sets:0, reps:"". Pour la musculation : cardio:false avec sets et reps normaux. REPOS : renseigne "restSec" (repos par défaut de la séance, en secondes) ET, pour CHAQUE exercice de musculation, un "rest" en secondes adapté (environ 60 à 90 s en hypertrophie, 120 à 180 s sur les gros mouvements de force type squat/soulevé de terre/développé, 45 à 60 s en perte de masse / circuit). RÈGLE DE STYLE : n'utilise JAMAIS de tiret cadratin (—) ni de tiret demi-cadratin (–) dans les textes ; écris avec une ponctuation naturelle (virgules, deux-points, points, parenthèses).`;
+const SYSTEM = `Tu es ${COACH_CREDENTIAL}, tu accompagnes des personnes en bonne santé vers un objectif de forme. Tu réponds UNIQUEMENT par un objet JSON valide en français, sans texte autour. Exactement 3 cycles, 7 jours dans weekPlan (repos les jours non travaillés indiqués), 4 à 6 repas. SÉANCES (RÈGLE LA PLUS IMPORTANTE) : réponds avec un tableau "sessions" contenant PLUSIEURS séances DISTINCTES, EXACTEMENT une par jour d'entraînement de la semaine (2 jours = 2 séances, 3 jours = 3 séances, 4 jours = 4 séances, etc.). N'utilise JAMAIS un champ "session" au singulier et ne renvoie JAMAIS une seule séance quand le client s'entraîne plusieurs jours : ce serait une erreur grave (le client verrait la même séance tous les jours). Chaque séance vise des groupes musculaires DIFFÉRENTS et complémentaires sur la semaine (par ex. 3 jours : A haut du corps, B bas du corps, C full body ; 4 jours : haut/bas ou push/pull/legs/full ; ne répète jamais la même séance). Chaque séance a un "title" court et parlant (ex "Haut du corps", "Bas du corps & gainage"), un "cycleLabel" du type "Séance A · haut du corps", et 5 à 7 exercices avec sets entier. Le "name" de chaque jour travaillé dans weekPlan doit reprendre le titre de la séance correspondante, en tournant A, B, C sur la semaine. ÉCHAUFFEMENT : chaque séance a un "warmup" (tableau de 3 à 5 items {name, detail}) adapté aux muscles travaillés ce jour-là (montée cardio progressive, mobilité ciblée, séries d'activation légères). CARDIO : pour tout exercice cardio (rameur, vélo, course, elliptique, tapis, HIIT, marche, corde à sauter…), NE mets PAS de séries/répétitions/charge — mets cardio:true, une durée dans "duration" (ex "20 min") et la zone cardiaque cible dans "zone" (Z1 récupération, Z2 endurance, Z3 tempo, Z4 seuil/intervalles, Z5 VO2 max ; ex "Z2"), et sets:0, reps:"". Pour la musculation : cardio:false avec sets et reps normaux. REPOS : renseigne "restSec" (repos par défaut de la séance, en secondes) ET, pour CHAQUE exercice de musculation, un "rest" en secondes adapté (environ 60 à 90 s en hypertrophie, 120 à 180 s sur les gros mouvements de force type squat/soulevé de terre/développé, 45 à 60 s en perte de masse / circuit). RÈGLE DE STYLE : n'utilise JAMAIS de tiret cadratin (—) ni de tiret demi-cadratin (–) dans les textes ; écris avec une ponctuation naturelle (virgules, deux-points, points, parenthèses).`;
 
 export interface Brief {
   answers: Record<string, unknown>;
@@ -229,27 +231,54 @@ export async function generateProgram(
   const client = anthropic();
   // Méthodologie (base evidence-based, ou personnalisée par le coach en admin).
   const methodology = await effectiveMethodology();
-  // Streaming : la sortie est volumineuse (~8000 tokens), on évite le timeout.
-  const stream = client.messages.stream({
-    model: MODELS.generate,
-    max_tokens: 12000,
-    output_config: { effort },
-    system: `${SYSTEM}\n\n${methodology}`,
-    messages: [
-      {
-        role: "user",
-        content: `${buildBrief(brief)}\n\nRends ce JSON :\n${SCHEMA_HINT}`,
-      },
-    ],
-  });
-  const message = await stream.finalMessage();
-  const plan = normalizePlan(planSchema.parse(parseJsonLoose(textOf(message))));
+  // Nombre de séances distinctes attendu (une par jour d'entraînement).
+  const wantSessions = Math.max(1, brief.trainDays.length || 3);
+
+  const runOnce = async (extra: string) => {
+    const stream = client.messages.stream({
+      model: MODELS.generate,
+      max_tokens: 12000,
+      output_config: { effort },
+      system: `${SYSTEM}\n\n${methodology}`,
+      messages: [
+        {
+          role: "user",
+          content: `${buildBrief(brief)}${extra}\n\nRends ce JSON :\n${SCHEMA_HINT}`,
+        },
+      ],
+    });
+    const message = await stream.finalMessage();
+    const plan = normalizePlan(planSchema.parse(parseJsonLoose(textOf(message))));
+    return {
+      plan,
+      inTok: message.usage.input_tokens,
+      outTok: message.usage.output_tokens,
+    };
+  };
+
+  let { plan, inTok, outTok } = await runOnce("");
+  // Garde-fou multi-séances : si le modèle n'a pas produit assez de séances
+  // distinctes (bug « même séance partout »), on relance une fois avec une
+  // consigne explicite (uniquement en 1re génération, où le budget temps le
+  // permet). En régénération rapide (coach), on ne relance pas.
+  if (effort === "high" && wantSessions >= 2 && plan.sessions && plan.sessions.length < wantSessions) {
+    try {
+      const retry = await runOnce(
+        `\n\nATTENTION : le tableau "sessions" DOIT contenir EXACTEMENT ${wantSessions} séances DISTINCTES (une par jour d'entraînement), chacune ciblant des groupes musculaires différents. Ne renvoie pas une seule séance.`,
+      );
+      if (retry.plan.sessions && retry.plan.sessions.length > (plan.sessions?.length ?? 0)) {
+        plan = retry.plan;
+        inTok += retry.inTok;
+        outTok += retry.outTok;
+      }
+    } catch {
+      /* on garde le 1er plan si la relance échoue */
+    }
+  }
+
   return {
     plan,
     model: MODELS.generate,
-    usage: {
-      input_tokens: message.usage.input_tokens,
-      output_tokens: message.usage.output_tokens,
-    },
+    usage: { input_tokens: inTok, output_tokens: outTok },
   };
 }
