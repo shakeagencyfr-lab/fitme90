@@ -1,0 +1,85 @@
+import { getAdminOrNull } from "@/lib/admin";
+import { listOffers } from "@/lib/offers";
+import { MAX_OFFERS_PER_TENANT, programDaysForMonths } from "@/lib/config";
+import { OfferForm } from "@/components/offer-form";
+import { toggleOffer, removeOffer } from "@/app/admin/actions";
+import { Alert, Card } from "@/components/ui";
+
+export const metadata = { title: "Offres, Admin FitMe90" };
+
+function durationLabel(months: number): string {
+  const total = months === 12 ? "1 an" : `${months} mois`;
+  return `${total} · ${programDaysForMonths(months)} jours`;
+}
+
+export default async function AdminOffersPage() {
+  const ctx = await getAdminOrNull();
+  const tenantId = ctx?.profile?.tenant_id ?? null;
+  const offers = tenantId ? await listOffers(tenantId) : [];
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1.5">
+        <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
+          Offres
+        </h1>
+        <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
+          Les formules que tu proposes à tes clients. Chaque offre a sa propre durée
+          (de 1 mois à 1 an). Tu peux en proposer jusqu&apos;à {MAX_OFFERS_PER_TENANT}.
+        </p>
+      </div>
+
+      {!tenantId ? (
+        <Alert>Aucun compte (tenant) n&apos;est rattaché à ton profil.</Alert>
+      ) : (
+        <>
+          {offers.length === 0 ? (
+            <Alert tone="info">Aucune offre pour l&apos;instant. Crée ta première formule ci-dessous.</Alert>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {offers.map((o) => (
+                <Card key={o.id} className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-archivo font-bold text-[16px] text-ink">{o.name}</span>
+                      {!o.is_active ? (
+                        <span className="rounded-pill border border-line-4 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">
+                          Inactive
+                        </span>
+                      ) : null}
+                    </div>
+                    <span className="text-[13px] text-muted">{durationLabel(o.duration_months)}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <form action={toggleOffer}>
+                      <input type="hidden" name="id" value={o.id} />
+                      <input type="hidden" name="active" value={o.is_active ? "" : "on"} />
+                      <button
+                        type="submit"
+                        className="tap rounded-btn border border-line-4 px-3.5 py-2 text-[13px] font-semibold text-body hover:border-ink"
+                      >
+                        {o.is_active ? "Désactiver" : "Activer"}
+                      </button>
+                    </form>
+                    <form action={removeOffer}>
+                      <input type="hidden" name="id" value={o.id} />
+                      <button
+                        type="submit"
+                        className="tap rounded-btn border border-alert-line bg-alert px-3.5 py-2 text-[13px] font-semibold text-alert-ink hover:border-brand"
+                      >
+                        Supprimer
+                      </button>
+                    </form>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          <OfferForm atLimit={offers.length >= MAX_OFFERS_PER_TENANT} />
+        </>
+      )}
+    </div>
+  );
+}

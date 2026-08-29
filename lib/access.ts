@@ -8,7 +8,7 @@
 //   - Jours 91 → 120 : GRÂCE — plan consultable en LECTURE SEULE, coach coupé.
 //   - Jour 121+      : accès TERMINÉ (verrouillé).
 
-import { PROGRAM_DAYS, ACCESS_DAYS } from "./config";
+import { PROGRAM_DAYS, GRACE_DAYS } from "./config";
 
 export type AccessPhase = "not_paid" | "not_started" | "scheduled" | "active" | "grace" | "ended";
 
@@ -16,11 +16,13 @@ export interface AccessState {
   phase: AccessPhase;
   /** Numéro de jour du programme (1 = jour de génération). 0 si non démarré. */
   day: number;
-  /** Le coach IA répond-il ? (payé && jours 1–90) */
+  /** Durée totale du programme actif, en jours (dépend de l'offre choisie). */
+  programDays: number;
+  /** Le coach IA répond-il ? (payé && programme actif) */
   coachEnabled: boolean;
-  /** Le plan est-il consultable ? (payé && jours 1–120) */
+  /** Le plan est-il consultable ? (payé && avant fin de grâce) */
   planViewable: boolean;
-  /** Peut-on encore valider des séances / écrire ? (payé && jours 1–90) */
+  /** Peut-on encore valider des séances / écrire ? (payé && programme actif) */
   canLog: boolean;
   /** Jours restants avant la fin du programme actif (coach). 0 si terminé. */
   daysUntilProgramEnd: number;
@@ -49,10 +51,14 @@ export function computeAccess(
   paid: boolean,
   startDate: string | Date | null,
   now: Date = new Date(),
+  programDays: number = PROGRAM_DAYS,
 ): AccessState {
+  // Durée totale d'accès = programme actif + fenêtre de grâce (lecture seule).
+  const accessDays = programDays + GRACE_DAYS;
   const base: AccessState = {
     phase: "not_paid",
     day: 0,
+    programDays,
     coachEnabled: false,
     planViewable: false,
     canLog: false,
@@ -76,38 +82,41 @@ export function computeAccess(
       phase: "scheduled",
       day,
       planViewable: true,
-      daysUntilProgramEnd: PROGRAM_DAYS,
-      daysUntilAccessEnd: ACCESS_DAYS,
+      daysUntilProgramEnd: programDays,
+      daysUntilAccessEnd: accessDays,
     };
   }
 
-  if (day <= PROGRAM_DAYS) {
+  if (day <= programDays) {
     return {
       phase: "active",
       day,
+      programDays,
       coachEnabled: true,
       planViewable: true,
       canLog: true,
-      daysUntilProgramEnd: PROGRAM_DAYS - day + 1,
-      daysUntilAccessEnd: ACCESS_DAYS - day + 1,
+      daysUntilProgramEnd: programDays - day + 1,
+      daysUntilAccessEnd: accessDays - day + 1,
     };
   }
 
-  if (day <= ACCESS_DAYS) {
+  if (day <= accessDays) {
     return {
       phase: "grace",
       day,
+      programDays,
       coachEnabled: false,
       planViewable: true,
       canLog: false,
       daysUntilProgramEnd: 0,
-      daysUntilAccessEnd: ACCESS_DAYS - day + 1,
+      daysUntilAccessEnd: accessDays - day + 1,
     };
   }
 
   return {
     phase: "ended",
     day,
+    programDays,
     coachEnabled: false,
     planViewable: false,
     canLog: false,
@@ -126,7 +135,7 @@ export function accessLabel(a: AccessState): string {
     case "scheduled":
       return `Démarre dans ${1 - a.day} jour(s)`;
     case "active":
-      return `Jour ${a.day} sur ${PROGRAM_DAYS}`;
+      return `Jour ${a.day} sur ${a.programDays}`;
     case "grace":
       return `Programme terminé — consultation encore ${a.daysUntilAccessEnd} j`;
     case "ended":
