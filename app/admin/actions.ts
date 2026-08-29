@@ -155,8 +155,9 @@ export async function startStripeOnboarding(): Promise<void> {
   let url: string;
   try {
     url = await createConnectOnboardingLink(ctx.profile.tenant_id, ctx.email);
-  } catch {
-    redirect("/admin/paiements?error=stripe");
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "stripe";
+    redirect(`/admin/paiements?error=${encodeURIComponent(msg.slice(0, 300))}`);
   }
   redirect(url);
 }
