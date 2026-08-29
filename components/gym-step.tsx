@@ -19,7 +19,7 @@ const FALLBACK = [
   "Poids du corps uniquement",
 ];
 
-export function GymStep() {
+export function GymStep({ nextHref = "/generation" }: { nextHref?: string }) {
   const router = useRouter();
   const [items, setItems] = useState<(EquipItem & { on: boolean })[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
@@ -89,7 +89,7 @@ export function GymStep() {
       setSaving(false);
       return;
     }
-    router.push("/generation");
+    router.push(nextHref);
   }
 
   return (
@@ -165,7 +165,7 @@ export function GymStep() {
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" onClick={validate} className="h-[52px]">Passer</Button>
         <Button onClick={validate} loading={saving} className="h-[52px] flex-1 max-w-[340px]">
-          Générer mon programme
+          {nextHref === "/app/paiement" ? "Continuer vers le paiement" : "Générer mon programme"}
         </Button>
       </div>
     </div>

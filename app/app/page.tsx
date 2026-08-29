@@ -6,11 +6,10 @@ import { TrainingDaysEditor } from "@/components/training-days";
 import { CyclesCarousel } from "@/components/cycles-carousel";
 import { RegularityScore } from "@/components/regularity-score";
 import { CatchUp } from "@/components/catch-up";
-import { RegenerateProgram } from "@/components/regenerate-program";
 import { restPattern, startWeekday, isRestDay, dateOfProgramDay } from "@/lib/schedule";
 import { computeAdherence, missedDays } from "@/lib/streak";
 import { DAYS } from "@/lib/questionnaire";
-import { planSessions, type Plan } from "@/lib/program";
+import type { Plan } from "@/lib/program";
 import { PROGRAM_DAYS } from "@/lib/config";
 
 export const metadata = { title: "Programme, FitMe90" };
@@ -53,9 +52,9 @@ export default async function ProgrammePage() {
   if (access.phase === "not_paid") {
     return (
       <Empty
-        title="Débloque ton programme"
-        body="Le paiement unique de 190 € donne accès à ton programme d'entraînement et nutrition sur 90 jours, coach IA inclus."
-        cta={{ href: "/app/paiement", label: "Débloquer, 190 €" }}
+        title="Crée ton programme"
+        body="Réponds au questionnaire et photographie ta salle. Le paiement unique de 190 € intervient juste après, puis ton programme sur 90 jours est généré."
+        cta={{ href: "/questionnaire", label: "Commencer le questionnaire" }}
       />
     );
   }
@@ -93,11 +92,6 @@ export default async function ProgrammePage() {
   const pattern = restPattern(trainDays, planRest);
   const startWd = startWeekday(ctx.profile?.start_date);
   const trainNames = plan.weekPlan.filter((d) => !d.rest).map((d) => d.name);
-
-  // Plan « ancienne génération » : une seule séance modèle alors que plusieurs
-  // jours sont travaillés → on propose de régénérer pour des séances variées.
-  const trainCount = pattern.filter((r) => !r).length;
-  const needsRegen = ctx.profile?.paid && trainCount > 1 && planSessions(plan).length < 2;
 
   // Adhérence / série : seulement une fois le programme démarré (jour ≥ 1).
   const showAdherence = access.phase !== "scheduled";
@@ -160,8 +154,6 @@ export default async function ProgrammePage() {
           jour J.
         </Alert>
       ) : null}
-
-      {needsRegen ? <RegenerateProgram /> : null}
 
       {/* Cycles, en carrousel horizontal avec explications approfondies */}
       <CyclesCarousel cycles={plan.cycles.slice(0, 3)} />

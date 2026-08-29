@@ -40,7 +40,8 @@ export async function POST() {
     ],
     // On rattache l'utilisateur aux métadonnées pour le webhook.
     metadata: { user_id: ctx.userId },
-    success_url: `${site}/app?paiement=ok`,
+    // Après paiement : on enchaîne sur la génération du programme.
+    success_url: `${site}/generation?paiement=ok`,
     cancel_url: `${site}/app/paiement?annule=1`,
   });
 
