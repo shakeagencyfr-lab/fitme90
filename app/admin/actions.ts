@@ -12,6 +12,7 @@ import {
 } from "@/lib/tenant";
 import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, setOfferActive, deleteOffer } from "@/lib/offers";
+import { saveTenantBranding } from "@/lib/branding";
 import { setTenantStripeKey, clearTenantStripeKey, testStripeKey } from "@/lib/coach-payments";
 
 /** Normalise les champs de segmentation reçus du formulaire coach. */
@@ -94,6 +95,26 @@ export async function removeAnthropicKey(): Promise<ByokState> {
   if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
   await clearTenantAnthropicKey(tenantId);
   revalidatePath("/admin/compte");
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ personnalisation (Lot 5)
+export interface BrandingState {
+  ok?: boolean;
+  error?: string;
+}
+
+/** Enregistre la personnalisation de la page publique (couleur, accroche, titre). */
+export async function saveBranding(_prev: BrandingState, formData: FormData): Promise<BrandingState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const res = await saveTenantBranding(ctx.profile.tenant_id, {
+    brandColor: String(formData.get("brand_color") ?? ""),
+    tagline: String(formData.get("tagline") ?? ""),
+    headline: String(formData.get("headline") ?? ""),
+  });
+  if (!res.ok) return { error: res.error };
+  revalidatePath("/admin/offres");
   return { ok: true };
 }
 

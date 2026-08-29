@@ -60,8 +60,7 @@ export function StripeKeyForm({ configured, hint, encryptionReady }: Props) {
             name="stripe_key"
             autoComplete="off"
             placeholder="sk_live_…"
-            disabled={!encryptionReady}
-            className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 font-plex text-[14px] text-ink outline-none focus:border-ink disabled:opacity-50"
+            className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 font-plex text-[14px] text-ink outline-none focus:border-ink"
           />
           <span className="text-[12px] text-muted-2">
             Elle est testée par un petit appel avant d&apos;être enregistrée. Astuce : tu peux
@@ -74,7 +73,7 @@ export function StripeKeyForm({ configured, hint, encryptionReady }: Props) {
           <Alert tone="info">Clé vérifiée et enregistrée. Tu peux maintenant vendre tes offres.</Alert>
         ) : null}
 
-        <Button type="submit" loading={saving} disabled={!encryptionReady} className="self-start h-11">
+        <Button type="submit" loading={saving} className="self-start h-11">
           {configured ? "Mettre à jour la clé" : "Enregistrer la clé"}
         </Button>
       </form>

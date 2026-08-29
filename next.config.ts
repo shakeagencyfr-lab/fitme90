@@ -50,9 +50,32 @@ const securityHeaders = [
   },
 ];
 
+// Widget d'intégration : la page /c/[slug]/embed doit pouvoir être affichée dans
+// un iframe sur N'IMPORTE QUEL site de coach. On autorise donc le framing
+// (frame-ancestors *) et on n'envoie PAS X-Frame-Options DENY pour cette route.
+const embedCsp = csp.replace("frame-ancestors 'none'", "frame-ancestors *");
+const embedHeaders = [
+  { key: "Content-Security-Policy", value: embedCsp },
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains; preload",
+  },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(self), microphone=(self), geolocation=(), payment=(self)",
+  },
+];
+
 const nextConfig: NextConfig = {
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      // La route embed d'abord, avec ses en-têtes permissifs (framable).
+      { source: "/c/:slug/embed", headers: embedHeaders },
+      // Tout le reste (la route embed exclue) garde les en-têtes stricts.
+      { source: "/((?!c/[^/]+/embed).*)", headers: securityHeaders },
+    ];
   },
 };
 
