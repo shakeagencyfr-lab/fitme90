@@ -12,6 +12,9 @@ export const CURRENCY = "eur";
 /** Durée du programme actif : coach IA disponible, séances loggables. */
 export const PROGRAM_DAYS = 90;
 
+/** Couleur d'accent par défaut de la page publique (orange FitMe90). */
+export const DEFAULT_BRAND_COLOR = "#e0551f";
+
 /** Durées d'offres proposables par un coach (en mois). Choix prédéfinis. */
 export const OFFER_DURATIONS_MONTHS = [1, 2, 3, 6, 9, 12] as const;
 export type OfferDurationMonths = (typeof OFFER_DURATIONS_MONTHS)[number];

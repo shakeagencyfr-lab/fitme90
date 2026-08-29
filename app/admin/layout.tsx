@@ -23,7 +23,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </div>
           <nav className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[14px]">
             <Link href="/admin" className="font-medium text-body-2 hover:text-ink">Clients</Link>
-            <Link href="/admin/offres" className="font-medium text-body-2 hover:text-ink">Offres</Link>
+            <Link href="/admin/offres" className="font-medium text-body-2 hover:text-ink">Ma page</Link>
             <Link href="/admin/integrations" className="font-medium text-body-2 hover:text-ink">Intégrations</Link>
             <Link href="/admin/config" className="font-medium text-body-2 hover:text-ink">Configuration IA</Link>
             <Link href="/admin/shop" className="font-medium text-body-2 hover:text-ink">Boutique</Link>

@@ -42,7 +42,15 @@ export async function listOffers(tenantId: string): Promise<Offer[]> {
 }
 
 export interface PublicTenantOffers {
-  tenant: { id: string; name: string; slug: string; chargesEnabled: boolean };
+  tenant: {
+    id: string;
+    name: string;
+    slug: string;
+    chargesEnabled: boolean;
+    brandColor: string | null;
+    tagline: string | null;
+    headline: string | null;
+  };
   offers: Offer[];
 }
 
@@ -54,9 +62,16 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
   const admin = createAdminClient();
   const { data: tenant } = await admin
     .from("tenants")
-    .select("id, name, slug")
+    .select("id, name, slug, brand_color, tagline, headline")
     .eq("slug", slug)
-    .maybeSingle<{ id: string; name: string; slug: string }>();
+    .maybeSingle<{
+      id: string;
+      name: string;
+      slug: string;
+      brand_color: string | null;
+      tagline: string | null;
+      headline: string | null;
+    }>();
   if (!tenant) return null;
 
   // Le coach peut encaisser si sa clé Stripe (BYOK) est configurée.
@@ -81,6 +96,9 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
       name: tenant.name,
       slug: tenant.slug,
       chargesEnabled,
+      brandColor: tenant.brand_color,
+      tagline: tenant.tagline,
+      headline: tenant.headline,
     },
     offers: (data ?? []) as Offer[],
   };
