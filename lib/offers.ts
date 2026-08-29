@@ -54,10 +54,18 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
   const admin = createAdminClient();
   const { data: tenant } = await admin
     .from("tenants")
-    .select("id, name, slug, stripe_charges_enabled")
+    .select("id, name, slug")
     .eq("slug", slug)
-    .maybeSingle<{ id: string; name: string; slug: string; stripe_charges_enabled: boolean }>();
+    .maybeSingle<{ id: string; name: string; slug: string }>();
   if (!tenant) return null;
+
+  // Le coach peut encaisser si sa clé Stripe (BYOK) est configurée.
+  const { data: secret } = await admin
+    .from("tenant_secrets")
+    .select("stripe_key_enc")
+    .eq("tenant_id", tenant.id)
+    .maybeSingle<{ stripe_key_enc: string | null }>();
+  const chargesEnabled = !!secret?.stripe_key_enc;
 
   const { data } = await admin
     .from("offers")
@@ -72,7 +80,7 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
       id: tenant.id,
       name: tenant.name,
       slug: tenant.slug,
-      chargesEnabled: tenant.stripe_charges_enabled,
+      chargesEnabled,
     },
     offers: (data ?? []) as Offer[],
   };

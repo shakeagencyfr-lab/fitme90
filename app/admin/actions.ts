@@ -12,8 +12,7 @@ import {
 } from "@/lib/tenant";
 import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, setOfferActive, deleteOffer } from "@/lib/offers";
-import { createConnectOnboardingLink, createConnectDashboardLink } from "@/lib/connect";
-import { redirect } from "next/navigation";
+import { setTenantStripeKey, clearTenantStripeKey, testStripeKey } from "@/lib/coach-payments";
 
 /** Normalise les champs de segmentation reçus du formulaire coach. */
 function readFilter(formData: FormData): AudienceFilter {
@@ -144,30 +143,49 @@ export async function removeOffer(formData: FormData): Promise<void> {
   revalidatePath("/admin/offres");
 }
 
-// ------------------------------------------------------------------ Stripe Connect (Lot 3)
-/**
- * Démarre (ou reprend) l'onboarding Stripe Connect du coach, puis redirige vers
- * Stripe. Form action directe : la redirection sort du flux useActionState.
- */
-export async function startStripeOnboarding(): Promise<void> {
-  const ctx = await getAdminOrNull();
-  if (!ctx?.profile?.tenant_id) return;
-  let url: string;
-  try {
-    url = await createConnectOnboardingLink(ctx.profile.tenant_id, ctx.email);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "stripe";
-    redirect(`/admin/paiements?error=${encodeURIComponent(msg.slice(0, 300))}`);
-  }
-  redirect(url);
+// ------------------------------------------------------------------ BYOK Stripe (Lot 3)
+export interface StripeKeyState {
+  ok?: boolean;
+  error?: string;
 }
 
-/** Ouvre le tableau de bord Stripe Express du coach (gestion des paiements). */
-export async function openStripeDashboard(): Promise<void> {
+/**
+ * Enregistre la clé Stripe du coach (BYOK). Les paiements se feront sur SON
+ * compte, avec SA clé. La plateforme ne touche pas l'argent et ne prélève rien.
+ * On teste la clé par un petit appel avant de l'enregistrer.
+ */
+export async function saveStripeKey(_prev: StripeKeyState, formData: FormData): Promise<StripeKeyState> {
   const ctx = await getAdminOrNull();
-  if (!ctx?.profile?.tenant_id) return;
-  const url = await createConnectDashboardLink(ctx.profile.tenant_id);
-  redirect(url ?? "/admin/paiements?error=stripe");
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+  if (!secretsEncryptionReady()) {
+    return { error: "Chiffrement non configuré (SECRETS_ENC_KEY manquante côté serveur)." };
+  }
+  const key = String(formData.get("stripe_key") ?? "").trim();
+  if (!key) return { error: "Saisis ta clé secrète Stripe." };
+  if (!/^(sk|rk)_(live|test)_/.test(key)) {
+    return { error: "Clé invalide : une clé secrète Stripe commence par « sk_live_ », « sk_test_ » ou « rk_live_ »." };
+  }
+
+  const test = await testStripeKey(key);
+  if (!test.ok) {
+    return { error: `La clé n'a pas fonctionné : ${test.error ?? "vérifie qu'elle est active."}` };
+  }
+  await setTenantStripeKey(tenantId, key);
+  revalidatePath("/admin/paiements");
+  return { ok: true };
+}
+
+/** Supprime la clé Stripe du coach. */
+export async function removeStripeKey(): Promise<StripeKeyState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+  await clearTenantStripeKey(tenantId);
+  revalidatePath("/admin/paiements");
+  return { ok: true };
 }
 
 // ------------------------------------------------------------------ boutique
