@@ -12,6 +12,8 @@ import {
 } from "@/lib/tenant";
 import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, setOfferActive, deleteOffer } from "@/lib/offers";
+import { createConnectOnboardingLink, createConnectDashboardLink } from "@/lib/connect";
+import { redirect } from "next/navigation";
 
 /** Normalise les champs de segmentation reçus du formulaire coach. */
 function readFilter(formData: FormData): AudienceFilter {
@@ -110,7 +112,12 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
   if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
   const name = String(formData.get("name") ?? "");
   const months = Number(formData.get("duration_months") ?? 0);
-  const res = await createOffer(tenantId, name, months);
+  const priceEuros = String(formData.get("price_euros") ?? "").replace(",", ".").trim();
+  const priceCents = priceEuros ? Math.round(Number(priceEuros) * 100) : null;
+  if (priceEuros && (priceCents == null || !Number.isFinite(priceCents) || priceCents < 0)) {
+    return { error: "Prix invalide (ex : 190 ou 29,90)." };
+  }
+  const res = await createOffer(tenantId, name, months, priceCents);
   if (!res.ok) return { error: res.error };
   revalidatePath("/admin/offres");
   return { ok: true };
@@ -135,6 +142,31 @@ export async function removeOffer(formData: FormData): Promise<void> {
   if (!id) return;
   await deleteOffer(ctx.profile.tenant_id, id);
   revalidatePath("/admin/offres");
+}
+
+// ------------------------------------------------------------------ Stripe Connect (Lot 3)
+/**
+ * Démarre (ou reprend) l'onboarding Stripe Connect du coach, puis redirige vers
+ * Stripe. Form action directe : la redirection sort du flux useActionState.
+ */
+export async function startStripeOnboarding(): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  let url: string;
+  try {
+    url = await createConnectOnboardingLink(ctx.profile.tenant_id, ctx.email);
+  } catch {
+    redirect("/admin/paiements?error=stripe");
+  }
+  redirect(url);
+}
+
+/** Ouvre le tableau de bord Stripe Express du coach (gestion des paiements). */
+export async function openStripeDashboard(): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const url = await createConnectDashboardLink(ctx.profile.tenant_id);
+  redirect(url ?? "/admin/paiements?error=stripe");
 }
 
 // ------------------------------------------------------------------ boutique

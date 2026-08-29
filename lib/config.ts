@@ -27,6 +27,23 @@ export function programDaysForMonths(months: number): number {
   return Math.round(months * DAYS_PER_MONTH);
 }
 
+/**
+ * Commission plateforme par défaut (points de base : 100 = 1 %) prélevée en
+ * application_fee sur chaque paiement Connect. Surchargeable par tenant.
+ * Défaut 0 : aucune commission tant que tu ne l'as pas fixée.
+ */
+export const PLATFORM_FEE_BPS = Number(process.env.PLATFORM_FEE_BPS ?? 0) || 0;
+
+/** Formate un montant en centimes → « 190 € » / « 29,90 € ». */
+export function formatEuros(cents: number | null | undefined): string {
+  if (cents == null) return "—";
+  const euros = cents / 100;
+  const s = Number.isInteger(euros)
+    ? String(euros)
+    : euros.toFixed(2).replace(".", ",");
+  return `${s} €`;
+}
+
 /** Fenêtre de consultation en lecture seule après la fin du programme. */
 export const GRACE_DAYS = 30;
 
