@@ -245,7 +245,13 @@ Les séances CHANGENT et PROGRESSENT d'un cycle au suivant (c'est un programme p
 
 Dans chaque cycle, chaque séance vise des groupes musculaires DIFFÉRENTS et complémentaires sur la semaine (ex. 3 jours : A haut du corps, B bas du corps, C full body ; 4 jours : haut/bas ou push/pull/legs/full). Chaque séance a un "title" court et parlant, un "cycleLabel" du type "Cycle 2 · Séance A · haut du corps", et 5 à 7 exercices avec sets entier. Le "name" de chaque jour travaillé dans weekPlan reprend le titre de la séance correspondante du CYCLE 1, en tournant A, B, C sur la semaine.
 
-ÉCHAUFFEMENT : chaque séance a un "warmup" (tableau de 3 à 5 items {name, detail}) adapté aux muscles travaillés ce jour-là. CARDIO : pour tout exercice cardio (rameur, vélo, course, elliptique, tapis, HIIT, marche, corde à sauter…), NE mets PAS de séries/répétitions/charge — mets cardio:true, une durée dans "duration" (ex "20 min") et la zone cardiaque cible dans "zone" (Z1 récupération, Z2 endurance, Z3 tempo, Z4 seuil/intervalles, Z5 VO2 max ; ex "Z2"), et sets:0, reps:"". Pour la musculation : cardio:false avec sets et reps normaux. REPOS : renseigne "restSec" (repos par défaut de la séance, en secondes) ET, pour CHAQUE exercice de musculation, un "rest" en secondes adapté au cycle. RÈGLE DE STYLE : n'utilise JAMAIS de tiret cadratin (—) ni de tiret demi-cadratin (–) dans les textes ; écris avec une ponctuation naturelle (virgules, deux-points, points, parenthèses).`;
+DURÉE (RÈGLE STRICTE) : chaque séance doit TENIR dans la durée choisie par le client (voir le brief, ex 45 min), échauffement compris. Dimensionne le nombre d'exercices, de séries et le cardio en conséquence : une séance de 45 min = échauffement (5 à 8 min) + 4 à 6 exercices de musculation. NE DÉPASSE JAMAIS cette durée (une séance de 45 min qui cumulerait toute la muscu PUIS 40 min de cardio PUIS 15 min de rameur est une erreur grave).
+
+CARDIO : au plus UN bloc cardio par séance, COURT (10 à 20 min maximum), et seulement si la durée de la séance le permet ; beaucoup de séances de musculation n'ont AUCUN cardio. Pour un exercice cardio (rameur, vélo, course, elliptique, tapis, HIIT, corde à sauter…), NE mets PAS de séries/répétitions/charge — mets cardio:true, une durée dans "duration" TOUJOURS en minutes (ex "15 min", jamais en mètres), la zone cardiaque cible dans "zone" (Z1 récupération, Z2 endurance, Z3 tempo, Z4 seuil/intervalles, Z5 VO2 max ; ex "Z2"), et sets:0, reps:"".
+
+PORTÉS LOURDS : la marche du fermier (farmer walk), le porté valise, le yoke, etc. ne sont PAS du cardio : ce sont des exercices de MUSCULATION/gainage (cardio:false), en séries courtes (ex 3 à 4 séries de 30 à 40 mètres ou 30 à 45 s), avec sets et reps ; ne les mets JAMAIS en cardio avec une durée de plusieurs dizaines de minutes.
+
+Pour la musculation : cardio:false avec sets et reps normaux. REPOS : renseigne "restSec" (repos par défaut de la séance, en secondes) ET, pour CHAQUE exercice de musculation, un "rest" en secondes adapté au cycle. RÈGLE DE STYLE : n'utilise JAMAIS de tiret cadratin (—) ni de tiret demi-cadratin (–) dans les textes ; écris avec une ponctuation naturelle (virgules, deux-points, points, parenthèses).`;
 
 export interface Brief {
   answers: Record<string, unknown>;
@@ -270,6 +276,7 @@ export function buildBrief({ answers, trainDays, equipment }: Brief): string {
       : "Profil par défaut : femme 34 ans, 68 kg, 170 cm, 3 séances/semaine.",
     `Jours d'entraînement : ${trainDays.length ? trainDays.join(", ") : "à répartir"}.`,
     `Nombre de séances DISTINCTES par cycle : ${trainDays.length || 3} (une par jour d'entraînement). Produis donc 3 cycles, chacun avec ${trainDays.length || 3} séances distinctes qui évoluent d'un cycle au suivant.`,
+    `Durée cible par séance : ${(answers?.dur as string) || "45 min"}, échauffement compris. Chaque séance DOIT tenir dans cette durée : ne dépasse pas, et ajoute au plus un bloc cardio court (10 à 20 min) uniquement s'il reste du temps.`,
     `Matériel disponible : ${equipment.length ? equipment.join(", ") : "poids du corps uniquement"}. Aucun exercice hors de cette liste.`,
   ];
   if (adaptations.length) {
