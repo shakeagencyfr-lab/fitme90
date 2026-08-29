@@ -58,10 +58,22 @@ export async function signUpAction(
     return { error: "Tu dois accepter les CGV et la politique de confidentialité." };
   }
 
+  // Achat via la landing d'un coach : on transporte le coach + l'offre dans les
+  // métadonnées du compte (elles survivent à la confirmation d'e-mail, même sur
+  // un autre appareil). Elles seront appliquées au profil à la confirmation.
+  const coachSlug = String(formData.get("coach_slug") ?? "").trim().slice(0, 80);
+  const offerId = String(formData.get("offer_id") ?? "").trim().slice(0, 40);
+  const data: Record<string, string> = {};
+  if (coachSlug) data.coach_slug = coachSlug;
+  if (offerId) data.offer_id = offerId;
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
     ...parsed.data,
-    options: { emailRedirectTo: `${siteUrl()}/auth/confirm?next=/questionnaire` },
+    options: {
+      emailRedirectTo: `${siteUrl()}/auth/confirm?next=/questionnaire`,
+      data,
+    },
   });
   if (error) {
     // Message neutre : ne pas révéler si l'e-mail existe déjà.

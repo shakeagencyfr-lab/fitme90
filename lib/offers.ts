@@ -86,6 +86,29 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
   };
 }
 
+/** Une offre par son id (ou null). */
+export async function getOffer(offerId: string): Promise<Offer | null> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("offers")
+    .select(OFFER_COLS)
+    .eq("id", offerId)
+    .maybeSingle<Offer>();
+  return (data as Offer) ?? null;
+}
+
+/** L'offre choisie par un client (via profiles.selected_offer_id), ou null. */
+export async function clientOffer(userId: string): Promise<Offer | null> {
+  const admin = createAdminClient();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("selected_offer_id")
+    .eq("id", userId)
+    .maybeSingle<{ selected_offer_id: string | null }>();
+  if (!profile?.selected_offer_id) return null;
+  return getOffer(profile.selected_offer_id);
+}
+
 export interface CreateOfferResult {
   ok: boolean;
   error?: string;
