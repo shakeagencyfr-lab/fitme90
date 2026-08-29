@@ -12,6 +12,21 @@ export const CURRENCY = "eur";
 /** Durée du programme actif : coach IA disponible, séances loggables. */
 export const PROGRAM_DAYS = 90;
 
+/** Durées d'offres proposables par un coach (en mois). Choix prédéfinis. */
+export const OFFER_DURATIONS_MONTHS = [1, 2, 3, 6, 9, 12] as const;
+export type OfferDurationMonths = (typeof OFFER_DURATIONS_MONTHS)[number];
+
+/** Nombre max d'offres qu'un coach/salle peut proposer simultanément. */
+export const MAX_OFFERS_PER_TENANT = 3;
+
+/** Convention : 1 mois de programme = 30 jours (aligné sur un cycle ≈ 4 sem.). */
+export const DAYS_PER_MONTH = 30;
+
+/** Jours de programme pour une durée en mois (ex. 3 mois = 90 jours). */
+export function programDaysForMonths(months: number): number {
+  return Math.round(months * DAYS_PER_MONTH);
+}
+
 /** Fenêtre de consultation en lecture seule après la fin du programme. */
 export const GRACE_DAYS = 30;
 

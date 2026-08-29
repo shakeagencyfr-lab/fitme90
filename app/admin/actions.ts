@@ -11,6 +11,7 @@ import {
   testAnthropicKey,
 } from "@/lib/tenant";
 import { secretsEncryptionReady } from "@/lib/crypto";
+import { createOffer, setOfferActive, deleteOffer } from "@/lib/offers";
 
 /** Normalise les champs de segmentation reçus du formulaire coach. */
 function readFilter(formData: FormData): AudienceFilter {
@@ -93,6 +94,47 @@ export async function removeAnthropicKey(): Promise<ByokState> {
   await clearTenantAnthropicKey(tenantId);
   revalidatePath("/admin/compte");
   return { ok: true };
+}
+
+// ------------------------------------------------------------------ offres (Lot 1)
+export interface OfferState {
+  ok?: boolean;
+  error?: string;
+}
+
+/** Ajoute une offre au catalogue du tenant (max 3, durées prédéfinies). */
+export async function addOffer(_prev: OfferState, formData: FormData): Promise<OfferState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+  const name = String(formData.get("name") ?? "");
+  const months = Number(formData.get("duration_months") ?? 0);
+  const res = await createOffer(tenantId, name, months);
+  if (!res.ok) return { error: res.error };
+  revalidatePath("/admin/offres");
+  return { ok: true };
+}
+
+/** Active / désactive une offre (form action directe). */
+export async function toggleOffer(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = String(formData.get("id") ?? "");
+  const active = formData.get("active") === "on";
+  if (!id) return;
+  await setOfferActive(ctx.profile.tenant_id, id, active);
+  revalidatePath("/admin/offres");
+}
+
+/** Supprime une offre (form action directe). */
+export async function removeOffer(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await deleteOffer(ctx.profile.tenant_id, id);
+  revalidatePath("/admin/offres");
 }
 
 // ------------------------------------------------------------------ boutique
