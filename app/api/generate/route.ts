@@ -6,6 +6,7 @@ import { checkLimit, recordCall } from "@/lib/ratelimit";
 import { screen, type QuizHealthAnswers } from "@/lib/screening";
 import { generateProgram } from "@/lib/program";
 import { tenantAnthropicKey } from "@/lib/tenant";
+import { clientOffer } from "@/lib/offers";
 import { LIMIT_GENERATE_TOTAL } from "@/lib/config";
 
 export const runtime = "nodejs";
@@ -104,12 +105,15 @@ export async function POST() {
     );
   }
 
-  // 7. Écriture : programme + start_date (posée UNE fois, à la 1re génération)
+  // 7. Écriture : programme + start_date (posée UNE fois, à la 1re génération).
+  // Durée : celle de l'offre achetée (sinon défaut 3 mois via NULL).
   const admin = createAdminClient();
+  const offer = await clientOffer(ctx.userId);
   const { error: insErr } = await supabase.from("programs").insert({
     user_id: ctx.userId,
     plan: result.plan,
     model: result.model,
+    duration_months: offer?.duration_months ?? null,
   });
   if (insErr) {
     return NextResponse.json(

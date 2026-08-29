@@ -67,12 +67,14 @@ export function LoginForm({ suite }: { suite?: string }) {
   );
 }
 
-export function SignupForm() {
+export function SignupForm({ coachSlug, offerId }: { coachSlug?: string; offerId?: string }) {
   const [state, action, pending] = useActionState(signUpAction, initial);
   return (
     <form action={action} className="flex flex-col gap-4">
       <Title sub="Un e-mail de confirmation te sera envoyé.">Créer ton compte</Title>
       {state.error ? <Alert>{state.error}</Alert> : null}
+      {coachSlug ? <input type="hidden" name="coach_slug" value={coachSlug} /> : null}
+      {offerId ? <input type="hidden" name="offer_id" value={offerId} /> : null}
       <Field
         id="email"
         name="email"

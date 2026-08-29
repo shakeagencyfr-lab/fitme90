@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { computeAccess, type AccessState } from "@/lib/access";
+import { PROGRAM_DAYS, programDaysForMonths } from "@/lib/config";
 
 export interface ProfileRow {
   id: string;
@@ -45,9 +46,24 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
     .eq("id", user.id)
     .maybeSingle<ProfileRow>();
 
+  // Durée du programme = celle de l'offre achetée (portée par le programme).
+  // Défaut : 90 jours (FitMe90 historique, programmes sans durée).
+  const { data: prog } = await supabase
+    .from("programs")
+    .select("duration_months")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ duration_months: number | null }>();
+  const programDays = prog?.duration_months
+    ? programDaysForMonths(prog.duration_months)
+    : PROGRAM_DAYS;
+
   const access = computeAccess(
     profile?.paid ?? false,
     profile?.start_date ?? null,
+    new Date(),
+    programDays,
   );
 
   return {

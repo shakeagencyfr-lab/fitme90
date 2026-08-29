@@ -1,6 +1,20 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { applyPendingCoachSelection } from "@/lib/tenant";
+
+// Rattache le nouveau client à son coach + offre (métadonnées d'inscription),
+// une fois la session établie. Best-effort : ne bloque jamais la confirmation.
+async function applyCoachSelection(supabase: Awaited<ReturnType<typeof createClient>>) {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) await applyPendingCoachSelection(user.id, user.user_metadata);
+  } catch {
+    /* non bloquant */
+  }
+}
 
 // Confirmation d'e-mail et récupération de mot de passe.
 // Gère les deux formats de lien Supabase :
@@ -18,10 +32,16 @@ export async function GET(request: NextRequest) {
 
   if (token_hash && type) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash });
-    if (!error) return NextResponse.redirect(`${origin}${next}`);
+    if (!error) {
+      await applyCoachSelection(supabase);
+      return NextResponse.redirect(`${origin}${next}`);
+    }
   } else if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(`${origin}${next}`);
+    if (!error) {
+      await applyCoachSelection(supabase);
+      return NextResponse.redirect(`${origin}${next}`);
+    }
   }
 
   return NextResponse.redirect(`${origin}/connexion?erreur=lien_invalide`);

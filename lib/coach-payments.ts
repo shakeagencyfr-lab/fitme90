@@ -2,6 +2,7 @@ import "server-only";
 import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptSecret, decryptSecret, keyHint, secretsEncryptionReady } from "@/lib/crypto";
+import { clientOffer } from "@/lib/offers";
 
 // BYOK Stripe : chaque coach/salle fournit SA propre clé Stripe. Les paiements
 // sont créés directement sur SON compte (avec SA clé). La plateforme ne touche
@@ -45,6 +46,32 @@ export async function tenantStripeStatus(tenantId: string): Promise<TenantStripe
     hint: data?.stripe_key_hint ?? null,
     encryptionReady: secretsEncryptionReady(),
   };
+}
+
+/**
+ * Vérifie une session Stripe Checkout d'un achat d'offre coach (au retour de
+ * Stripe) et marque le compte payé si le paiement est bien encaissé. Sans
+ * webhook : on retrouve la clé du coach via l'offre du client, on relit la
+ * session, et on contrôle qu'elle appartient bien à CE client. Idempotent.
+ */
+export async function confirmCoachCheckout(userId: string, sessionId: string): Promise<boolean> {
+  if (!sessionId) return false;
+  const offer = await clientOffer(userId);
+  if (!offer) return false;
+  const stripe = await stripeForTenant(offer.tenant_id);
+  if (!stripe) return false;
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const paid = session.payment_status === "paid";
+    const owns =
+      session.metadata?.user_id === userId || session.client_reference_id === userId;
+    if (!paid || !owns) return false;
+    const admin = createAdminClient();
+    await admin.from("profiles").update({ paid: true }).eq("id", userId);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Un tenant peut-il encaisser ? (clé Stripe configurée) */

@@ -19,6 +19,59 @@ export async function tenantIdForUser(userId: string): Promise<string | null> {
   return data?.tenant_id ?? null;
 }
 
+/**
+ * Rattache un nouveau client au tenant de son coach + mémorise l'offre choisie,
+ * à partir des métadonnées d'inscription (coach_slug / offer_id passées à la
+ * création du compte). Idempotent : n'écrase JAMAIS un tenant/offre déjà posé,
+ * et ne fait rien si les métadonnées sont absentes (inscription FitMe90 directe).
+ */
+export async function applyPendingCoachSelection(
+  userId: string,
+  meta: { coach_slug?: unknown; offer_id?: unknown } | null | undefined,
+): Promise<void> {
+  const slug = typeof meta?.coach_slug === "string" ? meta.coach_slug.trim() : "";
+  const offerId = typeof meta?.offer_id === "string" ? meta.offer_id.trim() : "";
+  if (!slug && !offerId) return;
+
+  const admin = createAdminClient();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("tenant_id, selected_offer_id")
+    .eq("id", userId)
+    .maybeSingle<{ tenant_id: string | null; selected_offer_id: string | null }>();
+  // Déjà rattaché : ne rien changer.
+  if (profile?.tenant_id && profile?.selected_offer_id) return;
+
+  let tenantId: string | null = profile?.tenant_id ?? null;
+  if (!tenantId && slug) {
+    const { data: tenant } = await admin
+      .from("tenants")
+      .select("id")
+      .eq("slug", slug)
+      .maybeSingle<{ id: string }>();
+    tenantId = tenant?.id ?? null;
+  }
+  if (!tenantId) return;
+
+  // Valider que l'offre existe et appartient bien à ce tenant.
+  let validOffer: string | null = profile?.selected_offer_id ?? null;
+  if (!validOffer && offerId) {
+    const { data: offer } = await admin
+      .from("offers")
+      .select("id")
+      .eq("id", offerId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle<{ id: string }>();
+    validOffer = offer?.id ?? null;
+  }
+
+  const patch: Record<string, string> = {};
+  if (!profile?.tenant_id) patch.tenant_id = tenantId;
+  if (!profile?.selected_offer_id && validOffer) patch.selected_offer_id = validOffer;
+  if (Object.keys(patch).length === 0) return;
+  await admin.from("profiles").update(patch).eq("id", userId);
+}
+
 /** Clé Anthropic (déchiffrée) du tenant de l'utilisateur, sinon null. */
 export async function tenantAnthropicKey(userId: string): Promise<string | null> {
   const tenantId = await tenantIdForUser(userId);
