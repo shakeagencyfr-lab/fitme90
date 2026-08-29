@@ -1,0 +1,85 @@
+import "server-only";
+import Stripe from "stripe";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { encryptSecret, decryptSecret, keyHint, secretsEncryptionReady } from "@/lib/crypto";
+
+// BYOK Stripe : chaque coach/salle fournit SA propre clé Stripe. Les paiements
+// sont créés directement sur SON compte (avec SA clé). La plateforme ne touche
+// jamais l'argent, ne prélève aucune commission, et n'est pas une plateforme
+// Connect : aucun agrément à signer côté propriétaire. La clé est chiffrée au
+// repos dans tenant_secrets (verrouillé au service_role).
+
+/** Clé Stripe (déchiffrée) du tenant, sinon null. */
+export async function tenantStripeKey(tenantId: string): Promise<string | null> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("tenant_secrets")
+    .select("stripe_key_enc")
+    .eq("tenant_id", tenantId)
+    .maybeSingle<{ stripe_key_enc: string | null }>();
+  return decryptSecret(data?.stripe_key_enc ?? null);
+}
+
+/** Client Stripe utilisant la clé du coach, ou null si non configurée. */
+export async function stripeForTenant(tenantId: string): Promise<Stripe | null> {
+  const key = await tenantStripeKey(tenantId);
+  return key ? new Stripe(key) : null;
+}
+
+export interface TenantStripeStatus {
+  configured: boolean;
+  hint: string | null;
+  encryptionReady: boolean;
+}
+
+/** État de la clé Stripe du tenant (pour le dashboard coach). */
+export async function tenantStripeStatus(tenantId: string): Promise<TenantStripeStatus> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("tenant_secrets")
+    .select("stripe_key_enc, stripe_key_hint")
+    .eq("tenant_id", tenantId)
+    .maybeSingle<{ stripe_key_enc: string | null; stripe_key_hint: string | null }>();
+  return {
+    configured: !!data?.stripe_key_enc,
+    hint: data?.stripe_key_hint ?? null,
+    encryptionReady: secretsEncryptionReady(),
+  };
+}
+
+/** Un tenant peut-il encaisser ? (clé Stripe configurée) */
+export async function tenantCanCharge(tenantId: string): Promise<boolean> {
+  return (await tenantStripeKey(tenantId)) !== null;
+}
+
+/** Vérifie qu'une clé Stripe fonctionne (petit appel peu coûteux). */
+export async function testStripeKey(key: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await new Stripe(key).balance.retrieve();
+    return { ok: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Clé invalide.";
+    return { ok: false, error: msg.slice(0, 200) };
+  }
+}
+
+/** Enregistre (chiffrée) la clé Stripe d'un tenant. */
+export async function setTenantStripeKey(tenantId: string, key: string): Promise<void> {
+  const enc = encryptSecret(key.trim());
+  const admin = createAdminClient();
+  await admin.from("tenant_secrets").upsert({
+    tenant_id: tenantId,
+    stripe_key_enc: enc,
+    stripe_key_hint: keyHint(key),
+    updated_at: new Date().toISOString(),
+  });
+}
+
+/** Supprime la clé Stripe d'un tenant. */
+export async function clearTenantStripeKey(tenantId: string): Promise<void> {
+  const admin = createAdminClient();
+  await admin
+    .from("tenant_secrets")
+    .update({ stripe_key_enc: null, stripe_key_hint: null, updated_at: new Date().toISOString() })
+    .eq("tenant_id", tenantId);
+}
