@@ -48,11 +48,17 @@ async function ensureAccount(tenantId: string, email?: string | null): Promise<s
   const current = await tenantConnect(tenantId);
   if (current.stripe_account_id) return current.stripe_account_id;
 
-  // Compte STANDARD : le coach garde un compte Stripe complet et assume ses
-  // propres pertes. (Pas de `capabilities` explicites : Standard les obtient par
-  // défaut après onboarding.)
+  // Compte connecté équivalent STANDARD, mais avec la responsabilité VERROUILLÉE
+  // explicitement par compte (indépendant du réglage plateforme du dashboard) :
+  //  - losses.payments "stripe"   → le COACH assume ses soldes négatifs / litiges
+  //  - fees.payer "account"       → le coach paie les frais Stripe
+  //  - stripe_dashboard "full"    → le coach a un dashboard Stripe complet
   const account = await stripe().accounts.create({
-    type: "standard",
+    controller: {
+      losses: { payments: "stripe" },
+      fees: { payer: "account" },
+      stripe_dashboard: { type: "full" },
+    },
     email: email ?? undefined,
     metadata: { tenant_id: tenantId },
   });
