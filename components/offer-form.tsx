@@ -36,20 +36,36 @@ export function OfferForm({ atLimit }: { atLimit: boolean }) {
         />
       </label>
 
-      <label className="flex flex-col gap-1.5">
-        <MonoLabel>Durée</MonoLabel>
-        <select
-          name="duration_months"
-          defaultValue={3}
-          className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
-        >
-          {OFFER_DURATIONS_MONTHS.map((m) => (
-            <option key={m} value={m}>
-              {labelForMonths(m)}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="flex flex-col gap-1.5">
+          <MonoLabel>Durée</MonoLabel>
+          <select
+            name="duration_months"
+            defaultValue={3}
+            className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
+          >
+            {OFFER_DURATIONS_MONTHS.map((m) => (
+              <option key={m} value={m}>
+                {labelForMonths(m)}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1.5">
+          <MonoLabel>Prix (€)</MonoLabel>
+          <input
+            type="text"
+            inputMode="decimal"
+            name="price_euros"
+            placeholder="190"
+            className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
+          />
+        </label>
+      </div>
+      <span className="-mt-1 text-[12px] text-muted-2">
+        Le client paiera ce montant directement sur ton compte Stripe.
+      </span>
 
       {state.error ? <Alert>{state.error}</Alert> : null}
       {state.ok ? <Alert tone="info">Offre ajoutée.</Alert> : null}

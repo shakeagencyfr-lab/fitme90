@@ -15,10 +15,15 @@ export interface Offer {
   tenant_id: string;
   name: string;
   duration_months: OfferDurationMonths;
+  price_cents: number | null;
+  currency: string;
   position: number;
   is_active: boolean;
   created_at: string;
 }
+
+const OFFER_COLS =
+  "id, tenant_id, name, duration_months, price_cents, currency, position, is_active, created_at";
 
 export function isValidDuration(m: number): m is OfferDurationMonths {
   return (OFFER_DURATIONS_MONTHS as readonly number[]).includes(m);
@@ -29,11 +34,48 @@ export async function listOffers(tenantId: string): Promise<Offer[]> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("offers")
-    .select("id, tenant_id, name, duration_months, position, is_active, created_at")
+    .select(OFFER_COLS)
     .eq("tenant_id", tenantId)
     .order("position", { ascending: true })
     .order("created_at", { ascending: true });
   return (data ?? []) as Offer[];
+}
+
+export interface PublicTenantOffers {
+  tenant: { id: string; name: string; slug: string; chargesEnabled: boolean };
+  offers: Offer[];
+}
+
+/**
+ * Offres publiques d'un coach par son slug : uniquement les offres ACTIVES et
+ * dotées d'un prix. Pour la landing publique /c/[slug].
+ */
+export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffers | null> {
+  const admin = createAdminClient();
+  const { data: tenant } = await admin
+    .from("tenants")
+    .select("id, name, slug, stripe_charges_enabled")
+    .eq("slug", slug)
+    .maybeSingle<{ id: string; name: string; slug: string; stripe_charges_enabled: boolean }>();
+  if (!tenant) return null;
+
+  const { data } = await admin
+    .from("offers")
+    .select(OFFER_COLS)
+    .eq("tenant_id", tenant.id)
+    .eq("is_active", true)
+    .not("price_cents", "is", null)
+    .order("position", { ascending: true });
+
+  return {
+    tenant: {
+      id: tenant.id,
+      name: tenant.name,
+      slug: tenant.slug,
+      chargesEnabled: tenant.stripe_charges_enabled,
+    },
+    offers: (data ?? []) as Offer[],
+  };
 }
 
 export interface CreateOfferResult {
@@ -46,11 +88,15 @@ export async function createOffer(
   tenantId: string,
   name: string,
   durationMonths: number,
+  priceCents: number | null,
 ): Promise<CreateOfferResult> {
   const trimmed = name.trim().slice(0, 80);
   if (!trimmed) return { ok: false, error: "Donne un nom à l'offre." };
   if (!isValidDuration(durationMonths)) {
     return { ok: false, error: "Durée non autorisée." };
+  }
+  if (priceCents != null && (!Number.isFinite(priceCents) || priceCents < 0)) {
+    return { ok: false, error: "Prix invalide." };
   }
   const admin = createAdminClient();
   const { count } = await admin
@@ -64,6 +110,7 @@ export async function createOffer(
     tenant_id: tenantId,
     name: trimmed,
     duration_months: durationMonths,
+    price_cents: priceCents,
     position: count ?? 0,
   });
   if (error) return { ok: false, error: "Création impossible." };

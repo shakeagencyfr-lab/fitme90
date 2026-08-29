@@ -1,6 +1,6 @@
 import { getAdminOrNull } from "@/lib/admin";
 import { listOffers } from "@/lib/offers";
-import { MAX_OFFERS_PER_TENANT, programDaysForMonths } from "@/lib/config";
+import { MAX_OFFERS_PER_TENANT, programDaysForMonths, formatEuros } from "@/lib/config";
 import { OfferForm } from "@/components/offer-form";
 import { toggleOffer, removeOffer } from "@/app/admin/actions";
 import { Alert, Card } from "@/components/ui";
@@ -48,7 +48,11 @@ export default async function AdminOffersPage() {
                         </span>
                       ) : null}
                     </div>
-                    <span className="text-[13px] text-muted">{durationLabel(o.duration_months)}</span>
+                    <span className="text-[13px] text-muted">
+                      {durationLabel(o.duration_months)}
+                      {" · "}
+                      <span className="text-body">{formatEuros(o.price_cents)}</span>
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">
