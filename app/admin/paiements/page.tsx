@@ -1,6 +1,6 @@
 import { getAdminOrNull } from "@/lib/admin";
-import { refreshConnectStatus, tenantConnect } from "@/lib/connect";
-import { startStripeOnboarding, openStripeDashboard } from "@/app/admin/actions";
+import { refreshConnectStatus, tenantConnect, connectDashboardUrl } from "@/lib/connect";
+import { startStripeOnboarding } from "@/app/admin/actions";
 import { Alert, Card } from "@/components/ui";
 
 export const metadata = { title: "Paiements, Admin FitMe90" };
@@ -88,20 +88,21 @@ export default async function AdminPaymentsPage({
                 </button>
               </form>
             ) : (
-              <form action={openStripeDashboard}>
-                <button
-                  type="submit"
-                  className="tap inline-flex h-11 items-center rounded-btn border border-line-4 bg-surface px-5 font-plex font-semibold text-[15px] text-ink hover:border-ink"
-                >
-                  Ouvrir mon tableau de bord Stripe
-                </button>
-              </form>
+              <a
+                href={connectDashboardUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="tap inline-flex h-11 items-center rounded-btn border border-line-4 bg-surface px-5 font-plex font-semibold text-[15px] text-ink hover:border-ink"
+              >
+                Ouvrir mon tableau de bord Stripe
+              </a>
             )}
           </div>
 
           <p className="text-[12px] text-muted-2">
-            Tu seras redirigé vers Stripe pour renseigner tes informations (identité,
-            IBAN). Tes clients pourront ensuite acheter tes offres depuis ta page publique.
+            Tu seras redirigé vers Stripe pour créer/connecter ton compte (identité,
+            IBAN). Tu gardes un compte Stripe complet et gères tes remboursements. Tes
+            clients pourront ensuite acheter tes offres depuis ta page publique.
           </p>
         </Card>
       )}

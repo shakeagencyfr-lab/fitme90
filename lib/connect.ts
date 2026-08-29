@@ -3,10 +3,11 @@ import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PLATFORM_FEE_BPS } from "@/lib/config";
 
-// Stripe Connect (Direct charges + application fee) : chaque coach/salle
-// encaisse SUR SON PROPRE compte connecté. La plateforme prélève une commission
-// (application_fee) sur chaque paiement. Ici, l'onboarding du compte et le suivi
-// de son état d'encaissement (charges_enabled).
+// Stripe Connect — comptes STANDARD (Direct charges + application fee) : chaque
+// coach/salle encaisse SUR SON PROPRE compte Stripe. En Standard, c'est LE COACH
+// qui assume ses remboursements, litiges et soldes négatifs (pas la plateforme).
+// La plateforme prélève une commission (application_fee) sur chaque paiement.
+// Ici : l'onboarding du compte et le suivi de son état d'encaissement.
 
 export interface TenantConnect {
   stripe_account_id: string | null;
@@ -47,10 +48,12 @@ async function ensureAccount(tenantId: string, email?: string | null): Promise<s
   const current = await tenantConnect(tenantId);
   if (current.stripe_account_id) return current.stripe_account_id;
 
+  // Compte STANDARD : le coach garde un compte Stripe complet et assume ses
+  // propres pertes. (Pas de `capabilities` explicites : Standard les obtient par
+  // défaut après onboarding.)
   const account = await stripe().accounts.create({
-    type: "express",
+    type: "standard",
     email: email ?? undefined,
-    capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
     metadata: { tenant_id: tenantId },
   });
 
@@ -100,14 +103,11 @@ export async function refreshConnectStatus(tenantId: string): Promise<TenantConn
   }
 }
 
-/** Lien vers le tableau de bord Express du coach (gestion des paiements). */
-export async function createConnectDashboardLink(tenantId: string): Promise<string | null> {
-  const current = await tenantConnect(tenantId);
-  if (!current.stripe_account_id) return null;
-  try {
-    const link = await stripe().accounts.createLoginLink(current.stripe_account_id);
-    return link.url;
-  } catch {
-    return null;
-  }
+/**
+ * URL du tableau de bord Stripe du coach. En Standard, le coach possède un
+ * compte Stripe complet : il se connecte directement sur dashboard.stripe.com
+ * (pas de login link plateforme, réservé aux comptes Express/Custom).
+ */
+export function connectDashboardUrl(): string {
+  return "https://dashboard.stripe.com";
 }
