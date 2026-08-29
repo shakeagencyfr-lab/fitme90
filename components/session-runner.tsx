@@ -355,17 +355,15 @@ export function SessionRunner({
           const durSec = durationToSeconds(duration);
           return (
             <div key={ei} className="flex flex-col gap-3 rounded-card border border-line bg-surface p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-cardio text-cardio">
-                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M3 12h4l2 5 4-10 2 5h6" />
-                    </svg>
-                  </span>
-                  <div className="truncate font-archivo font-semibold text-[16px] text-ink">{ex.name}</div>
-                </div>
-                <div className="shrink-0 whitespace-nowrap font-mono text-[11px] text-cardio">
-                  Cardio{duration ? ` · ${duration}` : ""}
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-cardio text-cardio">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M3 12h4l2 5 4-10 2 5h6" />
+                  </svg>
+                </span>
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <div className="font-archivo font-semibold text-[16px] leading-snug text-ink">{ex.name}</div>
+                  <div className="font-mono text-[11px] text-cardio">Cardio{duration ? ` · ${duration}` : ""}</div>
                 </div>
               </div>
               {ex.note ? <div className="text-[12.5px] leading-[1.5] text-muted">{ex.note}</div> : null}
@@ -429,20 +427,20 @@ export function SessionRunner({
         const exDone = Array.from({ length: ex.sets }).every((_, si) => Number(log[`${ei}-${si}`]?.reps || 0) > 0);
         return (
           <div key={ei} className="flex flex-col gap-3 rounded-card border border-line bg-surface p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <span
-                  className={[
-                    "inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] transition-colors",
-                    exDone ? "bg-[#2F6B3C] text-white" : "border border-line-4 text-muted-2",
-                  ].join(" ")}
-                >
-                  {exDone ? "✓" : ei + 1}
-                </span>
-                <div className="font-archivo font-semibold text-[16px] text-ink truncate">{ex.name}</div>
-              </div>
-              <div className="font-mono text-[11px] text-brand shrink-0 whitespace-nowrap">
-                {ex.sets} × {ex.reps} · RPE {rpeGoal} · récup {formatRest(ex.rest ?? restSec)}
+            <div className="flex items-start gap-2">
+              <span
+                className={[
+                  "mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] transition-colors",
+                  exDone ? "bg-[#2F6B3C] text-white" : "border border-line-4 text-muted-2",
+                ].join(" ")}
+              >
+                {exDone ? "✓" : ei + 1}
+              </span>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <div className="font-archivo font-semibold text-[16px] leading-snug text-ink">{ex.name}</div>
+                <div className="font-mono text-[11px] text-brand">
+                  {ex.sets} × {ex.reps} · RPE {rpeGoal} · récup {formatRest(ex.rest ?? restSec)}
+                </div>
               </div>
             </div>
             {ex.note ? <div className="text-[12.5px] text-muted leading-[1.5]">{ex.note}</div> : null}
