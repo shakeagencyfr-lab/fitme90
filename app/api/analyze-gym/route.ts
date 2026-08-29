@@ -34,9 +34,9 @@ const resultSchema = z.object({
 export async function POST(req: NextRequest) {
   const ctx = await getSessionContext();
   if (!ctx) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-  if (ctx.access.phase === "not_paid") {
-    return NextResponse.json({ error: "Programme non débloqué." }, { status: 402 });
-  }
+  // L'analyse des photos de salle est la SEULE étape IA autorisée AVANT le
+  // paiement (elle fait partie du questionnaire, avant la caisse). On ne bloque
+  // donc pas sur `not_paid` ici. Le rate limit total protège des abus.
   if (ctx.access.phase === "ended") {
     return NextResponse.json({ error: "Accès terminé." }, { status: 403 });
   }
