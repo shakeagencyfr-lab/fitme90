@@ -12,7 +12,7 @@ import {
 } from "@/lib/tenant";
 import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, setOfferActive, deleteOffer } from "@/lib/offers";
-import { createConnectOnboardingLink } from "@/lib/connect";
+import { createConnectOnboardingLink, createConnectDashboardLink } from "@/lib/connect";
 import { redirect } from "next/navigation";
 
 /** Normalise les champs de segmentation reçus du formulaire coach. */
@@ -160,6 +160,14 @@ export async function startStripeOnboarding(): Promise<void> {
     redirect(`/admin/paiements?error=${encodeURIComponent(msg.slice(0, 300))}`);
   }
   redirect(url);
+}
+
+/** Ouvre le tableau de bord Express du coach (login link plateforme). */
+export async function openStripeDashboard(): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const url = await createConnectDashboardLink(ctx.profile.tenant_id);
+  redirect(url ?? "/admin/paiements?error=stripe");
 }
 
 // ------------------------------------------------------------------ boutique

@@ -48,16 +48,18 @@ async function ensureAccount(tenantId: string, email?: string | null): Promise<s
   const current = await tenantConnect(tenantId);
   if (current.stripe_account_id) return current.stripe_account_id;
 
-  // Compte connecté équivalent STANDARD, mais avec la responsabilité VERROUILLÉE
-  // explicitement par compte (indépendant du réglage plateforme du dashboard) :
-  //  - losses.payments "stripe"   → le COACH assume ses soldes négatifs / litiges
-  //  - fees.payer "account"       → le coach paie les frais Stripe
-  //  - stripe_dashboard "full"    → le coach a un dashboard Stripe complet
+  // Compte connecté sur mesure (controller properties) : on combine l'expérience
+  // MARQUE BLANCHE d'Express avec la responsabilité côté COACH :
+  //  - losses.payments "stripe"       → le COACH assume ses soldes négatifs / litiges
+  //  - fees.payer "account"           → le coach paie les frais Stripe
+  //  - stripe_dashboard "express"     → dashboard allégé, intégré à ta marque
+  //  - requirement_collection "stripe" → onboarding hébergé par Stripe (Account Link)
   const account = await stripe().accounts.create({
     controller: {
       losses: { payments: "stripe" },
       fees: { payer: "account" },
-      stripe_dashboard: { type: "full" },
+      stripe_dashboard: { type: "express" },
+      requirement_collection: "stripe",
     },
     email: email ?? undefined,
     metadata: { tenant_id: tenantId },
@@ -110,10 +112,17 @@ export async function refreshConnectStatus(tenantId: string): Promise<TenantConn
 }
 
 /**
- * URL du tableau de bord Stripe du coach. En Standard, le coach possède un
- * compte Stripe complet : il se connecte directement sur dashboard.stripe.com
- * (pas de login link plateforme, réservé aux comptes Express/Custom).
+ * Lien de connexion au tableau de bord Express du coach (login link généré par
+ * la plateforme). Valable pour les comptes à dashboard Express. null si non
+ * connecté ou indisponible.
  */
-export function connectDashboardUrl(): string {
-  return "https://dashboard.stripe.com";
+export async function createConnectDashboardLink(tenantId: string): Promise<string | null> {
+  const current = await tenantConnect(tenantId);
+  if (!current.stripe_account_id) return null;
+  try {
+    const link = await stripe().accounts.createLoginLink(current.stripe_account_id);
+    return link.url;
+  } catch {
+    return null;
+  }
 }
