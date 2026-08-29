@@ -30,13 +30,24 @@ export function GenerateStep() {
     setError("");
     const tick = setInterval(() => setStep((s) => Math.min(s + 1, STEPS.length - 1)), 2000);
     try {
-      const res = await fetch("/api/generate", { method: "POST" });
-      const data = await res.json().catch(() => ({}));
+      // Après paiement, le webhook Stripe peut mettre 1 à 2 s à marquer le compte
+      // payé : si /api/generate répond 402 (pas encore confirmé), on patiente et
+      // on retente quelques fois avant d'abandonner.
+      let res = await fetch("/api/generate", { method: "POST" });
+      let data = await res.json().catch(() => ({}));
+      for (let i = 0; res.status === 402 && i < 12; i++) {
+        await new Promise((r) => setTimeout(r, 2500));
+        res = await fetch("/api/generate", { method: "POST" });
+        data = await res.json().catch(() => ({}));
+      }
       clearInterval(tick);
       if (res.status === 403 && data.error === "medical_waiver_required") {
         setReasons(data.reasons ?? []);
         setStatus("waiver");
         return;
+      }
+      if (res.status === 402) {
+        throw new Error("Paiement non confirmé. Si tu viens de payer, patiente un instant et réessaie.");
       }
       if (!res.ok) throw new Error(data.error || "La génération a échoué.");
       setStep(STEPS.length - 1);

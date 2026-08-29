@@ -26,7 +26,9 @@ export function RedeemForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Code invalide.");
-      router.push("/questionnaire");
+      // Déblocage par code : on enchaîne sur la génération (qui renverra vers le
+      // questionnaire s'il n'a pas encore été rempli).
+      router.push("/generation");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Code invalide.");
       setBusy(false);

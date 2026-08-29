@@ -2,8 +2,7 @@ import Link from "next/link";
 import { loadEspaceOrRedirect } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import { restPattern, isRestDay, startWeekday, dateOfProgramDay } from "@/lib/schedule";
-import { scheduledTrainingDays } from "@/lib/streak";
-import { planSessions, warmupSteps } from "@/lib/program";
+import { sessionForDay, warmupSteps } from "@/lib/program";
 import { Card, MonoLabel } from "@/components/ui";
 import { SessionRunner, type Exercise } from "@/components/session-runner";
 import { CoachLoadSuggestion } from "@/components/coach-loads";
@@ -40,14 +39,11 @@ export default async function SeancePage({
   const cycle = day <= 30 ? 1 : day <= 60 ? 2 : 3;
   const rpeGoal = targetRpe(day);
 
-  // Séance du jour : les nouveaux programmes ont une séance DISTINCTE par jour
-  // d'entraînement (A, B, C…). On tourne sur ces séances selon le rang du jour
-  // d'entraînement dans la semaine (ordinal 1er/2e/3e jour travaillé), aligné
-  // sur le vrai calendrier. Les anciens plans n'ont qu'une séance : fallback.
-  const sessions = planSessions(plan);
-  const ordinal = scheduledTrainingDays(pattern, startWd, day).length; // 1..n
-  const slot = sessions.length ? (((ordinal - 1) % sessions.length) + sessions.length) % sessions.length : 0;
-  const s = sessions[slot] ?? plan.session ?? sessions[0];
+  // Séance du jour : programme PÉRIODISÉ en 3 cycles de 4 semaines. On prend les
+  // séances DU BON CYCLE (elles changent toutes les 4 semaines) et on tourne sur
+  // elles selon le rang du jour d'entraînement DANS le cycle. Repli sur la séance
+  // unique pour les anciens plans.
+  const s = sessionForDay(plan, day, pattern, startWd) ?? plan.session;
   const warmup = warmupSteps(s);
 
   const exercises: Exercise[] = (s?.exercises ?? []).map((e) => ({
@@ -236,6 +232,8 @@ export default async function SeancePage({
         zones={zones}
         restSec={restSec}
         initialCardio={initialCardio}
+        canAlternate={ctx.access.coachEnabled}
+        sessionTitle={s?.title ?? ""}
       />
     </div>
   );

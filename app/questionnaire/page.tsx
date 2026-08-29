@@ -8,7 +8,7 @@ export const metadata = { title: "Questionnaire, FitMe90" };
 export default async function QuestionnairePage() {
   const ctx = await getSessionContext();
   if (!ctx) redirect("/connexion?suite=/questionnaire");
-  if (ctx.access.phase === "not_paid") redirect("/app/paiement");
+  // Le paiement a lieu APRÈS le questionnaire : on n'exige rien ici.
   // Déjà un programme actif : inutile de refaire le questionnaire.
   if (ctx.access.phase === "active" || ctx.access.phase === "grace") redirect("/app");
 

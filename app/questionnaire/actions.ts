@@ -52,9 +52,8 @@ export async function saveQuestionnaire(payload: {
 }): Promise<SaveResult> {
   const ctx = await getSessionContext();
   if (!ctx) return { error: "Non authentifié." };
-  if (ctx.access.phase === "not_paid") {
-    return { error: "Le paiement est requis avant de générer un programme." };
-  }
+  // Le paiement a lieu APRÈS le questionnaire : on n'exige pas d'avoir payé pour
+  // enregistrer ses réponses.
 
   const answers = payload.answers ?? {};
   const supabase = await createClient();

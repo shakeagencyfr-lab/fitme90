@@ -61,7 +61,7 @@ export async function signUpAction(
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
     ...parsed.data,
-    options: { emailRedirectTo: `${siteUrl()}/auth/confirm?next=/app` },
+    options: { emailRedirectTo: `${siteUrl()}/auth/confirm?next=/questionnaire` },
   });
   if (error) {
     // Message neutre : ne pas révéler si l'e-mail existe déjà.

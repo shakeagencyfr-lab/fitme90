@@ -3,13 +3,14 @@ import { z } from "zod";
 import { anthropic, MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
 import { restPatternFromTrainDays } from "@/lib/schedule";
+import { scheduledTrainingDays } from "@/lib/streak";
 import { COACH_CREDENTIAL } from "@/lib/config";
 import { effectiveMethodology } from "@/lib/methodology";
 
 // Schéma du plan retourné par le modèle (structure de la maquette).
 // Validé après génération : on n'écrit jamais en base un JSON hors-forme.
 
-const exerciseShape = z.object({
+export const exerciseShape = z.object({
   name: z.string(),
   sets: z.number(),
   reps: z.string(),
@@ -21,6 +22,8 @@ const exerciseShape = z.object({
   duration: z.string().optional().default(""),
   zone: z.string().optional().default(""),
 });
+
+export type PlanExercise = z.infer<typeof exerciseShape>;
 
 // Échauffement propre à la séance (mouvements de préparation avant le travail).
 const warmupItemShape = z.object({
@@ -41,18 +44,22 @@ const sessionShape = z.object({
 
 export type Session = z.infer<typeof sessionShape>;
 
+const cycleShape = z.object({
+  label: z.string(),
+  name: z.string(),
+  weeks: z.string(),
+  body: z.string(),
+  // Séances de CE cycle (bloc de 4 semaines) : une DISTINCTE par jour
+  // d'entraînement. Les séances (exercices, reps, repos) ÉVOLUENT d'un cycle au
+  // suivant (progression). Optionnel pour lire les anciens plans sans cycles.
+  sessions: z.array(sessionShape).optional(),
+});
+
+export type Cycle = z.infer<typeof cycleShape>;
+
 export const planSchema = z.object({
   summary: z.string(),
-  cycles: z
-    .array(
-      z.object({
-        label: z.string(),
-        name: z.string(),
-        weeks: z.string(),
-        body: z.string(),
-      }),
-    )
-    .min(1),
+  cycles: z.array(cycleShape).min(1),
   weekPlan: z
     .array(
       z.object({
@@ -63,11 +70,8 @@ export const planSchema = z.object({
       }),
     )
     .min(1),
-  // Séance « modèle » historique (plans d'origine). Conservée pour compatibilité.
+  // Compat historique : séance unique / séances non cyclées des anciens plans.
   session: sessionShape.optional(),
-  // Séances DISTINCTES, une par jour d'entraînement de la semaine (A, B, C…).
-  // Les nouveaux programmes remplissent ce tableau ; les anciens n'ont que
-  // `session` (voir normalizePlan / planSessions).
   sessions: z.array(sessionShape).min(1).optional(),
   nutrition: z.object({
     kcal: z.string(),
@@ -94,30 +98,87 @@ export const planSchema = z.object({
 
 export type Plan = z.infer<typeof planSchema>;
 
+/** Nombre de jours par cycle (bloc de 4 semaines ≈ 30 jours de programme). */
+export const CYCLE_DAYS = 30;
+
+/** Index de cycle (0, 1, 2) du jour de programme donné (1..90). */
+export function cycleIndexForDay(day: number, cycleCount = 3): number {
+  const idx = Math.floor((Math.max(1, day) - 1) / CYCLE_DAYS);
+  return Math.min(Math.max(0, idx), cycleCount - 1);
+}
+
 /**
- * Séances distinctes du plan. Les nouveaux programmes exposent `sessions`
- * (une par jour d'entraînement de la semaine : A, B, C…) ; les anciens n'ont
- * que `session` (séance unique) : on retombe alors dessus.
+ * Séances « fallback » (plans sans cycles) : anciens plans à séances non
+ * cyclées, sinon séance unique.
  */
-export function planSessions(plan: Plan): Session[] {
+function fallbackSessions(plan: Plan): Session[] {
   if (plan.sessions && plan.sessions.length) return plan.sessions;
   if (plan.session) return [plan.session];
   return [];
 }
 
+/** Séances d'un cycle donné, avec repli sur les séances non cyclées. */
+export function cycleSessions(plan: Plan, cycleIdx: number): Session[] {
+  const c = plan.cycles?.[cycleIdx];
+  if (c?.sessions && c.sessions.length) return c.sessions;
+  return fallbackSessions(plan);
+}
+
 /**
- * Normalise un plan fraîchement généré : garantit que `sessions` (tableau) et
- * `session` (1re séance, compat historique) sont tous deux renseignés et
- * cohérents. Lève si le modèle n'a produit aucune séance.
+ * Séances distinctes représentatives du plan (1er cycle) : sert à l'affichage
+ * générique (semaine type, noms). Les nouveaux plans les tiennent dans chaque
+ * cycle ; les anciens dans `sessions`/`session`.
+ */
+export function planSessions(plan: Plan): Session[] {
+  const first = plan.cycles?.[0]?.sessions;
+  if (first && first.length) return first;
+  return fallbackSessions(plan);
+}
+
+/**
+ * Séance à afficher pour un jour de programme : le bon CYCLE (change toutes les
+ * 4 semaines) et le bon créneau (rang du jour d'entraînement DANS le cycle, qui
+ * fait tourner les séances A, B, C…). Retombe sur les séances non cyclées pour
+ * les anciens plans.
+ */
+export function sessionForDay(
+  plan: Plan,
+  day: number,
+  pattern: boolean[],
+  startWd: number,
+): Session | undefined {
+  const cycleCount = plan.cycles?.length || 3;
+  const cIdx = cycleIndexForDay(day, cycleCount);
+  const pool = cycleSessions(plan, cIdx);
+  if (!pool.length) return undefined;
+  const cycleStartDay = cIdx * CYCLE_DAYS + 1;
+  // Rang (1-based) du jour d'entraînement à l'intérieur de son cycle.
+  const ordinalInCycle =
+    scheduledTrainingDays(pattern, startWd, day).length -
+    scheduledTrainingDays(pattern, startWd, cycleStartDay - 1).length;
+  const slot = (((ordinalInCycle - 1) % pool.length) + pool.length) % pool.length;
+  return pool[slot] ?? pool[0];
+}
+
+/**
+ * Normalise un plan fraîchement généré : chaque cycle reçoit ses séances (repli
+ * sur les séances non cyclées si un cycle n'en a pas), et `session`/`sessions`
+ * restent renseignés (compat historique). Lève si aucune séance n'existe.
  */
 export function normalizePlan(plan: Plan): Plan {
-  const sessions = plan.sessions?.length
-    ? plan.sessions
-    : plan.session
-      ? [plan.session]
-      : [];
-  if (!sessions.length) throw new Error("Plan sans séance.");
-  return { ...plan, sessions, session: sessions[0] };
+  const flat = fallbackSessions(plan);
+  const cycles = (plan.cycles ?? []).map((c) => ({
+    ...c,
+    sessions: c.sessions && c.sessions.length ? c.sessions : flat,
+  }));
+  const anySessions = cycles.find((c) => c.sessions && c.sessions.length)?.sessions ?? flat;
+  if (!anySessions.length) throw new Error("Plan sans séance.");
+  return {
+    ...plan,
+    cycles,
+    sessions: flat.length ? flat : anySessions,
+    session: (flat.length ? flat : anySessions)[0],
+  };
 }
 
 /**
@@ -166,13 +227,25 @@ export function patchPlanForTrainDays(plan: Plan, trainDays: string[]): Plan {
   return { ...plan, summary, weekPlan };
 }
 
+// Chaque cycle porte SES PROPRES séances dans "cycles[i].sessions" (une par jour
+// d'entraînement). Les séances CHANGENT et progressent d'un cycle au suivant :
+// l'exemple montre 2 cycles avec 2 séances chacun, reps qui baissent et repos qui
+// montent (accumulation → intensification), pour que le modèle recopie ce schéma.
 const SCHEMA_HINT =
-  '{"summary":"2 phrases","cycles":[{"label":"","name":"","weeks":"SEMAINES 1 → 4","body":""}],"weekPlan":[{"day":"LUN","name":"Séance A haut du corps","dur":"55 min","rest":false}],"sessions":[{"cycleLabel":"Séance A · haut du corps","title":"Haut du corps","meta":"","restSec":90,"warmup":[{"name":"Cardio léger","detail":"5 min rameur, allure progressive"},{"name":"Mobilité épaules/dos","detail":"6 mouvements lents"},{"name":"Activation","detail":"1 série légère du 1er exercice"}],"exercises":[{"name":"","sets":4,"reps":"8-10","load":"60 kg","rest":75,"note":"","cardio":false},{"name":"Rameur","cardio":true,"duration":"12 min","zone":"Z2","sets":0,"reps":"","load":"","note":"allure conversationnelle"}]}],"nutrition":{"kcal":"2 580","protein":"148","carbs":"276","fat":"78","tags":[{"kind":"ALLERGIE","label":""}],"meals":[{"time":"7 h 30","name":"","kcal":"612","items":[{"food":"","qty":"80 g"}]}]},"warning":"1 phrase sur les contraintes prises en compte"}';
+  '{"summary":"2 phrases","cycles":[{"label":"Cycle 1","name":"Accumulation","weeks":"SEMAINES 1 → 4","body":"1 phrase","sessions":[{"cycleLabel":"Cycle 1 · Séance A · haut du corps","title":"Haut du corps","meta":"","restSec":90,"warmup":[{"name":"Cardio léger","detail":"5 min rameur"},{"name":"Mobilité épaules","detail":"6 mouvements"}],"exercises":[{"name":"Développé couché haltères","sets":4,"reps":"10-12","load":"","rest":75,"note":"","cardio":false},{"name":"Rowing haltère","sets":4,"reps":"10-12","load":"","rest":75,"note":"","cardio":false}]},{"cycleLabel":"Cycle 1 · Séance B · bas du corps","title":"Bas du corps","meta":"","restSec":90,"warmup":[{"name":"Vélo","detail":"5 min"},{"name":"Mobilité hanches","detail":"6 mouvements"}],"exercises":[{"name":"Squat","sets":4,"reps":"10-12","load":"","rest":90,"note":"","cardio":false},{"name":"Fentes marchées","sets":3,"reps":"12","load":"","rest":75,"note":"","cardio":false}]}]},{"label":"Cycle 2","name":"Intensification","weeks":"SEMAINES 5 → 8","body":"1 phrase","sessions":[{"cycleLabel":"Cycle 2 · Séance A · haut du corps","title":"Haut du corps","meta":"","restSec":120,"warmup":[{"name":"Cardio léger","detail":"5 min rameur"},{"name":"Mobilité épaules","detail":"6 mouvements"}],"exercises":[{"name":"Développé incliné haltères","sets":5,"reps":"6-8","load":"","rest":120,"note":"","cardio":false},{"name":"Tractions","sets":4,"reps":"6-8","load":"","rest":120,"note":"","cardio":false}]},{"cycleLabel":"Cycle 2 · Séance B · bas du corps","title":"Bas du corps","meta":"","restSec":150,"warmup":[{"name":"Vélo","detail":"5 min"},{"name":"Mobilité hanches","detail":"6 mouvements"}],"exercises":[{"name":"Squat","sets":5,"reps":"5","load":"","rest":150,"note":"","cardio":false},{"name":"Soulevé de terre roumain","sets":4,"reps":"6-8","load":"","rest":150,"note":"","cardio":false}]}]}],"weekPlan":[{"day":"LUN","name":"Haut du corps","dur":"55 min","rest":false},{"day":"MER","name":"Bas du corps","dur":"55 min","rest":false},{"day":"VEN","name":"Repos","dur":"","rest":true}],"nutrition":{"kcal":"2 580","protein":"148","carbs":"276","fat":"78","tags":[{"kind":"ALLERGIE","label":""}],"meals":[{"time":"7 h 30","name":"","kcal":"612","items":[{"food":"","qty":"80 g"}]}]},"warning":"1 phrase sur les contraintes prises en compte"}';
 
 // Positionnement coach (pas « diététicien ») : accompagnement de forme, pas
 // de visée thérapeutique. Le public à risque médical est déjà écarté en amont
 // (lib/screening.ts).
-const SYSTEM = `Tu es ${COACH_CREDENTIAL}, tu accompagnes des personnes en bonne santé vers un objectif de forme. Tu réponds UNIQUEMENT par un objet JSON valide en français, sans texte autour. Exactement 3 cycles, 7 jours dans weekPlan (repos les jours non travaillés indiqués), 4 à 6 repas. SÉANCES : le champ "sessions" est un tableau qui contient EXACTEMENT UNE séance DISTINCTE par jour d'entraînement de la semaine (ex : 3 jours = 3 séances). Chaque séance vise des groupes musculaires DIFFÉRENTS et complémentaires sur la semaine (par ex. 3 jours : A haut du corps, B bas du corps, C full body ; 4 jours : haut/bas ou push/pull/legs/full ; ne répète jamais la même séance). Chaque séance a un "title" court et parlant (ex "Haut du corps", "Bas du corps & gainage"), un "cycleLabel" du type "Séance A · haut du corps", et 5 à 7 exercices avec sets entier. Le "name" de chaque jour travaillé dans weekPlan doit reprendre le titre de la séance correspondante, en tournant A, B, C sur la semaine. ÉCHAUFFEMENT : chaque séance a un "warmup" (tableau de 3 à 5 items {name, detail}) adapté aux muscles travaillés ce jour-là (montée cardio progressive, mobilité ciblée, séries d'activation légères). CARDIO : pour tout exercice cardio (rameur, vélo, course, elliptique, tapis, HIIT, marche, corde à sauter…), NE mets PAS de séries/répétitions/charge — mets cardio:true, une durée dans "duration" (ex "20 min") et la zone cardiaque cible dans "zone" (Z1 récupération, Z2 endurance, Z3 tempo, Z4 seuil/intervalles, Z5 VO2 max ; ex "Z2"), et sets:0, reps:"". Pour la musculation : cardio:false avec sets et reps normaux. REPOS : renseigne "restSec" (repos par défaut de la séance, en secondes) ET, pour CHAQUE exercice de musculation, un "rest" en secondes adapté (environ 60 à 90 s en hypertrophie, 120 à 180 s sur les gros mouvements de force type squat/soulevé de terre/développé, 45 à 60 s en perte de masse / circuit). RÈGLE DE STYLE : n'utilise JAMAIS de tiret cadratin (—) ni de tiret demi-cadratin (–) dans les textes ; écris avec une ponctuation naturelle (virgules, deux-points, points, parenthèses).`;
+const SYSTEM = `Tu es ${COACH_CREDENTIAL}, tu accompagnes des personnes en bonne santé vers un objectif de forme. Tu réponds UNIQUEMENT par un objet JSON valide en français, sans texte autour. Exactement 3 cycles, 7 jours dans weekPlan (repos les jours non travaillés indiqués), 4 à 6 repas.
+
+STRUCTURE EN CYCLES (RÈGLE LA PLUS IMPORTANTE) : le programme dure 90 jours découpés en 3 CYCLES de 4 semaines. CHAQUE cycle (objet de "cycles") porte SON PROPRE tableau "sessions" contenant EXACTEMENT une séance DISTINCTE par jour d'entraînement de la semaine (2 jours = 2 séances par cycle, 3 jours = 3 séances, 4 jours = 4 séances, etc.). NE mets PAS de "sessions" au niveau racine : elles vont DANS chaque cycle. Ne renvoie JAMAIS une seule séance quand le client s'entraîne plusieurs jours.
+
+Les séances CHANGENT et PROGRESSENT d'un cycle au suivant (c'est un programme périodisé) : Cycle 1 accumulation (volume, reps plutôt 10 à 15, repos 60 à 90 s), Cycle 2 intensification (charge, reps plutôt 6 à 10, repos 90 à 150 s), Cycle 3 réalisation/pic (force, reps plutôt 4 à 8, repos 120 à 180 s, avec une décharge la dernière semaine). D'un cycle à l'autre, fais évoluer les exercices (variantes ou nouveaux mouvements) ET les paramètres reps/repos/séries. Le client fera lui-même évoluer ses charges en les notant, ne fige donc pas de charge (laisse "load":"").
+
+Dans chaque cycle, chaque séance vise des groupes musculaires DIFFÉRENTS et complémentaires sur la semaine (ex. 3 jours : A haut du corps, B bas du corps, C full body ; 4 jours : haut/bas ou push/pull/legs/full). Chaque séance a un "title" court et parlant, un "cycleLabel" du type "Cycle 2 · Séance A · haut du corps", et 5 à 7 exercices avec sets entier. Le "name" de chaque jour travaillé dans weekPlan reprend le titre de la séance correspondante du CYCLE 1, en tournant A, B, C sur la semaine.
+
+ÉCHAUFFEMENT : chaque séance a un "warmup" (tableau de 3 à 5 items {name, detail}) adapté aux muscles travaillés ce jour-là. CARDIO : pour tout exercice cardio (rameur, vélo, course, elliptique, tapis, HIIT, marche, corde à sauter…), NE mets PAS de séries/répétitions/charge — mets cardio:true, une durée dans "duration" (ex "20 min") et la zone cardiaque cible dans "zone" (Z1 récupération, Z2 endurance, Z3 tempo, Z4 seuil/intervalles, Z5 VO2 max ; ex "Z2"), et sets:0, reps:"". Pour la musculation : cardio:false avec sets et reps normaux. REPOS : renseigne "restSec" (repos par défaut de la séance, en secondes) ET, pour CHAQUE exercice de musculation, un "rest" en secondes adapté au cycle. RÈGLE DE STYLE : n'utilise JAMAIS de tiret cadratin (—) ni de tiret demi-cadratin (–) dans les textes ; écris avec une ponctuation naturelle (virgules, deux-points, points, parenthèses).`;
 
 export interface Brief {
   answers: Record<string, unknown>;
@@ -196,7 +269,7 @@ export function buildBrief({ answers, trainDays, equipment }: Brief): string {
       ? lines.join("\n")
       : "Profil par défaut : femme 34 ans, 68 kg, 170 cm, 3 séances/semaine.",
     `Jours d'entraînement : ${trainDays.length ? trainDays.join(", ") : "à répartir"}.`,
-    `Nombre de séances DISTINCTES à produire dans "sessions" : ${trainDays.length || 3} (une par jour d'entraînement, chacune ciblant des groupes musculaires différents et complémentaires).`,
+    `Nombre de séances DISTINCTES par cycle : ${trainDays.length || 3} (une par jour d'entraînement). Produis donc 3 cycles, chacun avec ${trainDays.length || 3} séances distinctes qui évoluent d'un cycle au suivant.`,
     `Matériel disponible : ${equipment.length ? equipment.join(", ") : "poids du corps uniquement"}. Aucun exercice hors de cette liste.`,
   ];
   if (adaptations.length) {
@@ -229,27 +302,58 @@ export async function generateProgram(
   const client = anthropic();
   // Méthodologie (base evidence-based, ou personnalisée par le coach en admin).
   const methodology = await effectiveMethodology();
-  // Streaming : la sortie est volumineuse (~8000 tokens), on évite le timeout.
-  const stream = client.messages.stream({
-    model: MODELS.generate,
-    max_tokens: 12000,
-    output_config: { effort },
-    system: `${SYSTEM}\n\n${methodology}`,
-    messages: [
-      {
-        role: "user",
-        content: `${buildBrief(brief)}\n\nRends ce JSON :\n${SCHEMA_HINT}`,
-      },
-    ],
-  });
-  const message = await stream.finalMessage();
-  const plan = normalizePlan(planSchema.parse(parseJsonLoose(textOf(message))));
+  // Nombre de séances distinctes attendu (une par jour d'entraînement).
+  const wantSessions = Math.max(1, brief.trainDays.length || 3);
+
+  const runOnce = async (extra: string) => {
+    const stream = client.messages.stream({
+      model: MODELS.generate,
+      // Sortie volumineuse : 3 cycles × séances distinctes + nutrition.
+      max_tokens: 32000,
+      output_config: { effort },
+      system: `${SYSTEM}\n\n${methodology}`,
+      messages: [
+        {
+          role: "user",
+          content: `${buildBrief(brief)}${extra}\n\nRends ce JSON :\n${SCHEMA_HINT}`,
+        },
+      ],
+    });
+    const message = await stream.finalMessage();
+    const plan = normalizePlan(planSchema.parse(parseJsonLoose(textOf(message))));
+    return {
+      plan,
+      inTok: message.usage.input_tokens,
+      outTok: message.usage.output_tokens,
+    };
+  };
+
+  // Chaque cycle doit contenir le bon nombre de séances distinctes.
+  const cyclesOk = (p: Plan) =>
+    (p.cycles ?? []).every((c) => (c.sessions?.length ?? 0) >= wantSessions);
+
+  let { plan, inTok, outTok } = await runOnce("");
+  // Garde-fou périodisation : si un cycle manque de séances distinctes (bug
+  // « même séance partout »), on relance une fois avec une consigne explicite
+  // (1re génération uniquement, où le budget temps le permet).
+  if (effort === "high" && wantSessions >= 2 && !cyclesOk(plan)) {
+    try {
+      const retry = await runOnce(
+        `\n\nATTENTION : CHAQUE cycle doit contenir EXACTEMENT ${wantSessions} séances DISTINCTES dans "cycles[i].sessions" (une par jour d'entraînement), et les séances doivent CHANGER d'un cycle au suivant. Ne renvoie pas une seule séance ni des cycles sans séances.`,
+      );
+      if (cyclesOk(retry.plan)) {
+        plan = retry.plan;
+        inTok += retry.inTok;
+        outTok += retry.outTok;
+      }
+    } catch {
+      /* on garde le 1er plan si la relance échoue */
+    }
+  }
+
   return {
     plan,
     model: MODELS.generate,
-    usage: {
-      input_tokens: message.usage.input_tokens,
-      output_tokens: message.usage.output_tokens,
-    },
+    usage: { input_tokens: inTok, output_tokens: outTok },
   };
 }

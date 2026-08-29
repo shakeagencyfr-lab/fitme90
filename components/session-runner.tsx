@@ -17,6 +17,23 @@ export interface Exercise {
   zone?: string;
 }
 
+// Petit bouton « alternative » (remplacement d'exercice à la demande).
+function AlternativeButton({ onClick, busy }: { onClick: () => void; busy: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={busy}
+      className="tap inline-flex w-fit items-center gap-1.5 self-start rounded-pill border border-line-4 bg-surface px-3 py-1.5 text-[12px] font-semibold text-body transition-colors hover:border-ink disabled:opacity-60"
+    >
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M3 2v6h6M21 22v-6h-6" />
+        <path d="M21 12a9 9 0 0 0-15-6.7L3 8M3 12a9 9 0 0 0 15 6.7l3-2.7" />
+      </svg>
+      {busy ? "Recherche…" : "Autre exercice"}
+    </button>
+  );
+}
+
 // Durée d'un cardio en secondes, lue dans un texte (« 12 min », « 20 mn »,
 // « 90 s », « 12 »). Sans unité claire, on considère des minutes.
 function durationToSeconds(text: string | undefined): number {
@@ -73,6 +90,8 @@ interface Props {
   zones?: HeartZone[];
   restSec?: number;
   initialCardio?: string[]; // noms des exercices cardio déjà cochés
+  canAlternate?: boolean; // proposer un exercice de remplacement (IA)
+  sessionTitle?: string; // contexte séance pour l'alternative
 }
 
 export function SessionRunner({
@@ -85,8 +104,55 @@ export function SessionRunner({
   zones,
   restSec = 90,
   initialCardio = [],
+  canAlternate = false,
+  sessionTitle = "",
 }: Props) {
   const router = useRouter();
+  // Liste locale des exercices : permet de remplacer un exercice par une
+  // alternative « ce jour-là » sans toucher au programme enregistré.
+  const [exList, setExList] = useState<Exercise[]>(exercises);
+  const [altBusy, setAltBusy] = useState<number | null>(null);
+  const [altErr, setAltErr] = useState("");
+  // Resynchronise la liste locale quand on change de jour (nouvelle séance) :
+  // idiome React d'ajustement d'état pendant le rendu (pas d'effet).
+  const [prevDay, setPrevDay] = useState(day);
+  if (prevDay !== day) {
+    setPrevDay(day);
+    setExList(exercises);
+  }
+
+  async function alternative(ei: number) {
+    setAltBusy(ei);
+    setAltErr("");
+    try {
+      const ex = exList[ei];
+      const res = await fetch("/api/exercise/alternative", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: ex.name,
+          note: ex.note ?? "",
+          cardio: !!ex.cardio,
+          sessionTitle,
+          avoid: exList.map((x) => x.name),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.exercise) throw new Error(data.error || "Alternative indisponible.");
+      setExList((list) => list.map((x, i) => (i === ei ? (data.exercise as Exercise) : x)));
+      // Les saisies de cet exercice ne valent plus pour le nouveau mouvement.
+      setLog((l) => {
+        const n = { ...l };
+        for (const k of Object.keys(n)) if (k.startsWith(`${ei}-`)) delete n[k];
+        return n;
+      });
+      setSaved(false);
+    } catch (e) {
+      setAltErr(e instanceof Error ? e.message : "Alternative indisponible.");
+    } finally {
+      setAltBusy(null);
+    }
+  }
   // État initial : brouillon local prioritaire (saisie en cours non validée),
   // sinon les données déjà enregistrées côté serveur.
   const [log, setLog] = useState<Record<string, { kg: string; reps: string }>>(
@@ -202,7 +268,7 @@ export function SessionRunner({
     let volume = 0;
     let done = 0;
     let totalSets = 0;
-    exercises.forEach((ex, ei) => {
+    exList.forEach((ex, ei) => {
       if (isCardioExercise(ex.name, ex.note, ex.cardio)) {
         totalSets++; // le cardio compte comme une unité à cocher
         if (cardioDone[ex.name]) done++;
@@ -219,13 +285,13 @@ export function SessionRunner({
       }
     });
     return { volume, done, totalSets };
-  }, [log, exercises, cardioDone]);
+  }, [log, exList, cardioDone]);
 
   async function validate() {
     setSaving(true);
     setError("");
     const entries: SetEntry[] = [];
-    exercises.forEach((ex, ei) => {
+    exList.forEach((ex, ei) => {
       if (isCardioExercise(ex.name, ex.note, ex.cardio)) {
         if (cardioDone[ex.name]) {
           entries.push({ exercise: ex.name, set: 1, kg: null, reps: null, cardio: true });
@@ -252,7 +318,7 @@ export function SessionRunner({
 
   // Premier exercice de musculation : sert d'ancre au tutoriel (surbrillance
   // précise des champs charge / reps / Repos sur sa première série).
-  const firstStrengthIdx = exercises.findIndex((e) => !isCardioExercise(e.name, e.note, e.cardio));
+  const firstStrengthIdx = exList.findIndex((e) => !isCardioExercise(e.name, e.note, e.cardio));
 
   return (
     <div className="flex flex-col gap-4 pb-24">
@@ -273,7 +339,15 @@ export function SessionRunner({
         refaire cette séance quand tu veux. Ta saisie est sauvegardée automatiquement.
       </p>
 
-      {exercises.map((ex, ei) => {
+      {canAlternate ? (
+        <p className="-mt-2 text-[12.5px] text-muted-2">
+          Un exercice impossible aujourd&apos;hui (machine occupée, matériel manquant) ? Touche
+          <span className="font-semibold text-body"> « Autre exercice » </span> pour une alternative.
+        </p>
+      ) : null}
+      {altErr ? <Alert>{altErr}</Alert> : null}
+
+      {exList.map((ex, ei) => {
         // Exercice cardio : pas de séries/charges, on affiche la zone cardiaque cible.
         if (isCardioExercise(ex.name, ex.note, ex.cardio)) {
           const zone = zones && zones.length ? cardioZone(zones, ex.zone ?? "", ex.name, ex.note) : null;
@@ -295,6 +369,7 @@ export function SessionRunner({
                 </div>
               </div>
               {ex.note ? <div className="text-[12.5px] leading-[1.5] text-muted">{ex.note}</div> : null}
+              {canAlternate ? <AlternativeButton onClick={() => alternative(ei)} busy={altBusy === ei} /> : null}
               {durSec > 0 ? (
                 <button
                   onClick={() => startTimer(durSec, ex.name)}
@@ -371,6 +446,8 @@ export function SessionRunner({
               </div>
             </div>
             {ex.note ? <div className="text-[12.5px] text-muted leading-[1.5]">{ex.note}</div> : null}
+
+            {canAlternate ? <AlternativeButton onClick={() => alternative(ei)} busy={altBusy === ei} /> : null}
 
             {canLog ? (
               <div className="flex flex-col gap-2">

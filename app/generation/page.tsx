@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/guard";
+import { createClient } from "@/lib/supabase/server";
 import { GenerateStep } from "@/components/generate-step";
 import { Wordmark } from "@/components/brand";
 
@@ -8,8 +9,21 @@ export const metadata = { title: "Génération, FitMe90" };
 export default async function GenerationPage() {
   const ctx = await getSessionContext();
   if (!ctx) redirect("/connexion?suite=/generation");
-  if (ctx.access.phase === "not_paid") redirect("/app/paiement");
   if (ctx.access.phase === "active" || ctx.access.phase === "grace") redirect("/app");
+
+  // Le questionnaire doit être rempli avant de générer.
+  const supabase = await createClient();
+  const { data: quiz } = await supabase
+    .from("questionnaires")
+    .select("id")
+    .eq("user_id", ctx.userId)
+    .limit(1)
+    .maybeSingle<{ id: string }>();
+  if (!quiz) redirect("/questionnaire");
+
+  // On NE bloque PAS sur not_paid ici : après paiement Stripe, le webhook peut
+  // mettre une ou deux secondes à marquer le compte payé. GenerateStep gère
+  // cette attente (retente si le paiement n'est pas encore confirmé).
 
   return (
     <div className="min-h-dvh bg-paper">

@@ -52,9 +52,9 @@ export default async function ProgrammePage() {
   if (access.phase === "not_paid") {
     return (
       <Empty
-        title="Débloque ton programme"
-        body="Le paiement unique de 190 € donne accès à ton programme d'entraînement et nutrition sur 90 jours, coach IA inclus."
-        cta={{ href: "/app/paiement", label: "Débloquer, 190 €" }}
+        title="Crée ton programme"
+        body="Réponds au questionnaire et photographie ta salle. Le paiement unique de 190 € intervient juste après, puis ton programme sur 90 jours est généré."
+        cta={{ href: "/questionnaire", label: "Commencer le questionnaire" }}
       />
     );
   }
