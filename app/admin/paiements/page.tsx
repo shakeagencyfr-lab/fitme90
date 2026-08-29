@@ -39,8 +39,12 @@ export default async function AdminPaymentsPage({
         </p>
       </div>
 
-      {sp.error === "stripe" ? (
-        <Alert>Une erreur Stripe est survenue. Réessaie dans un instant.</Alert>
+      {sp.error ? (
+        <Alert>
+          {sp.error === "stripe"
+            ? "Une erreur Stripe est survenue. Réessaie dans un instant."
+            : `Stripe : ${sp.error}`}
+        </Alert>
       ) : null}
       {sp.done === "1" && !enabled ? (
         <Alert tone="info">
