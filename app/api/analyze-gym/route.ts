@@ -3,7 +3,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { getSessionContext } from "@/lib/guard";
 import { checkLimit, recordCall } from "@/lib/ratelimit";
-import { anthropic, MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
+import { MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
+import { anthropicForUser } from "@/lib/tenant";
 import { LIMIT_ANALYZE_GYM_TOTAL } from "@/lib/config";
 
 export const runtime = "nodejs";
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
   });
 
   try {
-    const message = await anthropic().messages.create({
+    const message = await (await anthropicForUser(ctx.userId)).messages.create({
       model: MODELS.analyzeGym,
       max_tokens: 1024,
       output_config: { effort: "low" },

@@ -4,7 +4,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
-import { anthropic, MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
+import { MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
+import { anthropicForUser } from "@/lib/tenant";
 import { LIMIT_RECIPES_PER_DAY, COACH_CREDENTIAL } from "@/lib/config";
 
 export const runtime = "nodejs";
@@ -82,7 +83,7 @@ Consignes : 4 à 7 étapes concrètes, quantités précises, macros estimées, u
   ];
 
   try {
-    const message = await anthropic().messages.create({
+    const message = await (await anthropicForUser(ctx.userId)).messages.create({
       model: MODELS.recipes,
       max_tokens: 3200,
       output_config: { effort: "low" },

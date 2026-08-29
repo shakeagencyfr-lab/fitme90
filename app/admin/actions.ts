@@ -5,6 +5,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminOrNull } from "@/lib/admin";
 import { broadcastPush, broadcastPushToUsers } from "@/lib/push";
 import { resolveAudience, type AudienceFilter } from "@/lib/audience";
+import {
+  setTenantAnthropicKey,
+  clearTenantAnthropicKey,
+  testAnthropicKey,
+} from "@/lib/tenant";
+import { secretsEncryptionReady } from "@/lib/crypto";
 
 /** Normalise les champs de segmentation reçus du formulaire coach. */
 function readFilter(formData: FormData): AudienceFilter {
@@ -40,6 +46,52 @@ export async function saveCoachConfig(
   if (error) return { error: "Enregistrement impossible." };
 
   revalidatePath("/admin/config");
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ BYOK (clé Anthropic)
+export interface ByokState {
+  ok?: boolean;
+  error?: string;
+  tested?: boolean;
+}
+
+/**
+ * Enregistre la clé Anthropic du tenant (coach/salle). BYOK : chaque compte
+ * fournit SA clé, chiffrée au repos (tenant_secrets, service_role only). On
+ * teste la clé par un petit appel avant de l'enregistrer.
+ */
+export async function saveAnthropicKey(_prev: ByokState, formData: FormData): Promise<ByokState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+  if (!secretsEncryptionReady()) {
+    return { error: "Chiffrement non configuré (SECRETS_ENC_KEY manquante côté serveur)." };
+  }
+  const key = String(formData.get("anthropic_key") ?? "").trim();
+  if (!key) return { error: "Saisis ta clé Anthropic." };
+  if (!/^sk-ant-/.test(key)) {
+    return { error: "Clé invalide : une clé Anthropic commence par « sk-ant- »." };
+  }
+
+  const test = await testAnthropicKey(key);
+  if (!test.ok) {
+    return { error: `La clé n'a pas fonctionné : ${test.error ?? "vérifie qu'elle est active."}` };
+  }
+  await setTenantAnthropicKey(tenantId, key);
+  revalidatePath("/admin/compte");
+  return { ok: true, tested: true };
+}
+
+/** Supprime la clé Anthropic du tenant (retour au comportement par défaut). */
+export async function removeAnthropicKey(): Promise<ByokState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+  await clearTenantAnthropicKey(tenantId);
+  revalidatePath("/admin/compte");
   return { ok: true };
 }
 

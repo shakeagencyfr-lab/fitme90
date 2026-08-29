@@ -11,6 +11,10 @@ export interface ProfileRow {
   photo_consent_at: string | null;
   /** Décharge médicale signée (consentement éclairé). null tant que non signée. */
   medical_ack_at: string | null;
+  /** Tenant (coach/salle) auquel appartient l'utilisateur. Multi-tenant (Lot 0). */
+  tenant_id: string | null;
+  /** Rôle applicatif : "client" par défaut, "owner"/"coach" pour le dashboard. */
+  role: string | null;
 }
 
 export interface SessionContext {
@@ -37,7 +41,7 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, email, name, paid, start_date, photo_consent_at, medical_ack_at")
+    .select("id, email, name, paid, start_date, photo_consent_at, medical_ack_at, tenant_id, role")
     .eq("id", user.id)
     .maybeSingle<ProfileRow>();
 

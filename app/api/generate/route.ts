@@ -5,6 +5,7 @@ import { getSessionContext } from "@/lib/guard";
 import { checkLimit, recordCall } from "@/lib/ratelimit";
 import { screen, type QuizHealthAnswers } from "@/lib/screening";
 import { generateProgram } from "@/lib/program";
+import { tenantAnthropicKey } from "@/lib/tenant";
 import { LIMIT_GENERATE_TOTAL } from "@/lib/config";
 
 export const runtime = "nodejs";
@@ -87,11 +88,15 @@ export async function POST() {
   // 5-6. Appel modèle + validation JSON
   let result;
   try {
-    result = await generateProgram({
-      answers: quiz.answers,
-      trainDays: quiz.train_days ?? [],
-      equipment,
-    });
+    result = await generateProgram(
+      {
+        answers: quiz.answers,
+        trainDays: quiz.train_days ?? [],
+        equipment,
+      },
+      "high",
+      (await tenantAnthropicKey(ctx.userId)) ?? undefined,
+    );
   } catch {
     return NextResponse.json(
       { error: "La génération a échoué. Réessaie dans un instant." },

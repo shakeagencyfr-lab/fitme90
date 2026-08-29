@@ -2,9 +2,10 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 
 // Client Anthropic — SERVEUR UNIQUEMENT. La clé ne quitte jamais Vercel.
-// (Le SDK lit ANTHROPIC_API_KEY dans l'environnement.)
-export function anthropic() {
-  return new Anthropic();
+// Sans argument : le SDK lit ANTHROPIC_API_KEY dans l'environnement (défaut,
+// non cassant). Avec `apiKey` : on utilise la clé du tenant (BYOK, Lot 0).
+export function anthropic(apiKey?: string) {
+  return apiKey ? new Anthropic({ apiKey }) : new Anthropic();
 }
 
 // Modèles par défaut, surchargeables par variable d'environnement pour
