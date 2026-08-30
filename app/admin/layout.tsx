@@ -3,6 +3,7 @@ import { getAdminOrNull } from "@/lib/admin";
 import { Wordmark } from "@/components/brand";
 import { AdminNav } from "@/components/admin-nav";
 import { CoachBell } from "@/components/coach-bell";
+import { PwaInstall } from "@/components/pwa-install";
 import { listCoachNotifications, unreadCoachNotifCount } from "@/lib/notifications";
 
 export const metadata = { title: "Admin, FitMe90" };
@@ -36,6 +37,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </header>
         {children}
       </div>
+      {/* Invite à installer l'app (Android : invite native ; iOS : marche à suivre). */}
+      <PwaInstall />
     </div>
   );
 }
