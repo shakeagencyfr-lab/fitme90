@@ -1,43 +1,52 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getSessionContext } from "@/lib/guard";
+import { isCoachAccount } from "@/lib/admin";
 import { brandForUser } from "@/lib/branding";
 import { PRODUCT_NAME } from "@/lib/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Manifest PWA DYNAMIQUE (marque blanche) : quand un client est connecté, l'app
-// installée prend le nom, la couleur et l'ICÔNE (favicon) de son coach ; sinon
-// on sert le manifest FitMe90 par défaut. Le <link rel="manifest"> est déclaré
-// avec crossorigin="use-credentials" pour que le cookie de session soit envoyé.
+type Icon = { src: string; sizes: string; type?: string; purpose?: string };
+
+// Jeu d'icônes FitMe90 par défaut (PNG valides, tailles réelles). Toujours
+// présent : c'est ce qui garantit une vraie icône à l'installation (jamais le
+// monogramme « lettre » généré par le navigateur faute d'icône exploitable).
+const FITME_ICONS: Icon[] = [
+  { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+  { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+  { src: "/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+];
+
+// Manifest PWA DYNAMIQUE (marque blanche). Règles :
+//  - compte COACH/OWNER (dashboard) → toujours l'app FitMe90 (icône plateforme).
+//  - CLIENT d'un coach → nom/couleur du coach, et son favicon comme icône SI
+//    disponible, MAIS on garde toujours les icônes FitMe90 en repli dans la liste
+//    pour qu'une icône valide existe (sinon Chrome affiche un monogramme « V »).
+//  - pas de session → FitMe90 par défaut.
+// Le <link rel="manifest"> est déclaré crossorigin="use-credentials" pour
+// transmettre le cookie de session.
 export async function GET() {
   let name = `${PRODUCT_NAME} — Sport & Nutrition`;
   let shortName = PRODUCT_NAME;
   let themeColor = "#F4F3F1";
-  let icons: { src: string; sizes: string; type?: string; purpose?: string }[] = [
-    { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-    { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-    { src: "/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
-  ];
+  let icons: Icon[] = FITME_ICONS;
 
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user) {
-      const brand = await brandForUser(user.id);
+    const ctx = await getSessionContext();
+    // Un coach/owner installe SON outil : on garde la marque FitMe90.
+    if (ctx && !isCoachAccount(ctx)) {
+      const brand = await brandForUser(ctx.userId);
       if (brand) {
         name = brand.name;
         shortName = brand.name.slice(0, 24);
         if (brand.brandColor) themeColor = brand.brandColor;
-        // L'icône PWA = le favicon du coach (à défaut, son logo).
-        const iconUrl = brand.faviconUrl || brand.logoUrl;
-        if (iconUrl) {
+        // Favicon du coach en 1re icône (idéalement carré), puis repli FitMe90 :
+        // ainsi l'installation a TOUJOURS une icône valide, jamais un monogramme.
+        if (brand.faviconUrl) {
           icons = [
-            { src: iconUrl, sizes: "192x192", purpose: "any" },
-            { src: iconUrl, sizes: "512x512", purpose: "any" },
-            { src: iconUrl, sizes: "512x512", purpose: "maskable" },
+            { src: brand.faviconUrl, sizes: "any", purpose: "any" },
+            ...FITME_ICONS,
           ];
         }
       }
