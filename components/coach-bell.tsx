@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { CoachNotif } from "@/lib/notifications";
 import { markAllNotificationsRead, markNotificationRead } from "@/app/admin/actions";
 
@@ -38,26 +37,69 @@ function NotifIcon({ type }: { type: string }) {
 }
 
 export function CoachBell({ notifs, unread }: { notifs: CoachNotif[]; unread: number }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [, start] = useTransition();
+  const [items, setItems] = useState<CoachNotif[]>(notifs);
+  const [count, setCount] = useState(unread);
 
-  function markAll() {
-    start(async () => {
-      await markAllNotificationsRead();
-      router.refresh();
-    });
+  // Le layout /admin est mis en cache : la cloche va donc chercher elle-même les
+  // notifications fraîches (au montage, à intervalle, et à l'ouverture).
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch("/api/coach/notifications", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setItems(data.notifs as CoachNotif[]);
+      setCount(data.unread as number);
+    } catch {
+      /* réseau : on garde l'état courant */
+    }
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/coach/notifications", { cache: "no-store" });
+        if (!res.ok || !alive) return;
+        const data = await res.json();
+        if (!alive) return;
+        setItems(data.notifs as CoachNotif[]);
+        setCount(data.unread as number);
+      } catch {
+        /* réseau : on garde l'état courant */
+      }
+    };
+    void load();
+    const t = setInterval(() => void load(), 45000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, []);
+
+  async function markAll() {
+    setItems((list) => list.map((n) => (n.read_at ? n : { ...n, read_at: new Date().toISOString() })));
+    setCount(0);
+    await markAllNotificationsRead();
+    void refresh();
   }
+
   function openNotif(n: CoachNotif) {
     setOpen(false);
-    if (!n.read_at) start(() => markNotificationRead(n.id));
+    if (n.read_at) return;
+    setItems((list) => list.map((x) => (x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x)));
+    setCount((c) => Math.max(0, c - 1));
+    void markNotificationRead(n.id);
   }
 
   return (
     <div className="relative">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          setOpen((v) => !v);
+          void refresh();
+        }}
         aria-label="Notifications"
         aria-expanded={open}
         className="tap relative flex size-10 items-center justify-center rounded-btn border border-line-4 bg-surface text-body-2 hover:border-ink"
@@ -66,9 +108,9 @@ export function CoachBell({ notifs, unread }: { notifs: CoachNotif[]; unread: nu
           <path d="M12 4a5 5 0 0 0-5 5v3.5L5.5 15h13L17 12.5V9a5 5 0 0 0-5-5Z" />
           <path d="M10 18a2 2 0 0 0 4 0" />
         </svg>
-        {unread > 0 ? (
+        {count > 0 ? (
           <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 font-mono text-[10px] font-bold leading-none text-white">
-            {unread > 99 ? "99+" : unread}
+            {count > 99 ? "99+" : count}
           </span>
         ) : null}
       </button>
@@ -79,7 +121,7 @@ export function CoachBell({ notifs, unread }: { notifs: CoachNotif[]; unread: nu
           <div className="absolute right-0 z-50 mt-2 flex max-h-[70vh] w-[min(92vw,360px)] flex-col overflow-hidden rounded-card border border-line bg-surface shadow-lg">
             <div className="flex items-center justify-between gap-3 border-b border-line-2 px-4 py-3">
               <span className="font-archivo font-bold text-[15px] text-ink">Notifications</span>
-              {unread > 0 ? (
+              {count > 0 ? (
                 <button onClick={markAll} className="text-[12.5px] font-semibold text-brand hover:underline">
                   Tout marquer comme lu
                 </button>
@@ -87,10 +129,10 @@ export function CoachBell({ notifs, unread }: { notifs: CoachNotif[]; unread: nu
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              {notifs.length === 0 ? (
+              {items.length === 0 ? (
                 <p className="px-4 py-8 text-center text-[13.5px] text-muted-2">Aucune notification pour l&apos;instant.</p>
               ) : (
-                notifs.map((n) => {
+                items.map((n) => {
                   const inner = (
                     <div className={["flex gap-3 px-4 py-3", n.read_at ? "" : "bg-brand/5"].join(" ")}>
                       <NotifIcon type={n.type} />
