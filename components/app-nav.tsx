@@ -45,6 +45,12 @@ const I = {
       <path d="M9 8V6a3 3 0 0 1 6 0v2" />
     </>
   ),
+  chat: (
+    <>
+      <path d="M4 5.5h16v11H9l-4 3.5v-3.5H4z" />
+      <path d="M8 9.5h8M8 12.5h5" />
+    </>
+  ),
   profil: (
     <>
       <circle cx="12" cy="8" r="3.5" />
@@ -64,16 +70,17 @@ type IconKey = keyof typeof I;
 type Item = { href: string; label: string; icon: IconKey };
 
 // Onglets rangés dans « Plus » sur mobile (le reste va dans la barre du bas).
-const IN_MORE = ["/app/evolution", "/app/shop"];
+const IN_MORE = ["/app/evolution", "/app/shop", "/app/chat"];
 
-// Construit la liste des onglets selon que la boutique est activée ou non.
-function buildItems(shopEnabled: boolean): Item[] {
+// Construit la liste des onglets selon les options activées (boutique, chat VIP).
+function buildItems(shopEnabled: boolean, vipEnabled: boolean): Item[] {
   return [
     { href: "/app", label: "Programme", icon: "programme" },
     { href: "/app/agenda", label: "Agenda", icon: "agenda" },
     { href: "/app/seance", label: "Séance", icon: "seance" },
     { href: "/app/nutrition", label: "Nutrition", icon: "nutrition" },
     { href: "/app/evolution", label: "Évolution", icon: "evolution" },
+    ...(vipEnabled ? [{ href: "/app/chat", label: "Chat VIP", icon: "chat" } as Item] : []),
     ...(shopEnabled ? [{ href: "/app/shop", label: "Boutique", icon: "shop" } as Item] : []),
     { href: "/app/profil", label: "Profil", icon: "profil" },
   ];
@@ -100,15 +107,17 @@ export function AppNav({
   dayPct,
   cycleName,
   shopEnabled = false,
+  vipEnabled = false,
 }: {
   day: number;
   dayPct: number;
   cycleName?: string;
   shopEnabled?: boolean;
+  vipEnabled?: boolean;
 }) {
   const pathname = usePathname();
   const [more, setMore] = useState(false);
-  const ALL = buildItems(shopEnabled);
+  const ALL = buildItems(shopEnabled, vipEnabled);
   const PRIMARY = ALL.filter((i) => !IN_MORE.includes(i.href));
   const SECONDARY = ALL.filter((i) => IN_MORE.includes(i.href));
   const isActive = (href: string) =>

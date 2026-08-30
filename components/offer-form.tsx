@@ -67,6 +67,16 @@ export function OfferForm({ atLimit }: { atLimit: boolean }) {
         Le client paiera ce montant directement sur ton compte Stripe.
       </span>
 
+      <label className="mt-1 flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
+        <input type="checkbox" name="vip_chat" className="mt-0.5 size-4 accent-brand" />
+        <span className="flex flex-col gap-0.5">
+          <span className="font-semibold text-[14px] text-ink">Chat VIP inclus</span>
+          <span className="text-[12px] text-muted-2">
+            Le client de cette offre pourra t&apos;écrire (texte et photos) depuis un onglet dédié. Sans coche, l&apos;onglet n&apos;apparaît pas.
+          </span>
+        </span>
+      </label>
+
       {state.error ? <Alert>{state.error}</Alert> : null}
       {state.ok ? <Alert tone="info">Offre ajoutée.</Alert> : null}
 

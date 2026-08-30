@@ -66,6 +66,19 @@ ANTHROPIC_API_KEY=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 NEXT_PUBLIC_SITE_URL=https://TON-DOMAINE
+
+# Chiffrement des clés BYOK (Anthropic/Stripe par coach), 32 octets hex :
+SECRETS_ENC_KEY=
+
+# Web Push (rappels séance, notifications Chat VIP) — optionnel :
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:contact@fitme90.app
+
+# E-mails de notification Chat VIP (Resend) — optionnel :
+# sans clé, les e-mails ne sont simplement pas envoyés (le push reste actif).
+RESEND_API_KEY=
+RESEND_FROM=FitMe90 <notifications@fitme90.app>
 ```
 
 `.env.local` n'est jamais commité (voir `.gitignore`). Aucune clé secrète ne doit

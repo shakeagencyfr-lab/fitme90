@@ -81,6 +81,11 @@ export default async function AdminPublicPage() {
                           Inactive
                         </span>
                       ) : null}
+                      {o.vip_chat ? (
+                        <span className="rounded-pill bg-brand/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-brand">
+                          Chat VIP
+                        </span>
+                      ) : null}
                     </div>
                     <span className="text-[13px] text-muted">
                       {durationLabel(o.duration_months)}

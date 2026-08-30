@@ -14,6 +14,14 @@ import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, setOfferActive, deleteOffer } from "@/lib/offers";
 import { saveTenantBranding, uploadTenantAsset, clearTenantAsset, type AssetKind } from "@/lib/branding";
 import { setTenantStripeKey, clearTenantStripeKey, testStripeKey } from "@/lib/coach-payments";
+import {
+  clientBelongsToTenant,
+  insertVipMessage,
+  uploadVipImage,
+  markThreadRead,
+  notifyNewVipMessage,
+  setTenantNotifyEmails,
+} from "@/lib/vip";
 
 /** Normalise les champs de segmentation reçus du formulaire coach. */
 function readFilter(formData: FormData): AudienceFilter {
@@ -212,7 +220,8 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
   if (priceEuros && (priceCents == null || !Number.isFinite(priceCents) || priceCents < 0)) {
     return { error: "Prix invalide (ex : 190 ou 29,90)." };
   }
-  const res = await createOffer(tenantId, name, months, priceCents);
+  const vipChat = formData.get("vip_chat") === "on";
+  const res = await createOffer(tenantId, name, months, priceCents, vipChat);
   if (!res.ok) return { error: res.error };
   revalidatePath("/admin/offres");
   return { ok: true };
@@ -439,4 +448,95 @@ export async function deleteScheduled(formData: FormData): Promise<void> {
   const admin = createAdminClient();
   await admin.from("scheduled_pushes").delete().eq("id", id).is("sent_at", null);
   revalidatePath("/admin/notifications");
+}
+
+// ------------------------------------------------------------------ Chat VIP (Lot 2)
+export interface ChatState {
+  ok?: boolean;
+  error?: string;
+}
+
+/** Le coach répond à un client dans le Chat VIP (texte et/ou image). */
+export async function sendCoachVipMessage(_prev: ChatState, formData: FormData): Promise<ChatState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+
+  const clientId = String(formData.get("client_id") ?? "").trim();
+  if (!clientId) return { error: "Client introuvable." };
+  const client = await clientBelongsToTenant(clientId, tenantId);
+  if (!client) return { error: "Ce client n'est pas rattaché à ton compte." };
+
+  const body = String(formData.get("body") ?? "").trim().slice(0, 4000);
+  const file = formData.get("image");
+  let imageUrl: string | null = null;
+  if (file instanceof File && file.size > 0) {
+    const up = await uploadVipImage(clientId, file);
+    if (up.error) return { error: up.error };
+    imageUrl = up.url ?? null;
+  }
+  if (!body && !imageUrl) return { error: "Écris un message ou ajoute une image." };
+
+  const id = await insertVipMessage({
+    tenantId,
+    clientId,
+    sender: "coach",
+    body: body || null,
+    imageUrl,
+  });
+  if (!id) return { error: "Envoi impossible." };
+
+  await markThreadRead(clientId, "coach");
+  await notifyNewVipMessage({
+    tenantId,
+    clientId,
+    sender: "coach",
+    clientName: client.name,
+    preview: body || "📷 Photo",
+  });
+
+  revalidatePath(`/admin/chat/${clientId}`);
+  revalidatePath("/admin/chat");
+  return { ok: true };
+}
+
+/** Marque le fil d'un client comme lu par le coach (à l'ouverture). */
+export async function markCoachThreadRead(clientId: string): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const client = await clientBelongsToTenant(clientId, ctx.profile.tenant_id);
+  if (!client) return;
+  await markThreadRead(clientId, "coach");
+  revalidatePath("/admin/chat");
+}
+
+export interface NotifyEmailsState {
+  ok?: boolean;
+  error?: string;
+}
+
+/** Enregistre les e-mails de notification du coach (nouveaux messages VIP). */
+export async function saveNotifyEmails(_prev: NotifyEmailsState, formData: FormData): Promise<NotifyEmailsState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+
+  const raw = String(formData.get("emails") ?? "");
+  const emails = Array.from(
+    new Set(
+      raw
+        .split(/[\s,;]+/)
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  );
+  const invalid = emails.find((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+  if (invalid) return { error: `Adresse invalide : ${invalid}` };
+  if (emails.length > 10) return { error: "10 adresses maximum." };
+
+  await setTenantNotifyEmails(tenantId, emails);
+  revalidatePath("/admin/notifications");
+  return { ok: true };
 }

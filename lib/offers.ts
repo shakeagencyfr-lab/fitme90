@@ -19,11 +19,12 @@ export interface Offer {
   currency: string;
   position: number;
   is_active: boolean;
+  vip_chat: boolean;
   created_at: string;
 }
 
 const OFFER_COLS =
-  "id, tenant_id, name, duration_months, price_cents, currency, position, is_active, created_at";
+  "id, tenant_id, name, duration_months, price_cents, currency, position, is_active, vip_chat, created_at";
 
 export function isValidDuration(m: number): m is OfferDurationMonths {
   return (OFFER_DURATIONS_MONTHS as readonly number[]).includes(m);
@@ -160,6 +161,7 @@ export async function createOffer(
   name: string,
   durationMonths: number,
   priceCents: number | null,
+  vipChat = false,
 ): Promise<CreateOfferResult> {
   const trimmed = name.trim().slice(0, 80);
   if (!trimmed) return { ok: false, error: "Donne un nom à l'offre." };
@@ -182,6 +184,7 @@ export async function createOffer(
     name: trimmed,
     duration_months: durationMonths,
     price_cents: priceCents,
+    vip_chat: vipChat,
     position: count ?? 0,
   });
   if (error) return { ok: false, error: "Création impossible." };

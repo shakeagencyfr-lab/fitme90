@@ -7,6 +7,7 @@ import { CoachWidget } from "@/components/coach-widget";
 import { PageTransition } from "@/components/page-transition";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { isShopEnabled } from "@/lib/shop";
+import { clientVipContext } from "@/lib/vip";
 import { PROGRAM_DAYS } from "@/lib/config";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
@@ -18,12 +19,15 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // dashboard admin.
   if (isCoachAccount(ctx)) redirect("/admin");
 
+  // Onglet Chat VIP : uniquement si l'offre du client porte l'option.
+  const vip = await clientVipContext(ctx.userId);
+
   const day = ctx.access.day;
   const dayPct = Math.max(1, Math.round((Math.min(day, PROGRAM_DAYS) / PROGRAM_DAYS) * 100));
 
   return (
     <div className="min-h-dvh bg-paper nav:flex nav:items-start">
-      <AppNav day={day} dayPct={dayPct} shopEnabled={shopEnabled} />
+      <AppNav day={day} dayPct={dayPct} shopEnabled={shopEnabled} vipEnabled={vip.enabled} />
       <main className="min-w-0 flex-1 px-4 pt-5 pb-[110px] nav:px-8 nav:pt-8 nav:pb-20">
         <PageTransition>{children}</PageTransition>
       </main>
