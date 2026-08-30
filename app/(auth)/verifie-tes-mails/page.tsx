@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "Vérifie tes e-mails, FitMe90" };
+export const metadata = { title: "Vérifie tes e-mails" };
 
 export default function VerifieTesMailsPage() {
   return (

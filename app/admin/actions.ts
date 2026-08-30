@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminOrNull } from "@/lib/admin";
 import { broadcastPush, broadcastPushToUsers } from "@/lib/push";
@@ -14,6 +15,18 @@ import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, setOfferActive, deleteOffer } from "@/lib/offers";
 import { saveTenantBranding, uploadTenantAsset, clearTenantAsset, type AssetKind } from "@/lib/branding";
 import { setTenantStripeKey, clearTenantStripeKey, testStripeKey } from "@/lib/coach-payments";
+import {
+  clientBelongsToTenant,
+  insertVipMessage,
+  uploadVipImage,
+  markThreadRead,
+  notifyNewVipMessage,
+  setTenantNotifyEmails,
+} from "@/lib/vip";
+import { createPromo, setPromoActive, deletePromo as deletePromoLib } from "@/lib/promo";
+import { generateCoachGiftCodes } from "@/lib/gift";
+import { normalizeSlug, isValidSlug } from "@/lib/config";
+import { markAllCoachNotifsRead, markCoachNotifRead } from "@/lib/notifications";
 
 /** Normalise les champs de segmentation reçus du formulaire coach. */
 function readFilter(formData: FormData): AudienceFilter {
@@ -98,6 +111,44 @@ export async function removeAnthropicKey(): Promise<ByokState> {
   return { ok: true };
 }
 
+// ------------------------------------------------------------------ notes client (CRM+)
+export interface NoteState {
+  ok?: boolean;
+  error?: string;
+}
+
+/** Ajoute une note datée du coach sur un client (visible du coach seul). */
+export async function addCoachNote(_prev: NoteState, formData: FormData): Promise<NoteState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const clientId = String(formData.get("client_id") ?? "").trim();
+  const body = String(formData.get("body") ?? "").trim().slice(0, 4000);
+  if (!clientId) return { error: "Client introuvable." };
+  if (!body) return { error: "Écris une note." };
+  const admin = createAdminClient();
+  const { error } = await admin.from("coach_notes").insert({
+    client_id: clientId,
+    coach_id: ctx.userId,
+    tenant_id: ctx.profile?.tenant_id ?? null,
+    body,
+  });
+  if (error) return { error: "Enregistrement impossible." };
+  revalidatePath(`/admin/clients/${clientId}`);
+  return { ok: true };
+}
+
+/** Supprime une note (form action directe). */
+export async function deleteCoachNote(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return;
+  const id = String(formData.get("id") ?? "");
+  const clientId = String(formData.get("client_id") ?? "");
+  if (!id) return;
+  const admin = createAdminClient();
+  await admin.from("coach_notes").delete().eq("id", id);
+  if (clientId) revalidatePath(`/admin/clients/${clientId}`);
+}
+
 // ------------------------------------------------------------------ personnalisation (Lot 5)
 export interface BrandingState {
   ok?: boolean;
@@ -169,12 +220,33 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
   if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
   const name = String(formData.get("name") ?? "");
   const months = Number(formData.get("duration_months") ?? 0);
-  const priceEuros = String(formData.get("price_euros") ?? "").replace(",", ".").trim();
-  const priceCents = priceEuros ? Math.round(Number(priceEuros) * 100) : null;
-  if (priceEuros && (priceCents == null || !Number.isFinite(priceCents) || priceCents < 0)) {
+  const billingType = formData.get("billing_type") === "subscription" ? "subscription" : "one_time";
+  const vipChat = formData.get("vip_chat") === "on";
+
+  // Parse un montant en euros (« 190 » ou « 29,90 ») → centimes, ou null si vide.
+  const toCents = (raw: unknown): { cents: number | null; bad: boolean } => {
+    const s = String(raw ?? "").replace(",", ".").trim();
+    if (!s) return { cents: null, bad: false };
+    const n = Math.round(Number(s) * 100);
+    return { cents: n, bad: !Number.isFinite(n) || n < 0 };
+  };
+
+  const price = toCents(formData.get("price_euros"));
+  const month = toCents(formData.get("price_month_euros"));
+  const year = toCents(formData.get("price_year_euros"));
+  if (price.bad || month.bad || year.bad) {
     return { error: "Prix invalide (ex : 190 ou 29,90)." };
   }
-  const res = await createOffer(tenantId, name, months, priceCents);
+
+  const res = await createOffer(tenantId, {
+    name,
+    durationMonths: months,
+    vipChat,
+    billingType,
+    priceCents: price.cents,
+    priceMonthCents: month.cents,
+    priceYearCents: year.cents,
+  });
   if (!res.ok) return { error: res.error };
   revalidatePath("/admin/offres");
   return { ok: true };
@@ -401,4 +473,285 @@ export async function deleteScheduled(formData: FormData): Promise<void> {
   const admin = createAdminClient();
   await admin.from("scheduled_pushes").delete().eq("id", id).is("sent_at", null);
   revalidatePath("/admin/notifications");
+}
+
+// ------------------------------------------------------------------ Chat VIP (Lot 2)
+export interface ChatState {
+  ok?: boolean;
+  error?: string;
+}
+
+/** Le coach répond à un client dans le Chat VIP (texte et/ou image). */
+export async function sendCoachVipMessage(_prev: ChatState, formData: FormData): Promise<ChatState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+
+  const clientId = String(formData.get("client_id") ?? "").trim();
+  if (!clientId) return { error: "Client introuvable." };
+  const client = await clientBelongsToTenant(clientId, tenantId);
+  if (!client) return { error: "Ce client n'est pas rattaché à ton compte." };
+
+  const body = String(formData.get("body") ?? "").trim().slice(0, 4000);
+  const file = formData.get("image");
+  let imageUrl: string | null = null;
+  if (file instanceof File && file.size > 0) {
+    const up = await uploadVipImage(clientId, file);
+    if (up.error) return { error: up.error };
+    imageUrl = up.url ?? null;
+  }
+  if (!body && !imageUrl) return { error: "Écris un message ou ajoute une image." };
+
+  const id = await insertVipMessage({
+    tenantId,
+    clientId,
+    sender: "coach",
+    body: body || null,
+    imageUrl,
+  });
+  if (!id) return { error: "Envoi impossible." };
+
+  await markThreadRead(clientId, "coach");
+  await notifyNewVipMessage({
+    tenantId,
+    clientId,
+    sender: "coach",
+    clientName: client.name,
+    preview: body || "📷 Photo",
+  });
+
+  revalidatePath(`/admin/clients/${clientId}`);
+  revalidatePath(`/admin/chat/${clientId}`);
+  revalidatePath("/admin/chat");
+  return { ok: true };
+}
+
+/** Marque le fil d'un client comme lu par le coach (à l'ouverture). */
+export async function markCoachThreadRead(clientId: string): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const client = await clientBelongsToTenant(clientId, ctx.profile.tenant_id);
+  if (!client) return;
+  await markThreadRead(clientId, "coach");
+  revalidatePath("/admin/chat");
+}
+
+export interface NotifyEmailsState {
+  ok?: boolean;
+  error?: string;
+}
+
+/** Enregistre les e-mails de notification du coach (nouveaux messages VIP). */
+export async function saveNotifyEmails(_prev: NotifyEmailsState, formData: FormData): Promise<NotifyEmailsState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+
+  const raw = String(formData.get("emails") ?? "");
+  const emails = Array.from(
+    new Set(
+      raw
+        .split(/[\s,;]+/)
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  );
+  const invalid = emails.find((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+  if (invalid) return { error: `Adresse invalide : ${invalid}` };
+  if (emails.length > 10) return { error: "10 adresses maximum." };
+
+  await setTenantNotifyEmails(tenantId, emails);
+  revalidatePath("/admin/notifications");
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ codes promo & cadeaux
+export interface PromoFormState {
+  ok?: boolean;
+  error?: string;
+}
+
+/** Crée un code promo pour le coach (remise % ou € sur ses offres). */
+export async function addPromo(_prev: PromoFormState, formData: FormData): Promise<PromoFormState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+
+  const code = String(formData.get("code") ?? "");
+  const type = formData.get("discount_type") === "fixed" ? "fixed" : "percent";
+  const rawValue = String(formData.get("value") ?? "").replace(",", ".").trim();
+  const num = Number(rawValue);
+  if (!Number.isFinite(num) || num <= 0) return { error: "Valeur de remise invalide." };
+  const discountValue = type === "fixed" ? Math.round(num * 100) : Math.round(num);
+
+  const maxRaw = String(formData.get("max_uses") ?? "").trim();
+  const maxUses = maxRaw ? Math.max(1, Math.round(Number(maxRaw))) : null;
+  if (maxRaw && !Number.isFinite(Number(maxRaw))) return { error: "Nombre d'utilisations invalide." };
+
+  const expRaw = String(formData.get("expires_at") ?? "").trim();
+  const expiresAt = /^\d{4}-\d{2}-\d{2}$/.test(expRaw) ? `${expRaw}T23:59:59Z` : null;
+
+  const res = await createPromo(tenantId, { code, discountType: type, discountValue, maxUses, expiresAt });
+  if (!res.ok) return { error: res.error };
+  revalidatePath("/admin/codes");
+  return { ok: true };
+}
+
+export async function togglePromo(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = String(formData.get("id") ?? "");
+  const active = formData.get("active") === "on";
+  if (!id) return;
+  await setPromoActive(ctx.profile.tenant_id, id, active);
+  revalidatePath("/admin/codes");
+}
+
+export async function removePromo(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await deletePromoLib(ctx.profile.tenant_id, id);
+  revalidatePath("/admin/codes");
+}
+
+export interface GiftGenState {
+  ok?: boolean;
+  error?: string;
+  codes?: string[];
+}
+
+/** Génère des codes cadeaux gratuits pour une offre à paiement unique. */
+export async function generateGiftCodesAction(_prev: GiftGenState, formData: FormData): Promise<GiftGenState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+  const offerId = String(formData.get("offer_id") ?? "").trim();
+  if (!offerId) return { error: "Choisis une offre." };
+  const count = Math.max(1, Math.min(50, Math.round(Number(formData.get("count") ?? 1)) || 1));
+  const note = String(formData.get("note") ?? "").trim() || null;
+  const res = await generateCoachGiftCodes(tenantId, offerId, count, note);
+  if (!res.ok) return { error: res.error };
+  revalidatePath("/admin/codes");
+  return { ok: true, codes: res.codes };
+}
+
+// ------------------------------------------------------------------ suppression client
+const CLIENT_USER_TABLES: [string, string][] = [
+  ["ai_calls", "user_id"],
+  ["coach_messages", "user_id"],
+  ["coach_conversations", "user_id"],
+  ["equipment", "user_id"],
+  ["measurements", "user_id"],
+  ["photos", "user_id"],
+  ["programs", "user_id"],
+  ["push_subscriptions", "user_id"],
+  ["questionnaires", "user_id"],
+  ["session_logs", "user_id"],
+  ["shopping_checks", "user_id"],
+  ["weights", "user_id"],
+  ["coach_notes", "client_id"],
+  ["vip_messages", "client_id"],
+];
+
+/**
+ * Supprime DÉFINITIVEMENT un client : toutes ses données applicatives, son
+ * profil et son compte d'authentification. Réservé au coach (garde admin).
+ * Action irréversible.
+ */
+export async function deleteClient(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return;
+  const clientId = String(formData.get("id") ?? "").trim();
+  if (!clientId || clientId === ctx.userId) return; // jamais son propre compte
+
+  const admin = createAdminClient();
+  for (const [table, col] of CLIENT_USER_TABLES) {
+    await admin.from(table).delete().eq(col, clientId);
+  }
+  // Libère d'éventuels codes cadeaux utilisés par ce client (réutilisables).
+  await admin.from("gift_codes").update({ used_by: null, used_at: null }).eq("used_by", clientId);
+  await admin.from("profiles").delete().eq("id", clientId);
+  // Compte d'authentification (service role).
+  try {
+    await admin.auth.admin.deleteUser(clientId);
+  } catch {
+    /* le profil est déjà supprimé ; on n'échoue pas le flux pour autant */
+  }
+
+  revalidatePath("/admin");
+  redirect("/admin");
+}
+
+/** Marque toutes les notifications du coach comme lues (cloche du dashboard). */
+export async function markAllNotificationsRead(): Promise<void> {
+  const ctx = await getAdminOrNull();
+  const tenantId = ctx?.profile?.tenant_id;
+  if (!tenantId) return;
+  await markAllCoachNotifsRead(tenantId);
+  revalidatePath("/admin", "layout");
+}
+
+/** Marque une notification précise comme lue (au clic). */
+export async function markNotificationRead(id: string): Promise<void> {
+  const ctx = await getAdminOrNull();
+  const tenantId = ctx?.profile?.tenant_id;
+  if (!tenantId || !id) return;
+  await markCoachNotifRead(tenantId, id);
+  revalidatePath("/admin", "layout");
+}
+
+export interface SubdomainState {
+  ok?: boolean;
+  error?: string;
+  value?: string;
+}
+
+/**
+ * Enregistre l'ADRESSE PERSONNALISÉE de la landing du coach : le nom qui apparaît
+ * à la fin de l'URL (`fitme90.com/<nom>`, et aussi `<nom>.fitme90.com` si le DNS
+ * générique est branché). Stocké dans la colonne `subdomain`. Vide = on retire.
+ * Refuse les formes invalides, les noms réservés et ceux déjà pris.
+ */
+export async function saveSubdomain(_prev: SubdomainState, formData: FormData): Promise<SubdomainState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+
+  const raw = String(formData.get("subdomain") ?? "");
+  const admin = createAdminClient();
+
+  // Champ vidé : on retire l'adresse personnalisée.
+  if (!raw.trim()) {
+    await admin.from("tenants").update({ subdomain: null }).eq("id", tenantId);
+    revalidatePath("/admin/offres");
+    return { ok: true, value: "" };
+  }
+
+  const sub = normalizeSlug(raw);
+  if (!isValidSlug(sub)) {
+    return { error: "Adresse invalide ou réservée (3 à 40 caractères : lettres, chiffres, tirets).", value: sub };
+  }
+
+  // Déjà prise par un AUTRE coach ? (unicité aussi sur le slug pour éviter les
+  // collisions avec le chemin /c/[slug] d'un autre coach.)
+  const { data: taken } = await admin
+    .from("tenants")
+    .select("id")
+    .or(`subdomain.eq.${sub},slug.eq.${sub}`)
+    .neq("id", tenantId)
+    .maybeSingle<{ id: string }>();
+  if (taken) return { error: "Cette adresse est déjà utilisée.", value: sub };
+
+  const { error } = await admin.from("tenants").update({ subdomain: sub }).eq("id", tenantId);
+  if (error) return { error: "Enregistrement impossible (adresse peut-être déjà prise).", value: sub };
+
+  revalidatePath("/admin/offres");
+  return { ok: true, value: sub };
 }

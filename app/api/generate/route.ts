@@ -34,6 +34,12 @@ export async function POST() {
       { status: 403 },
     );
   }
+  if (ctx.access.restricted) {
+    return NextResponse.json(
+      { error: "Abonnement en attente de paiement. Régularise pour réactiver la génération." },
+      { status: 402 },
+    );
+  }
 
   // 3. Rate limit (plafond total d'appels de génération)
   const limit = await checkLimit(ctx.userId, "generate", LIMIT_GENERATE_TOTAL);

@@ -6,6 +6,7 @@ import { publicOffersBySlug, type Offer, type PublicTenant } from "@/lib/offers"
 import { programDaysForMonths, formatEuros, DEFAULT_BRAND_COLOR } from "@/lib/config";
 import { GridScan, AppPreview, MacroOrbit } from "@/components/landing-visuals";
 import { S } from "@/components/landing-icons";
+import { SubscriptionPrice } from "@/components/subscription-price";
 
 export const dynamic = "force-dynamic";
 export const viewport: Viewport = { themeColor: "#0a0b0c" };
@@ -70,7 +71,7 @@ const nutritionBullets = [
 ];
 
 const forWho = [
-  { title: "Débutant complet", body: "On part de ta technique, sans te jeter dans le grand bain." },
+  { title: "Du débutant au confirmé", body: "Débutant, on installe la technique et l'habitude ; confirmé, on cherche la surcharge et la performance. Le programme se cale sur ton niveau." },
   { title: "Une contrainte de santé", body: "Écran santé au départ, exercices adaptés, validation médecin au besoin." },
   { title: "Allergies, végé, halal, casher", body: "Tes contraintes alimentaires respectées dans toute la nutrition." },
   { title: "Peu de temps", body: "Tu choisis tes jours ; les séances sont calibrées pour ta réalité." },
@@ -81,7 +82,7 @@ const forWho = [
 const faqs = [
   { q: "Faut-il une salle ou du matériel particulier ?", a: "Non. Tu photographies ce que tu as, salle complète, home-gym ou quelques haltères, et le programme se construit uniquement avec ce matériel." },
   { q: "Je suis débutant, est-ce adapté ?", a: "Oui. Le début du programme est dédié à la technique et à l'installation de l'habitude. On progresse ensuite graduellement." },
-  { q: "Comment se passe le paiement ?", a: "Le paiement est unique et sécurisé par Stripe, directement auprès de ton coach. Aucun abonnement caché." },
+  { q: "Comment se passe le paiement ?", a: "Le paiement est sécurisé par Stripe, directement auprès de ton coach. Selon le programme choisi, c'est un paiement unique ou un abonnement (mensuel ou annuel), résiliable à tout moment depuis ton espace." },
   { q: "Qui conçoit vraiment le programme ?", a: "Ton coach. Le programme est bâti sur SA méthode ; il s'appuie sur une IA qu'il a entraînée sur sa façon de travailler. L'assistant IA prolonge cet accompagnement au quotidien, mais ne remplace pas ton coach ni un avis médical." },
   { q: "J'ai une blessure, une pathologie ou une grossesse ?", a: "Un écran santé au démarrage repère les situations à risque. Le programme est adapté ou mis en pause en attendant l'avis de ton médecin." },
   { q: "Que se passe-t-il après le programme ?", a: "Le coach IA se désactive à la fin, mais ton plan reste consultable un moment de plus en lecture seule." },
@@ -107,39 +108,64 @@ function Brand({ tenant, imgClass = "h-11", textClass = "text-[20px]" }: { tenan
 }
 
 function OfferCard({ offer, slug, chargesEnabled }: { offer: Offer; slug: string; chargesEnabled: boolean }) {
+  const isSub = offer.billing_type === "subscription";
   return (
     <article className="flex flex-col gap-5 rounded-card-lg border border-white/12 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-7">
       <div className="flex flex-col gap-1.5">
-        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-brand">{durationText(offer.duration_months)}</span>
+        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-brand">
+          {isSub ? "Abonnement" : durationText(offer.duration_months)}
+        </span>
         <h3 className="font-archivo text-[22px] font-bold leading-tight tracking-[-0.02em] text-white">{offer.name}</h3>
       </div>
-      <div className="flex items-end gap-2">
-        <span className="font-archivo text-[clamp(40px,7vw,56px)] font-extrabold leading-none tracking-[-0.03em] text-white">
-          {formatEuros(offer.price_cents)}
-        </span>
-        <span className="pb-2 text-[13px] text-white/55">paiement unique</span>
-      </div>
+
+      {isSub ? (
+        <SubscriptionPrice
+          slug={slug}
+          offerId={offer.id}
+          priceMonthCents={offer.price_month_cents}
+          priceYearCents={offer.price_year_cents}
+          chargesEnabled={chargesEnabled}
+        />
+      ) : (
+        <>
+          <div className="flex items-end gap-2">
+            <span className="font-archivo text-[clamp(40px,7vw,56px)] font-extrabold leading-none tracking-[-0.03em] text-white">
+              {formatEuros(offer.price_cents)}
+            </span>
+            <span className="pb-2 text-[13px] text-white/55">paiement unique</span>
+          </div>
+        </>
+      )}
+
       <ul className="flex flex-col gap-2 border-t border-white/10 pt-4">
-        {["Programme conçu par ton coach", "Accompagnement nutritionnel", "Assistant IA inclus", "Espace client & suivi"].map((it) => (
+        {[
+          "Programme conçu par ton coach",
+          "Accompagnement nutritionnel",
+          "Assistant IA inclus",
+          ...(offer.vip_chat ? ["Chat VIP avec ton coach"] : []),
+          "Espace client & suivi",
+        ].map((it) => (
           <li key={it} className="flex items-start gap-2.5 text-[14px] leading-[1.5] text-white/75">
             <S.check className="mt-0.5 h-4.5 w-4.5 shrink-0 text-brand" />
             {it}
           </li>
         ))}
       </ul>
-      {chargesEnabled ? (
-        <Link
-          href={`/inscription?c=${slug}&offer=${offer.id}`}
-          className="tap inline-flex h-[52px] items-center justify-center gap-2 rounded-btn bg-brand px-6 text-[16px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]"
-        >
-          Choisir ce programme
-          <S.arrow className="h-4.5 w-4.5" />
-        </Link>
-      ) : (
-        <span className="inline-flex h-[52px] items-center justify-center rounded-btn border border-white/15 px-6 text-[14px] text-white/50">
-          Bientôt disponible
-        </span>
-      )}
+
+      {!isSub &&
+        (chargesEnabled ? (
+          <Link
+            href={`/inscription?c=${slug}&offer=${offer.id}`}
+            className="tap inline-flex h-[52px] w-full items-center justify-center gap-2 whitespace-nowrap rounded-btn bg-brand px-5 text-[15px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]"
+          >
+            Choisir ce programme
+            <S.arrow className="h-4.5 w-4.5 shrink-0" />
+          </Link>
+        ) : (
+          <span className="inline-flex h-[52px] items-center justify-center rounded-btn border border-white/15 px-6 text-[14px] text-white/50">
+            Bientôt disponible
+          </span>
+        ))}
     </article>
   );
 }
@@ -159,14 +185,21 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
   return (
     <div
       className="min-h-dvh scroll-smooth bg-[#0a0b0c] text-white [scrollbar-color:#333_#0a0b0c]"
-      style={{ ["--color-brand" as string]: accent } as CSSProperties}
+      style={
+        {
+          ["--color-brand" as string]: accent,
+          // Le survol des CTA reste dans l'univers de couleur du coach (nuance
+          // plus foncée de son accent) au lieu de repasser à l'orange FitMe.
+          ["--color-brand-hover" as string]: `color-mix(in srgb, ${accent} 85%, #000)`,
+        } as CSSProperties
+      }
     >
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0a0b0c]/80 backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
           <Link href="#top" className="flex items-center"><Brand tenant={tenant} imgClass="h-11 sm:h-14" /></Link>
           <div className="flex items-center gap-3">
-            <Link href="/connexion" className="hidden text-[14px] text-white/70 transition-colors hover:text-white sm:inline">
+            <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-white/70 transition-colors hover:text-white sm:inline">
               Se connecter
             </Link>
             {offers.length > 0 ? (
@@ -219,7 +252,7 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
               { v: "Ton coach", l: "conçoit ta méthode" },
               { v: "100 %", l: "adapté à ta salle & ta santé" },
               { v: "Assistant IA", l: "formé par ton coach, inclus" },
-              { v: "0", l: "abonnement, paiement unique" },
+              { v: "Sur mesure", l: "à l'unité ou en abonnement" },
             ].map((s) => (
               <div key={s.l} className="flex flex-col gap-1 px-2">
                 <div className="font-archivo text-[clamp(24px,4vw,34px)] font-extrabold leading-none tracking-[-0.03em] text-white">{s.v}</div>
@@ -399,12 +432,38 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
                 Aucune offre disponible pour le moment. Reviens bientôt.
               </div>
             ) : (
-              <div className={`mx-auto mt-12 grid max-w-[900px] gap-5 ${offers.length === 1 ? "sm:max-w-[440px]" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
+              <div
+                className={`mx-auto mt-12 grid gap-5 ${
+                  offers.length === 1
+                    ? "max-w-[520px]"
+                    : offers.length === 2
+                      ? "max-w-[820px] sm:grid-cols-2"
+                      : "max-w-[1120px] sm:grid-cols-2 lg:grid-cols-3"
+                }`}
+              >
                 {offers.map((o) => (
                   <OfferCard key={o.id} offer={o} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} />
                 ))}
               </div>
             )}
+
+            {/* Offrir un programme (carte cadeau) */}
+            {tenant.chargesEnabled && offers.some((o) => o.billing_type !== "subscription") ? (
+              <div className="mx-auto mt-10 flex max-w-[560px] flex-col items-center gap-3 rounded-card-lg border border-white/12 bg-white/[0.03] p-7 text-center">
+                <div className="font-archivo text-[20px] font-bold tracking-[-0.02em] text-white">
+                  Envie de faire plaisir ?
+                </div>
+                <p className="text-[14px] leading-[1.55] text-white/60">
+                  Offre un programme à quelqu&apos;un : tu paies, la personne reçoit un code à utiliser librement.
+                </p>
+                <Link
+                  href={`/c/${tenant.slug}/offrir`}
+                  className="tap mt-1 inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-btn border border-brand bg-brand/10 px-6 text-[15px] font-semibold text-white transition-colors hover:bg-brand/20"
+                >
+                  <S.spark className="h-4 w-4 text-brand" /> Je veux offrir un programme
+                </Link>
+              </div>
+            ) : null}
           </div>
         </section>
 

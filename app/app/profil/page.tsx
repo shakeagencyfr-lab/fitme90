@@ -10,6 +10,7 @@ import { StartDateSetting } from "@/components/start-date-setting";
 import { NotificationSetting } from "@/components/notification-setting";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { RestartOnboarding } from "@/components/onboarding-tour";
+import { SubscriptionCard } from "@/components/subscription-card";
 import { isAdminEmail } from "@/lib/admin";
 import { COACH_CREDENTIAL } from "@/lib/config";
 
@@ -23,9 +24,20 @@ export default async function ProfilPage() {
   const [{ data: prof }, { data: lastWeight }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("name, age, height_cm, rest_hr, start_date, sex")
+      .select("name, age, height_cm, rest_hr, start_date, sex, subscription_id, subscription_interval, subscription_current_period_end, subscription_cancel_at_period_end")
       .eq("id", ctx.userId)
-      .maybeSingle<{ name: string | null; age: number | null; height_cm: number | null; rest_hr: number | null; start_date: string | null; sex: string | null }>(),
+      .maybeSingle<{
+        name: string | null;
+        age: number | null;
+        height_cm: number | null;
+        rest_hr: number | null;
+        start_date: string | null;
+        sex: string | null;
+        subscription_id: string | null;
+        subscription_interval: string | null;
+        subscription_current_period_end: string | null;
+        subscription_cancel_at_period_end: boolean | null;
+      }>(),
     supabase
       .from("weights")
       .select("kg")
@@ -55,6 +67,14 @@ export default async function ProfilPage() {
 
       {["scheduled", "active", "grace"].includes(ctx.access.phase) ? (
         <StartDateSetting current={prof?.start_date ?? ""} />
+      ) : null}
+
+      {prof?.subscription_id ? (
+        <SubscriptionCard
+          interval={prof.subscription_interval}
+          periodEnd={prof.subscription_current_period_end}
+          cancelAtPeriodEnd={!!prof.subscription_cancel_at_period_end}
+        />
       ) : null}
 
       <NotificationSetting />

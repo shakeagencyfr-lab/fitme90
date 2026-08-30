@@ -1,9 +1,14 @@
 import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/guard";
 import { GymStep } from "@/components/gym-step";
-import { Wordmark } from "@/components/brand";
+import { CoachMark } from "@/components/brand";
+import { brandForUser } from "@/lib/branding";
+import { brandMetadataForUser } from "@/lib/brand-metadata";
 
-export const metadata = { title: "Ma salle, FitMe90" };
+export async function generateMetadata() {
+  const ctx = await getSessionContext();
+  return brandMetadataForUser(ctx?.userId ?? null, "Ma salle");
+}
 
 export default async function SallePage() {
   const ctx = await getSessionContext();
@@ -16,7 +21,7 @@ export default async function SallePage() {
   return (
     <div className="min-h-dvh bg-paper">
       <header className="px-5 sm:px-8 pt-6 safe-top">
-        <Wordmark />
+        <CoachMark brand={await brandForUser(ctx.userId)} imgClass="h-9" />
       </header>
       <div className="px-4 py-8 sm:px-8">
         <GymStep nextHref={nextHref} />

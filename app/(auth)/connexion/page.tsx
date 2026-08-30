@@ -1,7 +1,12 @@
 import { LoginForm } from "@/components/auth-forms";
 import { Alert } from "@/components/ui";
+import { CoachAccent } from "@/components/coach-accent";
+import { CoachBrandHeader } from "@/components/coach-brand-header";
+import { brandMetadata } from "@/lib/brand-metadata";
 
-export const metadata = { title: "Connexion, FitMe90" };
+export function generateMetadata({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
+  return brandMetadata(searchParams, "Connexion");
+}
 
 export default async function ConnexionPage({
   searchParams,
@@ -10,13 +15,17 @@ export default async function ConnexionPage({
 }) {
   const sp = await searchParams;
   const suite = typeof sp.suite === "string" ? sp.suite : undefined;
+  const coachSlug = typeof sp.c === "string" ? sp.c : undefined;
   const erreur = sp.erreur;
   return (
-    <div className="flex flex-col gap-4">
-      {erreur === "lien_invalide" ? (
-        <Alert>Ce lien a expiré ou a déjà été utilisé. Reconnecte-toi.</Alert>
-      ) : null}
-      <LoginForm suite={suite} />
-    </div>
+    <CoachAccent slug={coachSlug}>
+      <CoachBrandHeader slug={coachSlug} />
+      <div className="flex flex-col gap-4">
+        {erreur === "lien_invalide" ? (
+          <Alert>Ce lien a expiré ou a déjà été utilisé. Reconnecte-toi.</Alert>
+        ) : null}
+        <LoginForm suite={suite} />
+      </div>
+    </CoachAccent>
   );
 }

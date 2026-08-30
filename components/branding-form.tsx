@@ -21,7 +21,7 @@ export function BrandingForm({ branding, namePlaceholder }: { branding: Branding
 
       {/* Images (formulaires indépendants) */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <AssetUploader kind="logo" label="Logo" hint="PNG/SVG, fond transparent idéalement." currentUrl={branding.logoUrl} />
+        <AssetUploader kind="logo" label="Logo" hint="PNG/SVG, fond transparent idéalement. Compressé automatiquement (3 Mo max)." currentUrl={branding.logoUrl} />
         <AssetUploader kind="favicon" label="Favicon" hint="Petite icône d'onglet (carré, PNG/ICO)." currentUrl={branding.faviconUrl} />
       </div>
 
@@ -83,7 +83,7 @@ export function BrandingForm({ branding, namePlaceholder }: { branding: Branding
 
           {aboutOn ? (
             <div className="flex flex-col gap-3 pt-1">
-              <AssetUploader kind="portrait" label="Photo portrait" currentUrl={branding.aboutPhotoUrl} round hint="Une photo de toi (JPG/PNG)." />
+              <AssetUploader kind="portrait" label="Photo portrait" currentUrl={branding.aboutPhotoUrl} round hint="Une photo de toi (JPG/PNG). Compressée automatiquement, aucune limite de taille à gérer." />
               <label className="flex flex-col gap-1.5">
                 <MonoLabel>Titre de la section</MonoLabel>
                 <input

@@ -111,16 +111,16 @@ export function NotificationSetting() {
   return (
     <Card className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
-        <MonoLabel>Rappels de séance</MonoLabel>
+        <MonoLabel>Notifications</MonoLabel>
         {state === "on" ? (
           <span className="rounded-pill bg-brand/10 px-2.5 py-1 text-[12px] font-semibold text-brand">
-            Activés
+            Activées
           </span>
         ) : null}
       </div>
       <p className="text-[13.5px] leading-[1.6] text-muted">
-        Reçois une notification les jours d'entraînement pour ne jamais oublier ta séance.
-        La régularité fait la moitié du résultat.
+        Reçois une notification les jours d'entraînement pour ne jamais oublier ta séance,
+        et dès que ton coach te répond dans le Chat VIP.
       </p>
 
       {error ? <Alert>{error}</Alert> : null}
@@ -129,11 +129,11 @@ export function NotificationSetting() {
         <div className="text-[13px] text-muted-2">Vérification…</div>
       ) : state === "on" ? (
         <Button variant="outline" className="h-11 self-start" onClick={disable}>
-          Désactiver les rappels
+          Désactiver les notifications
         </Button>
       ) : state === "off" ? (
         <Button className="h-11 self-start" onClick={enable}>
-          Activer les rappels
+          Activer les notifications
         </Button>
       ) : state === "busy" ? (
         <Button className="h-11 self-start" loading disabled>

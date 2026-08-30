@@ -4,15 +4,22 @@ import { useState } from "react";
 import { Button, Alert } from "@/components/ui";
 
 // Lance le paiement d'une offre coach sur le compte Stripe DU COACH (BYOK).
-export function CoachCheckoutButton({ priceLabel }: { priceLabel: string }) {
+// `allowPromo` affiche un champ code promo (paiement unique uniquement).
+export function CoachCheckoutButton({ priceLabel, allowPromo = false }: { priceLabel: string; allowPromo?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [showPromo, setShowPromo] = useState(false);
+  const [code, setCode] = useState("");
 
   async function pay() {
     setBusy(true);
     setError("");
     try {
-      const res = await fetch("/api/coach/checkout", { method: "POST" });
+      const res = await fetch("/api/coach/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ code: code.trim() }),
+      });
       const data = await res.json();
       if (!res.ok || !data.url) throw new Error(data.error || "Paiement indisponible.");
       window.location.href = data.url;
@@ -25,6 +32,28 @@ export function CoachCheckoutButton({ priceLabel }: { priceLabel: string }) {
   return (
     <div className="flex flex-col gap-3">
       {error ? <Alert>{error}</Alert> : null}
+
+      {allowPromo ? (
+        showPromo ? (
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Code promo"
+            autoCapitalize="characters"
+            autoComplete="off"
+            className="tap w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] uppercase tracking-[0.08em] text-ink outline-none focus:border-ink"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowPromo(true)}
+            className="self-start text-[13px] font-semibold text-muted-2 underline underline-offset-2 hover:text-ink"
+          >
+            J&apos;ai un code promo
+          </button>
+        )
+      ) : null}
+
       <Button onClick={pay} loading={busy} full className="h-[54px] text-[16px]">
         Payer {priceLabel} et débloquer
       </Button>

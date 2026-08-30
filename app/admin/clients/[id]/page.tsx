@@ -7,6 +7,13 @@ import { restPattern, startWeekday } from "@/lib/schedule";
 import { computeAdherence } from "@/lib/streak";
 import { Card, MonoLabel } from "@/components/ui";
 import { ClientPush } from "@/components/client-push";
+import { MiniWeightChart, type WeightPoint } from "@/components/mini-weight-chart";
+import { CoachNoteForm } from "@/components/coach-note-form";
+import { deleteCoachNote } from "@/app/admin/actions";
+import { DeleteClientButton } from "@/components/delete-client-button";
+import { VipChat } from "@/components/vip-chat";
+import { clientVipContext, listVipMessages, markThreadRead, type VipMessage } from "@/lib/vip";
+import { aiCostForUser, formatUsd } from "@/lib/ai-cost";
 import type { Plan } from "@/lib/program";
 
 export const metadata = { title: "Fiche client, Admin FitMe90" };
@@ -23,8 +30,31 @@ type Prof = {
   medical_ack_name: string | null;
 };
 
+type MeasureRow = {
+  waist: number | null;
+  hips: number | null;
+  chest: number | null;
+  thigh: number | null;
+  arm: number | null;
+  measured_at: string;
+};
+
+const MEASURE_COLS: [key: keyof MeasureRow, label: string][] = [
+  ["chest", "Poitrine"],
+  ["arm", "Bras"],
+  ["waist", "Taille"],
+  ["hips", "Hanches"],
+  ["thigh", "Cuisse"],
+];
+
 const fmt = (d: string | null) =>
   d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric", timeZone: "UTC" }) : "·";
+
+const fmtShort = (d: string) =>
+  new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "2-digit", timeZone: "UTC" });
+
+const fmtDateTime = (d: string) =>
+  new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric", timeZone: "UTC" });
 
 const val = (v: unknown) =>
   Array.isArray(v) ? v.join(", ") : v == null || v === "" ? "·" : String(v);
@@ -35,34 +65,68 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   const { id } = await params;
   const admin = createAdminClient();
 
-  const [{ data: profile }, { data: quiz }, { data: prog }, { data: logs }] = await Promise.all([
-    admin
-      .from("profiles")
-      .select("id, email, name, sex, paid, start_date, medical_hold, medical_ack_at, medical_ack_name")
-      .eq("id", id)
-      .maybeSingle<Prof>(),
-    admin
-      .from("questionnaires")
-      .select("answers, train_days")
-      .eq("user_id", id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle<{ answers: Record<string, unknown>; train_days: string[] }>(),
-    admin
-      .from("programs")
-      .select("plan")
-      .eq("user_id", id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle<{ plan: Plan }>(),
-    admin.from("session_logs").select("day").eq("user_id", id).returns<{ day: number }[]>(),
-  ]);
+  const [{ data: profile }, { data: quiz }, { data: prog }, { data: logs }, { data: weights }, { data: measures }, { data: notes }] =
+    await Promise.all([
+      admin
+        .from("profiles")
+        .select("id, email, name, sex, paid, start_date, medical_hold, medical_ack_at, medical_ack_name")
+        .eq("id", id)
+        .maybeSingle<Prof>(),
+      admin
+        .from("questionnaires")
+        .select("answers, train_days")
+        .eq("user_id", id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle<{ answers: Record<string, unknown>; train_days: string[] }>(),
+      admin
+        .from("programs")
+        .select("plan")
+        .eq("user_id", id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle<{ plan: Plan }>(),
+      admin.from("session_logs").select("day").eq("user_id", id).returns<{ day: number }[]>(),
+      admin
+        .from("weights")
+        .select("kg, measured_at")
+        .eq("user_id", id)
+        .order("measured_at", { ascending: true })
+        .returns<{ kg: number; measured_at: string }[]>(),
+      admin
+        .from("measurements")
+        .select("waist, hips, chest, thigh, arm, measured_at")
+        .eq("user_id", id)
+        .order("measured_at", { ascending: false })
+        .returns<MeasureRow[]>(),
+      admin
+        .from("coach_notes")
+        .select("id, body, created_at")
+        .eq("client_id", id)
+        .order("created_at", { ascending: false })
+        .returns<{ id: string; body: string; created_at: string }[]>(),
+    ]);
 
   if (!profile) notFound();
+
+  // Chat VIP embarqué dans la fiche : le coach répond en gardant toutes les infos
+  // du client sous les yeux. Affiché seulement si l'offre du client porte l'option.
+  const vipCtx = await clientVipContext(id);
+  let vipMessages: VipMessage[] = [];
+  if (vipCtx.enabled) {
+    vipMessages = await listVipMessages(id);
+    await markThreadRead(id, "coach");
+  }
+
+  // Coût IA (BYOK) de ce client (estimation).
+  const clientCost = await aiCostForUser(id);
 
   const access = computeAccess(profile.paid, profile.start_date);
   const answers = quiz?.answers ?? {};
   const doneDays = (logs ?? []).map((r) => r.day);
+  const weightPoints: WeightPoint[] = (weights ?? []).map((w) => ({ kg: w.kg, date: w.measured_at }));
+  const measureRows = measures ?? [];
+  const noteRows = notes ?? [];
 
   // Adhérence (si un programme est en cours et daté).
   let adherence: number | null = null;
@@ -112,6 +176,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         <Card><Stat label="Jour" value={access.phase === "active" ? `${access.day}/90` : "·"} /></Card>
         <Card><Stat label="Séances faites" value={doneDays.length} /></Card>
         <Card><Stat label="Adhérence" value={adherence == null ? "·" : `${adherence}%`} /></Card>
+        <Card><Stat label="Coût IA" value={formatUsd(clientCost)} /></Card>
       </div>
 
       {/* Santé / décharge */}
@@ -145,8 +210,107 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         </div>
       </Card>
 
+      {/* Chat VIP embarqué : le coach répond avec toutes les infos sous les yeux. */}
+      {vipCtx.enabled ? (
+        <div id="chat-vip" className="scroll-mt-4">
+          <Card className="flex flex-col gap-3.5">
+            <div className="flex flex-col gap-1">
+              <MonoLabel>Chat VIP</MonoLabel>
+              <p className="text-[12px] text-muted-2">Ligne directe avec {displayName}. Texte et photos.</p>
+            </div>
+            <VipChat
+              messages={vipMessages}
+              me="coach"
+              clientId={profile.id}
+              emptyHint="Aucun message. Écris le premier mot à ton client."
+            />
+          </Card>
+        </div>
+      ) : null}
+
+      {/* Évolution du poids */}
+      <Card className="flex flex-col gap-3.5">
+        <div className="flex items-baseline justify-between gap-2">
+          <MonoLabel>Évolution du poids</MonoLabel>
+          {weightPoints.length > 0 ? (
+            <span className="font-mono text-[11px] text-muted-2">{weightPoints.length} pesée{weightPoints.length > 1 ? "s" : ""}</span>
+          ) : null}
+        </div>
+        <MiniWeightChart points={weightPoints} />
+      </Card>
+
+      {/* Mensurations datées */}
+      <Card className="flex flex-col gap-3.5">
+        <MonoLabel>Mensurations (cm)</MonoLabel>
+        {measureRows.length === 0 ? (
+          <p className="text-[13px] text-muted">Aucune mensuration enregistrée.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[420px] border-collapse text-[13.5px]">
+              <thead>
+                <tr className="text-left">
+                  <th className="border-b border-line-2 pb-2 pr-3 font-mono text-[11px] font-medium uppercase tracking-wide text-muted-2">Date</th>
+                  {MEASURE_COLS.map(([key, label]) => (
+                    <th key={key} className="border-b border-line-2 pb-2 px-3 text-right font-mono text-[11px] font-medium uppercase tracking-wide text-muted-2">
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {measureRows.map((m) => (
+                  <tr key={m.measured_at}>
+                    <td className="border-b border-line-2 py-2 pr-3 font-medium text-body whitespace-nowrap">{fmtShort(m.measured_at)}</td>
+                    {MEASURE_COLS.map(([key]) => (
+                      <td key={key} className="border-b border-line-2 py-2 px-3 text-right tabular-nums text-body">
+                        {m[key] == null ? "·" : String(m[key])}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {/* Notes privées du coach */}
+      <Card className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <MonoLabel>Notes privées</MonoLabel>
+          <p className="text-[12px] text-muted-2">Visibles de toi seul. Le client ne les voit jamais.</p>
+        </div>
+        <CoachNoteForm clientId={profile.id} />
+        {noteRows.length > 0 ? (
+          <ul className="flex flex-col gap-2.5 border-t border-line pt-4">
+            {noteRows.map((note) => (
+              <li key={note.id} className="flex flex-col gap-1.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-mono text-[11px] text-muted-2">{fmtDateTime(note.created_at)}</span>
+                  <form action={deleteCoachNote}>
+                    <input type="hidden" name="id" value={note.id} />
+                    <input type="hidden" name="client_id" value={profile.id} />
+                    <button type="submit" className="text-[12px] text-muted-2 underline hover:text-ink">Supprimer</button>
+                  </form>
+                </div>
+                <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-body">{note.body}</p>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </Card>
+
       {/* Message direct */}
       <ClientPush userId={profile.id} name={displayName} />
+
+      {/* Zone dangereuse */}
+      <Card className="flex flex-col gap-3 border-alert-line">
+        <MonoLabel className="text-alert-ink">Zone sensible</MonoLabel>
+        <p className="text-[13px] text-muted">
+          Supprime définitivement ce client et toutes ses données. Action irréversible.
+        </p>
+        <DeleteClientButton clientId={profile.id} name={displayName} />
+      </Card>
     </div>
   );
 }

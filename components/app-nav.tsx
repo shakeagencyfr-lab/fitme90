@@ -45,6 +45,12 @@ const I = {
       <path d="M9 8V6a3 3 0 0 1 6 0v2" />
     </>
   ),
+  chat: (
+    <>
+      <path d="M4 5.5h16v11H9l-4 3.5v-3.5H4z" />
+      <path d="M8 9.5h8M8 12.5h5" />
+    </>
+  ),
   profil: (
     <>
       <circle cx="12" cy="8" r="3.5" />
@@ -64,16 +70,17 @@ type IconKey = keyof typeof I;
 type Item = { href: string; label: string; icon: IconKey };
 
 // Onglets rangés dans « Plus » sur mobile (le reste va dans la barre du bas).
-const IN_MORE = ["/app/evolution", "/app/shop"];
+const IN_MORE = ["/app/evolution", "/app/shop", "/app/chat"];
 
-// Construit la liste des onglets selon que la boutique est activée ou non.
-function buildItems(shopEnabled: boolean): Item[] {
+// Construit la liste des onglets selon les options activées (boutique, chat VIP).
+function buildItems(shopEnabled: boolean, vipEnabled: boolean): Item[] {
   return [
     { href: "/app", label: "Programme", icon: "programme" },
     { href: "/app/agenda", label: "Agenda", icon: "agenda" },
     { href: "/app/seance", label: "Séance", icon: "seance" },
     { href: "/app/nutrition", label: "Nutrition", icon: "nutrition" },
     { href: "/app/evolution", label: "Évolution", icon: "evolution" },
+    ...(vipEnabled ? [{ href: "/app/chat", label: "Chat VIP", icon: "chat" } as Item] : []),
     ...(shopEnabled ? [{ href: "/app/shop", label: "Boutique", icon: "shop" } as Item] : []),
     { href: "/app/profil", label: "Profil", icon: "profil" },
   ];
@@ -95,34 +102,70 @@ function Icon({ children }: { children: ReactNode }) {
   );
 }
 
+// Pastille de comptage (non-lus), lisible et compacte (99+ au-delà).
+function CountBadge({ n }: { n: number }) {
+  if (n <= 0) return null;
+  return (
+    <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 font-mono text-[10px] font-bold leading-none text-white">
+      {n > 99 ? "99+" : n}
+    </span>
+  );
+}
+
+// Point de notification superposé sur une icône (barre du bas / onglet compact).
+function Dot() {
+  return (
+    <span className="absolute -right-1.5 -top-1 size-[9px] rounded-full bg-brand ring-2 ring-surface" />
+  );
+}
+
 export function AppNav({
   day,
   dayPct,
   cycleName,
   shopEnabled = false,
+  vipEnabled = false,
+  vipUnread = 0,
+  brandName = null,
+  brandLogoUrl = null,
 }: {
   day: number;
   dayPct: number;
   cycleName?: string;
   shopEnabled?: boolean;
+  vipEnabled?: boolean;
+  vipUnread?: number;
+  brandName?: string | null;
+  brandLogoUrl?: string | null;
 }) {
   const pathname = usePathname();
   const [more, setMore] = useState(false);
-  const ALL = buildItems(shopEnabled);
+  const ALL = buildItems(shopEnabled, vipEnabled);
   const PRIMARY = ALL.filter((i) => !IN_MORE.includes(i.href));
   const SECONDARY = ALL.filter((i) => IN_MORE.includes(i.href));
   const isActive = (href: string) =>
     href === "/app" ? pathname === "/app" : pathname.startsWith(href);
   const secondaryActive = SECONDARY.some((i) => isActive(i.href));
+  // Non-lus rattachés à l'onglet Chat VIP (0 si l'option n'est pas active).
+  const unreadFor = (href: string) => (href === "/app/chat" ? vipUnread : 0);
+  // Le bouton « Plus » (mobile) doit signaler un non-lu caché dedans.
+  const secondaryUnread = SECONDARY.reduce((n, i) => n + unreadFor(i.href), 0);
 
   return (
     <>
       {/* ───────── Sidebar (desktop ≥ nav) : tous les onglets ───────── */}
       <nav className="hidden nav:sticky nav:top-0 nav:flex nav:h-dvh nav:w-[228px] nav:shrink-0 nav:flex-col nav:gap-0.5 nav:overflow-auto nav:border-r nav:border-line nav:px-3.5 nav:py-6">
-        <div className="flex flex-col gap-1 px-2.5 pb-4">
-          <div className="font-archivo font-extrabold text-[22px] tracking-[-0.02em] text-ink">
-            FitMe<span className="text-brand">90</span>
-          </div>
+        <div className="flex flex-col gap-1.5 px-2.5 pb-4">
+          {brandLogoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={brandLogoUrl} alt={brandName ?? "Logo"} className="h-9 w-auto max-w-[170px] object-contain" />
+          ) : brandName ? (
+            <div className="font-archivo font-extrabold text-[20px] leading-tight tracking-[-0.02em] text-ink">{brandName}</div>
+          ) : (
+            <div className="font-archivo font-extrabold text-[22px] tracking-[-0.02em] text-ink">
+              FitMe<span className="text-brand">90</span>
+            </div>
+          )}
           <div className="font-mono uppercase tracking-[0.14em] text-[10px] text-muted-2">
             Jour {day} sur 90
           </div>
@@ -140,10 +183,13 @@ export function AppNav({
                 on ? "bg-fill text-fillfg" : "text-body-2 hover:bg-paper",
               ].join(" ")}
             >
-              <span className="transition-transform group-active:scale-90">
+              <span className="relative transition-transform group-active:scale-90">
                 <Icon>{I[it.icon]}</Icon>
               </span>
               <span className="font-semibold tracking-[-0.01em]">{it.label}</span>
+              <span className="ml-auto">
+                <CountBadge n={unreadFor(it.href)} />
+              </span>
             </Link>
           );
         })}
@@ -188,6 +234,9 @@ export function AppNav({
                 >
                   <Icon>{I[it.icon]}</Icon>
                   {it.label}
+                  <span className="ml-auto">
+                    <CountBadge n={unreadFor(it.href)} />
+                  </span>
                 </Link>
               );
             })}
@@ -227,8 +276,9 @@ export function AppNav({
             more || secondaryActive ? "bg-paper text-brand" : "text-muted-2",
           ].join(" ")}
         >
-          <span className="transition-transform group-active:scale-90">
+          <span className="relative transition-transform group-active:scale-90">
             <Icon>{I.plus}</Icon>
+            {secondaryUnread > 0 && !more ? <Dot /> : null}
           </span>
           <span className="text-[9.5px] font-semibold tracking-[-0.01em]">Plus</span>
         </button>

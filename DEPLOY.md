@@ -66,6 +66,23 @@ ANTHROPIC_API_KEY=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 NEXT_PUBLIC_SITE_URL=https://TON-DOMAINE
+
+# Sous-domaines personnalisés des landings coach (optionnel) : domaine racine
+# sans protocole ni www (ex "fitme90.com"). Vide = fonctionnalité inactive.
+NEXT_PUBLIC_ROOT_DOMAIN=
+
+# Chiffrement des clés BYOK (Anthropic/Stripe par coach), 32 octets hex :
+SECRETS_ENC_KEY=
+
+# Web Push (rappels séance, notifications Chat VIP) — optionnel :
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:contact@fitme90.app
+
+# E-mails de notification Chat VIP (Resend) — optionnel :
+# sans clé, les e-mails ne sont simplement pas envoyés (le push reste actif).
+RESEND_API_KEY=
+RESEND_FROM=FitMe90 <notifications@fitme90.app>
 ```
 
 `.env.local` n'est jamais commité (voir `.gitignore`). Aucune clé secrète ne doit
@@ -78,6 +95,34 @@ NEXT_PUBLIC_SITE_URL=https://TON-DOMAINE
 3. Renseigne les variables d'environnement (§5).
 4. `NEXT_PUBLIC_SITE_URL` = ton domaine de production.
 5. Déploie. Chaque push sur la branche déploie ; chaque branche donne un aperçu.
+
+## 6 bis. Adresse personnalisée des coachs
+
+Trois niveaux de personnalisation de l'URL de la landing coach :
+
+**a) Adresse par chemin (actif par défaut, aucune config).**
+Chaque coach choisit le nom à la FIN de l'adresse dans **Ma page → Adresse
+personnalisée** : `tondomaine.com/<nom>` (au lieu de `.../c/<slug>`). Le
+`proxy.ts` réécrit tout segment de 1er niveau non réservé vers `/c/<nom>`, résolu
+par `slug` **ou** `subdomain`. La liste des segments réservés (routes de l'app)
+est dans `lib/config.ts` (`RESERVED_PATH_SEGMENTS`) : à tenir à jour si on ajoute
+une route de 1er niveau.
+
+**b) Sous-domaine (optionnel).**
+La même adresse marche aussi en sous-domaine (`<nom>.tondomaine.com`) si :
+1. **DNS générique** : enregistrement joker `*.tondomaine.com` (CNAME vers
+   `cname.vercel-dns.com`, ou ce que Vercel indique).
+2. **Vercel → Domains** : ajoute `*.tondomaine.com` au projet.
+3. **Variable d'env** : `NEXT_PUBLIC_ROOT_DOMAIN=tondomaine.com` (Production +
+   Preview), puis redéploie.
+
+**c) Domaine 100% personnalisé (premium, à venir).**
+La tuyauterie est prête : colonne `tenants.custom_domain` + résolution dans
+`proxy.ts` (un hôte étranger → landing du coach via `lib/custom-domain.ts`).
+Pour activer pour un coach premium : renseigner `custom_domain` sur son tenant,
+puis ajouter ce domaine dans **Vercel → Domains** (le coach pointe son DNS vers
+Vercel). Requiert `NEXT_PUBLIC_ROOT_DOMAIN` défini (pour distinguer un hôte
+étranger). L'activation en libre-service arrivera avec les abonnements premium.
 
 ## 7. Recette de bout en bout (mode test Stripe)
 

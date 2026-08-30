@@ -67,7 +67,7 @@ export function LoginForm({ suite }: { suite?: string }) {
   );
 }
 
-export function SignupForm({ coachSlug, offerId }: { coachSlug?: string; offerId?: string }) {
+export function SignupForm({ coachSlug, offerId, interval }: { coachSlug?: string; offerId?: string; interval?: string }) {
   const [state, action, pending] = useActionState(signUpAction, initial);
   return (
     <form action={action} className="flex flex-col gap-4">
@@ -75,6 +75,7 @@ export function SignupForm({ coachSlug, offerId }: { coachSlug?: string; offerId
       {state.error ? <Alert>{state.error}</Alert> : null}
       {coachSlug ? <input type="hidden" name="coach_slug" value={coachSlug} /> : null}
       {offerId ? <input type="hidden" name="offer_id" value={offerId} /> : null}
+      {interval === "month" || interval === "year" ? <input type="hidden" name="interval" value={interval} /> : null}
       <Field
         id="email"
         name="email"

@@ -120,3 +120,55 @@ export async function deleteAccount(): Promise<void> {
   await supabase.auth.signOut();
   redirect("/?compte=supprime");
 }
+
+// ------------------------------------------------------------------ abonnement
+export interface CancelSubState {
+  ok?: boolean;
+  error?: string;
+  endsAt?: string | null;
+}
+
+/**
+ * Résilie l'abonnement du client : programmé pour s'arrêter à la fin de la
+ * période en cours (fin du mois ou de l'année selon la formule). L'accès reste
+ * plein jusqu'à l'échéance, puis passe en lecture seule. Paiement chez le coach
+ * (BYOK) : on agit avec SA clé Stripe.
+ */
+export async function cancelSubscription(): Promise<CancelSubState> {
+  const ctx = await getSessionContext();
+  if (!ctx) return { error: "Session expirée." };
+  const admin = createAdminClient();
+  const { data: prof } = await admin
+    .from("profiles")
+    .select("subscription_id, tenant_id")
+    .eq("id", ctx.userId)
+    .maybeSingle<{ subscription_id: string | null; tenant_id: string | null }>();
+  if (!prof?.subscription_id || !prof.tenant_id) {
+    return { error: "Aucun abonnement actif." };
+  }
+
+  const { stripeForTenant } = await import("@/lib/coach-payments");
+  const stripe = await stripeForTenant(prof.tenant_id);
+  if (!stripe) return { error: "Paiement indisponible pour le moment." };
+
+  try {
+    const sub = await stripe.subscriptions.update(prof.subscription_id, {
+      cancel_at_period_end: true,
+    });
+    const end = (sub as unknown as { current_period_end?: number }).current_period_end;
+    const endsAt = end ? new Date(end * 1000).toISOString() : null;
+    await admin
+      .from("profiles")
+      .update({
+        subscription_status: sub.status,
+        subscription_cancel_at_period_end: true,
+        subscription_current_period_end: endsAt,
+        subscription_synced_at: new Date().toISOString(),
+      })
+      .eq("id", ctx.userId);
+    revalidatePath("/app/profil");
+    return { ok: true, endsAt };
+  } catch {
+    return { error: "La résiliation a échoué. Réessaie dans un instant." };
+  }
+}
