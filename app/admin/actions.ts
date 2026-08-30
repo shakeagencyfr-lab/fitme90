@@ -98,6 +98,44 @@ export async function removeAnthropicKey(): Promise<ByokState> {
   return { ok: true };
 }
 
+// ------------------------------------------------------------------ notes client (CRM+)
+export interface NoteState {
+  ok?: boolean;
+  error?: string;
+}
+
+/** Ajoute une note datée du coach sur un client (visible du coach seul). */
+export async function addCoachNote(_prev: NoteState, formData: FormData): Promise<NoteState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const clientId = String(formData.get("client_id") ?? "").trim();
+  const body = String(formData.get("body") ?? "").trim().slice(0, 4000);
+  if (!clientId) return { error: "Client introuvable." };
+  if (!body) return { error: "Écris une note." };
+  const admin = createAdminClient();
+  const { error } = await admin.from("coach_notes").insert({
+    client_id: clientId,
+    coach_id: ctx.userId,
+    tenant_id: ctx.profile?.tenant_id ?? null,
+    body,
+  });
+  if (error) return { error: "Enregistrement impossible." };
+  revalidatePath(`/admin/clients/${clientId}`);
+  return { ok: true };
+}
+
+/** Supprime une note (form action directe). */
+export async function deleteCoachNote(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return;
+  const id = String(formData.get("id") ?? "");
+  const clientId = String(formData.get("client_id") ?? "");
+  if (!id) return;
+  const admin = createAdminClient();
+  await admin.from("coach_notes").delete().eq("id", id);
+  if (clientId) revalidatePath(`/admin/clients/${clientId}`);
+}
+
 // ------------------------------------------------------------------ personnalisation (Lot 5)
 export interface BrandingState {
   ok?: boolean;
