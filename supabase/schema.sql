@@ -270,6 +270,6 @@ create table if not exists public.shop_products (
   position    int not null default 0,
   created_at  timestamptz not null default now()
 );
+-- Lu côté serveur (service_role) uniquement : deny-by-default sous RLS, aucun
+-- accès direct du navigateur (comme les autres tables server-only).
 alter table public.shop_products enable row level security;
-create policy "shop_read" on public.shop_products for select to authenticated using (true);
-grant select on public.shop_products to authenticated;
