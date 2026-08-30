@@ -128,64 +128,16 @@ const STEPS: { n: string; title: string; desc: string }[] = [
   },
 ];
 
-type Plan = {
-  name: string;
-  price: string;
-  period: string;
-  tagline: string;
-  features: string[];
-  cta: string;
-  featured?: boolean;
-};
-
-// NOTE : montants indicatifs, à ajuster par le coach (paramétrage business).
-const PLANS: Plan[] = [
-  {
-    name: "Solo",
-    price: "49€",
-    period: "/mois",
-    tagline: "Le coach indépendant qui se lance.",
-    features: [
-      "Jusqu'à 30 clients actifs",
-      "App en marque blanche",
-      "Programmes IA + nutrition",
-      "Coach IA 24/7",
-      "Paiements Stripe + codes promo",
-      "CRM & notifications push",
-    ],
-    cta: "Créer mon espace",
-  },
-  {
-    name: "Salle",
-    price: "99€",
-    period: "/mois",
-    tagline: "La salle ou le studio qui veut fidéliser.",
-    features: [
-      "Jusqu'à 150 clients actifs",
-      "Tout ce qu'inclut Solo",
-      "Abonnements récurrents",
-      "Chat VIP illimité",
-      "Personnalisation avancée",
-      "Support prioritaire",
-    ],
-    cta: "Créer mon espace",
-    featured: true,
-  },
-  {
-    name: "Pro",
-    price: "Sur devis",
-    period: "",
-    tagline: "Franchises et réseaux multi-salles.",
-    features: [
-      "Clients illimités",
-      "Tout ce qu'inclut Salle",
-      "Domaine 100% personnalisé",
-      "Accompagnement au lancement",
-      "Facturation adaptée",
-      "Interlocuteur dédié",
-    ],
-    cta: "Nous contacter",
-  },
+// Ce qui est inclus, mis en avant dans le bloc tarif. Le prix lui-même n'est
+// PAS figé : il est paramétrable par compte (1er client offert, puis paliers
+// selon le nombre de comptes actifs). Les montants seront réglés côté espace.
+const INCLUDED = [
+  "App en marque blanche",
+  "Programmes IA + nutrition",
+  "Coach IA 24/7",
+  "Paiements Stripe + codes promo",
+  "CRM & notifications push",
+  "Sans engagement",
 ];
 
 const FAQ: { q: string; a: string }[] = [
@@ -244,7 +196,7 @@ export default function Home() {
                 href="#formules"
                 className="tap inline-flex items-center justify-center rounded-btn border border-white/20 bg-white/5 px-6 py-3.5 text-[15px] font-semibold text-white/90 transition-colors hover:border-white/40"
               >
-                Voir les formules
+                Voir le tarif
               </a>
             </div>
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-white/55">
@@ -328,62 +280,48 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ───────── Formules ───────── */}
+      {/* ───────── Tarif ───────── */}
       <section id="formules" className="mx-auto w-full max-w-[1120px] px-5 py-16 sm:px-8 sm:py-24">
         <div className="mb-10 flex flex-col gap-3">
-          <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-brand">Formules</span>
+          <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-brand">Tarif</span>
           <h2 className="font-archivo text-[clamp(26px,4.5vw,40px)] font-extrabold leading-[1.05] tracking-[-0.03em]">
-            Un tarif simple, ta marge est à toi
+            Ton premier client est offert
           </h2>
           <p className="max-w-[60ch] text-[14.5px] leading-[1.6] text-white/60">
-            Tu fixes librement le prix que tu factures à tes clients. Notre abonnement est fixe : pas de commission
-            sur tes ventes.
+            Ensuite, un tarif simple selon le nombre de comptes actifs : tu ne paies que ce que tu utilises,
+            sans engagement. Tu fixes librement les prix que tu factures à tes clients.
           </p>
         </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          {PLANS.map((p) => (
-            <div
-              key={p.name}
-              className={[
-                "relative flex flex-col gap-5 rounded-card border p-6",
-                p.featured ? "border-brand bg-brand/[0.06]" : "border-white/10 bg-white/[0.03]",
-              ].join(" ")}
-            >
-              {p.featured ? (
-                <span className="absolute -top-3 left-6 rounded-pill bg-brand px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-white">
-                  Le plus choisi
-                </span>
-              ) : null}
-              <div className="flex flex-col gap-1">
-                <span className="font-archivo text-[18px] font-bold text-white">{p.name}</span>
-                <span className="text-[13.5px] text-white/55">{p.tagline}</span>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="font-archivo text-[34px] font-extrabold tracking-[-0.02em] text-white">{p.price}</span>
-                <span className="text-[14px] text-white/50">{p.period}</span>
-              </div>
-              <ul className="flex flex-col gap-2.5">
-                {p.features.map((ft) => (
-                  <li key={ft} className="flex items-start gap-2.5 text-[14px] text-white/75">
-                    <Icon.check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-                    {ft}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="/inscription-coach"
-                className={[
-                  "tap mt-auto inline-flex items-center justify-center rounded-btn px-5 py-3 text-[14.5px] font-semibold transition-[transform,background-color] duration-150 active:scale-[0.98]",
-                  p.featured ? "bg-brand text-white hover:bg-brand-hover" : "border border-white/20 bg-white/5 text-white hover:border-white/40",
-                ].join(" ")}
-              >
-                {p.cta}
-              </Link>
+        <div className="grid items-center gap-6 rounded-[20px] border border-white/10 bg-white/[0.03] p-6 sm:p-9 lg:grid-cols-[1fr_1px_1fr]">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-baseline gap-2">
+              <span className="font-archivo text-[44px] font-extrabold leading-none tracking-[-0.02em] text-white">0 €</span>
+              <span className="text-[14px] text-white/55">pour ton 1<sup>er</sup> client</span>
             </div>
-          ))}
+            <p className="text-[14px] leading-[1.6] text-white/60">
+              Puis une tarification à l&apos;usage, par palier selon tes comptes actifs. Les montants se règlent
+              depuis ton espace.
+            </p>
+            <Link
+              href="/inscription-coach"
+              className="tap inline-flex w-fit items-center justify-center gap-1.5 rounded-btn bg-brand px-6 py-3.5 text-[15px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]"
+            >
+              Créer mon espace
+              <Icon.arrow className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="hidden h-full w-px bg-white/10 lg:block" />
+          <ul className="grid gap-2.5 sm:grid-cols-2">
+            {INCLUDED.map((ft) => (
+              <li key={ft} className="flex items-start gap-2.5 text-[14px] text-white/80">
+                <Icon.check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                {ft}
+              </li>
+            ))}
+          </ul>
         </div>
         <p className="mt-5 text-center text-[12.5px] text-white/40">
-          Montants indicatifs, ajustables depuis ton espace. Ta clé IA (Anthropic) est facturée séparément à l&apos;usage.
+          Ta clé IA (Anthropic) est facturée séparément à l&apos;usage, sur ta propre clé.
         </p>
       </section>
 
@@ -434,7 +372,7 @@ export default function Home() {
           </span>
           <nav className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-white/55">
             <a href="#fonctionnalites" className="hover:text-white">Fonctionnalités</a>
-            <a href="#formules" className="hover:text-white">Formules</a>
+            <a href="#formules" className="hover:text-white">Tarif</a>
             <a href="#faq" className="hover:text-white">FAQ</a>
             <Link href="/connexion" className="hover:text-white">Connexion</Link>
             <Link href="/mentions-legales" className="hover:text-white">Mentions légales</Link>
