@@ -77,12 +77,14 @@ export async function confirmCoachCheckout(userId: string, sessionId: string): P
       let status: string | null = null;
       let periodEnd: string | null = null;
       let interval: string | null = null;
+      let cancelAtPeriodEnd = false;
       try {
         const sub = await stripe.subscriptions.retrieve(subId);
         status = sub.status;
         const end = (sub as unknown as { current_period_end?: number }).current_period_end;
         periodEnd = end ? new Date(end * 1000).toISOString() : null;
         interval = sub.items?.data?.[0]?.price?.recurring?.interval ?? null;
+        cancelAtPeriodEnd = !!sub.cancel_at_period_end;
       } catch {
         /* on garde au moins les identifiants */
       }
@@ -97,6 +99,7 @@ export async function confirmCoachCheckout(userId: string, sessionId: string): P
           subscription_status: status ?? "active",
           subscription_current_period_end: periodEnd,
           subscription_interval: interval,
+          subscription_cancel_at_period_end: cancelAtPeriodEnd,
           subscription_synced_at: new Date().toISOString(),
         })
         .eq("id", userId);

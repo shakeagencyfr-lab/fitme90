@@ -27,6 +27,7 @@ export interface ProfileRow {
   subscription_status: string | null;
   subscription_current_period_end: string | null;
   subscription_interval: string | null;
+  subscription_cancel_at_period_end: boolean | null;
   subscription_synced_at: string | null;
 }
 
@@ -55,7 +56,7 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, email, name, paid, start_date, photo_consent_at, medical_ack_at, tenant_id, role, subscription_id, subscription_status, subscription_current_period_end, subscription_interval, subscription_synced_at",
+      "id, email, name, paid, start_date, photo_consent_at, medical_ack_at, tenant_id, role, subscription_id, subscription_status, subscription_current_period_end, subscription_interval, subscription_cancel_at_period_end, subscription_synced_at",
     )
     .eq("id", user.id)
     .maybeSingle<ProfileRow>();
@@ -86,6 +87,7 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
       status: profile.subscription_status,
       currentPeriodEnd: profile.subscription_current_period_end,
       interval: profile.subscription_interval,
+      cancelAtPeriodEnd: !!profile.subscription_cancel_at_period_end,
     };
     if (
       subscriptionSyncDue(

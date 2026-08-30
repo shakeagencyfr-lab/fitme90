@@ -19,6 +19,18 @@ export interface Branding {
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 /** Normalise une couleur hex (#rrggbb) ou renvoie null. */
+/** Couleur d'accent d'un coach par son slug (pour brander les pages auth), ou null. */
+export async function accentForSlug(slug: string): Promise<string | null> {
+  if (!slug) return null;
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("tenants")
+    .select("brand_color")
+    .eq("slug", slug)
+    .maybeSingle<{ brand_color: string | null }>();
+  return data?.brand_color ?? null;
+}
+
 export function normalizeColor(raw: string): string | null {
   const t = raw.trim();
   if (!t) return null;

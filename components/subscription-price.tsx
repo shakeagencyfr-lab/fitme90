@@ -71,10 +71,10 @@ export function SubscriptionPrice({ slug, offerId, priceMonthCents, priceYearCen
       {chargesEnabled ? (
         <Link
           href={`/inscription?c=${slug}&offer=${offerId}&interval=${interval}`}
-          className="tap mt-1 inline-flex h-[52px] items-center justify-center gap-2 rounded-btn bg-brand px-6 text-[16px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]"
+          className="tap mt-1 inline-flex h-[52px] w-full items-center justify-center gap-2 whitespace-nowrap rounded-btn bg-brand px-5 text-[15px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]"
         >
           Choisir ce programme
-          <S.arrow className="h-4.5 w-4.5" />
+          <S.arrow className="h-4.5 w-4.5 shrink-0" />
         </Link>
       ) : (
         <span className="mt-1 inline-flex h-[52px] items-center justify-center rounded-btn border border-white/15 px-6 text-[14px] text-white/50">

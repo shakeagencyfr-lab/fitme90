@@ -99,7 +99,7 @@ export function AssetUploader({ kind, label, hint, currentUrl, round }: Props) {
           </div>
         )}
         <div className="flex flex-col items-start gap-1.5">
-          <label className="tap cursor-pointer rounded-btn bg-brand px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-brand-hover">
+          <label className="tap inline-flex cursor-pointer items-center justify-center rounded-btn bg-brand px-3.5 py-2 text-center text-[13px] font-semibold text-white hover:bg-brand-hover">
             {pending ? "Envoi…" : currentUrl ? "Remplacer" : "Choisir une image"}
             <input
               ref={inputRef}

@@ -16,6 +16,7 @@ export interface SubInfo {
   status: string | null;
   currentPeriodEnd: string | null; // ISO
   interval: string | null; // 'month' | 'year'
+  cancelAtPeriodEnd: boolean;
 }
 
 /** L'abonnement donne-t-il un accès plein ? (actif, à l'essai, ou résilié mais pas encore échu) */
@@ -74,6 +75,7 @@ function mapSubscription(sub: Stripe.Subscription): SubInfo {
     status: sub.status,
     currentPeriodEnd: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
     interval,
+    cancelAtPeriodEnd: !!sub.cancel_at_period_end,
   };
 }
 
@@ -84,6 +86,7 @@ interface SubProfileRow {
   subscription_status: string | null;
   subscription_current_period_end: string | null;
   subscription_interval: string | null;
+  subscription_cancel_at_period_end: boolean | null;
 }
 
 async function persistSub(userId: string, info: SubInfo): Promise<void> {
@@ -94,6 +97,7 @@ async function persistSub(userId: string, info: SubInfo): Promise<void> {
       subscription_status: info.status,
       subscription_current_period_end: info.currentPeriodEnd,
       subscription_interval: info.interval,
+      subscription_cancel_at_period_end: info.cancelAtPeriodEnd,
       subscription_synced_at: new Date().toISOString(),
     })
     .eq("id", userId);
@@ -107,7 +111,9 @@ export async function syncSubscriptionForUser(userId: string): Promise<SubInfo> 
   const admin = createAdminClient();
   const { data: prof } = await admin
     .from("profiles")
-    .select("id, tenant_id, subscription_id, subscription_status, subscription_current_period_end, subscription_interval")
+    .select(
+      "id, tenant_id, subscription_id, subscription_status, subscription_current_period_end, subscription_interval, subscription_cancel_at_period_end",
+    )
     .eq("id", userId)
     .maybeSingle<SubProfileRow>();
 
@@ -116,6 +122,7 @@ export async function syncSubscriptionForUser(userId: string): Promise<SubInfo> 
     status: prof?.subscription_status ?? null,
     currentPeriodEnd: prof?.subscription_current_period_end ?? null,
     interval: prof?.subscription_interval ?? null,
+    cancelAtPeriodEnd: !!prof?.subscription_cancel_at_period_end,
   };
   if (!prof?.subscription_id || !prof.tenant_id) return stored;
 
