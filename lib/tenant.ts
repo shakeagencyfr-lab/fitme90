@@ -1,8 +1,30 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import { anthropic } from "@/lib/anthropic";
+import { anthropic, MODELS } from "@/lib/anthropic";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptSecret, decryptSecret, keyHint, secretsEncryptionReady } from "@/lib/crypto";
+
+// BYOK STRICT (par défaut) : si le tenant n'a pas de clé Anthropic valide, on ne
+// bascule PAS sur la clé plateforme (ANTHROPIC_API_KEY) pour les appels facturés
+// au coach ; on refuse l'appel. Cela évite de facturer par erreur la plateforme.
+// Mettre ALLOW_PLATFORM_AI_FALLBACK=1 pour autoriser le repli (déconseillé).
+export const PLATFORM_AI_FALLBACK = process.env.ALLOW_PLATFORM_AI_FALLBACK === "1";
+export const AI_NOT_CONFIGURED_MESSAGE =
+  "L'IA n'est pas configurée pour ce coach. Le coach doit renseigner sa clé Anthropic dans son espace (Configuration IA).";
+
+/**
+ * Résout la clé Anthropic à FACTURER pour cet utilisateur (celle de son tenant).
+ * `missing` vaut true si aucune clé tenant n'est disponible ET que le repli
+ * plateforme est désactivé : l'appelant doit alors refuser l'appel (ne jamais
+ * facturer la plateforme silencieusement).
+ */
+export async function anthropicKeyForBilling(
+  userId: string,
+): Promise<{ key: string | undefined; missing: boolean }> {
+  const key = await tenantAnthropicKey(userId);
+  if (key) return { key, missing: false };
+  return { key: undefined, missing: !PLATFORM_AI_FALLBACK };
+}
 
 // Multi-tenant (Lot 0) : chaque coach/salle est un tenant. Ici, les helpers
 // serveur pour le BYOK (Bring Your Own Key) : la clé Anthropic est propre au
@@ -92,9 +114,17 @@ export async function tenantAnthropicKey(userId: string): Promise<string | null>
  * définie (BYOK), sinon repli sur la clé d'environnement (comportement actuel,
  * non cassant). En Lot 0b on pourra rendre la clé tenant OBLIGATOIRE.
  */
+export class AiNotConfiguredError extends Error {
+  constructor() {
+    super(AI_NOT_CONFIGURED_MESSAGE);
+    this.name = "AiNotConfiguredError";
+  }
+}
+
 export async function anthropicForUser(userId: string): Promise<Anthropic> {
-  const key = await tenantAnthropicKey(userId);
-  return anthropic(key ?? undefined);
+  const { key, missing } = await anthropicKeyForBilling(userId);
+  if (missing) throw new AiNotConfiguredError();
+  return anthropic(key);
 }
 
 export interface TenantKeyStatus {
@@ -122,8 +152,11 @@ export async function tenantKeyStatus(tenantId: string): Promise<TenantKeyStatus
 export async function testAnthropicKey(key: string): Promise<{ ok: boolean; error?: string }> {
   try {
     const client = anthropic(key);
+    // On teste avec le MÊME modèle que la génération : ainsi une clé validée ici
+    // fonctionne à coup sûr en production (pas de faux négatif lié à un modèle
+    // indisponible sur le compte du coach).
     await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: MODELS.generate,
       max_tokens: 4,
       messages: [{ role: "user", content: "ping" }],
     });

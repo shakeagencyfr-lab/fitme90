@@ -5,7 +5,7 @@ import { getSessionContext } from "@/lib/guard";
 import { checkLimit, recordCall } from "@/lib/ratelimit";
 import { screen, type QuizHealthAnswers } from "@/lib/screening";
 import { generateProgram } from "@/lib/program";
-import { tenantAnthropicKey } from "@/lib/tenant";
+import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { clientOffer } from "@/lib/offers";
 import { LIMIT_GENERATE_TOTAL } from "@/lib/config";
 
@@ -92,6 +92,12 @@ export async function POST() {
     .eq("enabled", true);
   const equipment = (equipRows ?? []).map((e) => e.name as string);
 
+  // BYOK strict : on facture la clé du coach, jamais celle de la plateforme.
+  const billing = await anthropicKeyForBilling(ctx.userId);
+  if (billing.missing) {
+    return NextResponse.json({ error: AI_NOT_CONFIGURED_MESSAGE }, { status: 400 });
+  }
+
   // 5-6. Appel modèle + validation JSON
   let result;
   try {
@@ -102,7 +108,7 @@ export async function POST() {
         equipment,
       },
       "high",
-      (await tenantAnthropicKey(ctx.userId)) ?? undefined,
+      billing.key,
     );
   } catch {
     return NextResponse.json(

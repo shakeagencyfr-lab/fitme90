@@ -1,7 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateProgram } from "@/lib/program";
-import { tenantAnthropicKey } from "@/lib/tenant";
+import { anthropicKeyForBilling } from "@/lib/tenant";
 import { subscriptionIsActive } from "@/lib/subscription";
 
 // Régénération automatique du cycle (Lot ④) — abonnements. À chaque nouveau
@@ -87,11 +87,16 @@ export async function regenerateCycleForUser(userId: string): Promise<boolean> {
     const last = weights && weights.length ? weights[weights.length - 1].kg : null;
     const note = priorCycleNote(doneCount ?? 0, trainDays.length, first, last);
 
-    const apiKey = (await tenantAnthropicKey(userId)) ?? undefined;
+    // BYOK strict : la régénération automatique est facturée au coach. Sans clé
+    // tenant valide, on NE régénère PAS (jamais de repli silencieux sur la clé
+    // plateforme en tâche de fond). Le cycle du client sera régénéré au prochain
+    // passage, une fois la clé du coach configurée.
+    const billing = await anthropicKeyForBilling(userId);
+    if (billing.missing) return false;
     const result = await generateProgram(
       { answers: quiz.answers, trainDays, equipment, priorCycleNote: note },
       "medium",
-      apiKey,
+      billing.key,
     );
 
     const { error: insErr } = await admin.from("programs").insert({

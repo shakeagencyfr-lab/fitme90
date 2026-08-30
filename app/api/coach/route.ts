@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
 import { MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
-import { anthropicForUser, tenantAnthropicKey } from "@/lib/tenant";
+import { anthropic } from "@/lib/anthropic";
+import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
 import { buildPersona } from "@/lib/coach-persona";
 import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
@@ -378,7 +379,13 @@ ${JSON.stringify(logs ?? [])}`;
     return `Nutrition mise à jour : ${changes.join(" ; ")}. Les repas, macros et la liste de courses se recalculent. Confirme-le au client (le filtrage des allergènes reste une aide, il doit vérifier les étiquettes).`;
   }
 
-  const aiClient = await anthropicForUser(ctx.userId);
+  // BYOK strict : le coach IA est facturé sur la clé du tenant (coach), jamais
+  // sur la clé plateforme. Sans clé configurée, on refuse proprement (400).
+  const billing = await anthropicKeyForBilling(ctx.userId);
+  if (billing.missing) {
+    return NextResponse.json({ error: AI_NOT_CONFIGURED_MESSAGE }, { status: 400 });
+  }
+  const aiClient = anthropic(billing.key);
   async function callModel(msgs: Anthropic.MessageParam[]) {
     const m = await aiClient.messages.create({
       model: MODELS.coach,
@@ -410,7 +417,7 @@ ${JSON.stringify(logs ?? [])}`;
     const result = await generateProgram(
       { answers: mergedAnswers, trainDays: quiz.train_days ?? [], equipment },
       "low", // rapide : tenir sous ~60 s dans la requête coach (Vercel Hobby)
-      (await tenantAnthropicKey(ctx!.userId)) ?? undefined,
+      billing.key,
     );
     totalUsage.input_tokens += result.usage.input_tokens;
     totalUsage.output_tokens += result.usage.output_tokens;
