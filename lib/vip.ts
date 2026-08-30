@@ -2,6 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { broadcastPushToUsers } from "@/lib/push";
 import { sendEmail } from "@/lib/email";
+import { addCoachNotification } from "@/lib/notifications";
 
 // Chat VIP : un fil de discussion par client (client_id), entre le client et son
 // coach. Texte et/ou images uniquement. Disponible seulement si l'offre achetée
@@ -326,6 +327,17 @@ export async function notifyNewVipMessage(opts: {
     if (opts.sender === "client") {
       const tasks: Promise<unknown>[] = [];
       if (opts.tenantId) {
+        // Cloche du dashboard coach (fil in-app, en plus du push/e-mail).
+        tasks.push(
+          addCoachNotification({
+            tenantId: opts.tenantId,
+            type: "vip_message",
+            title: `${opts.clientName} vous a envoyé un message`,
+            body: opts.preview,
+            url: `/admin/clients/${opts.clientId}#chat-vip`,
+            clientId: opts.clientId,
+          }),
+        );
         const coachIds = await tenantCoachUserIds(opts.tenantId);
         if (coachIds.length) {
           tasks.push(

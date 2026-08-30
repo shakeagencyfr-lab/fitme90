@@ -3,6 +3,7 @@ import { getSessionContext } from "@/lib/guard";
 import { clientVipContext, listVipMessages, markThreadRead } from "@/lib/vip";
 import { VipChat } from "@/components/vip-chat";
 import { VipReadOnMount } from "@/components/vip-read-on-mount";
+import { NotificationSetting } from "@/components/notification-setting";
 
 export const metadata = { title: "Chat VIP, FitMe90" };
 export const dynamic = "force-dynamic";
@@ -36,6 +37,9 @@ export default async function ClientChatPage() {
         me="client"
         emptyHint="Aucun message pour l'instant. Écris à ton coach, il te répondra ici."
       />
+
+      {/* Active le push pour être prévenu dès que le coach répond. */}
+      <NotificationSetting />
     </div>
   );
 }

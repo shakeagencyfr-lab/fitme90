@@ -26,6 +26,7 @@ import {
 import { createPromo, setPromoActive, deletePromo as deletePromoLib } from "@/lib/promo";
 import { generateCoachGiftCodes } from "@/lib/gift";
 import { normalizeSubdomain, isValidSubdomain } from "@/lib/config";
+import { markAllCoachNotifsRead, markCoachNotifRead } from "@/lib/notifications";
 
 /** Normalise les champs de segmentation reçus du formulaire coach. */
 function readFilter(formData: FormData): AudienceFilter {
@@ -685,6 +686,24 @@ export async function deleteClient(formData: FormData): Promise<void> {
 
   revalidatePath("/admin");
   redirect("/admin");
+}
+
+/** Marque toutes les notifications du coach comme lues (cloche du dashboard). */
+export async function markAllNotificationsRead(): Promise<void> {
+  const ctx = await getAdminOrNull();
+  const tenantId = ctx?.profile?.tenant_id;
+  if (!tenantId) return;
+  await markAllCoachNotifsRead(tenantId);
+  revalidatePath("/admin", "layout");
+}
+
+/** Marque une notification précise comme lue (au clic). */
+export async function markNotificationRead(id: string): Promise<void> {
+  const ctx = await getAdminOrNull();
+  const tenantId = ctx?.profile?.tenant_id;
+  if (!tenantId || !id) return;
+  await markCoachNotifRead(tenantId, id);
+  revalidatePath("/admin", "layout");
 }
 
 export interface SubdomainState {

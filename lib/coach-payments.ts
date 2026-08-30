@@ -68,6 +68,28 @@ export async function confirmCoachCheckout(userId: string, sessionId: string): P
 
     const admin = createAdminClient();
 
+    // État courant : pour ne notifier le coach qu'à la PREMIÈRE confirmation
+    // (cette fonction est idempotente et peut être rappelée).
+    const { data: before } = await admin
+      .from("profiles")
+      .select("paid, name, email")
+      .eq("id", userId)
+      .maybeSingle<{ paid: boolean; name: string | null; email: string | null }>();
+    const wasPaid = !!before?.paid;
+    const clientLabel = before?.name || before?.email || "Un client";
+    const notifyPurchase = async (kind: "purchase" | "subscription") => {
+      if (wasPaid) return;
+      const { addCoachNotification } = await import("@/lib/notifications");
+      await addCoachNotification({
+        tenantId: offer.tenant_id,
+        type: kind,
+        title: `${clientLabel} a acheté « ${offer.name} »`,
+        body: kind === "subscription" ? "Nouvel abonnement." : "Paiement unique.",
+        url: `/admin/clients/${userId}`,
+        clientId: userId,
+      });
+    };
+
     // Abonnement : la session est « complete » ; on relit l'abonnement pour son
     // état et sa période, et on garde ses identifiants pour le suivi (sans webhook).
     if (session.mode === "subscription" && session.subscription) {
@@ -103,12 +125,14 @@ export async function confirmCoachCheckout(userId: string, sessionId: string): P
           subscription_synced_at: new Date().toISOString(),
         })
         .eq("id", userId);
+      await notifyPurchase("subscription");
       return true;
     }
 
     // Paiement unique.
     if (session.payment_status !== "paid") return false;
     await admin.from("profiles").update({ paid: true }).eq("id", userId);
+    await notifyPurchase("purchase");
     // Code promo éventuel : on compte l'usage une fois le paiement confirmé.
     const promoCode = session.metadata?.promo_code;
     if (promoCode) {

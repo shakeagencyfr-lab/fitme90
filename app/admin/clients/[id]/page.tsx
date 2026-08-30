@@ -13,6 +13,7 @@ import { deleteCoachNote } from "@/app/admin/actions";
 import { DeleteClientButton } from "@/components/delete-client-button";
 import { VipChat } from "@/components/vip-chat";
 import { clientVipContext, listVipMessages, markThreadRead, type VipMessage } from "@/lib/vip";
+import { aiCostForUser, formatUsd } from "@/lib/ai-cost";
 import type { Plan } from "@/lib/program";
 
 export const metadata = { title: "Fiche client, Admin FitMe90" };
@@ -117,6 +118,9 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     await markThreadRead(id, "coach");
   }
 
+  // Coût IA (BYOK) de ce client (estimation).
+  const clientCost = await aiCostForUser(id);
+
   const access = computeAccess(profile.paid, profile.start_date);
   const answers = quiz?.answers ?? {};
   const doneDays = (logs ?? []).map((r) => r.day);
@@ -172,6 +176,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         <Card><Stat label="Jour" value={access.phase === "active" ? `${access.day}/90` : "·"} /></Card>
         <Card><Stat label="Séances faites" value={doneDays.length} /></Card>
         <Card><Stat label="Adhérence" value={adherence == null ? "·" : `${adherence}%`} /></Card>
+        <Card><Stat label="Coût IA" value={formatUsd(clientCost)} /></Card>
       </div>
 
       {/* Santé / décharge */}
