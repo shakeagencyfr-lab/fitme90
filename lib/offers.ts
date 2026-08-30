@@ -41,16 +41,24 @@ export async function listOffers(tenantId: string): Promise<Offer[]> {
   return (data ?? []) as Offer[];
 }
 
+export interface PublicTenant {
+  id: string;
+  name: string;
+  slug: string;
+  chargesEnabled: boolean;
+  brandColor: string | null;
+  tagline: string | null;
+  headline: string | null;
+  logoUrl: string | null;
+  faviconUrl: string | null;
+  aboutEnabled: boolean;
+  aboutTitle: string | null;
+  aboutText: string | null;
+  aboutPhotoUrl: string | null;
+}
+
 export interface PublicTenantOffers {
-  tenant: {
-    id: string;
-    name: string;
-    slug: string;
-    chargesEnabled: boolean;
-    brandColor: string | null;
-    tagline: string | null;
-    headline: string | null;
-  };
+  tenant: PublicTenant;
   offers: Offer[];
 }
 
@@ -62,7 +70,9 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
   const admin = createAdminClient();
   const { data: tenant } = await admin
     .from("tenants")
-    .select("id, name, slug, brand_color, tagline, headline")
+    .select(
+      "id, name, slug, brand_color, tagline, headline, logo_url, favicon_url, about_enabled, about_title, about_text, about_photo_url",
+    )
     .eq("slug", slug)
     .maybeSingle<{
       id: string;
@@ -71,6 +81,12 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
       brand_color: string | null;
       tagline: string | null;
       headline: string | null;
+      logo_url: string | null;
+      favicon_url: string | null;
+      about_enabled: boolean | null;
+      about_title: string | null;
+      about_text: string | null;
+      about_photo_url: string | null;
     }>();
   if (!tenant) return null;
 
@@ -99,6 +115,12 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
       brandColor: tenant.brand_color,
       tagline: tenant.tagline,
       headline: tenant.headline,
+      logoUrl: tenant.logo_url,
+      faviconUrl: tenant.favicon_url,
+      aboutEnabled: !!tenant.about_enabled,
+      aboutTitle: tenant.about_title,
+      aboutText: tenant.about_text,
+      aboutPhotoUrl: tenant.about_photo_url,
     },
     offers: (data ?? []) as Offer[],
   };
