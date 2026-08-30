@@ -21,7 +21,7 @@ export default async function AdminPublicPage() {
   const ctx = await getAdminOrNull();
   const tenantId = ctx?.profile?.tenant_id ?? null;
   const offers = tenantId ? await listOffers(tenantId) : [];
-  const branding = tenantId ? await tenantBranding(tenantId) : { brandColor: null, tagline: null, headline: null };
+  const branding = tenantId ? await tenantBranding(tenantId) : null;
 
   let slug: string | null = null;
   let tenantName = "Mon coaching";
@@ -64,12 +64,7 @@ export default async function AdminPublicPage() {
         <Alert>Aucun compte (tenant) n&apos;est rattaché à ton profil.</Alert>
       ) : (
         <>
-          <BrandingForm
-            brandColor={branding.brandColor}
-            tagline={branding.tagline}
-            headline={branding.headline}
-            namePlaceholder={tenantName}
-          />
+          {branding ? <BrandingForm branding={branding} namePlaceholder={tenantName} /> : null}
 
           <div className="flex flex-col gap-3">
             <div className="font-archivo font-bold text-[17px] text-ink">Mes offres</div>

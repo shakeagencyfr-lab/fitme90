@@ -12,7 +12,7 @@ import {
 } from "@/lib/tenant";
 import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, setOfferActive, deleteOffer } from "@/lib/offers";
-import { saveTenantBranding } from "@/lib/branding";
+import { saveTenantBranding, uploadTenantAsset, clearTenantAsset, type AssetKind } from "@/lib/branding";
 import { setTenantStripeKey, clearTenantStripeKey, testStripeKey } from "@/lib/coach-payments";
 
 /** Normalise les champs de segmentation reçus du formulaire coach. */
@@ -104,7 +104,7 @@ export interface BrandingState {
   error?: string;
 }
 
-/** Enregistre la personnalisation de la page publique (couleur, accroche, titre). */
+/** Enregistre la personnalisation de la page publique (couleur, textes, à propos). */
 export async function saveBranding(_prev: BrandingState, formData: FormData): Promise<BrandingState> {
   const ctx = await getAdminOrNull();
   if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
@@ -112,10 +112,42 @@ export async function saveBranding(_prev: BrandingState, formData: FormData): Pr
     brandColor: String(formData.get("brand_color") ?? ""),
     tagline: String(formData.get("tagline") ?? ""),
     headline: String(formData.get("headline") ?? ""),
+    aboutEnabled: formData.get("about_enabled") === "on",
+    aboutTitle: String(formData.get("about_title") ?? ""),
+    aboutText: String(formData.get("about_text") ?? ""),
   });
   if (!res.ok) return { error: res.error };
   revalidatePath("/admin/offres");
   return { ok: true };
+}
+
+const ASSET_KINDS: readonly AssetKind[] = ["logo", "favicon", "portrait"];
+function asKind(v: unknown): AssetKind | null {
+  return typeof v === "string" && (ASSET_KINDS as readonly string[]).includes(v) ? (v as AssetKind) : null;
+}
+
+/** Téléverse un asset (logo / favicon / portrait). */
+export async function uploadAssetAction(_prev: BrandingState, formData: FormData): Promise<BrandingState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const kind = asKind(formData.get("kind"));
+  if (!kind) return { error: "Type d'image invalide." };
+  const file = formData.get("file");
+  if (!(file instanceof File)) return { error: "Aucun fichier." };
+  const res = await uploadTenantAsset(ctx.profile.tenant_id, kind, file);
+  if (!res.ok) return { error: res.error };
+  revalidatePath("/admin/offres");
+  return { ok: true };
+}
+
+/** Retire un asset (form action directe). */
+export async function removeAssetAction(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const kind = asKind(formData.get("kind"));
+  if (!kind) return;
+  await clearTenantAsset(ctx.profile.tenant_id, kind);
+  revalidatePath("/admin/offres");
 }
 
 // ------------------------------------------------------------------ offres (Lot 1)
