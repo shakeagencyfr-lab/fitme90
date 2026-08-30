@@ -4,6 +4,7 @@ import { getAdminOrNull } from "@/lib/admin";
 import { computeAccess, accessLabel } from "@/lib/access";
 import { aiCostForUsers, totalCost, formatUsd } from "@/lib/ai-cost";
 import { listCoachVipThreads } from "@/lib/vip";
+import { CoachOnboarding } from "@/components/coach-onboarding";
 import { Card, MonoLabel } from "@/components/ui";
 
 export const metadata = { title: "Clients, Admin FitMe90" };
@@ -54,6 +55,8 @@ export default async function AdminClientsPage() {
 
   return (
     <div className="flex flex-col gap-5">
+      {tenantId ? <CoachOnboarding tenantId={tenantId} /> : null}
+
       <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
         Clients
       </h1>
