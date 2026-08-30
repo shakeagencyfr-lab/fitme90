@@ -257,6 +257,11 @@ export interface Brief {
   answers: Record<string, unknown>;
   trainDays: string[];
   equipment: string[];
+  /**
+   * Note de progression (abonnements) : bilan du cycle précédent pour adapter le
+   * nouveau cycle (assiduité, évolution du poids). Injectée dans le brief.
+   */
+  priorCycleNote?: string;
 }
 
 /** Adaptations en cours (blessures/contraintes ajoutées après coup). */
@@ -266,7 +271,7 @@ export function readAdaptations(answers: Record<string, unknown>): string[] {
 }
 
 /** Construit le texte de brief envoyé au modèle (réponses en clair). */
-export function buildBrief({ answers, trainDays, equipment }: Brief): string {
+export function buildBrief({ answers, trainDays, equipment, priorCycleNote }: Brief): string {
   const lines = describeAnswers(answers);
   const adaptations = readAdaptations(answers);
   const parts = [
@@ -282,6 +287,11 @@ export function buildBrief({ answers, trainDays, equipment }: Brief): string {
   if (adaptations.length) {
     parts.push(
       `ADAPTATIONS À RESPECTER IMPÉRATIVEMENT (blessures / contraintes) : ${adaptations.join(" ; ")}. Exclus ou remplace tout exercice contre-indiqué par une alternative sûre sur les mêmes groupes musculaires, et adapte les consignes.`,
+    );
+  }
+  if (priorCycleNote) {
+    parts.push(
+      `PROGRESSION (nouveau cycle d'abonnement) : ${priorCycleNote} Fais ÉVOLUER le programme par rapport au cycle précédent : varie les exercices, ajuste volume, charge visée et intensité selon l'assiduité et les résultats, et garde la personne engagée. Ne recopie pas à l'identique le cycle précédent.`,
     );
   }
   parts.push(
