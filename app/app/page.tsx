@@ -137,7 +137,7 @@ export default async function ProgrammePage() {
         <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
           Ton programme
         </h1>
-        <p className="max-w-[62ch] text-[15px] leading-[1.6] text-muted">{plan.summary}</p>
+        <p className="text-[15px] leading-[1.6] text-muted">{plan.summary}</p>
       </header>
 
       {access.phase === "grace" ? (

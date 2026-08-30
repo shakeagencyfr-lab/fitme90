@@ -86,12 +86,21 @@ export interface PublicTenantOffers {
  */
 export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffers | null> {
   const admin = createAdminClient();
-  const { data: tenant } = await admin
+  // On résout par slug OU par sous-domaine personnalisé (alias marque blanche).
+  // L'identifiant vient de l'URL : on le restreint à des caractères sûrs avant de
+  // construire le filtre `.or()` (pas d'injection dans la chaîne de filtre).
+  const key = slug.toLowerCase();
+  const safe = /^[a-z0-9-]{1,63}$/.test(key);
+  const query = admin
     .from("tenants")
     .select(
       "id, name, slug, brand_color, tagline, headline, logo_url, favicon_url, about_enabled, about_title, about_text, about_photo_url",
-    )
-    .eq("slug", slug)
+    );
+  const { data: tenant } = await (safe
+    ? query.or(`slug.eq.${key},subdomain.eq.${key}`)
+    : query.eq("slug", slug)
+  )
+    .limit(1)
     .maybeSingle<{
       id: string;
       name: string;

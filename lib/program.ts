@@ -256,7 +256,7 @@ COHÉRENCE SÉANCE ↔ EXERCICES (RÈGLE STRICTE) : les exercices d'une séance 
 
 DURÉE (RÈGLE STRICTE) : chaque séance doit TENIR dans la durée choisie par le client (voir le brief, ex 45 min), échauffement compris. Dimensionne le nombre d'exercices, de séries et le cardio en conséquence : une séance de 45 min = échauffement (5 à 8 min) + 4 à 6 exercices de musculation. NE DÉPASSE JAMAIS cette durée (une séance de 45 min qui cumulerait toute la muscu PUIS 40 min de cardio PUIS 15 min de rameur est une erreur grave).
 
-CARDIO (DÉFINITION FERMÉE) : SEULS ces mouvements peuvent être cardio:true : rameur/ergomètre, vélo (ou assault/air bike), tapis/course/jogging, elliptique, corde à sauter, stepper/montées de marche, marche rapide, HIIT au poids du corps, natation. TOUT LE RESTE est de la musculation (cardio:false), notamment tout ce qui utilise haltères, barre, poulie, kettlebell ou une machine de force, et tout ce qui s'appelle rowing/tirage/développé/curl/squat/soulevé/marche du fermier. Un « rowing » à la poulie ou à l'haltère est du DOS (musculation), PAS le rameur. Au plus UN bloc cardio par séance, COURT (8 à 15 min), et seulement si la durée de la séance le permet ; beaucoup de séances n'ont AUCUN cardio. Pour un cardio : cardio:true, "duration" TOUJOURS en minutes (ex "12 min", entre 8 et 15, jamais 40), "zone" cardiaque (Z1 récupération, Z2 endurance, Z3 tempo, Z4 seuil, Z5 VO2 max), sets:0, reps:"".
+CARDIO (DÉFINITION FERMÉE) : SEULS ces mouvements peuvent être cardio:true : rameur/ergomètre, vélo (ou assault/air bike), tapis/course/jogging, elliptique, corde à sauter, stepper/montées de marche, marche rapide, HIIT au poids du corps, natation. TOUT LE RESTE est de la musculation (cardio:false), notamment tout ce qui utilise haltères, barre, poulie, kettlebell ou une machine de force, et tout ce qui s'appelle rowing/tirage/développé/curl/squat/soulevé/marche du fermier. Un « rowing » à la poulie ou à l'haltère est du DOS (musculation), PAS le rameur. Au plus UN bloc cardio par séance (8 à 20 min), et seulement si la durée de la séance le permet ; la QUANTITÉ de cardio dépend de l'objectif (voir le brief) : peu ou pas de cardio en prise de muscle/force, un bloc cardio (finisher) à chaque séance en perte de masse grasse. Pour un cardio : cardio:true, "duration" TOUJOURS en minutes (ex "15 min", entre 8 et 20, jamais 40), "zone" cardiaque (Z1 récupération, Z2 endurance, Z3 tempo, Z4 seuil, Z5 VO2 max), sets:0, reps:"".
 
 PORTÉS / MARCHES LESTÉES : la marche du fermier (farmer walk), le porté valise, le yoke, le traîneau, etc. ne sont JAMAIS du cardio : ce sont de la MUSCULATION/gainage (cardio:false), en séries COURTES (3 à 4 séries de 30 à 40 mètres OU 30 à 45 secondes), avec sets et reps ; il est absurde et impossible de faire 40 minutes de marche du fermier. Ne mets JAMAIS un porté en cardio, ni avec une durée de plusieurs minutes.
 
@@ -281,6 +281,16 @@ export function readAdaptations(answers: Record<string, unknown>): string[] {
   return Array.isArray(a) ? a.map((x) => String(x)).filter(Boolean) : [];
 }
 
+/**
+ * L'objectif est-il orienté perte de masse grasse / conditionnement ? On regarde
+ * l'objectif principal ET secondaire (perte de gras, recomposition, endurance).
+ * Dans ce cas, on charge davantage le cardio dans le programme.
+ */
+export function isFatLossGoal(answers: Record<string, unknown>): boolean {
+  const g = `${String(answers?.goal ?? "")} ${String(answers?.goal2 ?? "")}`.toLowerCase();
+  return /perte|masse grasse|gras|minceur|s[èe]ch|recompos|endurance|cardio/.test(g);
+}
+
 /** Construit le texte de brief envoyé au modèle (réponses en clair). */
 export function buildBrief({ answers, trainDays, equipment, priorCycleNote }: Brief): string {
   const lines = describeAnswers(answers);
@@ -295,6 +305,11 @@ export function buildBrief({ answers, trainDays, equipment, priorCycleNote }: Br
     `Durée cible par séance : ${(answers?.dur as string) || "45 min"}, échauffement compris. Chaque séance DOIT tenir dans cette durée : ne dépasse pas, et ajoute au plus un bloc cardio court (10 à 20 min) uniquement s'il reste du temps.`,
     `Matériel disponible : ${equipment.length ? equipment.join(", ") : "poids du corps uniquement"}. Aucun exercice hors de cette liste.`,
   ];
+  if (isFatLossGoal(answers)) {
+    parts.push(
+      "OBJECTIF PERTE DE MASSE GRASSE : le programme doit maximiser la dépense énergétique tout en préservant le muscle. CARDIO : termine CHAQUE séance par un bloc cardio (finisher) de 12 à 20 min (cardio:true), en variant les formats d'un cycle à l'autre (Cycle 1 surtout Z2 continu 15 à 20 min ; Cycle 2 intervalles/HIIT 12 à 15 min ; Cycle 3 HIIT court et intense 10 à 15 min). Utilise UNIQUEMENT du vrai cardio (rameur, vélo, tapis/course, elliptique, corde à sauter, HIIT au poids du corps, montées de marche). DENSITÉ : sur la musculation, raccourcis les repos (45 à 75 s), privilégie les supersets et circuits, et des séries un peu plus longues (12 à 20 reps sur l'isolation), pour garder la fréquence cardiaque haute. Tout cela DOIT tenir dans la durée cible de la séance : augmente la densité (moins de repos, enchaînements), pas la durée totale. Ne fige pas les charges.",
+    );
+  }
   if (adaptations.length) {
     parts.push(
       `ADAPTATIONS À RESPECTER IMPÉRATIVEMENT (blessures / contraintes) : ${adaptations.join(" ; ")}. Exclus ou remplace tout exercice contre-indiqué par une alternative sûre sur les mêmes groupes musculaires, et adapte les consignes.`,

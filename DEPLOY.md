@@ -67,6 +67,10 @@ STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 NEXT_PUBLIC_SITE_URL=https://TON-DOMAINE
 
+# Sous-domaines personnalisés des landings coach (optionnel) : domaine racine
+# sans protocole ni www (ex "fitme90.com"). Vide = fonctionnalité inactive.
+NEXT_PUBLIC_ROOT_DOMAIN=
+
 # Chiffrement des clés BYOK (Anthropic/Stripe par coach), 32 octets hex :
 SECRETS_ENC_KEY=
 
@@ -91,6 +95,27 @@ RESEND_FROM=FitMe90 <notifications@fitme90.app>
 3. Renseigne les variables d'environnement (§5).
 4. `NEXT_PUBLIC_SITE_URL` = ton domaine de production.
 5. Déploie. Chaque push sur la branche déploie ; chaque branche donne un aperçu.
+
+## 6 bis. Sous-domaines personnalisés des coachs (optionnel)
+
+Chaque coach peut donner à sa landing une adresse à son nom
+(`sébastien.tondomaine.com`) au lieu de `tondomaine.com/c/son-slug`. Le réglage
+se fait dans le dashboard coach (**Ma page → Sous-domaine personnalisé**). Pour
+activer la fonctionnalité :
+
+1. **DNS générique** : chez ton registraire, ajoute un enregistrement joker
+   `*.tondomaine.com` (CNAME vers `cname.vercel-dns.com`, ou l'ALIAS/A que
+   Vercel indique). Cela dirige tous les sous-domaines vers l'app.
+2. **Vercel → Domains** : ajoute le domaine joker `*.tondomaine.com` au projet
+   (en plus du domaine principal). Vercel gère le certificat TLS wildcard.
+3. **Variable d'env** : renseigne `NEXT_PUBLIC_ROOT_DOMAIN=tondomaine.com`
+   (Production + Preview), puis redéploie.
+
+Tant que `NEXT_PUBLIC_ROOT_DOMAIN` est vide, rien n'est réécrit : les coachs
+peuvent déjà enregistrer leur sous-domaine, il deviendra actif au déploiement
+suivant une fois le domaine branché. Le `proxy.ts` réécrit alors la racine d'un
+sous-domaine vers la landing du coach (`/c/[sous-domaine]`), qui se résout par
+`slug` **ou** `subdomain`.
 
 ## 7. Recette de bout en bout (mode test Stripe)
 

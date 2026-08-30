@@ -102,12 +102,30 @@ function Icon({ children }: { children: ReactNode }) {
   );
 }
 
+// Pastille de comptage (non-lus), lisible et compacte (99+ au-delà).
+function CountBadge({ n }: { n: number }) {
+  if (n <= 0) return null;
+  return (
+    <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 font-mono text-[10px] font-bold leading-none text-white">
+      {n > 99 ? "99+" : n}
+    </span>
+  );
+}
+
+// Point de notification superposé sur une icône (barre du bas / onglet compact).
+function Dot() {
+  return (
+    <span className="absolute -right-1.5 -top-1 size-[9px] rounded-full bg-brand ring-2 ring-surface" />
+  );
+}
+
 export function AppNav({
   day,
   dayPct,
   cycleName,
   shopEnabled = false,
   vipEnabled = false,
+  vipUnread = 0,
   brandName = null,
   brandLogoUrl = null,
 }: {
@@ -116,6 +134,7 @@ export function AppNav({
   cycleName?: string;
   shopEnabled?: boolean;
   vipEnabled?: boolean;
+  vipUnread?: number;
   brandName?: string | null;
   brandLogoUrl?: string | null;
 }) {
@@ -127,6 +146,10 @@ export function AppNav({
   const isActive = (href: string) =>
     href === "/app" ? pathname === "/app" : pathname.startsWith(href);
   const secondaryActive = SECONDARY.some((i) => isActive(i.href));
+  // Non-lus rattachés à l'onglet Chat VIP (0 si l'option n'est pas active).
+  const unreadFor = (href: string) => (href === "/app/chat" ? vipUnread : 0);
+  // Le bouton « Plus » (mobile) doit signaler un non-lu caché dedans.
+  const secondaryUnread = SECONDARY.reduce((n, i) => n + unreadFor(i.href), 0);
 
   return (
     <>
@@ -160,10 +183,13 @@ export function AppNav({
                 on ? "bg-fill text-fillfg" : "text-body-2 hover:bg-paper",
               ].join(" ")}
             >
-              <span className="transition-transform group-active:scale-90">
+              <span className="relative transition-transform group-active:scale-90">
                 <Icon>{I[it.icon]}</Icon>
               </span>
               <span className="font-semibold tracking-[-0.01em]">{it.label}</span>
+              <span className="ml-auto">
+                <CountBadge n={unreadFor(it.href)} />
+              </span>
             </Link>
           );
         })}
@@ -208,6 +234,9 @@ export function AppNav({
                 >
                   <Icon>{I[it.icon]}</Icon>
                   {it.label}
+                  <span className="ml-auto">
+                    <CountBadge n={unreadFor(it.href)} />
+                  </span>
                 </Link>
               );
             })}
@@ -247,8 +276,9 @@ export function AppNav({
             more || secondaryActive ? "bg-paper text-brand" : "text-muted-2",
           ].join(" ")}
         >
-          <span className="transition-transform group-active:scale-90">
+          <span className="relative transition-transform group-active:scale-90">
             <Icon>{I.plus}</Icon>
+            {secondaryUnread > 0 && !more ? <Dot /> : null}
           </span>
           <span className="text-[9.5px] font-semibold tracking-[-0.01em]">Plus</span>
         </button>

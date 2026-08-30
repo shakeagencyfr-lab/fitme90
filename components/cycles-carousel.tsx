@@ -7,36 +7,39 @@ type Cycle = { label: string; name: string; weeks: string; body: string };
 // Explications pédagogiques par cycle (le « pourquoi »), en plus du texte du plan.
 const EXPL = [
   {
-    why: "On pose les fondations. L'objectif n°1 : une technique propre et l'habitude de venir. On apprend (ou réapprend) les mouvements avec des charges maîtrisées, et on installe la régularité. C'est la base sur laquelle tout le reste se construit.",
-    aims: ["Technique et amplitude", "Régularité, ne rater aucune séance", "Base cardio"],
-    how: ["Charges modérées (RPE 6 à 7)", "Gestes contrôlés, tempo maîtrisé", "Volume raisonnable"],
+    why: "On pose les fondations. Objectif n°1 : une technique propre et l'habitude de venir. On (ré)apprend les mouvements avec des charges maîtrisées et on installe la régularité.",
+    aims: ["Technique et amplitude", "Régularité", "Base cardio"],
+    how: ["RPE 6–7", "Tempo maîtrisé", "Volume raisonnable"],
   },
   {
-    why: "On monte d'un cran. Le corps est prêt à encaisser davantage : on augmente le volume et les charges. C'est ici que les changements commencent à se voir vraiment.",
-    aims: ["Plus de volume et d'intensité", "Densité de travail accrue", "Progrès visibles"],
-    how: ["Charges plus lourdes (RPE 7 à 8)", "Séries et exercices en plus", "Surcharge progressive semaine après semaine"],
+    why: "On monte d'un cran. Le corps encaisse davantage : on augmente le volume et les charges. C'est ici que les changements commencent à se voir vraiment.",
+    aims: ["Plus de volume", "Densité accrue", "Progrès visibles"],
+    how: ["RPE 7–8", "Séries en plus", "Surcharge progressive"],
   },
   {
-    why: "Le pic. On concentre l'effort sur ton objectif et on va chercher le résultat. La dernière semaine s'allège volontairement pour récupérer et laisser apparaître les progrès.",
-    aims: ["Pic de forme vers ton objectif", "Aller chercher le résultat", "Récupérer en fin de cycle"],
-    how: ["Intensité la plus haute, maîtrisée (RPE 8 à 9)", "Focus sur les points forts/faibles", "Semaine de décharge pour finir"],
+    why: "Le pic. On concentre l'effort sur ton objectif pour aller chercher le résultat. La dernière semaine s'allège pour récupérer et laisser apparaître les progrès.",
+    aims: ["Pic de forme", "Aller au résultat", "Récupérer en fin"],
+    how: ["RPE 8–9 maîtrisé", "Focus points faibles", "Semaine de décharge"],
   },
 ];
 
 const DOT = ["bg-brand", "bg-ink", "bg-cardio"];
 
-function List({ title, items, tone }: { title: string; items: string[]; tone: "brand" | "muted" }) {
+function Chips({ title, items }: { title: string; items: string[] }) {
+  if (!items.length) return null;
   return (
     <div className="flex flex-col gap-1.5">
       <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">{title}</div>
-      <ul className="flex flex-col gap-1">
+      <div className="flex flex-wrap gap-1.5">
         {items.map((it) => (
-          <li key={it} className="flex items-start gap-2 text-[13.5px] leading-[1.5] text-body">
-            <span className={`mt-1.5 size-1.5 shrink-0 rounded-full ${tone === "brand" ? "bg-brand" : "bg-muted-2"}`} />
+          <span
+            key={it}
+            className="rounded-full border border-line-2 bg-surface-2 px-2.5 py-1 text-[12px] leading-none text-body"
+          >
             {it}
-          </li>
+          </span>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
@@ -63,18 +66,18 @@ export function CyclesCarousel({ cycles }: { cycles: Cycle[] }) {
         <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">
           Les 3 cycles · {active + 1}/{cycles.length}
         </div>
-        <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2 sm:hidden">glisse →</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2 nav:hidden">glisse →</span>
       </div>
 
       <div
         ref={ref}
         onScroll={onScroll}
-        className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] nav:mx-0 nav:px-0 [&::-webkit-scrollbar]:hidden"
+        className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] nav:mx-0 nav:grid nav:grid-cols-3 nav:overflow-visible nav:px-0 [&::-webkit-scrollbar]:hidden"
       >
         {cycles.map((c, i) => (
           <article
             key={i}
-            className="flex w-[86%] shrink-0 snap-center flex-col gap-3 rounded-card border border-line bg-surface p-5 nav:w-[calc((100%-1.5rem)/3)]"
+            className="flex w-[86%] shrink-0 snap-center flex-col gap-3 rounded-card border border-line bg-surface p-5 nav:w-auto"
           >
             <div className="flex items-center gap-2">
               <span className={`inline-block size-2.5 rounded-full ${DOT[i] ?? "bg-brand"}`} />
@@ -86,28 +89,18 @@ export function CyclesCarousel({ cycles }: { cycles: Cycle[] }) {
               {c.name}
             </h3>
 
-            <div className="flex flex-col gap-1">
-              <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">Pourquoi ce cycle</div>
-              <p className="text-[13.5px] leading-[1.6] text-muted">{EXPL[i]?.why}</p>
-            </div>
+            <p className="text-[13.5px] leading-[1.6] text-muted">{EXPL[i]?.why}</p>
 
-            {c.body ? (
-              <div className="flex flex-col gap-1">
-                <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">Le plan</div>
-                <p className="text-[13.5px] leading-[1.6] text-body">{c.body}</p>
-              </div>
-            ) : null}
-
-            <div className="mt-auto grid grid-cols-2 gap-3 border-t border-line-2 pt-3">
-              <List title="On vise" items={EXPL[i]?.aims ?? []} tone="brand" />
-              <List title="Comment" items={EXPL[i]?.how ?? []} tone="muted" />
+            <div className="mt-auto flex flex-col gap-3 border-t border-line-2 pt-3">
+              <Chips title="On vise" items={EXPL[i]?.aims ?? []} />
+              <Chips title="Comment" items={EXPL[i]?.how ?? []} />
             </div>
           </article>
         ))}
       </div>
 
-      {/* Points de navigation */}
-      <div className="flex justify-center gap-2">
+      {/* Points de navigation (mobile uniquement : en grille sur desktop) */}
+      <div className="flex justify-center gap-2 nav:hidden">
         {cycles.map((_, i) => (
           <button
             key={i}

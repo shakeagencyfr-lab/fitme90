@@ -11,6 +11,8 @@ import { MiniWeightChart, type WeightPoint } from "@/components/mini-weight-char
 import { CoachNoteForm } from "@/components/coach-note-form";
 import { deleteCoachNote } from "@/app/admin/actions";
 import { DeleteClientButton } from "@/components/delete-client-button";
+import { VipChat } from "@/components/vip-chat";
+import { clientVipContext, listVipMessages, markThreadRead, type VipMessage } from "@/lib/vip";
 import type { Plan } from "@/lib/program";
 
 export const metadata = { title: "Fiche client, Admin FitMe90" };
@@ -106,6 +108,15 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
   if (!profile) notFound();
 
+  // Chat VIP embarqué dans la fiche : le coach répond en gardant toutes les infos
+  // du client sous les yeux. Affiché seulement si l'offre du client porte l'option.
+  const vipCtx = await clientVipContext(id);
+  let vipMessages: VipMessage[] = [];
+  if (vipCtx.enabled) {
+    vipMessages = await listVipMessages(id);
+    await markThreadRead(id, "coach");
+  }
+
   const access = computeAccess(profile.paid, profile.start_date);
   const answers = quiz?.answers ?? {};
   const doneDays = (logs ?? []).map((r) => r.day);
@@ -193,6 +204,24 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
           </span>
         </div>
       </Card>
+
+      {/* Chat VIP embarqué : le coach répond avec toutes les infos sous les yeux. */}
+      {vipCtx.enabled ? (
+        <div id="chat-vip" className="scroll-mt-4">
+          <Card className="flex flex-col gap-3.5">
+            <div className="flex flex-col gap-1">
+              <MonoLabel>Chat VIP</MonoLabel>
+              <p className="text-[12px] text-muted-2">Ligne directe avec {displayName}. Texte et photos.</p>
+            </div>
+            <VipChat
+              messages={vipMessages}
+              me="coach"
+              clientId={profile.id}
+              emptyHint="Aucun message. Écris le premier mot à ton client."
+            />
+          </Card>
+        </div>
+      ) : null}
 
       {/* Évolution du poids */}
       <Card className="flex flex-col gap-3.5">

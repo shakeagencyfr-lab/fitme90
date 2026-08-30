@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/guard";
 import { clientVipContext, listVipMessages, markThreadRead } from "@/lib/vip";
 import { VipChat } from "@/components/vip-chat";
+import { VipReadOnMount } from "@/components/vip-read-on-mount";
 
 export const metadata = { title: "Chat VIP, FitMe90" };
 export const dynamic = "force-dynamic";
@@ -19,6 +20,8 @@ export default async function ClientChatPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4">
+      {/* Efface la pastille de non-lus dans le layout après lecture. */}
+      <VipReadOnMount />
       <div className="flex flex-col gap-1">
         <h1 className="font-archivo font-extrabold text-[clamp(24px,5vw,32px)] leading-[1.05] tracking-[-0.03em] text-ink">
           Chat VIP

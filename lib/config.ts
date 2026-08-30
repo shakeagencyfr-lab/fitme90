@@ -60,6 +60,50 @@ export const LIMIT_RECIPES_PER_DAY = 20;
 export const LIMIT_ANALYZE_GYM_TOTAL = 10;
 
 export const PRODUCT_NAME = "FitMe90";
+
+/**
+ * Domaine racine pour les sous-domaines coach (ex "fitme90.com"), sans protocole
+ * ni "www". Vide tant qu'aucun domaine n'est configuré : la fonctionnalité de
+ * sous-domaine reste alors inactive (le proxy ne réécrit rien). À définir dans
+ * l'environnement Vercel une fois le wildcard DNS (*.domaine) en place.
+ */
+export const ROOT_DOMAIN = (process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "")
+  .trim()
+  .toLowerCase()
+  .replace(/^https?:\/\//, "")
+  .replace(/^www\./, "")
+  .replace(/\/.*$/, "");
+
+/** Sous-domaines réservés (jamais attribués à un coach). */
+export const RESERVED_SUBDOMAINS = new Set([
+  "www", "app", "admin", "api", "mail", "email", "static", "assets",
+  "cdn", "img", "images", "blog", "docs", "help", "support", "status",
+  "dashboard", "auth", "login", "account", "billing", "stripe", "vercel",
+]);
+
+/** Normalise une saisie de sous-domaine (slugifie : minuscules, tirets). */
+export function normalizeSubdomain(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-")
+    .slice(0, 40);
+}
+
+/** Un sous-domaine est-il valide et attribuable (forme + non réservé) ? */
+export function isValidSubdomain(sub: string): boolean {
+  return /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])?$/.test(sub) && !RESERVED_SUBDOMAINS.has(sub);
+}
+
+/** URL complète de la landing d'un coach sur son sous-domaine (ou null). */
+export function coachSubdomainUrl(sub: string | null | undefined): string | null {
+  if (!sub || !ROOT_DOMAIN) return null;
+  return `https://${sub}.${ROOT_DOMAIN}`;
+}
 /** Prénom du coach IA (persona). Deviendra un réglage par tenant en marque
  *  blanche ; centralisé ici pour n'avoir qu'une seule source. */
 export const COACH_NAME = "Sébastien";

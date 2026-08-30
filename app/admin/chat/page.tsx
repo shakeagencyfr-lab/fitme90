@@ -34,7 +34,7 @@ export default async function AdminChatPage() {
       ) : (
         <div className="flex flex-col gap-2.5">
           {threads.map((t) => (
-            <Link key={t.clientId} href={`/admin/chat/${t.clientId}`} className="tap block">
+            <Link key={t.clientId} href={`/admin/clients/${t.clientId}#chat-vip`} className="tap block">
               <Card className="flex items-center justify-between gap-3 hover:border-ink">
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <div className="flex items-center gap-2">

@@ -55,5 +55,19 @@ export async function sendClientVipMessage(_prev: ChatState, formData: FormData)
   });
 
   revalidatePath("/app/chat");
+  // Rafraîchit le badge de non-lus (rendu dans le layout /app).
+  revalidatePath("/app", "layout");
   return { ok: true };
+}
+
+/**
+ * Marque le fil du client comme lu (à l'ouverture de la page) et rafraîchit le
+ * badge de non-lus du layout. Appelé côté client au montage : le layout partagé
+ * n'étant pas re-rendu à la navigation, c'est ce qui fait disparaître la pastille.
+ */
+export async function markClientVipRead(): Promise<void> {
+  const ctx = await getSessionContext();
+  if (!ctx) return;
+  await markThreadRead(ctx.userId, "client");
+  revalidatePath("/app", "layout");
 }

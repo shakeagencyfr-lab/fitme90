@@ -7,7 +7,7 @@ import { CoachWidget } from "@/components/coach-widget";
 import { PageTransition } from "@/components/page-transition";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { isShopEnabled } from "@/lib/shop";
-import { clientVipContext } from "@/lib/vip";
+import { clientVipContext, clientUnreadVipCount } from "@/lib/vip";
 import { brandForUser } from "@/lib/branding";
 import { brandMetadataForUser } from "@/lib/brand-metadata";
 import { PROGRAM_DAYS } from "@/lib/config";
@@ -29,6 +29,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   // Onglet Chat VIP + marque blanche (couleur, logo, nom du coach).
   const [vip, brand] = await Promise.all([clientVipContext(ctx.userId), brandForUser(ctx.userId)]);
+  // Badge de messages non lus sur l'onglet Chat VIP (seulement si l'option est active).
+  const vipUnread = vip.enabled ? await clientUnreadVipCount(ctx.userId) : 0;
 
   const day = ctx.access.day;
   const dayPct = Math.max(1, Math.round((Math.min(day, PROGRAM_DAYS) / PROGRAM_DAYS) * 100));
@@ -47,6 +49,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         dayPct={dayPct}
         shopEnabled={shopEnabled}
         vipEnabled={vip.enabled}
+        vipUnread={vipUnread}
         brandName={brand?.name ?? null}
         brandLogoUrl={brand?.logoUrl ?? null}
       />

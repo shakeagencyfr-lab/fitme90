@@ -25,6 +25,7 @@ import {
 } from "@/lib/vip";
 import { createPromo, setPromoActive, deletePromo as deletePromoLib } from "@/lib/promo";
 import { generateCoachGiftCodes } from "@/lib/gift";
+import { normalizeSubdomain, isValidSubdomain } from "@/lib/config";
 
 /** Normalise les champs de segmentation reçus du formulaire coach. */
 function readFilter(formData: FormData): AudienceFilter {
@@ -519,6 +520,7 @@ export async function sendCoachVipMessage(_prev: ChatState, formData: FormData):
     preview: body || "📷 Photo",
   });
 
+  revalidatePath(`/admin/clients/${clientId}`);
   revalidatePath(`/admin/chat/${clientId}`);
   revalidatePath("/admin/chat");
   return { ok: true };
@@ -683,4 +685,52 @@ export async function deleteClient(formData: FormData): Promise<void> {
 
   revalidatePath("/admin");
   redirect("/admin");
+}
+
+export interface SubdomainState {
+  ok?: boolean;
+  error?: string;
+  value?: string;
+}
+
+/**
+ * Enregistre le sous-domaine personnalisé de la landing du coach. Vide = on
+ * retire le sous-domaine (retour au /c/[slug]). Refuse les formes invalides,
+ * les sous-domaines réservés et ceux déjà pris par un autre coach.
+ */
+export async function saveSubdomain(_prev: SubdomainState, formData: FormData): Promise<SubdomainState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+
+  const raw = String(formData.get("subdomain") ?? "");
+  const admin = createAdminClient();
+
+  // Champ vidé : on retire le sous-domaine.
+  if (!raw.trim()) {
+    await admin.from("tenants").update({ subdomain: null }).eq("id", tenantId);
+    revalidatePath("/admin/offres");
+    return { ok: true, value: "" };
+  }
+
+  const sub = normalizeSubdomain(raw);
+  if (!isValidSubdomain(sub)) {
+    return { error: "Sous-domaine invalide ou réservé (3 à 40 caractères : lettres, chiffres, tirets).", value: sub };
+  }
+
+  // Déjà pris par un AUTRE coach ?
+  const { data: taken } = await admin
+    .from("tenants")
+    .select("id")
+    .eq("subdomain", sub)
+    .neq("id", tenantId)
+    .maybeSingle<{ id: string }>();
+  if (taken) return { error: "Ce sous-domaine est déjà utilisé.", value: sub };
+
+  const { error } = await admin.from("tenants").update({ subdomain: sub }).eq("id", tenantId);
+  if (error) return { error: "Enregistrement impossible (sous-domaine peut-être déjà pris).", value: sub };
+
+  revalidatePath("/admin/offres");
+  return { ok: true, value: sub };
 }

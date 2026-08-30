@@ -100,6 +100,18 @@ export async function listVipMessages(clientId: string): Promise<VipMessage[]> {
   return data ?? [];
 }
 
+/** Nombre de messages du coach non lus par le client (badge onglet Chat VIP). */
+export async function clientUnreadVipCount(clientId: string): Promise<number> {
+  const admin = createAdminClient();
+  const { count } = await admin
+    .from("vip_messages")
+    .select("id", { count: "exact", head: true })
+    .eq("client_id", clientId)
+    .eq("sender", "coach")
+    .eq("read_by_client", false);
+  return count ?? 0;
+}
+
 /** Marque comme lus les messages reçus par `reader` dans un fil. */
 export async function markThreadRead(clientId: string, reader: VipSender): Promise<void> {
   const admin = createAdminClient();
@@ -320,7 +332,7 @@ export async function notifyNewVipMessage(opts: {
             broadcastPushToUsers(coachIds, {
               title: `Message VIP de ${opts.clientName}`,
               body: opts.preview,
-              url: `/admin/chat/${opts.clientId}`,
+              url: `/admin/clients/${opts.clientId}#chat-vip`,
               tag: `vip-${opts.clientId}`,
             }),
           );
