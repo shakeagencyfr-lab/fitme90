@@ -24,13 +24,20 @@ const fmt = (d: string | null) =>
   d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "UTC" }) : "·";
 
 export default async function AdminClientsPage() {
+  // Cloisonnement par tenant : un coach ne voit QUE ses propres clients.
+  const gate = await getAdminOrNull();
+  const tenantId = gate?.profile?.tenant_id ?? null;
   const admin = createAdminClient();
   const [{ data: profiles }, { data: logs }] = await Promise.all([
-    admin
-      .from("profiles")
-      .select("id, email, name, paid, start_date, medical_hold, medical_ack_at, created_at")
-      .order("created_at", { ascending: false })
-      .returns<Prof[]>(),
+    tenantId
+      ? admin
+          .from("profiles")
+          .select("id, email, name, paid, start_date, medical_hold, medical_ack_at, created_at")
+          .eq("tenant_id", tenantId)
+          .eq("role", "client")
+          .order("created_at", { ascending: false })
+          .returns<Prof[]>()
+      : Promise.resolve({ data: [] as Prof[] }),
     admin.from("session_logs").select("user_id").returns<{ user_id: string }[]>(),
   ]);
 
@@ -43,8 +50,6 @@ export default async function AdminClientsPage() {
   const activeCount = withAccess.filter((r) => r.access.phase === "active").length;
 
   // Coût IA (BYOK) par client + total ; non-lus VIP par client (icône de ligne).
-  const gate = await getAdminOrNull();
-  const tenantId = gate?.profile?.tenant_id ?? null;
   const [costByUser, vipThreads] = await Promise.all([
     aiCostForUsers(rows.map((p) => p.id)),
     tenantId ? listCoachVipThreads(tenantId) : Promise.resolve([]),

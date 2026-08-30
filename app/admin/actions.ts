@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminOrNull } from "@/lib/admin";
-import { broadcastPush, broadcastPushToUsers } from "@/lib/push";
+import { broadcastPushToUsers } from "@/lib/push";
 import { resolveAudience, type AudienceFilter } from "@/lib/audience";
 import {
   setTenantAnthropicKey,
@@ -416,7 +416,7 @@ const hasFilter = (f: AudienceFilter) => !!(f.sex || f.goal || (f.phase && f.pha
 export async function previewAudience(formData: FormData): Promise<AudienceState> {
   const ctx = await getAdminOrNull();
   if (!ctx) return { total: 0, withPush: 0 };
-  const { total, withPush } = await resolveAudience(readFilter(formData));
+  const { total, withPush } = await resolveAudience(readFilter(formData), ctx.profile?.tenant_id ?? null);
   return { total, withPush };
 }
 
@@ -432,16 +432,17 @@ export async function sendBroadcastNow(_prev: NotifState, formData: FormData): P
   const url = String(formData.get("url") ?? "").trim().slice(0, 300) || "/app";
   if (!title || !body) return { error: "Titre et message sont obligatoires." };
 
+  const tenantId = ctx.profile?.tenant_id ?? null;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
   const filter = readFilter(formData);
   const payload = { title, body, url, tag: "coach-broadcast" };
-  if (hasFilter(filter)) {
-    const { userIds, total } = await resolveAudience(filter);
-    if (total === 0) return { error: "Aucun client ne correspond à ce segment." };
-    const { sent } = await broadcastPushToUsers(userIds, payload);
-    return { ok: true, sent, audience: total };
+  // Cloisonnement : l'envoi ne touche QUE les clients de ce coach, filtre ou non.
+  const { userIds, total } = await resolveAudience(filter, tenantId);
+  if (total === 0) {
+    return { error: hasFilter(filter) ? "Aucun client ne correspond à ce segment." : "Aucun client pour l'instant." };
   }
-  const { sent } = await broadcastPush(payload);
-  return { ok: true, sent };
+  const { sent } = await broadcastPushToUsers(userIds, payload);
+  return { ok: true, sent, audience: total };
 }
 
 /** Envoie une notification push à UN seul client (fiche CRM). */
@@ -454,6 +455,14 @@ export async function sendPushToClient(_prev: NotifState, formData: FormData): P
   const url = String(formData.get("url") ?? "").trim().slice(0, 300) || "/app";
   if (!userId) return { error: "Client introuvable." };
   if (!title || !body) return { error: "Titre et message sont obligatoires." };
+  // Cloisonnement : uniquement un client de SON tenant.
+  const admin = createAdminClient();
+  const { data: t } = await admin
+    .from("profiles")
+    .select("tenant_id")
+    .eq("id", userId)
+    .maybeSingle<{ tenant_id: string | null }>();
+  if (!t || t.tenant_id !== ctx.profile?.tenant_id) return { error: "Client introuvable." };
   const { sent } = await broadcastPushToUsers([userId], { title, body, url, tag: "coach-direct" });
   return { ok: true, sent };
 }
@@ -469,9 +478,12 @@ export async function scheduleBroadcast(_prev: NotifState, formData: FormData): 
   if (!title || !body) return { error: "Titre et message sont obligatoires." };
   const at = new Date(when);
   if (Number.isNaN(at.getTime()) || at.getTime() < Date.now()) return { error: "Choisis une date future." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
   const filter = readFilter(formData);
   const admin = createAdminClient();
   const { error } = await admin.from("scheduled_pushes").insert({
+    tenant_id: tenantId,
     title,
     body,
     url,
@@ -489,10 +501,13 @@ export async function scheduleBroadcast(_prev: NotifState, formData: FormData): 
 export async function deleteScheduled(formData: FormData): Promise<void> {
   const ctx = await getAdminOrNull();
   if (!ctx) return;
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return;
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   const admin = createAdminClient();
-  await admin.from("scheduled_pushes").delete().eq("id", id).is("sent_at", null);
+  // Cloisonnement : on ne supprime qu'une notif programmée de SON tenant.
+  await admin.from("scheduled_pushes").delete().eq("id", id).eq("tenant_id", tenantId).is("sent_at", null);
   revalidatePath("/admin/notifications");
 }
 
@@ -692,6 +707,15 @@ export async function deleteClient(formData: FormData): Promise<void> {
   if (!clientId || clientId === ctx.userId) return; // jamais son propre compte
 
   const admin = createAdminClient();
+  // Cloisonnement : ne supprimer qu'un CLIENT de SON tenant (jamais un autre
+  // coach, ni un client d'un autre coach).
+  const { data: target } = await admin
+    .from("profiles")
+    .select("tenant_id, role")
+    .eq("id", clientId)
+    .maybeSingle<{ tenant_id: string | null; role: string | null }>();
+  if (!target || target.role === "owner" || target.tenant_id !== ctx.profile?.tenant_id) return;
+
   for (const [table, col] of CLIENT_USER_TABLES) {
     await admin.from(table).delete().eq(col, clientId);
   }
