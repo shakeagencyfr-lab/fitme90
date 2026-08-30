@@ -20,15 +20,19 @@ export async function POST(req: Request) {
 
   const tenantId = ctx.profile?.tenant_id ?? null;
 
-  // 1) Résolution sans IA (rapide, gratuite).
-  const resolved = await resolveGuide(name, tenantId);
-  if (resolved) return NextResponse.json({ guide: resolved });
+  try {
+    // 1) Résolution sans IA (rapide, gratuite).
+    const resolved = await resolveGuide(name, tenantId);
+    if (resolved) return NextResponse.json({ guide: resolved });
 
-  // 2) Génération IA (cache global), plafonnée par la limite quotidienne.
-  const limit = await checkLimit(ctx.userId, "coach", LIMIT_COACH_PER_DAY, DAY_MS);
-  if (limit.ok) {
-    const gen = await generateGuide(name, ctx.userId);
-    if (gen) return NextResponse.json({ guide: gen });
+    // 2) Génération IA (cache global), plafonnée par la limite quotidienne.
+    const limit = await checkLimit(ctx.userId, "coach", LIMIT_COACH_PER_DAY, DAY_MS);
+    if (limit.ok) {
+      const gen = await generateGuide(name, ctx.userId);
+      if (gen) return NextResponse.json({ guide: gen });
+    }
+  } catch {
+    /* on tombe sur la fiche minimale ci-dessous plutôt que de renvoyer une 500 */
   }
 
   // 3) Rien de disponible : fiche minimale (la modale affiche un repli propre).

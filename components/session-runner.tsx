@@ -5,7 +5,32 @@ import { useRouter } from "next/navigation";
 import { saveSession, type SetEntry } from "@/app/app/seance/actions";
 import { Button, Alert, MonoLabel } from "@/components/ui";
 import { ExerciseModal } from "@/components/exercise-modal";
+import { matchLibraryExercise, libraryFrames } from "@/lib/exercise-library";
 import { isCardioExercise, cardioZone, formatRest, type HeartZone } from "@/lib/fitness";
+
+// Vignette illustrée d'un exercice (depuis la bibliothèque), cliquable pour
+// ouvrir la fiche complète. Vide si l'exercice n'est pas dans la bibliothèque.
+function ExerciseThumb({ name, onOpen }: { name: string; onOpen: () => void }) {
+  const lib = matchLibraryExercise(name);
+  if (!lib) return null;
+  const src = libraryFrames(lib.key)[0];
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`Voir ${name}`}
+      className="tap group relative size-14 shrink-0 overflow-hidden rounded-control border border-line-3 bg-surface-2"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={name} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+      <span className="absolute bottom-0 right-0 flex size-4 items-center justify-center rounded-tl-[6px] bg-brand text-white">
+        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth={2.2} aria-hidden>
+          <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
+    </button>
+  );
+}
 
 // Nom d'exercice cliquable : ouvre la fiche (image + consignes).
 function ExerciseName({ name, onOpen }: { name: string; onOpen: () => void }) {
@@ -379,6 +404,7 @@ export function SessionRunner({
                     <path d="M3 12h4l2 5 4-10 2 5h6" />
                   </svg>
                 </span>
+                <ExerciseThumb name={ex.name} onOpen={() => setGuideName(ex.name)} />
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <ExerciseName name={ex.name} onOpen={() => setGuideName(ex.name)} />
                   <div className="font-mono text-[11px] text-cardio">Cardio{duration ? ` · ${duration}` : ""}</div>
@@ -454,8 +480,9 @@ export function SessionRunner({
               >
                 {exDone ? "✓" : ei + 1}
               </span>
+              <ExerciseThumb name={ex.name} onOpen={() => setGuideName(ex.name)} />
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <div className="font-archivo font-semibold text-[16px] leading-snug text-ink">{ex.name}</div>
+                <ExerciseName name={ex.name} onOpen={() => setGuideName(ex.name)} />
                 <div className="font-mono text-[11px] text-brand">
                   {ex.sets} × {ex.reps} · RPE {rpeGoal} · récup {formatRest(ex.rest ?? restSec)}
                 </div>
