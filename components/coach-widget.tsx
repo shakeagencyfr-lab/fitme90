@@ -102,6 +102,7 @@ export function CoachWidget() {
   const [input, setInput] = useState("");
   const [image, setImage] = useState<Attached | null>(null);
   const [busy, setBusy] = useState(false);
+  const [typing, setTyping] = useState(false);
   const [error, setError] = useState("");
   const [listening, setListening] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -116,7 +117,7 @@ export function CoachWidget() {
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, open]);
+  }, [messages, typing, open]);
 
   // À la première ouverture : liste des conversations + fil de la plus récente.
   // La conversation ne repart plus de zéro, tout l'historique réapparaît.
@@ -291,6 +292,7 @@ export function CoachWidget() {
     setError("");
     setMessages((m) => [...m, { role: "user", content: outText, image: sent?.preview }]);
     setBusy(true);
+    setTyping(true); // le coach « écrit » dès l'envoi
     try {
       const res = await fetch("/api/coach", {
         method: "POST",
@@ -307,15 +309,24 @@ export function CoachWidget() {
       const list: string[] = Array.isArray(data.messages)
         ? data.messages
         : [data.answer].filter(Boolean);
+      // Rythme « humain » : chaque bulle apparaît après un temps de frappe
+      // proportionnel à sa longueur (borné), précédé de l'indicateur « écrit… ».
       for (let i = 0; i < list.length; i++) {
-        if (i > 0) await new Promise((r) => setTimeout(r, 650));
+        const typeMs = Math.min(2600, Math.max(750, list[i].length * 28));
+        // La 1re bulle a déjà attendu le réseau : on garde juste un court battement.
+        setTyping(true);
+        await new Promise((r) => setTimeout(r, i === 0 ? Math.min(typeMs, 900) : typeMs));
+        setTyping(false);
         setMessages((m) => [...m, { role: "assistant", content: list[i] }]);
+        // Petite respiration entre deux messages qui s'enchaînent.
+        if (i < list.length - 1) await new Promise((r) => setTimeout(r, 320));
       }
       refreshConversations(); // titre + ordre à jour
       if (data.adapted) router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Le coach est indisponible.");
     } finally {
+      setTyping(false);
       setBusy(false);
     }
   }
@@ -467,7 +478,16 @@ export function CoachWidget() {
             {m.content}
           </div>
         ))}
-        {busy ? <div className="self-start text-[13px] text-muted-2">Le coach réfléchit…</div> : null}
+        {typing ? (
+          <div className="flex max-w-[90%] flex-col gap-1 self-start">
+            <div className="flex items-center gap-1 rounded-card bg-paper px-3.5 py-3">
+              <span className="size-[7px] animate-bounce rounded-full bg-muted-2/70 [animation-delay:-0.25s]" />
+              <span className="size-[7px] animate-bounce rounded-full bg-muted-2/70 [animation-delay:-0.12s]" />
+              <span className="size-[7px] animate-bounce rounded-full bg-muted-2/70" />
+            </div>
+            <span className="pl-1 text-[11px] text-muted-2">{COACH_NAME} écrit…</span>
+          </div>
+        ) : null}
         {error ? (
           <div className="self-start rounded-control border border-alert-line bg-alert px-3 py-2 text-[13px] text-alert-ink">
             {error}
