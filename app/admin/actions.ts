@@ -22,6 +22,8 @@ import {
   notifyNewVipMessage,
   setTenantNotifyEmails,
 } from "@/lib/vip";
+import { createPromo, setPromoActive, deletePromo as deletePromoLib } from "@/lib/promo";
+import { generateCoachGiftCodes } from "@/lib/gift";
 
 /** Normalise les champs de segmentation reçus du formulaire coach. */
 function readFilter(formData: FormData): AudienceFilter {
@@ -559,4 +561,78 @@ export async function saveNotifyEmails(_prev: NotifyEmailsState, formData: FormD
   await setTenantNotifyEmails(tenantId, emails);
   revalidatePath("/admin/notifications");
   return { ok: true };
+}
+
+// ------------------------------------------------------------------ codes promo & cadeaux
+export interface PromoFormState {
+  ok?: boolean;
+  error?: string;
+}
+
+/** Crée un code promo pour le coach (remise % ou € sur ses offres). */
+export async function addPromo(_prev: PromoFormState, formData: FormData): Promise<PromoFormState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+
+  const code = String(formData.get("code") ?? "");
+  const type = formData.get("discount_type") === "fixed" ? "fixed" : "percent";
+  const rawValue = String(formData.get("value") ?? "").replace(",", ".").trim();
+  const num = Number(rawValue);
+  if (!Number.isFinite(num) || num <= 0) return { error: "Valeur de remise invalide." };
+  const discountValue = type === "fixed" ? Math.round(num * 100) : Math.round(num);
+
+  const maxRaw = String(formData.get("max_uses") ?? "").trim();
+  const maxUses = maxRaw ? Math.max(1, Math.round(Number(maxRaw))) : null;
+  if (maxRaw && !Number.isFinite(Number(maxRaw))) return { error: "Nombre d'utilisations invalide." };
+
+  const expRaw = String(formData.get("expires_at") ?? "").trim();
+  const expiresAt = /^\d{4}-\d{2}-\d{2}$/.test(expRaw) ? `${expRaw}T23:59:59Z` : null;
+
+  const res = await createPromo(tenantId, { code, discountType: type, discountValue, maxUses, expiresAt });
+  if (!res.ok) return { error: res.error };
+  revalidatePath("/admin/codes");
+  return { ok: true };
+}
+
+export async function togglePromo(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = String(formData.get("id") ?? "");
+  const active = formData.get("active") === "on";
+  if (!id) return;
+  await setPromoActive(ctx.profile.tenant_id, id, active);
+  revalidatePath("/admin/codes");
+}
+
+export async function removePromo(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await deletePromoLib(ctx.profile.tenant_id, id);
+  revalidatePath("/admin/codes");
+}
+
+export interface GiftGenState {
+  ok?: boolean;
+  error?: string;
+  codes?: string[];
+}
+
+/** Génère des codes cadeaux gratuits pour une offre à paiement unique. */
+export async function generateGiftCodesAction(_prev: GiftGenState, formData: FormData): Promise<GiftGenState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+  const offerId = String(formData.get("offer_id") ?? "").trim();
+  if (!offerId) return { error: "Choisis une offre." };
+  const count = Math.max(1, Math.min(50, Math.round(Number(formData.get("count") ?? 1)) || 1));
+  const note = String(formData.get("note") ?? "").trim() || null;
+  const res = await generateCoachGiftCodes(tenantId, offerId, count, note);
+  if (!res.ok) return { error: res.error };
+  revalidatePath("/admin/codes");
+  return { ok: true, codes: res.codes };
 }

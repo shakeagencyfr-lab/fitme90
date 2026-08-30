@@ -109,6 +109,12 @@ export async function confirmCoachCheckout(userId: string, sessionId: string): P
     // Paiement unique.
     if (session.payment_status !== "paid") return false;
     await admin.from("profiles").update({ paid: true }).eq("id", userId);
+    // Code promo éventuel : on compte l'usage une fois le paiement confirmé.
+    const promoCode = session.metadata?.promo_code;
+    if (promoCode) {
+      const { incrementPromoUse } = await import("@/lib/promo");
+      await incrementPromoUse(offer.tenant_id, promoCode);
+    }
     return true;
   } catch {
     return false;

@@ -446,6 +446,24 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
                 ))}
               </div>
             )}
+
+            {/* Offrir un programme (carte cadeau) */}
+            {tenant.chargesEnabled && offers.some((o) => o.billing_type !== "subscription") ? (
+              <div className="mx-auto mt-10 flex max-w-[560px] flex-col items-center gap-3 rounded-card-lg border border-white/12 bg-white/[0.03] p-7 text-center">
+                <div className="font-archivo text-[20px] font-bold tracking-[-0.02em] text-white">
+                  Envie de faire plaisir ?
+                </div>
+                <p className="text-[14px] leading-[1.55] text-white/60">
+                  Offre un programme à quelqu&apos;un : tu paies, la personne reçoit un code à utiliser librement.
+                </p>
+                <Link
+                  href={`/c/${tenant.slug}/offrir`}
+                  className="tap mt-1 inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-btn border border-brand bg-brand/10 px-6 text-[15px] font-semibold text-white transition-colors hover:bg-brand/20"
+                >
+                  <S.spark className="h-4 w-4 text-brand" /> Je veux offrir un programme
+                </Link>
+              </div>
+            ) : null}
           </div>
         </section>
 

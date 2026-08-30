@@ -27,12 +27,13 @@ export async function POST(req: NextRequest) {
 
   // Réservation atomique : on ne marque le code que s'il n'est pas déjà pris
   // (filtre used_by IS NULL). 0 ligne renvoyée = code inexistant ou déjà utilisé.
+  // On récupère aussi le coach + l'offre ciblés (cartes cadeaux multi-tenant).
   const { data, error } = await admin
     .from("gift_codes")
     .update({ used_by: ctx.userId, used_at: new Date().toISOString() })
     .eq("code", code)
     .is("used_by", null)
-    .select("code");
+    .select("code, tenant_id, offer_id");
 
   if (error) {
     return NextResponse.json({ error: "Erreur serveur." }, { status: 500 });
@@ -44,9 +45,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Le cadeau débloque le compte et rattache, le cas échéant, le bon coach et la
+  // bonne offre (durée du programme) au bénéficiaire.
+  const gift = data[0] as { tenant_id: string | null; offer_id: string | null };
+  const patch: Record<string, unknown> = { paid: true };
+  if (gift.tenant_id) patch.tenant_id = gift.tenant_id;
+  if (gift.offer_id) patch.selected_offer_id = gift.offer_id;
   const { error: paidErr } = await admin
     .from("profiles")
-    .update({ paid: true })
+    .update(patch)
     .eq("id", ctx.userId);
   if (paidErr) {
     // On tente de libérer le code pour ne pas le gaspiller.

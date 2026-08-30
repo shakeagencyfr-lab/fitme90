@@ -74,7 +74,7 @@ export default async function PaiementPage() {
             {durationLabel} ({programDaysForMonths(offer.duration_months)} jours), avec coach IA.
           </p>
         </header>
-        <CoachCheckoutButton priceLabel={formatEuros(offer.price_cents)} />
+        <CoachCheckoutButton priceLabel={formatEuros(offer.price_cents)} allowPromo />
         <p className="text-[12px] text-muted-2 leading-relaxed">
           Accompagnement sportif et de bien-être, sans visée médicale. En cas de
           pathologie, de grossesse ou de blessure, l&apos;accès peut être suspendu et un

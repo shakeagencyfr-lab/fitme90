@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { clientOffer, subscriptionPrice } from "@/lib/offers";
 import { stripeForTenant } from "@/lib/coach-payments";
 import { applyPendingCoachSelection } from "@/lib/tenant";
+import { validatePromo } from "@/lib/promo";
 
 export const runtime = "nodejs";
 
@@ -25,11 +26,20 @@ function resolveInterval(
 // COACH (clé BYOK). La plateforme ne touche pas l'argent, aucune commission,
 // aucun compte Connect. Le contrôle du paiement se fait au retour (vérification
 // de la session avec la clé du coach), pas via un webhook plateforme.
-export async function POST() {
+export async function POST(req: Request) {
   const ctx = await getSessionContext();
   if (!ctx) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   if (ctx.access.phase !== "not_paid") {
     return NextResponse.json({ error: "Programme déjà débloqué" }, { status: 409 });
+  }
+
+  // Code promo éventuel (appliqué au paiement unique).
+  let promoRaw = "";
+  try {
+    const body = await req.json();
+    if (body && typeof body.code === "string") promoRaw = body.code;
+  } catch {
+    /* corps vide : pas de code */
   }
 
   // Filet de sécurité : appliquer le rattachement coach/offre s'il ne l'a pas
@@ -107,6 +117,19 @@ export async function POST() {
     if (offer.price_cents == null || offer.price_cents <= 0) {
       return NextResponse.json({ error: "Cette offre n'a pas de prix." }, { status: 400 });
     }
+
+    // Code promo : remise appliquée au montant. Refusé si invalide.
+    let amount = offer.price_cents;
+    const meta: Record<string, string> = { user_id: ctx.userId, offer_id: offer.id };
+    if (promoRaw.trim()) {
+      const promo = await validatePromo(offer.tenant_id, promoRaw, offer.price_cents);
+      if (!promo.ok) {
+        return NextResponse.json({ error: promo.error ?? "Code promo invalide." }, { status: 400 });
+      }
+      amount = promo.discountedCents!;
+      meta.promo_code = promo.code!;
+    }
+
     const checkout = await stripe.checkout.sessions.create({
       mode: "payment",
       client_reference_id: ctx.userId,
@@ -116,12 +139,12 @@ export async function POST() {
           quantity: 1,
           price_data: {
             currency,
-            unit_amount: offer.price_cents,
+            unit_amount: amount,
             product_data: { name: offer.name },
           },
         },
       ],
-      metadata: { user_id: ctx.userId, offer_id: offer.id },
+      metadata: meta,
       success_url: successUrl,
       cancel_url: cancelUrl,
     });

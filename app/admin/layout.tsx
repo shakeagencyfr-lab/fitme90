@@ -28,6 +28,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               ["/admin/chat", "Chat VIP"],
               ["/admin/offres", "Ma page"],
               ["/admin/abonnements", "Abonnements"],
+              ["/admin/codes", "Codes"],
               ["/admin/integrations", "Intégrations"],
               ["/admin/config", "Configuration IA"],
               ["/admin/shop", "Boutique"],
