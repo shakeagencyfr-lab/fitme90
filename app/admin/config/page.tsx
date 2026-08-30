@@ -20,7 +20,11 @@ export default async function AdminConfigPage() {
         </p>
       </div>
 
-      <CoachConfigForm initialMode={cfg.generation_mode} initialCustom={cfg.custom_methodology} />
+      <CoachConfigForm
+        initialMode={cfg.generation_mode}
+        initialCustom={cfg.custom_methodology}
+        initialCoachName={cfg.coach_name}
+      />
 
       <details className="group rounded-card border border-line bg-surface p-5">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3">

@@ -11,6 +11,7 @@ import { isShopEnabled } from "@/lib/shop";
 import { clientVipContext, clientUnreadVipCount } from "@/lib/vip";
 import { brandForUser } from "@/lib/branding";
 import { brandMetadataForUser } from "@/lib/brand-metadata";
+import { readCoachName } from "@/lib/methodology";
 import { PROGRAM_DAYS } from "@/lib/config";
 
 // Onglet + favicon en marque blanche (coach du client connecté).
@@ -29,7 +30,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   if (isCoachAccount(ctx)) redirect("/admin");
 
   // Onglet Chat VIP + marque blanche (couleur, logo, nom du coach).
-  const [vip, brand] = await Promise.all([clientVipContext(ctx.userId), brandForUser(ctx.userId)]);
+  const [vip, brand, coachName] = await Promise.all([
+    clientVipContext(ctx.userId),
+    brandForUser(ctx.userId),
+    readCoachName(),
+  ]);
   // Badge de messages non lus sur l'onglet Chat VIP (seulement si l'option est active).
   const vipUnread = vip.enabled ? await clientUnreadVipCount(ctx.userId) : 0;
 
@@ -67,7 +72,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         ) : null}
         <PageTransition>{children}</PageTransition>
       </main>
-      {ctx.access.coachEnabled ? <CoachWidget /> : null}
+      {ctx.access.coachEnabled ? <CoachWidget coachName={coachName} /> : null}
       <OnboardingTour />
       {/* Invite à installer l'app (Android natif ; iOS marche à suivre).
           Côté client : on attend la fin du tutoriel d'accueil. */}

@@ -7,15 +7,39 @@ import { Button, Alert, Card, MonoLabel } from "@/components/ui";
 interface Props {
   initialMode: "auto" | "custom";
   initialCustom: string;
+  initialCoachName: string;
 }
 
-export function CoachConfigForm({ initialMode, initialCustom }: Props) {
+export function CoachConfigForm({ initialMode, initialCustom, initialCoachName }: Props) {
   const [state, action, pending] = useActionState(saveCoachConfig, {} as ConfigState);
   const [mode, setMode] = useState<"auto" | "custom">(initialMode);
 
   return (
     <Card as="section" className="flex flex-col gap-4">
       <form action={action} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <div className="font-archivo font-bold text-[17px] text-ink">Prénom du coach IA</div>
+          <p className="text-[13px] text-muted">
+            Le prénom sous lequel l&apos;assistant se présente à tes clients (bulle
+            de chat, message d&apos;accueil, signatures).
+          </p>
+        </div>
+        <label className="flex flex-col gap-1.5">
+          <input
+            type="text"
+            name="coach_name"
+            defaultValue={initialCoachName}
+            maxLength={40}
+            placeholder="Ex : Sébastien"
+            className="w-full max-w-[280px] rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
+          />
+          <span className="text-[12px] text-muted-2">
+            Laisse vide pour le prénom par défaut. Lettres, espaces et tirets uniquement.
+          </span>
+        </label>
+
+        <div className="h-px bg-line" />
+
         <div className="flex flex-col gap-1">
           <div className="font-archivo font-bold text-[17px] text-ink">Mode de génération</div>
           <p className="text-[13px] text-muted">

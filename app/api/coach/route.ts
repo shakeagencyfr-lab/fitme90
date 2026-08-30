@@ -7,7 +7,8 @@ import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
 import { MODELS, textOf, parseJsonLoose, effortConfig, anthropic } from "@/lib/anthropic";
 import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
-import { buildPersona } from "@/lib/coach-persona";
+import { buildPersona, DEFAULT_BRAND } from "@/lib/coach-persona";
+import { readCoachName } from "@/lib/methodology";
 import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
 import { missedDays } from "@/lib/streak";
 import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan } from "@/lib/program";
@@ -172,7 +173,8 @@ export async function POST(req: NextRequest) {
 
   const past = (history ?? []).reverse() as { role: "user" | "assistant"; content: string }[];
 
-  const system = `${buildPersona(quiz?.answers ?? {})}
+  const coachName = await readCoachName();
+  const system = `${buildPersona(quiz?.answers ?? {}, { ...DEFAULT_BRAND, coachName })}
 
 PROFIL DU CLIENT :
 ${profileLines.length ? profileLines.join("\n") : "Non renseigné."}

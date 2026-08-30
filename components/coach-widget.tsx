@@ -23,10 +23,12 @@ interface Conv {
 
 type Attached = { data: string; media_type: "image/jpeg"; preview: string };
 
-const GREETING: Msg = {
-  role: "assistant",
-  content: `Salut, moi c'est ${COACH_NAME}, ton coach. Pose-moi une question sur ta séance, un exercice, une substitution ou un repas. Tu peux aussi m'envoyer une photo (repas, machine) ou dicter à la voix.`,
-};
+function greetingFor(name: string): Msg {
+  return {
+    role: "assistant",
+    content: `Salut, moi c'est ${name}, ton coach. Pose-moi une question sur ta séance, un exercice, une substitution ou un repas. Tu peux aussi m'envoyer une photo (repas, machine) ou dicter à la voix.`,
+  };
+}
 
 function mapMsgs(raw: unknown): Msg[] {
   if (!Array.isArray(raw)) return [];
@@ -95,8 +97,9 @@ function loadImage(file: File): Promise<HTMLImageElement> {
 // Coach flottant : accessible depuis tout l'espace client (README).
 // Texte + photo (vision) + dictée vocale. Monté uniquement si le coach est
 // activé (avant J90), le layout ne le rend pas au-delà.
-export function CoachWidget() {
+export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) {
   const router = useRouter();
+  const GREETING = greetingFor(coachName);
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([GREETING]);
   const [input, setInput] = useState("");
@@ -372,7 +375,7 @@ export function CoachWidget() {
           </svg>
         </button>
         <div className="min-w-0 flex-1 text-center">
-          <div className="truncate font-archivo font-semibold text-[15px] text-ink">{COACH_NAME}</div>
+          <div className="truncate font-archivo font-semibold text-[15px] text-ink">{coachName}</div>
           <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">Coach FitMe90</div>
         </div>
         <button
@@ -485,7 +488,7 @@ export function CoachWidget() {
               <span className="size-[7px] animate-bounce rounded-full bg-muted-2/70 [animation-delay:-0.12s]" />
               <span className="size-[7px] animate-bounce rounded-full bg-muted-2/70" />
             </div>
-            <span className="pl-1 text-[11px] text-muted-2">{COACH_NAME} écrit…</span>
+            <span className="pl-1 text-[11px] text-muted-2">{coachName} écrit…</span>
           </div>
         ) : null}
         {error ? (
