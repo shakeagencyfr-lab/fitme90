@@ -257,10 +257,15 @@ create table if not exists public.coach_config (
   updated_at         timestamptz not null default now(),
   constraint coach_config_mode check (generation_mode in ('auto','custom'))
 );
+-- RLS activé SANS policy + droits révoqués = refus total pour anon/authenticated
+-- (comme ai_calls). Le serveur y accède en service role. La révocation évite que
+-- la protection ne repose que sur RLS si celui-ci était un jour désactivé.
 alter table public.coach_config enable row level security;
+revoke all on public.coach_config from anon, authenticated;
 
--- boutique d'affiliation : produits mis en avant par le coach. Lecture pour les
--- clients connectés, écriture réservée au serveur (service role / dashboard).
+-- boutique d'affiliation : produits mis en avant par le coach. Écriture ET
+-- lecture réservées au serveur (service role / dashboard) : la liste est rendue
+-- côté serveur, jamais lue directement par le navigateur.
 create table if not exists public.shop_products (
   id          uuid primary key default gen_random_uuid(),
   title       text not null,
@@ -273,3 +278,4 @@ create table if not exists public.shop_products (
 -- Lu côté serveur (service_role) uniquement : deny-by-default sous RLS, aucun
 -- accès direct du navigateur (comme les autres tables server-only).
 alter table public.shop_products enable row level security;
+revoke all on public.shop_products from anon, authenticated;
