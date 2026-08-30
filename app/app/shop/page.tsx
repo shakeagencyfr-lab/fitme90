@@ -9,7 +9,10 @@ export default async function ShopPage() {
   const ctx = await getSessionContext();
   if (!ctx) redirect("/connexion?suite=/app/shop");
 
-  const [enabled, products] = await Promise.all([isShopEnabled(), getShopProducts()]);
+  const [enabled, products] = await Promise.all([
+    isShopEnabled(ctx.profile?.tenant_id ?? null),
+    getShopProducts(),
+  ]);
   if (!enabled) redirect("/app");
 
   return (

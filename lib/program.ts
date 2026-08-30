@@ -342,10 +342,11 @@ export async function generateProgram(
   brief: Brief,
   effort: "low" | "medium" | "high" = "high",
   apiKey?: string,
+  tenantId: string | null = null,
 ): Promise<GenerateResult> {
   const client = anthropic(apiKey);
-  // Méthodologie (base evidence-based, ou personnalisée par le coach en admin).
-  const methodology = await effectiveMethodology();
+  // Méthodologie propre au tenant (base evidence-based, ou méthode du coach).
+  const methodology = await effectiveMethodology(tenantId);
   // Nombre de séances distinctes attendu (une par jour d'entraînement).
   const wantSessions = Math.max(1, brief.trainDays.length || 3);
 

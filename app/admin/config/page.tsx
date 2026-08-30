@@ -1,11 +1,13 @@
 import { readCoachConfig, BASE_METHODOLOGY } from "@/lib/methodology";
+import { getAdminOrNull } from "@/lib/admin";
 import { CoachConfigForm } from "@/components/coach-config-form";
 import { MonoLabel } from "@/components/ui";
 
 export const metadata = { title: "Configuration IA, Admin FitMe90" };
 
 export default async function AdminConfigPage() {
-  const cfg = await readCoachConfig();
+  const ctx = await getAdminOrNull();
+  const cfg = await readCoachConfig(ctx?.profile?.tenant_id ?? null);
 
   return (
     <div className="flex flex-col gap-5">
