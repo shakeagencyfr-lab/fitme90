@@ -55,11 +55,21 @@ export async function saveCoachConfig(
 
   const mode = formData.get("mode") === "custom" ? "custom" : "auto";
   const custom = String(formData.get("custom_methodology") ?? "").slice(0, 8000);
+  // Prénom du coach IA : lettres/espaces/tirets, borné. Vide = valeur par défaut.
+  const coachName = String(formData.get("coach_name") ?? "")
+    .replace(/[^\p{L}\p{M} '-]/gu, "")
+    .trim()
+    .slice(0, 40);
 
   const admin = createAdminClient();
   const { error } = await admin
     .from("coach_config")
-    .update({ generation_mode: mode, custom_methodology: custom, updated_at: new Date().toISOString() })
+    .update({
+      generation_mode: mode,
+      custom_methodology: custom,
+      coach_name: coachName || null,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", true);
   if (error) return { error: "Enregistrement impossible." };
 

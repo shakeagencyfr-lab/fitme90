@@ -248,6 +248,7 @@ create table if not exists public.coach_config (
   id                 boolean primary key default true,
   generation_mode    text not null default 'auto',
   custom_methodology text not null default '',
+  coach_name         text,
   shop_enabled       boolean not null default false,
   updated_at         timestamptz not null default now(),
   constraint coach_config_singleton check (id = true),

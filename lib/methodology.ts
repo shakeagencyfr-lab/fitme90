@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { COACH_NAME } from "@/lib/config";
 
 // Méthodologie d'entraînement injectée dans le prompt de génération. Une BASE
 // evidence-based par défaut ; le coach peut la compléter/remplacer depuis le
@@ -104,6 +105,7 @@ Contraintes/blessures : exclure ou RÉGRESSER tout exercice contre-indiqué, en 
 export interface CoachConfig {
   generation_mode: "auto" | "custom";
   custom_methodology: string;
+  coach_name: string;
 }
 
 /** Lit la config coach (service role). Renvoie des valeurs sûres si absente. */
@@ -112,16 +114,23 @@ export async function readCoachConfig(): Promise<CoachConfig> {
     const admin = createAdminClient();
     const { data } = await admin
       .from("coach_config")
-      .select("generation_mode, custom_methodology")
+      .select("generation_mode, custom_methodology, coach_name")
       .eq("id", true)
-      .maybeSingle<CoachConfig>();
+      .maybeSingle<{ generation_mode: string; custom_methodology: string | null; coach_name: string | null }>();
     return {
       generation_mode: data?.generation_mode === "custom" ? "custom" : "auto",
       custom_methodology: data?.custom_methodology ?? "",
+      coach_name: (data?.coach_name ?? "").trim() || COACH_NAME,
     };
   } catch {
-    return { generation_mode: "auto", custom_methodology: "" };
+    return { generation_mode: "auto", custom_methodology: "", coach_name: COACH_NAME };
   }
+}
+
+/** Prénom du coach IA (paramétrable par le coach), sinon la valeur par défaut. */
+export async function readCoachName(): Promise<string> {
+  const cfg = await readCoachConfig();
+  return cfg.coach_name;
 }
 
 /**
