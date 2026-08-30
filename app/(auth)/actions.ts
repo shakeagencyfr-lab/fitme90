@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminEmail } from "@/lib/admin";
+import { capacityForSlug } from "@/lib/entitlements";
 
 function siteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -79,6 +80,21 @@ export async function signUpAction(
   // métadonnées du compte (elles survivent à la confirmation d'e-mail, même sur
   // un autre appareil). Elles seront appliquées au profil à la confirmation.
   const coachSlug = String(formData.get("coach_slug") ?? "").trim().slice(0, 80);
+
+  // Capacité du coach : le palier de son offre plafonne le nombre de clients
+  // actifs. Au-delà, on refuse l'inscription AVANT de créer le compte (pas de
+  // compte fantôme). Message neutre côté prospect ; le coach voit sa jauge et
+  // l'invitation à monter d'offre sur son dashboard.
+  if (coachSlug) {
+    const cap = await capacityForSlug(coachSlug);
+    if (cap?.full) {
+      return {
+        error:
+          "Cet espace n'accepte pas de nouveaux membres pour le moment. Rapproche-toi de ton coach.",
+      };
+    }
+  }
+
   const offerId = String(formData.get("offer_id") ?? "").trim().slice(0, 40);
   const interval = String(formData.get("interval") ?? "").trim();
   const data: Record<string, string> = {};
