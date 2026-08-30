@@ -38,6 +38,59 @@ export function normalizeColor(raw: string): string | null {
   return HEX.test(withHash) ? withHash.toLowerCase() : null;
 }
 
+// Marque « publique » minimale d'un coach : ce qu'il faut pour habiller l'app en
+// marque blanche (logo, favicon, couleur, nom). Sert aux pages auth, à l'app, au
+// questionnaire, à la génération et au manifest PWA.
+export interface PublicBrand {
+  name: string;
+  slug: string | null;
+  logoUrl: string | null;
+  faviconUrl: string | null;
+  brandColor: string | null;
+}
+
+interface BrandRow {
+  name: string;
+  slug: string;
+  brand_color: string | null;
+  logo_url: string | null;
+  favicon_url: string | null;
+}
+
+const BRAND_COLS = "name, slug, brand_color, logo_url, favicon_url";
+
+function toPublicBrand(d: BrandRow | null): PublicBrand | null {
+  if (!d) return null;
+  return {
+    name: d.name,
+    slug: d.slug,
+    logoUrl: d.logo_url,
+    faviconUrl: d.favicon_url,
+    brandColor: d.brand_color,
+  };
+}
+
+/** Marque d'un coach par son slug (pages auth arrivant depuis /c/[slug]). */
+export async function brandForSlug(slug: string): Promise<PublicBrand | null> {
+  if (!slug) return null;
+  const admin = createAdminClient();
+  const { data } = await admin.from("tenants").select(BRAND_COLS).eq("slug", slug).maybeSingle<BrandRow>();
+  return toPublicBrand(data);
+}
+
+/** Marque du coach auquel appartient un utilisateur connecté (app en marque blanche). */
+export async function brandForUser(userId: string): Promise<PublicBrand | null> {
+  const admin = createAdminClient();
+  const { data: prof } = await admin
+    .from("profiles")
+    .select("tenant_id")
+    .eq("id", userId)
+    .maybeSingle<{ tenant_id: string | null }>();
+  if (!prof?.tenant_id) return null;
+  const { data } = await admin.from("tenants").select(BRAND_COLS).eq("id", prof.tenant_id).maybeSingle<BrandRow>();
+  return toPublicBrand(data);
+}
+
 const COLS =
   "brand_color, tagline, headline, logo_url, favicon_url, about_enabled, about_title, about_text, about_photo_url";
 

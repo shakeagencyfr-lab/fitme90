@@ -1,8 +1,12 @@
 import { LoginForm } from "@/components/auth-forms";
 import { Alert } from "@/components/ui";
 import { CoachAccent } from "@/components/coach-accent";
+import { CoachBrandHeader } from "@/components/coach-brand-header";
+import { brandMetadata } from "@/lib/brand-metadata";
 
-export const metadata = { title: "Connexion, FitMe90" };
+export function generateMetadata({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
+  return brandMetadata(searchParams, "Connexion");
+}
 
 export default async function ConnexionPage({
   searchParams,
@@ -15,6 +19,7 @@ export default async function ConnexionPage({
   const erreur = sp.erreur;
   return (
     <CoachAccent slug={coachSlug}>
+      <CoachBrandHeader slug={coachSlug} />
       <div className="flex flex-col gap-4">
         {erreur === "lien_invalide" ? (
           <Alert>Ce lien a expiré ou a déjà été utilisé. Reconnecte-toi.</Alert>

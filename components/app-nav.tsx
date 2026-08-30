@@ -108,12 +108,16 @@ export function AppNav({
   cycleName,
   shopEnabled = false,
   vipEnabled = false,
+  brandName = null,
+  brandLogoUrl = null,
 }: {
   day: number;
   dayPct: number;
   cycleName?: string;
   shopEnabled?: boolean;
   vipEnabled?: boolean;
+  brandName?: string | null;
+  brandLogoUrl?: string | null;
 }) {
   const pathname = usePathname();
   const [more, setMore] = useState(false);
@@ -128,10 +132,17 @@ export function AppNav({
     <>
       {/* ───────── Sidebar (desktop ≥ nav) : tous les onglets ───────── */}
       <nav className="hidden nav:sticky nav:top-0 nav:flex nav:h-dvh nav:w-[228px] nav:shrink-0 nav:flex-col nav:gap-0.5 nav:overflow-auto nav:border-r nav:border-line nav:px-3.5 nav:py-6">
-        <div className="flex flex-col gap-1 px-2.5 pb-4">
-          <div className="font-archivo font-extrabold text-[22px] tracking-[-0.02em] text-ink">
-            FitMe<span className="text-brand">90</span>
-          </div>
+        <div className="flex flex-col gap-1.5 px-2.5 pb-4">
+          {brandLogoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={brandLogoUrl} alt={brandName ?? "Logo"} className="h-9 w-auto max-w-[170px] object-contain" />
+          ) : brandName ? (
+            <div className="font-archivo font-extrabold text-[20px] leading-tight tracking-[-0.02em] text-ink">{brandName}</div>
+          ) : (
+            <div className="font-archivo font-extrabold text-[22px] tracking-[-0.02em] text-ink">
+              FitMe<span className="text-brand">90</span>
+            </div>
+          )}
           <div className="font-mono uppercase tracking-[0.14em] text-[10px] text-muted-2">
             Jour {day} sur 90
           </div>

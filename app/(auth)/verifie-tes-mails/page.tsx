@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { CoachBrandHeader } from "@/components/coach-brand-header";
 
 export const metadata = { title: "Vérifie tes e-mails, FitMe90" };
 
 export default function VerifieTesMailsPage() {
   return (
     <div className="flex flex-col gap-4">
+      <CoachBrandHeader />
       <h1 className="font-archivo font-extrabold text-[28px] leading-[1.05] tracking-[-0.03em] text-ink">
         Vérifie tes e-mails
       </h1>

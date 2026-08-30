@@ -1,7 +1,11 @@
 import { SignupForm } from "@/components/auth-forms";
 import { CoachAccent } from "@/components/coach-accent";
+import { CoachBrandHeader } from "@/components/coach-brand-header";
+import { brandMetadata } from "@/lib/brand-metadata";
 
-export const metadata = { title: "Créer un compte, FitMe90" };
+export function generateMetadata({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
+  return brandMetadata(searchParams, "Créer un compte");
+}
 
 export default async function InscriptionPage({
   searchParams,
@@ -11,6 +15,7 @@ export default async function InscriptionPage({
   const sp = await searchParams;
   return (
     <CoachAccent slug={sp.c}>
+      <CoachBrandHeader slug={sp.c} />
       <SignupForm coachSlug={sp.c} offerId={sp.offer} interval={sp.interval} />
     </CoachAccent>
   );

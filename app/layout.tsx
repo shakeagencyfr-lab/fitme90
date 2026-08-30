@@ -31,7 +31,8 @@ export const metadata: Metadata = {
   description:
     "Un programme d'entraînement et d'accompagnement nutritionnel personnalisé sur 90 jours, conçu par un coach professionnel diplômé d'État.",
   applicationName: "FitMe90",
-  manifest: "/manifest.webmanifest",
+  // Le <link rel="manifest"> est rendu manuellement (crossorigin use-credentials)
+  // pour servir un manifest en marque blanche selon le coach du client connecté.
   appleWebApp: { capable: true, title: "FitMe90", statusBarStyle: "default" },
   icons: {
     icon: [{ url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" }],
@@ -57,6 +58,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${archivo.variable} ${plex.variable} ${plexMono.variable} h-full antialiased`}
     >
+      {/* Manifest en marque blanche : credentials pour transmettre la session. */}
+      <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />
       <body className="min-h-full flex flex-col bg-paper text-ink">
         {/* Applique le thème avant le premier rendu (évite le flash clair). */}
         <script

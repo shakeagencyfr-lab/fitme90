@@ -3,9 +3,14 @@ import { getSessionContext } from "@/lib/guard";
 import { createClient } from "@/lib/supabase/server";
 import { confirmCoachCheckout } from "@/lib/coach-payments";
 import { GenerateStep } from "@/components/generate-step";
-import { Wordmark } from "@/components/brand";
+import { CoachMark } from "@/components/brand";
+import { brandForUser } from "@/lib/branding";
+import { brandMetadataForUser } from "@/lib/brand-metadata";
 
-export const metadata = { title: "Génération, FitMe90" };
+export async function generateMetadata() {
+  const ctx = await getSessionContext();
+  return brandMetadataForUser(ctx?.userId ?? null, "Génération");
+}
 
 export default async function GenerationPage({
   searchParams,
@@ -41,7 +46,7 @@ export default async function GenerationPage({
   return (
     <div className="min-h-dvh bg-paper">
       <header className="px-5 sm:px-8 pt-6 safe-top">
-        <Wordmark />
+        <CoachMark brand={await brandForUser(ctx.userId)} imgClass="h-9" />
       </header>
       <div className="flex min-h-[70dvh] items-center px-4 py-8 sm:px-8">
         <div className="w-full">
