@@ -4,6 +4,7 @@ import { getAdminOrNull } from "@/lib/admin";
 import { computeAccess, accessLabel } from "@/lib/access";
 import { aiCostForUsers, totalCost, formatUsd } from "@/lib/ai-cost";
 import { listCoachVipThreads } from "@/lib/vip";
+import { tenantCapacity, type TenantCapacity } from "@/lib/entitlements";
 import { CoachOnboarding } from "@/components/coach-onboarding";
 import { Card, MonoLabel } from "@/components/ui";
 
@@ -50,9 +51,10 @@ export default async function AdminClientsPage() {
   const activeCount = withAccess.filter((r) => r.access.phase === "active").length;
 
   // Coût IA (BYOK) par client + total ; non-lus VIP par client (icône de ligne).
-  const [costByUser, vipThreads] = await Promise.all([
+  const [costByUser, vipThreads, cap] = await Promise.all([
     aiCostForUsers(rows.map((p) => p.id)),
     tenantId ? listCoachVipThreads(tenantId) : Promise.resolve([]),
+    tenantId ? tenantCapacity(tenantId) : Promise.resolve(null),
   ]);
   const globalCost = totalCost(costByUser);
   const unreadByClient = new Map<string, number>();
@@ -71,6 +73,8 @@ export default async function AdminClientsPage() {
         <Card><Stat label="Ont payé" value={paidCount} /></Card>
         <Card><Stat label="Programme actif" value={activeCount} /></Card>
       </div>
+
+      {cap ? <CapacityCard cap={cap} /> : null}
 
       {/* Coût IA (BYOK) : dépense estimée avec les clés Anthropic du coach. */}
       <Card className="flex flex-col gap-1.5">
@@ -176,6 +180,52 @@ function Stat({ label, value }: { label: string; value: number }) {
         {value}
       </div>
     </div>
+  );
+}
+
+function CapacityCard({ cap }: { cap: TenantCapacity }) {
+  if (cap.unlimited) {
+    return (
+      <Card className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-0.5">
+          <MonoLabel>Capacité clients</MonoLabel>
+          <span className="text-[14px] text-body">
+            <span className="font-semibold text-ink">Illimité</span> · {cap.used} membre{cap.used > 1 ? "s" : ""}
+          </span>
+        </div>
+        <span className="rounded-pill border border-brand/30 bg-brand/10 px-2.5 py-0.5 text-[12px] font-medium text-brand">
+          Sans limite
+        </span>
+      </Card>
+    );
+  }
+  const limit = cap.limit ?? 0;
+  const pct = limit > 0 ? Math.min(100, Math.round((cap.used / limit) * 100)) : 100;
+  const left = cap.remaining ?? 0;
+  return (
+    <Card className={`flex flex-col gap-2 ${cap.full ? "border-alert-line bg-alert" : ""}`}>
+      <div className="flex items-center justify-between gap-3">
+        <MonoLabel>Capacité clients</MonoLabel>
+        <span
+          className={`font-archivo font-extrabold text-[18px] leading-none tracking-[-0.02em] tabular-nums ${
+            cap.full ? "text-alert-ink" : "text-ink"
+          }`}
+        >
+          {cap.used} / {limit}
+        </span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-pill bg-surface-2">
+        <div
+          className={`h-full rounded-pill ${cap.full ? "bg-alert-ink" : "bg-brand"}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className={`text-[12.5px] leading-[1.6] ${cap.full ? "text-alert-ink" : "text-muted-2"}`}>
+        {cap.full
+          ? "Tu as atteint la capacité de ton offre. Pour accueillir un nouveau client, passe à l'offre supérieure. Une place se libère en supprimant un compte client existant."
+          : `${left} place${left > 1 ? "s" : ""} restante${left > 1 ? "s" : ""}. Une place se libère en supprimant un compte client.`}
+      </p>
+    </Card>
   );
 }
 
