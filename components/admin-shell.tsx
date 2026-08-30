@@ -111,27 +111,25 @@ export function AdminShell({
   );
 
   const footer = (
-    <div className="flex flex-col gap-3 border-t border-line pt-3">
+    <div className="flex flex-col gap-2.5 border-t border-line pt-3">
       <div className="truncate px-1 text-[12px] text-muted-2" title={email}>
         {email}
       </div>
-      <div className="flex items-center gap-2">
-        <ThemeToggle />
-        <form action={signOutAction} className="ml-auto">
-          <button
-            type="submit"
-            aria-label="Se déconnecter"
-            title="Se déconnecter"
-            className="tap flex h-9 items-center gap-1.5 rounded-btn border border-line-4 bg-surface px-3 text-[13px] font-semibold text-body-2 hover:border-ink hover:text-ink"
-          >
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M15 5V4a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-1" />
-              <path d="M10 12h11m0 0-3-3m3 3-3 3" />
-            </svg>
-            Déconnexion
-          </button>
-        </form>
-      </div>
+      <ThemeToggle className="w-full justify-between" />
+      <form action={signOutAction}>
+        <button
+          type="submit"
+          aria-label="Se déconnecter"
+          title="Se déconnecter"
+          className="tap flex w-full items-center justify-center gap-1.5 rounded-btn border border-line-4 bg-surface px-3 py-2.5 text-[13px] font-semibold text-body-2 hover:border-ink hover:text-ink"
+        >
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M15 5V4a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-1" />
+            <path d="M10 12h11m0 0-3-3m3 3-3 3" />
+          </svg>
+          Déconnexion
+        </button>
+      </form>
     </div>
   );
 
@@ -141,7 +139,7 @@ export function AdminShell({
       <aside className="sticky top-0 hidden h-dvh w-[262px] shrink-0 flex-col gap-6 border-r border-line bg-surface px-4 py-5 lg:flex">
         <div className="flex items-center justify-between gap-2">
           {brandBadge}
-          <CoachBell notifs={notifs} unread={unread} />
+          <CoachBell notifs={notifs} unread={unread} align="left" />
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           <NavList pathname={pathname} />

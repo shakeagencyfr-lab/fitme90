@@ -36,7 +36,15 @@ function NotifIcon({ type }: { type: string }) {
   );
 }
 
-export function CoachBell({ notifs, unread }: { notifs: CoachNotif[]; unread: number }) {
+export function CoachBell({
+  notifs,
+  unread,
+  align = "right",
+}: {
+  notifs: CoachNotif[];
+  unread: number;
+  align?: "left" | "right";
+}) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<CoachNotif[]>(notifs);
   const [count, setCount] = useState(unread);
@@ -118,7 +126,10 @@ export function CoachBell({ notifs, unread }: { notifs: CoachNotif[]; unread: nu
       {open ? (
         <>
           <button aria-label="Fermer" onClick={() => setOpen(false)} className="fixed inset-0 z-40 cursor-default" />
-          <div className="absolute right-0 z-50 mt-2 flex max-h-[70vh] w-[min(92vw,360px)] flex-col overflow-hidden rounded-card border border-line bg-surface shadow-lg">
+          <div className={[
+            "absolute z-50 mt-2 flex max-h-[70vh] w-[min(92vw,360px)] flex-col overflow-hidden rounded-card border border-line bg-surface shadow-lg",
+            align === "left" ? "left-0" : "right-0",
+          ].join(" ")}>
             <div className="flex items-center justify-between gap-3 border-b border-line-2 px-4 py-3">
               <span className="font-archivo font-bold text-[15px] text-ink">Notifications</span>
               {count > 0 ? (
