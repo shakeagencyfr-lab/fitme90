@@ -1,11 +1,25 @@
 import { NextResponse } from "next/server";
 import { getSessionContext } from "@/lib/guard";
 import { createClient } from "@/lib/supabase/server";
-import { clientOffer } from "@/lib/offers";
+import { clientOffer, subscriptionPrice } from "@/lib/offers";
 import { stripeForTenant } from "@/lib/coach-payments";
 import { applyPendingCoachSelection } from "@/lib/tenant";
 
 export const runtime = "nodejs";
+
+// Résout l'intervalle d'abonnement effectif : préférence du client si le prix
+// existe, sinon le seul intervalle disponible.
+function resolveInterval(
+  preferred: string | null,
+  hasMonth: boolean,
+  hasYear: boolean,
+): "month" | "year" | null {
+  if (preferred === "year" && hasYear) return "year";
+  if (preferred === "month" && hasMonth) return "month";
+  if (hasMonth) return "month";
+  if (hasYear) return "year";
+  return null;
+}
 
 // Paiement d'une offre coach : la session Stripe est créée sur le compte DU
 // COACH (clé BYOK). La plateforme ne touche pas l'argent, aucune commission,
@@ -34,9 +48,6 @@ export async function POST() {
   if (!offer) {
     return NextResponse.json({ error: "Aucune offre sélectionnée." }, { status: 400 });
   }
-  if (offer.price_cents == null || offer.price_cents <= 0) {
-    return NextResponse.json({ error: "Cette offre n'a pas de prix." }, { status: 400 });
-  }
 
   const stripe = await stripeForTenant(offer.tenant_id);
   if (!stripe) {
@@ -47,8 +58,55 @@ export async function POST() {
   }
 
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const currency = offer.currency || "eur";
+  const successUrl = `${site}/generation?coach_paid=1&session_id={CHECKOUT_SESSION_ID}`;
+  const cancelUrl = `${site}/app/paiement?annule=1`;
 
   try {
+    if (offer.billing_type === "subscription") {
+      // Intervalle choisi par le client (profiles.selected_interval), sinon défaut.
+      const supabase = await createClient();
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("selected_interval")
+        .eq("id", ctx.userId)
+        .maybeSingle<{ selected_interval: string | null }>();
+      const interval = resolveInterval(
+        prof?.selected_interval ?? null,
+        offer.price_month_cents != null,
+        offer.price_year_cents != null,
+      );
+      const amount = interval ? subscriptionPrice(offer, interval) : null;
+      if (!interval || amount == null || amount <= 0) {
+        return NextResponse.json({ error: "Cette offre n'a pas de prix d'abonnement." }, { status: 400 });
+      }
+      const checkout = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        client_reference_id: ctx.userId,
+        customer_email: ctx.email ?? undefined,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency,
+              unit_amount: amount,
+              recurring: { interval },
+              product_data: { name: offer.name },
+            },
+          },
+        ],
+        metadata: { user_id: ctx.userId, offer_id: offer.id },
+        subscription_data: { metadata: { user_id: ctx.userId, offer_id: offer.id } },
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+      });
+      return NextResponse.json({ url: checkout.url });
+    }
+
+    // Paiement unique (comportement historique).
+    if (offer.price_cents == null || offer.price_cents <= 0) {
+      return NextResponse.json({ error: "Cette offre n'a pas de prix." }, { status: 400 });
+    }
     const checkout = await stripe.checkout.sessions.create({
       mode: "payment",
       client_reference_id: ctx.userId,
@@ -57,15 +115,15 @@ export async function POST() {
         {
           quantity: 1,
           price_data: {
-            currency: offer.currency || "eur",
+            currency,
             unit_amount: offer.price_cents,
             product_data: { name: offer.name },
           },
         },
       ],
       metadata: { user_id: ctx.userId, offer_id: offer.id },
-      success_url: `${site}/generation?coach_paid=1&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${site}/app/paiement?annule=1`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
     });
     return NextResponse.json({ url: checkout.url });
   } catch {

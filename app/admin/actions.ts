@@ -215,13 +215,33 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
   if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
   const name = String(formData.get("name") ?? "");
   const months = Number(formData.get("duration_months") ?? 0);
-  const priceEuros = String(formData.get("price_euros") ?? "").replace(",", ".").trim();
-  const priceCents = priceEuros ? Math.round(Number(priceEuros) * 100) : null;
-  if (priceEuros && (priceCents == null || !Number.isFinite(priceCents) || priceCents < 0)) {
+  const billingType = formData.get("billing_type") === "subscription" ? "subscription" : "one_time";
+  const vipChat = formData.get("vip_chat") === "on";
+
+  // Parse un montant en euros (« 190 » ou « 29,90 ») → centimes, ou null si vide.
+  const toCents = (raw: unknown): { cents: number | null; bad: boolean } => {
+    const s = String(raw ?? "").replace(",", ".").trim();
+    if (!s) return { cents: null, bad: false };
+    const n = Math.round(Number(s) * 100);
+    return { cents: n, bad: !Number.isFinite(n) || n < 0 };
+  };
+
+  const price = toCents(formData.get("price_euros"));
+  const month = toCents(formData.get("price_month_euros"));
+  const year = toCents(formData.get("price_year_euros"));
+  if (price.bad || month.bad || year.bad) {
     return { error: "Prix invalide (ex : 190 ou 29,90)." };
   }
-  const vipChat = formData.get("vip_chat") === "on";
-  const res = await createOffer(tenantId, name, months, priceCents, vipChat);
+
+  const res = await createOffer(tenantId, {
+    name,
+    durationMonths: months,
+    vipChat,
+    billingType,
+    priceCents: price.cents,
+    priceMonthCents: month.cents,
+    priceYearCents: year.cents,
+  });
   if (!res.ok) return { error: res.error };
   revalidatePath("/admin/offres");
   return { ok: true };

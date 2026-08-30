@@ -17,6 +17,21 @@ function durationLabel(months: number): string {
   return `${total} · ${programDaysForMonths(months)} jours`;
 }
 
+function priceLabel(o: {
+  billing_type: string;
+  price_cents: number | null;
+  price_month_cents: number | null;
+  price_year_cents: number | null;
+}): string {
+  if (o.billing_type === "subscription") {
+    const parts: string[] = [];
+    if (o.price_month_cents != null) parts.push(`${formatEuros(o.price_month_cents)}/mois`);
+    if (o.price_year_cents != null) parts.push(`${formatEuros(o.price_year_cents)}/an`);
+    return parts.join(" ou ") || "Sans prix";
+  }
+  return formatEuros(o.price_cents);
+}
+
 export default async function AdminPublicPage() {
   const ctx = await getAdminOrNull();
   const tenantId = ctx?.profile?.tenant_id ?? null;
@@ -86,11 +101,16 @@ export default async function AdminPublicPage() {
                           Chat VIP
                         </span>
                       ) : null}
+                      {o.billing_type === "subscription" ? (
+                        <span className="rounded-pill border border-line-4 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-body-2">
+                          Abonnement
+                        </span>
+                      ) : null}
                     </div>
                     <span className="text-[13px] text-muted">
                       {durationLabel(o.duration_months)}
                       {" · "}
-                      <span className="text-body">{formatEuros(o.price_cents)}</span>
+                      <span className="text-body">{priceLabel(o)}</span>
                     </span>
                   </div>
 

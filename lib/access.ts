@@ -10,12 +10,17 @@
 
 import { PROGRAM_DAYS, GRACE_DAYS } from "./config";
 
-export type AccessPhase = "not_paid" | "not_started" | "scheduled" | "active" | "grace" | "ended";
+export type AccessPhase = "not_paid" | "not_started" | "scheduled" | "active" | "grace" | "ended" | "restricted";
 
 export interface AccessState {
   phase: AccessPhase;
   /** Numéro de jour du programme (1 = jour de génération). 0 si non démarré. */
   day: number;
+  /**
+   * Accès restreint suite à un défaut de paiement d'abonnement : le contenu
+   * déjà généré reste consultable, mais l'IA et le journal sont coupés.
+   */
+  restricted?: boolean;
   /** Durée totale du programme actif, en jours (dépend de l'offre choisie). */
   programDays: number;
   /** Le coach IA répond-il ? (payé && programme actif) */
@@ -140,5 +145,7 @@ export function accessLabel(a: AccessState): string {
       return `Programme terminé — consultation encore ${a.daysUntilAccessEnd} j`;
     case "ended":
       return "Accès terminé";
+    case "restricted":
+      return "Paiement en attente — accès en lecture seule";
   }
 }

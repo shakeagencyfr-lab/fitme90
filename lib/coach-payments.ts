@@ -62,11 +62,49 @@ export async function confirmCoachCheckout(userId: string, sessionId: string): P
   if (!stripe) return false;
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
-    const paid = session.payment_status === "paid";
     const owns =
       session.metadata?.user_id === userId || session.client_reference_id === userId;
-    if (!paid || !owns) return false;
+    if (!owns) return false;
+
     const admin = createAdminClient();
+
+    // Abonnement : la session est « complete » ; on relit l'abonnement pour son
+    // état et sa période, et on garde ses identifiants pour le suivi (sans webhook).
+    if (session.mode === "subscription" && session.subscription) {
+      const subId = typeof session.subscription === "string" ? session.subscription : session.subscription.id;
+      const customerId =
+        typeof session.customer === "string" ? session.customer : session.customer?.id ?? null;
+      let status: string | null = null;
+      let periodEnd: string | null = null;
+      let interval: string | null = null;
+      try {
+        const sub = await stripe.subscriptions.retrieve(subId);
+        status = sub.status;
+        const end = (sub as unknown as { current_period_end?: number }).current_period_end;
+        periodEnd = end ? new Date(end * 1000).toISOString() : null;
+        interval = sub.items?.data?.[0]?.price?.recurring?.interval ?? null;
+      } catch {
+        /* on garde au moins les identifiants */
+      }
+      const active = status === "active" || status === "trialing" || session.payment_status === "paid";
+      if (!active) return false;
+      await admin
+        .from("profiles")
+        .update({
+          paid: true,
+          subscription_id: subId,
+          stripe_customer_id: customerId,
+          subscription_status: status ?? "active",
+          subscription_current_period_end: periodEnd,
+          subscription_interval: interval,
+          subscription_synced_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+      return true;
+    }
+
+    // Paiement unique.
+    if (session.payment_status !== "paid") return false;
     await admin.from("profiles").update({ paid: true }).eq("id", userId);
     return true;
   } catch {

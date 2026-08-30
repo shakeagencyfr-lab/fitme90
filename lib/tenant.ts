@@ -27,18 +27,19 @@ export async function tenantIdForUser(userId: string): Promise<string | null> {
  */
 export async function applyPendingCoachSelection(
   userId: string,
-  meta: { coach_slug?: unknown; offer_id?: unknown } | null | undefined,
+  meta: { coach_slug?: unknown; offer_id?: unknown; interval?: unknown } | null | undefined,
 ): Promise<void> {
   const slug = typeof meta?.coach_slug === "string" ? meta.coach_slug.trim() : "";
   const offerId = typeof meta?.offer_id === "string" ? meta.offer_id.trim() : "";
+  const interval = meta?.interval === "year" ? "year" : meta?.interval === "month" ? "month" : "";
   if (!slug && !offerId) return;
 
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from("profiles")
-    .select("tenant_id, selected_offer_id")
+    .select("tenant_id, selected_offer_id, selected_interval")
     .eq("id", userId)
-    .maybeSingle<{ tenant_id: string | null; selected_offer_id: string | null }>();
+    .maybeSingle<{ tenant_id: string | null; selected_offer_id: string | null; selected_interval: string | null }>();
   // Déjà rattaché : ne rien changer.
   if (profile?.tenant_id && profile?.selected_offer_id) return;
 
@@ -68,6 +69,7 @@ export async function applyPendingCoachSelection(
   const patch: Record<string, string> = {};
   if (!profile?.tenant_id) patch.tenant_id = tenantId;
   if (!profile?.selected_offer_id && validOffer) patch.selected_offer_id = validOffer;
+  if (!profile?.selected_interval && interval) patch.selected_interval = interval;
   if (Object.keys(patch).length === 0) return;
   await admin.from("profiles").update(patch).eq("id", userId);
 }

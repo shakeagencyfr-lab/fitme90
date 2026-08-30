@@ -6,6 +6,7 @@ import { publicOffersBySlug, type Offer, type PublicTenant } from "@/lib/offers"
 import { programDaysForMonths, formatEuros, DEFAULT_BRAND_COLOR } from "@/lib/config";
 import { GridScan, AppPreview, MacroOrbit } from "@/components/landing-visuals";
 import { S } from "@/components/landing-icons";
+import { SubscriptionPrice } from "@/components/subscription-price";
 
 export const dynamic = "force-dynamic";
 export const viewport: Viewport = { themeColor: "#0a0b0c" };
@@ -107,39 +108,64 @@ function Brand({ tenant, imgClass = "h-11", textClass = "text-[20px]" }: { tenan
 }
 
 function OfferCard({ offer, slug, chargesEnabled }: { offer: Offer; slug: string; chargesEnabled: boolean }) {
+  const isSub = offer.billing_type === "subscription";
   return (
     <article className="flex flex-col gap-5 rounded-card-lg border border-white/12 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-7">
       <div className="flex flex-col gap-1.5">
-        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-brand">{durationText(offer.duration_months)}</span>
+        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-brand">
+          {isSub ? "Abonnement" : durationText(offer.duration_months)}
+        </span>
         <h3 className="font-archivo text-[22px] font-bold leading-tight tracking-[-0.02em] text-white">{offer.name}</h3>
       </div>
-      <div className="flex items-end gap-2">
-        <span className="font-archivo text-[clamp(40px,7vw,56px)] font-extrabold leading-none tracking-[-0.03em] text-white">
-          {formatEuros(offer.price_cents)}
-        </span>
-        <span className="pb-2 text-[13px] text-white/55">paiement unique</span>
-      </div>
+
+      {isSub ? (
+        <SubscriptionPrice
+          slug={slug}
+          offerId={offer.id}
+          priceMonthCents={offer.price_month_cents}
+          priceYearCents={offer.price_year_cents}
+          chargesEnabled={chargesEnabled}
+        />
+      ) : (
+        <>
+          <div className="flex items-end gap-2">
+            <span className="font-archivo text-[clamp(40px,7vw,56px)] font-extrabold leading-none tracking-[-0.03em] text-white">
+              {formatEuros(offer.price_cents)}
+            </span>
+            <span className="pb-2 text-[13px] text-white/55">paiement unique</span>
+          </div>
+        </>
+      )}
+
       <ul className="flex flex-col gap-2 border-t border-white/10 pt-4">
-        {["Programme conçu par ton coach", "Accompagnement nutritionnel", "Assistant IA inclus", "Espace client & suivi"].map((it) => (
+        {[
+          "Programme conçu par ton coach",
+          "Accompagnement nutritionnel",
+          "Assistant IA inclus",
+          ...(offer.vip_chat ? ["Chat VIP avec ton coach"] : []),
+          "Espace client & suivi",
+        ].map((it) => (
           <li key={it} className="flex items-start gap-2.5 text-[14px] leading-[1.5] text-white/75">
             <S.check className="mt-0.5 h-4.5 w-4.5 shrink-0 text-brand" />
             {it}
           </li>
         ))}
       </ul>
-      {chargesEnabled ? (
-        <Link
-          href={`/inscription?c=${slug}&offer=${offer.id}`}
-          className="tap inline-flex h-[52px] items-center justify-center gap-2 rounded-btn bg-brand px-6 text-[16px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]"
-        >
-          Choisir ce programme
-          <S.arrow className="h-4.5 w-4.5" />
-        </Link>
-      ) : (
-        <span className="inline-flex h-[52px] items-center justify-center rounded-btn border border-white/15 px-6 text-[14px] text-white/50">
-          Bientôt disponible
-        </span>
-      )}
+
+      {!isSub &&
+        (chargesEnabled ? (
+          <Link
+            href={`/inscription?c=${slug}&offer=${offer.id}`}
+            className="tap inline-flex h-[52px] items-center justify-center gap-2 rounded-btn bg-brand px-6 text-[16px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]"
+          >
+            Choisir ce programme
+            <S.arrow className="h-4.5 w-4.5" />
+          </Link>
+        ) : (
+          <span className="inline-flex h-[52px] items-center justify-center rounded-btn border border-white/15 px-6 text-[14px] text-white/50">
+            Bientôt disponible
+          </span>
+        ))}
     </article>
   );
 }

@@ -10,6 +10,8 @@ import {
 // avec une durée prédéfinie. Les clients choisiront leur offre plus tard (via
 // la landing + le checkout) ; ici, la gestion côté coach.
 
+export type BillingType = "one_time" | "subscription";
+
 export interface Offer {
   id: string;
   tenant_id: string;
@@ -20,11 +22,26 @@ export interface Offer {
   position: number;
   is_active: boolean;
   vip_chat: boolean;
+  billing_type: BillingType;
+  price_month_cents: number | null;
+  price_year_cents: number | null;
   created_at: string;
 }
 
 const OFFER_COLS =
-  "id, tenant_id, name, duration_months, price_cents, currency, position, is_active, vip_chat, created_at";
+  "id, tenant_id, name, duration_months, price_cents, currency, position, is_active, vip_chat, billing_type, price_month_cents, price_year_cents, created_at";
+
+/** Prix d'une offre pour un intervalle donné (abonnement), en centimes. */
+export function subscriptionPrice(offer: Offer, interval: "month" | "year"): number | null {
+  return interval === "year" ? offer.price_year_cents : offer.price_month_cents;
+}
+
+/** L'offre propose-t-elle les deux récurrences (pour le comparateur d'économies) ? */
+export function hasBothIntervals(offer: Offer): boolean {
+  return offer.billing_type === "subscription"
+    && offer.price_month_cents != null
+    && offer.price_year_cents != null;
+}
 
 export function isValidDuration(m: number): m is OfferDurationMonths {
   return (OFFER_DURATIONS_MONTHS as readonly number[]).includes(m);
@@ -104,8 +121,15 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
     .select(OFFER_COLS)
     .eq("tenant_id", tenant.id)
     .eq("is_active", true)
-    .not("price_cents", "is", null)
     .order("position", { ascending: true });
+
+  // On ne publie que les offres réellement vendables : un prix unique, ou au
+  // moins un prix récurrent pour les abonnements.
+  const sellable = ((data ?? []) as Offer[]).filter((o) =>
+    o.billing_type === "subscription"
+      ? o.price_month_cents != null || o.price_year_cents != null
+      : o.price_cents != null,
+  );
 
   return {
     tenant: {
@@ -123,7 +147,7 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
       aboutText: tenant.about_text,
       aboutPhotoUrl: tenant.about_photo_url,
     },
-    offers: (data ?? []) as Offer[],
+    offers: sellable,
   };
 }
 
@@ -156,21 +180,41 @@ export interface CreateOfferResult {
 }
 
 /** Crée une offre en respectant le plafond de MAX_OFFERS_PER_TENANT. */
-export async function createOffer(
-  tenantId: string,
-  name: string,
-  durationMonths: number,
-  priceCents: number | null,
-  vipChat = false,
-): Promise<CreateOfferResult> {
-  const trimmed = name.trim().slice(0, 80);
+export interface CreateOfferInput {
+  name: string;
+  durationMonths: number;
+  vipChat?: boolean;
+  billingType?: BillingType;
+  /** Paiement unique */
+  priceCents?: number | null;
+  /** Abonnement */
+  priceMonthCents?: number | null;
+  priceYearCents?: number | null;
+}
+
+function validCents(c: number | null | undefined): boolean {
+  return c == null || (Number.isFinite(c) && c >= 0);
+}
+
+export async function createOffer(tenantId: string, input: CreateOfferInput): Promise<CreateOfferResult> {
+  const trimmed = input.name.trim().slice(0, 80);
   if (!trimmed) return { ok: false, error: "Donne un nom à l'offre." };
-  if (!isValidDuration(durationMonths)) {
+  if (!isValidDuration(input.durationMonths)) {
     return { ok: false, error: "Durée non autorisée." };
   }
-  if (priceCents != null && (!Number.isFinite(priceCents) || priceCents < 0)) {
+
+  const billingType: BillingType = input.billingType === "subscription" ? "subscription" : "one_time";
+  const priceCents = input.priceCents ?? null;
+  const priceMonthCents = input.priceMonthCents ?? null;
+  const priceYearCents = input.priceYearCents ?? null;
+
+  if (!validCents(priceCents) || !validCents(priceMonthCents) || !validCents(priceYearCents)) {
     return { ok: false, error: "Prix invalide." };
   }
+  if (billingType === "subscription" && priceMonthCents == null && priceYearCents == null) {
+    return { ok: false, error: "Renseigne au moins un prix (mensuel ou annuel)." };
+  }
+
   const admin = createAdminClient();
   const { count } = await admin
     .from("offers")
@@ -182,9 +226,12 @@ export async function createOffer(
   const { error } = await admin.from("offers").insert({
     tenant_id: tenantId,
     name: trimmed,
-    duration_months: durationMonths,
-    price_cents: priceCents,
-    vip_chat: vipChat,
+    duration_months: input.durationMonths,
+    billing_type: billingType,
+    price_cents: billingType === "one_time" ? priceCents : null,
+    price_month_cents: billingType === "subscription" ? priceMonthCents : null,
+    price_year_cents: billingType === "subscription" ? priceYearCents : null,
+    vip_chat: !!input.vipChat,
     position: count ?? 0,
   });
   if (error) return { ok: false, error: "Création impossible." };

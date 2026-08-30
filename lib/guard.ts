@@ -1,6 +1,12 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { computeAccess, type AccessState } from "@/lib/access";
+import {
+  applySubscriptionAccess,
+  subscriptionSyncDue,
+  syncSubscriptionForUser,
+  type SubInfo,
+} from "@/lib/subscription";
 import { PROGRAM_DAYS, programDaysForMonths } from "@/lib/config";
 
 export interface ProfileRow {
@@ -16,6 +22,12 @@ export interface ProfileRow {
   tenant_id: string | null;
   /** Rôle applicatif : "client" par défaut, "owner"/"coach" pour le dashboard. */
   role: string | null;
+  /** Abonnement Stripe (Lot 3) — null si achat à paiement unique. */
+  subscription_id: string | null;
+  subscription_status: string | null;
+  subscription_current_period_end: string | null;
+  subscription_interval: string | null;
+  subscription_synced_at: string | null;
 }
 
 export interface SessionContext {
@@ -42,7 +54,9 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, email, name, paid, start_date, photo_consent_at, medical_ack_at, tenant_id, role")
+    .select(
+      "id, email, name, paid, start_date, photo_consent_at, medical_ack_at, tenant_id, role, subscription_id, subscription_status, subscription_current_period_end, subscription_interval, subscription_synced_at",
+    )
     .eq("id", user.id)
     .maybeSingle<ProfileRow>();
 
@@ -59,12 +73,32 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
     ? programDaysForMonths(prog.duration_months)
     : PROGRAM_DAYS;
 
-  const access = computeAccess(
-    profile?.paid ?? false,
-    profile?.start_date ?? null,
-    new Date(),
-    programDays,
-  );
+  const now = new Date();
+  let access = computeAccess(profile?.paid ?? false, profile?.start_date ?? null, now, programDays);
+
+  // Abonnés : on applique l'état de l'abonnement (accès plein si en règle,
+  // lecture seule en cas de défaut de paiement). On resynchronise auprès de
+  // Stripe seulement quand la période connue est échue (au plus une fois par
+  // fenêtre de 10 min), pour ne pas ralentir chaque page.
+  if (profile?.subscription_id) {
+    let sub: SubInfo = {
+      subscriptionId: profile.subscription_id,
+      status: profile.subscription_status,
+      currentPeriodEnd: profile.subscription_current_period_end,
+      interval: profile.subscription_interval,
+    };
+    if (
+      subscriptionSyncDue(
+        profile.subscription_id,
+        profile.subscription_current_period_end,
+        profile.subscription_synced_at,
+        now,
+      )
+    ) {
+      sub = await syncSubscriptionForUser(user.id);
+    }
+    access = applySubscriptionAccess(access, sub, now);
+  }
 
   return {
     userId: user.id,
