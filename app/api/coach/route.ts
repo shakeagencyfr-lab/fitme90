@@ -4,8 +4,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
-import { MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
-import { anthropic } from "@/lib/anthropic";
+import { MODELS, textOf, parseJsonLoose, effortConfig, anthropic } from "@/lib/anthropic";
 import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
 import { buildPersona } from "@/lib/coach-persona";
@@ -390,7 +389,7 @@ ${JSON.stringify(logs ?? [])}`;
     const m = await aiClient.messages.create({
       model: MODELS.coach,
       max_tokens: 1200,
-      output_config: { effort: "low" },
+      ...effortConfig(MODELS.coach, "low"),
       system,
       tools,
       messages: msgs,

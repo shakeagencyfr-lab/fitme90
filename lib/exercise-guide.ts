@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { anthropic, MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
+import { anthropic, MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { tenantAnthropicKey } from "@/lib/tenant";
 import { recordCall } from "@/lib/ratelimit";
 import {
@@ -128,7 +128,7 @@ export async function generateGuide(name: string, userId: string): Promise<Resol
     const message = await client.messages.create({
       model: MODELS.assist,
       max_tokens: 1024,
-      output_config: { effort: "low" },
+      ...effortConfig(MODELS.assist, "low"),
       system: GUIDE_SYSTEM,
       messages: [{ role: "user", content: `Exercice : ${name}\n\nRends le JSON.` }],
     });

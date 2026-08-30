@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
-import { MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
+import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
 import { LIMIT_RECIPES_PER_DAY, COACH_CREDENTIAL } from "@/lib/config";
 
@@ -96,7 +96,7 @@ Consignes : 4 à 7 étapes numérotées, chaque étape est une instruction concr
     const message = await (await anthropicForUser(ctx.userId)).messages.create({
       model: MODELS.recipes,
       max_tokens: 3800,
-      output_config: { effort: "low" },
+      ...effortConfig(MODELS.recipes, "low"),
       system,
       messages: [{ role: "user", content: user }],
     });
