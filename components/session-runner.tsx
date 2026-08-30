@@ -4,7 +4,23 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveSession, type SetEntry } from "@/app/app/seance/actions";
 import { Button, Alert, MonoLabel } from "@/components/ui";
+import { ExerciseModal } from "@/components/exercise-modal";
 import { isCardioExercise, cardioZone, formatRest, type HeartZone } from "@/lib/fitness";
+
+// Nom d'exercice cliquable : ouvre la fiche (image + consignes).
+function ExerciseName({ name, onOpen }: { name: string; onOpen: () => void }) {
+  return (
+    <button type="button" onClick={onOpen} className="group flex items-center gap-1.5 text-left">
+      <span className="font-archivo font-semibold text-[16px] leading-snug text-ink group-hover:text-brand group-hover:underline">
+        {name}
+      </span>
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={1.7} className="shrink-0 text-muted-2 group-hover:text-brand" aria-hidden>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 11v5M12 8h.01" strokeLinecap="round" />
+      </svg>
+    </button>
+  );
+}
 
 export interface Exercise {
   name: string;
@@ -113,6 +129,8 @@ export function SessionRunner({
   const [exList, setExList] = useState<Exercise[]>(exercises);
   const [altBusy, setAltBusy] = useState<number | null>(null);
   const [altErr, setAltErr] = useState("");
+  // Fiche exercice (image + consignes) ouverte au clic sur un nom.
+  const [guideName, setGuideName] = useState<string | null>(null);
   // Resynchronise la liste locale quand on change de jour (nouvelle séance) :
   // idiome React d'ajustement d'état pendant le rendu (pas d'effet).
   const [prevDay, setPrevDay] = useState(day);
@@ -362,7 +380,7 @@ export function SessionRunner({
                   </svg>
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <div className="font-archivo font-semibold text-[16px] leading-snug text-ink">{ex.name}</div>
+                  <ExerciseName name={ex.name} onOpen={() => setGuideName(ex.name)} />
                   <div className="font-mono text-[11px] text-cardio">Cardio{duration ? ` · ${duration}` : ""}</div>
                 </div>
               </div>
@@ -534,6 +552,8 @@ export function SessionRunner({
           </div>
         </div>
       ) : null}
+
+      <ExerciseModal name={guideName} onClose={() => setGuideName(null)} />
     </div>
   );
 }

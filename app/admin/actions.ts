@@ -27,6 +27,8 @@ import { createPromo, setPromoActive, deletePromo as deletePromoLib } from "@/li
 import { generateCoachGiftCodes } from "@/lib/gift";
 import { normalizeSlug, isValidSlug } from "@/lib/config";
 import { markAllCoachNotifsRead, markCoachNotifRead } from "@/lib/notifications";
+import { saveCoachExerciseMedia, deleteCoachExerciseMedia, uploadExerciseImage } from "@/lib/exercise-guide";
+import { normalizeExerciseName } from "@/lib/exercise-library";
 
 /** Normalise les champs de segmentation reçus du formulaire coach. */
 function readFilter(formData: FormData): AudienceFilter {
@@ -686,6 +688,52 @@ export async function deleteClient(formData: FormData): Promise<void> {
 
   revalidatePath("/admin");
   redirect("/admin");
+}
+
+export interface ExerciseMediaState {
+  ok?: boolean;
+  error?: string;
+}
+
+/** Enregistre le média d'un exercice pour le coach (image/gif + consignes). */
+export async function saveExerciseMedia(_prev: ExerciseMediaState, formData: FormData): Promise<ExerciseMediaState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+
+  const name = String(formData.get("name") ?? "").trim().slice(0, 120);
+  if (!name) return { error: "Nom de l'exercice manquant." };
+  const muscle = String(formData.get("muscle") ?? "").trim().slice(0, 80) || null;
+  const instructions = String(formData.get("instructions") ?? "").trim().slice(0, 4000) || null;
+  const key = normalizeExerciseName(name);
+  if (!key) return { error: "Nom de l'exercice invalide." };
+
+  let imageUrl = String(formData.get("current_image") ?? "").trim() || null;
+  const file = formData.get("image");
+  if (file instanceof File && file.size > 0) {
+    const up = await uploadExerciseImage(tenantId, key, file);
+    if (up.error) return { error: up.error };
+    imageUrl = up.url ?? imageUrl;
+  }
+
+  if (!imageUrl && !instructions) {
+    return { error: "Ajoute au moins une image/gif ou des consignes." };
+  }
+
+  await saveCoachExerciseMedia({ tenantId, name, muscle, imageUrl, instructions });
+  revalidatePath("/admin/exercices");
+  return { ok: true };
+}
+
+/** Supprime un média d'exercice du coach. */
+export async function removeExerciseMedia(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await deleteCoachExerciseMedia(ctx.profile.tenant_id, id);
+  revalidatePath("/admin/exercices");
 }
 
 /** Marque toutes les notifications du coach comme lues (cloche du dashboard). */

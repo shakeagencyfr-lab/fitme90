@@ -7,6 +7,7 @@ import { useState } from "react";
 const LINKS: [href: string, label: string][] = [
   ["/admin", "Clients"],
   ["/admin/offres", "Ma page"],
+  ["/admin/exercices", "Exercices"],
   ["/admin/abonnements", "Abonnements"],
   ["/admin/codes", "Codes"],
   ["/admin/integrations", "Intégrations"],
