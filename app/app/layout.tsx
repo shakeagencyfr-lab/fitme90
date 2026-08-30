@@ -6,6 +6,7 @@ import { AppNav } from "@/components/app-nav";
 import { CoachWidget } from "@/components/coach-widget";
 import { PageTransition } from "@/components/page-transition";
 import { OnboardingTour } from "@/components/onboarding-tour";
+import { PwaInstall } from "@/components/pwa-install";
 import { isShopEnabled } from "@/lib/shop";
 import { clientVipContext, clientUnreadVipCount } from "@/lib/vip";
 import { brandForUser } from "@/lib/branding";
@@ -68,6 +69,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       </main>
       {ctx.access.coachEnabled ? <CoachWidget /> : null}
       <OnboardingTour />
+      {/* Invite à installer l'app (Android natif ; iOS marche à suivre).
+          Côté client : on attend la fin du tutoriel d'accueil. */}
+      <PwaInstall requireOnboarded />
     </div>
   );
 }

@@ -33,13 +33,21 @@ function dismissed(): boolean {
   }
 }
 
-export function PwaInstall() {
+// `requireOnboarded` : côté client, on attend que le tutoriel d'accueil soit
+// terminé pour ne pas superposer l'invite au tour guidé.
+export function PwaInstall({ requireOnboarded = false }: { requireOnboarded?: boolean }) {
   // "hidden" | "android" (invite native dispo) | "ios" (instructions manuelles)
   const [mode, setMode] = useState<"hidden" | "android" | "ios">("hidden");
   const [deferred, setDeferred] = useState<BIPEvent | null>(null);
 
   useEffect(() => {
     if (isStandalone() || dismissed()) return;
+    // Ne pas gêner le tutoriel d'accueil (client) : on attend qu'il soit fait.
+    try {
+      if (requireOnboarded && localStorage.getItem("fitme90_onboarded") !== "1") return;
+    } catch {
+      /* localStorage indisponible : on continue */
+    }
 
     // Android / Chromium : on capture l'événement et on propose l'installation.
     const onBIP = (e: Event) => {
@@ -77,7 +85,7 @@ export function PwaInstall() {
       window.removeEventListener("appinstalled", onInstalled);
       if (t) clearTimeout(t);
     };
-  }, []);
+  }, [requireOnboarded]);
 
   function close() {
     setMode("hidden");
