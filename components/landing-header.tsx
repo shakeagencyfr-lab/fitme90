@@ -43,6 +43,12 @@ export function LandingHeader() {
             Connexion
           </Link>
           <Link
+            href="/connexion"
+            className="hidden rounded-btn border border-white/20 px-3.5 py-2 text-[13.5px] font-semibold text-white/85 transition-colors hover:border-white/40 hover:text-white md:inline-flex md:items-center"
+          >
+            Je suis coach / salle
+          </Link>
+          <Link
             href="/inscription"
             className="tap inline-flex items-center gap-1.5 rounded-btn bg-brand px-4 py-2.5 text-[14px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]"
           >
@@ -91,6 +97,13 @@ export function LandingHeader() {
                 className="tap inline-flex h-12 items-center justify-center rounded-btn border border-white/20 bg-white/5 text-[15px] font-semibold text-white transition-colors hover:border-white/40 hover:bg-white/10"
               >
                 Connexion
+              </Link>
+              <Link
+                href="/connexion"
+                onClick={close}
+                className="tap inline-flex h-12 items-center justify-center rounded-btn border border-white/20 bg-white/5 text-[15px] font-semibold text-white transition-colors hover:border-white/40 hover:bg-white/10"
+              >
+                Je suis coach / salle
               </Link>
               <Link
                 href="/inscription"

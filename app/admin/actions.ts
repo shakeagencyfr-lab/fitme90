@@ -126,8 +126,12 @@ function asKind(v: unknown): AssetKind | null {
   return typeof v === "string" && (ASSET_KINDS as readonly string[]).includes(v) ? (v as AssetKind) : null;
 }
 
-/** Téléverse un asset (logo / favicon / portrait). */
-export async function uploadAssetAction(_prev: BrandingState, formData: FormData): Promise<BrandingState> {
+/**
+ * Téléverse un asset (logo / favicon / portrait). Appelée DIRECTEMENT depuis le
+ * client dès qu'une image est choisie (pas de bouton d'envoi, pas de <form>
+ * imbriqué — ce qui cassait l'upload du portrait).
+ */
+export async function uploadAsset(formData: FormData): Promise<BrandingState> {
   const ctx = await getAdminOrNull();
   if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
   const kind = asKind(formData.get("kind"));
@@ -140,14 +144,15 @@ export async function uploadAssetAction(_prev: BrandingState, formData: FormData
   return { ok: true };
 }
 
-/** Retire un asset (form action directe). */
-export async function removeAssetAction(formData: FormData): Promise<void> {
+/** Retire un asset. Appelée directement depuis le client. */
+export async function removeAsset(kind: string): Promise<BrandingState> {
   const ctx = await getAdminOrNull();
-  if (!ctx?.profile?.tenant_id) return;
-  const kind = asKind(formData.get("kind"));
-  if (!kind) return;
-  await clearTenantAsset(ctx.profile.tenant_id, kind);
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const k = asKind(kind);
+  if (!k) return { error: "Type d'image invalide." };
+  await clearTenantAsset(ctx.profile.tenant_id, k);
   revalidatePath("/admin/offres");
+  return { ok: true };
 }
 
 // ------------------------------------------------------------------ offres (Lot 1)

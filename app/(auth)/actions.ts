@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminEmail } from "@/lib/admin";
 
 function siteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -35,6 +36,22 @@ export async function signInAction(
   if (error) {
     return { error: "E-mail ou mot de passe incorrect." };
   }
+
+  // Espaces distincts : un compte coach/salle va au dashboard admin, un client
+  // à son espace. On lit le rôle avec le même client (session déjà établie).
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  let coach = isAdminEmail(user?.email);
+  if (!coach && user) {
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle<{ role: string | null }>();
+    coach = prof?.role === "owner";
+  }
+  if (coach) redirect("/admin");
 
   const next = String(formData.get("suite") || "/app");
   redirect(next.startsWith("/") ? next : "/app");
