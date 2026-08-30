@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminOrNull } from "@/lib/admin";
 import { broadcastPush, broadcastPushToUsers } from "@/lib/push";
@@ -635,4 +636,51 @@ export async function generateGiftCodesAction(_prev: GiftGenState, formData: For
   if (!res.ok) return { error: res.error };
   revalidatePath("/admin/codes");
   return { ok: true, codes: res.codes };
+}
+
+// ------------------------------------------------------------------ suppression client
+const CLIENT_USER_TABLES: [string, string][] = [
+  ["ai_calls", "user_id"],
+  ["coach_messages", "user_id"],
+  ["coach_conversations", "user_id"],
+  ["equipment", "user_id"],
+  ["measurements", "user_id"],
+  ["photos", "user_id"],
+  ["programs", "user_id"],
+  ["push_subscriptions", "user_id"],
+  ["questionnaires", "user_id"],
+  ["session_logs", "user_id"],
+  ["shopping_checks", "user_id"],
+  ["weights", "user_id"],
+  ["coach_notes", "client_id"],
+  ["vip_messages", "client_id"],
+];
+
+/**
+ * Supprime DÉFINITIVEMENT un client : toutes ses données applicatives, son
+ * profil et son compte d'authentification. Réservé au coach (garde admin).
+ * Action irréversible.
+ */
+export async function deleteClient(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return;
+  const clientId = String(formData.get("id") ?? "").trim();
+  if (!clientId || clientId === ctx.userId) return; // jamais son propre compte
+
+  const admin = createAdminClient();
+  for (const [table, col] of CLIENT_USER_TABLES) {
+    await admin.from(table).delete().eq(col, clientId);
+  }
+  // Libère d'éventuels codes cadeaux utilisés par ce client (réutilisables).
+  await admin.from("gift_codes").update({ used_by: null, used_at: null }).eq("used_by", clientId);
+  await admin.from("profiles").delete().eq("id", clientId);
+  // Compte d'authentification (service role).
+  try {
+    await admin.auth.admin.deleteUser(clientId);
+  } catch {
+    /* le profil est déjà supprimé ; on n'échoue pas le flux pour autant */
+  }
+
+  revalidatePath("/admin");
+  redirect("/admin");
 }

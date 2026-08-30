@@ -10,6 +10,7 @@ import { ClientPush } from "@/components/client-push";
 import { MiniWeightChart, type WeightPoint } from "@/components/mini-weight-chart";
 import { CoachNoteForm } from "@/components/coach-note-form";
 import { deleteCoachNote } from "@/app/admin/actions";
+import { DeleteClientButton } from "@/components/delete-client-button";
 import type { Plan } from "@/lib/program";
 
 export const metadata = { title: "Fiche client, Admin FitMe90" };
@@ -267,6 +268,15 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
       {/* Message direct */}
       <ClientPush userId={profile.id} name={displayName} />
+
+      {/* Zone dangereuse */}
+      <Card className="flex flex-col gap-3 border-alert-line">
+        <MonoLabel className="text-alert-ink">Zone sensible</MonoLabel>
+        <p className="text-[13px] text-muted">
+          Supprime définitivement ce client et toutes ses données. Action irréversible.
+        </p>
+        <DeleteClientButton clientId={profile.id} name={displayName} />
+      </Card>
     </div>
   );
 }
