@@ -20,6 +20,7 @@ export const metadata = { title: "Fiche client, Admin FitMe90" };
 
 type Prof = {
   id: string;
+  tenant_id: string | null;
   email: string | null;
   name: string | null;
   sex: string | null;
@@ -69,7 +70,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     await Promise.all([
       admin
         .from("profiles")
-        .select("id, email, name, sex, paid, start_date, medical_hold, medical_ack_at, medical_ack_name")
+        .select("id, tenant_id, email, name, sex, paid, start_date, medical_hold, medical_ack_at, medical_ack_name")
         .eq("id", id)
         .maybeSingle<Prof>(),
       admin
@@ -107,7 +108,8 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         .returns<{ id: string; body: string; created_at: string }[]>(),
     ]);
 
-  if (!profile) notFound();
+  // Cloisonnement : le client doit appartenir au tenant du coach connecté.
+  if (!profile || profile.tenant_id !== gate.profile?.tenant_id) notFound();
 
   // Chat VIP embarqué dans la fiche : le coach répond en gardant toutes les infos
   // du client sous les yeux. Affiché seulement si l'offre du client porte l'option.

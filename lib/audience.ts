@@ -33,13 +33,20 @@ export const GOAL_OPTIONS = [
 
 export const SEX_OPTIONS = ["Femme", "Homme", "Autre"] as const;
 
-/** Résout la liste des clients (et abonnés push) correspondant au filtre. */
-export async function resolveAudience(f: AudienceFilter): Promise<AudienceResult> {
+/**
+ * Résout la liste des clients (et abonnés push) correspondant au filtre.
+ * `tenantId` cloisonne l'audience aux clients d'un coach (push depuis le
+ * dashboard) ; sans tenant, l'audience couvre tous les tenants (cron plateforme).
+ */
+export async function resolveAudience(
+  f: AudienceFilter,
+  tenantId?: string | null,
+): Promise<AudienceResult> {
   const db = createAdminClient();
+  let pq = db.from("profiles").select("id, sex, paid, start_date").eq("role", "client");
+  if (tenantId) pq = pq.eq("tenant_id", tenantId);
   const [{ data: profiles }, { data: quizzes }, { data: subs }] = await Promise.all([
-    db.from("profiles").select("id, sex, paid, start_date").returns<
-      { id: string; sex: string | null; paid: boolean; start_date: string | null }[]
-    >(),
+    pq.returns<{ id: string; sex: string | null; paid: boolean; start_date: string | null }[]>(),
     db
       .from("questionnaires")
       .select("user_id, answers, created_at")

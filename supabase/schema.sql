@@ -134,6 +134,8 @@ create index on public.push_subscriptions (user_id);
 -- notifications programmées par le coach vers tous les abonnés (serveur seul).
 create table public.scheduled_pushes (
   id          uuid primary key default gen_random_uuid(),
+  -- Cloisonnement par coach : la FK vers tenants est posée par migration.
+  tenant_id   uuid,
   title       text not null,
   body        text not null,
   url         text not null default '/app',

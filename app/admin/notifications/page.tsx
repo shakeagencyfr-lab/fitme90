@@ -12,12 +12,15 @@ export default async function AdminNotificationsPage() {
   const tenantId = ctx?.profile?.tenant_id ?? null;
 
   const [{ data }, emails] = await Promise.all([
-    db
-      .from("scheduled_pushes")
-      .select("id, title, body, send_at")
-      .is("sent_at", null)
-      .order("send_at", { ascending: true })
-      .returns<{ id: string; title: string; body: string; send_at: string }[]>(),
+    tenantId
+      ? db
+          .from("scheduled_pushes")
+          .select("id, title, body, send_at")
+          .eq("tenant_id", tenantId)
+          .is("sent_at", null)
+          .order("send_at", { ascending: true })
+          .returns<{ id: string; title: string; body: string; send_at: string }[]>()
+      : Promise.resolve({ data: [] as { id: string; title: string; body: string; send_at: string }[] }),
     tenantId ? tenantNotifyEmails(tenantId) : Promise.resolve<string[]>([]),
   ]);
 

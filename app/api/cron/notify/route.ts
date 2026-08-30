@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendPush, broadcastPush, broadcastPushToUsers, vapidReady, type StoredSub, type PushPayload } from "@/lib/push";
+import { sendPush, broadcastPushToUsers, vapidReady, type StoredSub, type PushPayload } from "@/lib/push";
 import { resolveAudience } from "@/lib/audience";
 import { programDay } from "@/lib/access";
 import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
@@ -45,12 +45,13 @@ export async function GET(req: Request) {
   // CIBLÉE si un segment (sexe/objectif/phase) a été enregistré.
   const { data: due } = await db
     .from("scheduled_pushes")
-    .select("id, title, body, url, filter_sex, filter_goal, filter_phase")
+    .select("id, tenant_id, title, body, url, filter_sex, filter_goal, filter_phase")
     .is("sent_at", null)
     .lte("send_at", now.toISOString())
     .returns<
       {
         id: string;
+        tenant_id: string | null;
         title: string;
         body: string;
         url: string;
@@ -62,18 +63,15 @@ export async function GET(req: Request) {
   let broadcastSent = 0;
   for (const s of due ?? []) {
     const payload = { title: s.title, body: s.body, url: s.url, tag: "coach-broadcast" };
-    const targeted = s.filter_sex || s.filter_goal || s.filter_phase;
-    if (targeted) {
-      const phase = s.filter_phase === "active" || s.filter_phase === "paid" ? s.filter_phase : "all";
-      const { userIds } = await resolveAudience({
-        sex: s.filter_sex ?? "",
-        goal: s.filter_goal ?? "",
-        phase,
-      });
+    const phase = s.filter_phase === "active" || s.filter_phase === "paid" ? s.filter_phase : "all";
+    // Cloisonné au tenant du coach : la diffusion (même sans filtre) ne touche
+    // que SES clients, jamais ceux d'un autre coach.
+    const { userIds } = await resolveAudience(
+      { sex: s.filter_sex ?? "", goal: s.filter_goal ?? "", phase },
+      s.tenant_id,
+    );
+    if (userIds.length) {
       const r = await broadcastPushToUsers(userIds, payload);
-      broadcastSent += r.sent;
-    } else {
-      const r = await broadcastPush(payload);
       broadcastSent += r.sent;
     }
     await db.from("scheduled_pushes").update({ sent_at: new Date().toISOString() }).eq("id", s.id);
