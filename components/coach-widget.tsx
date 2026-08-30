@@ -32,12 +32,42 @@ function greetingFor(name: string): Msg {
 
 function mapMsgs(raw: unknown): Msg[] {
   if (!Array.isArray(raw)) return [];
-  return raw
-    .filter((m: { content?: string }) => m?.content)
-    .map((m: { role: string; content: string }) => ({
-      role: m.role === "user" ? "user" : "assistant",
-      content: m.content,
-    }));
+  return (raw as { role?: string; content?: string }[])
+    .filter((m) => m?.content)
+    .flatMap((m): Msg[] => {
+      const role = m.role === "user" ? "user" : "assistant";
+      // Les réponses coach s'affichent en plusieurs petites bulles, même à la
+      // relecture d'un historique enregistré en un seul bloc.
+      if (role === "assistant") {
+        return splitIntoBubbles(String(m.content)).map((content) => ({ role: "assistant" as const, content }));
+      }
+      return [{ role: "user" as const, content: String(m.content) }];
+    });
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Découpe une réponse en petites bulles façon messagerie : par phrases,
+// regroupées en morceaux courts (~170 caractères). Filet de sécurité si le
+// modèle renvoie malgré tout un gros bloc au lieu de plusieurs messages.
+function splitIntoBubbles(text: string): string[] {
+  const clean = text.trim();
+  if (!clean) return [];
+  if (clean.length <= 170) return [clean];
+  const parts =
+    clean.match(/[^.!?…]+[.!?…]*(?:\s+|$)/g)?.map((s) => s.trim()).filter(Boolean) ?? [clean];
+  const out: string[] = [];
+  let cur = "";
+  for (const s of parts) {
+    if (cur && cur.length + s.length + 1 > 170) {
+      out.push(cur);
+      cur = s;
+    } else {
+      cur = cur ? `${cur} ${s}` : s;
+    }
+  }
+  if (cur) out.push(cur);
+  return out;
 }
 
 function relDate(iso: string): string {
@@ -295,9 +325,10 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
     setError("");
     setMessages((m) => [...m, { role: "user", content: outText, image: sent?.preview }]);
     setBusy(true);
-    setTyping(true); // le coach « écrit » dès l'envoi
     try {
-      const res = await fetch("/api/coach", {
+      // La requête part tout de suite ; l'indicateur « écrit… » n'apparaît qu'un
+      // court instant après l'envoi (battement humain), pas immédiatement.
+      const req = fetch("/api/coach", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -306,23 +337,27 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
           image: sent ? { data: sent.data, media_type: sent.media_type } : undefined,
         }),
       });
+      await sleep(1400);
+      setTyping(true);
+      const res = await req;
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
       if (data.conversationId && data.conversationId !== convId) setConvId(data.conversationId);
-      const list: string[] = Array.isArray(data.messages)
+      const raw: string[] = Array.isArray(data.messages)
         ? data.messages
         : [data.answer].filter(Boolean);
-      // Rythme « humain » : chaque bulle apparaît après un temps de frappe
-      // proportionnel à sa longueur (borné), précédé de l'indicateur « écrit… ».
-      for (let i = 0; i < list.length; i++) {
-        const typeMs = Math.min(2600, Math.max(750, list[i].length * 28));
-        // La 1re bulle a déjà attendu le réseau : on garde juste un court battement.
+      // Plusieurs petites bulles (découpage de secours si le modèle renvoie un
+      // bloc), révélées une à une avec « écrit… » et une pause entre chaque.
+      const bubbles = raw.flatMap(splitIntoBubbles).slice(0, 8);
+      for (let i = 0; i < bubbles.length; i++) {
         setTyping(true);
-        await new Promise((r) => setTimeout(r, i === 0 ? Math.min(typeMs, 900) : typeMs));
+        const typeMs = Math.min(2000, Math.max(650, bubbles[i].length * 32));
+        // La 1re bulle a déjà « attendu » le réseau : court battement seulement.
+        await sleep(i === 0 ? Math.min(typeMs, 650) : typeMs);
         setTyping(false);
-        setMessages((m) => [...m, { role: "assistant", content: list[i] }]);
-        // Petite respiration entre deux messages qui s'enchaînent.
-        if (i < list.length - 1) await new Promise((r) => setTimeout(r, 320));
+        setMessages((m) => [...m, { role: "assistant", content: bubbles[i] }]);
+        // Respiration entre deux messages qui s'enchaînent.
+        if (i < bubbles.length - 1) await sleep(550);
       }
       refreshConversations(); // titre + ordre à jour
       if (data.adapted) router.refresh();
