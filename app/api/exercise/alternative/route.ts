@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
-import { MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
+import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
 import { exerciseShape } from "@/lib/program";
 import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     const message = await (await anthropicForUser(ctx.userId)).messages.create({
       model: MODELS.assist,
       max_tokens: 600,
-      output_config: { effort: "low" },
+      ...effortConfig(MODELS.assist, "low"),
       system,
       messages: [{ role: "user", content: user }],
     });

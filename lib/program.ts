@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { anthropic, MODELS, textOf, parseJsonLoose } from "@/lib/anthropic";
+import { anthropic, MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
 import { restPatternFromTrainDays } from "@/lib/schedule";
 import { scheduledTrainingDays } from "@/lib/streak";
@@ -354,7 +354,7 @@ export async function generateProgram(
       model: MODELS.generate,
       // Sortie volumineuse : 3 cycles × séances distinctes + nutrition.
       max_tokens: 32000,
-      output_config: { effort },
+      ...effortConfig(MODELS.generate, effort),
       system: `${SYSTEM}\n\n${methodology}`,
       messages: [
         {

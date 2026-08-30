@@ -28,6 +28,21 @@ export const MODELS = {
   analyzeGym: process.env.ANTHROPIC_MODEL_ANALYZE ?? "claude-opus-5",
 } as const;
 
+export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+
+/**
+ * Le paramètre `output_config.effort` n'est PAS supporté par tous les modèles :
+ * il déclenche une erreur 400 sur Haiku 4.5 et les générations ≤ 4.5 (l'effort
+ * est une fonctionnalité des familles 4.6+ et 5). On renvoie donc `output_config`
+ * uniquement pour les modèles qui l'acceptent, sinon un objet vide. À étaler dans
+ * l'appel `messages.create` :  `{ ...effortConfig(model, "low") }`.
+ */
+export function effortConfig(model: string, effort: Effort) {
+  // Modèles SANS support de l'effort : Haiku 4.5, Sonnet 4.5, et familles 3.x.
+  const noEffort = /haiku-4-5|haiku-4-0|sonnet-4-5|-3-5-|claude-3/.test(model);
+  return noEffort ? {} : { output_config: { effort } };
+}
+
 /**
  * Extrait le texte concaténé des blocs `text` d'une réponse Messages.
  * (Le reste — thinking, etc. — est ignoré.)
