@@ -126,7 +126,7 @@ export async function generateGuide(name: string, userId: string): Promise<Resol
   try {
     const client = anthropic(apiKey);
     const message = await client.messages.create({
-      model: MODELS.coach,
+      model: MODELS.assist,
       max_tokens: 1024,
       output_config: { effort: "low" },
       system: GUIDE_SYSTEM,

@@ -62,7 +62,7 @@ export async function POST(req: Request) {
 
   try {
     const message = await (await anthropicForUser(ctx.userId)).messages.create({
-      model: MODELS.coach,
+      model: MODELS.assist,
       max_tokens: 600,
       output_config: { effort: "low" },
       system,

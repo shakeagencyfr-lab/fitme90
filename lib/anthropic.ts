@@ -12,13 +12,19 @@ export function anthropic(apiKey?: string) {
 // ajuster le coût sans redéploiement (ex. passer la génération en
 // claude-sonnet-5). Défaut : le modèle le plus capable.
 export const MODELS = {
-  // Génération du programme : livrable premium, on garde un modèle capable.
+  // Génération du programme : livrable premium, on garde le modèle le plus
+  // capable (Opus 5).
   generate: process.env.ANTHROPIC_MODEL_GENERATE ?? "claude-opus-5",
-  // Chat coach + routes annexes (alternative d'exercice, fiche exercice) :
-  // du dialogue et de la structuration légère, Haiku 4.5 suffit largement et
-  // coûte ~5x moins cher qu'Opus. C'est le principal poste de coût récurrent.
+  // Chat coach : dialogue, historique rejoué à chaque message. Haiku 4.5 suffit
+  // largement (fenêtre 200k) et coûte ~5x moins cher qu'Opus. C'est le principal
+  // poste de coût récurrent.
   coach: process.env.ANTHROPIC_MODEL_COACH ?? "claude-haiku-4-5",
-  recipes: process.env.ANTHROPIC_MODEL_RECIPES ?? "claude-opus-5",
+  // Fonctions annexes (alternative d'exercice, fiche exercice IA) : bon
+  // compromis qualité/prix en Sonnet 5.
+  assist: process.env.ANTHROPIC_MODEL_ASSIST ?? "claude-sonnet-5",
+  // Recettes (texte + photo → recette) : Sonnet 5.
+  recipes: process.env.ANTHROPIC_MODEL_RECIPES ?? "claude-sonnet-5",
+  // Analyse photo de la salle : reconnaissance de matériel, on garde Opus 5.
   analyzeGym: process.env.ANTHROPIC_MODEL_ANALYZE ?? "claude-opus-5",
 } as const;
 
