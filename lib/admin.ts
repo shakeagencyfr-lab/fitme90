@@ -19,9 +19,20 @@ export function isAdminEmail(email?: string | null): boolean {
   return list.length > 0 && list.includes(email.toLowerCase());
 }
 
-/** Renvoie le contexte si l'utilisateur est admin, sinon null. */
+/**
+ * Un compte « coach/salle » (espace admin) ? Aujourd'hui : e-mail admin OU
+ * rôle « owner » (le propriétaire de la plateforme). Le rôle « coach » sera
+ * ajouté ici quand le dashboard sera cloisonné par tenant (chaque coach ne voit
+ * que SES clients) — sinon il verrait tous les clients de tous les tenants.
+ */
+export function isCoachAccount(ctx: SessionContext | null): boolean {
+  if (!ctx) return false;
+  return isAdminEmail(ctx.email) || ctx.profile?.role === "owner";
+}
+
+/** Renvoie le contexte si l'utilisateur a accès à l'espace admin, sinon null. */
 export async function getAdminOrNull(): Promise<SessionContext | null> {
   const ctx = await getSessionContext();
-  if (!ctx || !isAdminEmail(ctx.email)) return null;
+  if (!isCoachAccount(ctx)) return null;
   return ctx;
 }

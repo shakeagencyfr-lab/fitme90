@@ -28,14 +28,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 const features = [
-  { icon: S.ai, title: "Programme généré par IA", body: "Exercices, séries, charges, progressions, menus et macros écrits sur mesure à partir de ton profil." },
+  { icon: S.dumbbell, title: "La méthode de ton coach", body: "Ton programme est bâti sur la méthode de ton coach : exercices, séries, charges et progressions, pensés par lui." },
   { icon: S.camera, title: "Analyse de ta salle", body: "Photographie tes machines : le plan n'utilise que le matériel réellement disponible." },
   { icon: S.shield, title: "100 % personnalisé", body: "Pathologies, allergies, régime, cadre religieux : chaque contrainte est prise en compte." },
-  { icon: S.dumbbell, title: "Cycles périodisés", body: "Un programme structuré et progressif, avec une logique claire du début à la fin." },
+  { icon: S.ai, title: "Amplifié par l'IA", body: "Ton coach s'appuie sur une IA qu'il a entraînée sur sa façon de travailler pour bâtir ton plan plus vite et plus finement." },
   { icon: S.heart, title: "Zones cardiaques précises", body: "Tes zones d'intensité calculées pour tirer le meilleur de chaque séance de cardio." },
   { icon: S.grid, title: "Espace client complet", body: "Séances interactives, calendrier, journal, courbe de poids : tout ton suivi au même endroit." },
   { icon: S.timer, title: "Outils d'entraînement", body: "Minuteur de repos intégré, journal série par série (kg × reps), progression et coches." },
-  { icon: S.chat, title: "Coach IA personnel", body: "Disponible en continu, formé sur ton profil. Il répond, motive et adapte le plan tout seul." },
+  { icon: S.chat, title: "Un assistant formé par ton coach", body: "Un assistant disponible en continu, entraîné sur la méthode de ton coach. Il répond, motive et t'accompagne au quotidien." },
 ];
 
 const salleBullets = [
@@ -47,7 +47,7 @@ const salleBullets = [
 
 const steps = [
   { k: "01", title: "Réponds au questionnaire", body: "Objectifs, niveau, disponibilités, santé, allergies et préférences alimentaires." },
-  { k: "02", title: "Photographie ta salle", body: "L'IA lit le matériel disponible pour adapter chaque exercice à ce que tu as." },
+  { k: "02", title: "Photographie ta salle", body: "Le système lit le matériel disponible pour adapter chaque exercice à ce que tu as." },
   { k: "03", title: "Suis ton programme", body: "Ton plan t'attend dans ton espace client, séance par séance, jour après jour." },
 ];
 
@@ -57,7 +57,7 @@ const espaceBullets = [
   "Chronomètre & minuteur",
   "Nutrition du jour",
   "Suivi de progression",
-  "Coach IA en un tap",
+  "Assistant IA en un tap",
 ];
 
 const nutritionBullets = [
@@ -82,7 +82,7 @@ const faqs = [
   { q: "Faut-il une salle ou du matériel particulier ?", a: "Non. Tu photographies ce que tu as, salle complète, home-gym ou quelques haltères, et le programme se construit uniquement avec ce matériel." },
   { q: "Je suis débutant, est-ce adapté ?", a: "Oui. Le début du programme est dédié à la technique et à l'installation de l'habitude. On progresse ensuite graduellement." },
   { q: "Comment se passe le paiement ?", a: "Le paiement est unique et sécurisé par Stripe, directement auprès de ton coach. Aucun abonnement caché." },
-  { q: "Le coach IA remplace-t-il un vrai coach ?", a: "Non. C'est un accompagnement sportif et de bien-être au quotidien qui prolonge le programme conçu pour toi. Il ne remplace pas un avis médical." },
+  { q: "Qui conçoit vraiment le programme ?", a: "Ton coach. Le programme est bâti sur SA méthode ; il s'appuie sur une IA qu'il a entraînée sur sa façon de travailler. L'assistant IA prolonge cet accompagnement au quotidien, mais ne remplace pas ton coach ni un avis médical." },
   { q: "J'ai une blessure, une pathologie ou une grossesse ?", a: "Un écran santé au démarrage repère les situations à risque. Le programme est adapté ou mis en pause en attendant l'avis de ton médecin." },
   { q: "Que se passe-t-il après le programme ?", a: "Le coach IA se désactive à la fin, mais ton plan reste consultable un moment de plus en lecture seule." },
 ];
@@ -98,12 +98,12 @@ function Chip({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Brand({ tenant }: { tenant: PublicTenant }) {
+function Brand({ tenant, imgClass = "h-11", textClass = "text-[20px]" }: { tenant: PublicTenant; imgClass?: string; textClass?: string }) {
   if (tenant.logoUrl) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={tenant.logoUrl} alt={tenant.name} className="h-8 w-auto max-w-[180px] object-contain" />;
+    return <img src={tenant.logoUrl} alt={tenant.name} className={`${imgClass} w-auto max-w-[260px] object-contain`} />;
   }
-  return <span className="font-archivo text-[20px] font-extrabold tracking-[-0.02em] text-white">{tenant.name}</span>;
+  return <span className={`font-archivo ${textClass} font-extrabold tracking-[-0.02em] text-white`}>{tenant.name}</span>;
 }
 
 function OfferCard({ offer, slug, chargesEnabled }: { offer: Offer; slug: string; chargesEnabled: boolean }) {
@@ -120,7 +120,7 @@ function OfferCard({ offer, slug, chargesEnabled }: { offer: Offer; slug: string
         <span className="pb-2 text-[13px] text-white/55">paiement unique</span>
       </div>
       <ul className="flex flex-col gap-2 border-t border-white/10 pt-4">
-        {["Programme d'entraînement personnalisé", "Accompagnement nutritionnel", "Coach IA inclus", "Espace client & suivi"].map((it) => (
+        {["Programme conçu par ton coach", "Accompagnement nutritionnel", "Assistant IA inclus", "Espace client & suivi"].map((it) => (
           <li key={it} className="flex items-start gap-2.5 text-[14px] leading-[1.5] text-white/75">
             <S.check className="mt-0.5 h-4.5 w-4.5 shrink-0 text-brand" />
             {it}
@@ -132,7 +132,7 @@ function OfferCard({ offer, slug, chargesEnabled }: { offer: Offer; slug: string
           href={`/inscription?c=${slug}&offer=${offer.id}`}
           className="tap inline-flex h-[52px] items-center justify-center gap-2 rounded-btn bg-brand px-6 text-[16px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]"
         >
-          Choisir cette offre
+          Choisir ce programme
           <S.arrow className="h-4.5 w-4.5" />
         </Link>
       ) : (
@@ -154,7 +154,7 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
   const title = tenant.headline || tenant.name;
   const tagline =
     tenant.tagline ||
-    "Sport et nutrition générés par IA selon ton profil, ta salle et tes contraintes. Un programme complet, suivi au quotidien, avec un coach IA à tes côtés.";
+    "Un programme conçu selon la méthode de ton coach, adapté à ta salle et à tes contraintes, et suivi au quotidien. Amplifié par une IA qu'il a entraînée sur sa façon de travailler.";
 
   return (
     <div
@@ -164,14 +164,14 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0a0b0c]/80 backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
-          <Link href="#top"><Brand tenant={tenant} /></Link>
+          <Link href="#top" className="flex items-center"><Brand tenant={tenant} imgClass="h-11 sm:h-14" /></Link>
           <div className="flex items-center gap-3">
             <Link href="/connexion" className="hidden text-[14px] text-white/70 transition-colors hover:text-white sm:inline">
               Se connecter
             </Link>
             {offers.length > 0 ? (
               <a href="#offres" className="tap inline-flex h-10 items-center rounded-btn bg-brand px-4 text-[14px] font-semibold text-white hover:bg-brand-hover">
-                Voir les offres
+                Voir les programmes
               </a>
             ) : null}
           </div>
@@ -195,7 +195,7 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
             <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
               {offers.length > 0 ? (
                 <a href="#offres" className="tap inline-flex h-[54px] items-center justify-center gap-2 rounded-btn bg-brand px-8 text-[16px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]">
-                  Voir les offres <S.arrow className="h-4.5 w-4.5" />
+                  Voir les programmes <S.arrow className="h-4.5 w-4.5" />
                 </a>
               ) : null}
               <a href="#methode" className="tap inline-flex h-[54px] items-center justify-center rounded-btn border border-white/20 bg-white/5 px-8 text-[16px] font-semibold text-white transition-colors duration-150 hover:border-white/40 hover:bg-white/10">
@@ -216,9 +216,9 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
         <section className="border-y border-white/10 bg-white/[0.02]">
           <div className="mx-auto grid w-full max-w-[1120px] grid-cols-2 gap-y-6 px-5 py-8 sm:px-8 lg:grid-cols-4">
             {[
+              { v: "Ton coach", l: "conçoit ta méthode" },
               { v: "100 %", l: "adapté à ta salle & ta santé" },
-              { v: "IA", l: "programme généré sur mesure" },
-              { v: "Coach IA", l: "inclus toute la durée" },
+              { v: "Assistant IA", l: "formé par ton coach, inclus" },
               { v: "0", l: "abonnement, paiement unique" },
             ].map((s) => (
               <div key={s.l} className="flex flex-col gap-1 px-2">
@@ -391,8 +391,8 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
         <section id="offres" className="scroll-mt-20 border-t border-white/10 bg-white/[0.015]">
           <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(64px,9vw,110px)] sm:px-8">
             <div className="flex flex-col items-center gap-4 text-center">
-              <Chip>Offres</Chip>
-              <h2 className={sectionTitle}>Choisis ta formule</h2>
+              <Chip>Programmes</Chip>
+              <h2 className={sectionTitle}>Choisis ton programme</h2>
             </div>
             {offers.length === 0 ? (
               <div className="mx-auto mt-10 max-w-[520px] rounded-card border border-white/10 bg-white/[0.03] p-6 text-center text-[15px] text-white/60">
@@ -438,7 +438,7 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
             </h2>
             {offers.length > 0 ? (
               <a href="#offres" className="tap inline-flex h-[56px] items-center justify-center gap-2 rounded-btn bg-brand px-9 text-[16px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]">
-                Voir les offres <S.arrow className="h-5 w-5" />
+                Voir les programmes <S.arrow className="h-5 w-5" />
               </a>
             ) : null}
           </div>
@@ -448,7 +448,7 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
       {/* Footer */}
       <footer className="border-t border-white/10">
         <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 px-5 py-12 sm:px-8">
-          <Brand tenant={tenant} />
+          <Brand tenant={tenant} imgClass="h-10" textClass="text-[18px]" />
           <p className="max-w-[70ch] text-[13px] leading-[1.6] text-white/50">
             Accompagnement sportif et de bien-être, sans visée thérapeutique. L&apos;accompagnement nutritionnel est une aide au choix des repas, pas une prescription diététique. Ne remplace pas un avis médical.
           </p>

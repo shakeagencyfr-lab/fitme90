@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { getSessionContext } from "@/lib/guard";
+import { isCoachAccount } from "@/lib/admin";
 import { AppNav } from "@/components/app-nav";
 import { CoachWidget } from "@/components/coach-widget";
 import { PageTransition } from "@/components/page-transition";
@@ -13,6 +14,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // de la boutique, pour ne pas enchaîner deux allers-retours.
   const [ctx, shopEnabled] = await Promise.all([getSessionContext(), isShopEnabled()]);
   if (!ctx) redirect("/connexion?suite=/app");
+  // Espaces distincts : un compte coach/salle n'a pas d'espace client, il va au
+  // dashboard admin.
+  if (isCoachAccount(ctx)) redirect("/admin");
 
   const day = ctx.access.day;
   const dayPct = Math.max(1, Math.round((Math.min(day, PROGRAM_DAYS) / PROGRAM_DAYS) * 100));
