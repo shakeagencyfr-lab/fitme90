@@ -3,10 +3,11 @@ import { getAdminOrNull } from "@/lib/admin";
 import { listOffers } from "@/lib/offers";
 import { tenantBranding } from "@/lib/branding";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { MAX_OFFERS_PER_TENANT, programDaysForMonths, formatEuros, ROOT_DOMAIN } from "@/lib/config";
+import { MAX_OFFERS_PER_TENANT, programDaysForMonths, formatEuros, ROOT_DOMAIN, SITE_HOST } from "@/lib/config";
 import { OfferForm } from "@/components/offer-form";
 import { BrandingForm } from "@/components/branding-form";
 import { SubdomainForm } from "@/components/subdomain-form";
+import { CustomDomainCard } from "@/components/custom-domain-card";
 import { EmbedSnippet } from "@/components/embed-snippet";
 import { toggleOffer, removeOffer } from "@/app/admin/actions";
 import { Alert, Card } from "@/components/ui";
@@ -42,16 +43,18 @@ export default async function AdminPublicPage() {
 
   let slug: string | null = null;
   let subdomain: string | null = null;
+  let customDomain: string | null = null;
   let tenantName = "Mon coaching";
   if (tenantId) {
     const admin = createAdminClient();
     const { data } = await admin
       .from("tenants")
-      .select("slug, name, subdomain")
+      .select("slug, name, subdomain, custom_domain")
       .eq("id", tenantId)
-      .maybeSingle<{ slug: string; name: string; subdomain: string | null }>();
+      .maybeSingle<{ slug: string; name: string; subdomain: string | null; custom_domain: string | null }>();
     slug = data?.slug ?? null;
     subdomain = data?.subdomain ?? null;
+    customDomain = data?.custom_domain ?? null;
     tenantName = data?.name ?? tenantName;
   }
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "";
@@ -86,7 +89,9 @@ export default async function AdminPublicPage() {
         <>
           {branding ? <BrandingForm branding={branding} namePlaceholder={tenantName} /> : null}
 
-          <SubdomainForm current={subdomain} slug={slug} rootDomain={ROOT_DOMAIN} />
+          <SubdomainForm current={subdomain} slug={slug} siteHost={SITE_HOST} rootDomain={ROOT_DOMAIN} />
+
+          <CustomDomainCard domain={customDomain} />
 
           <div className="flex flex-col gap-3">
             <div className="font-archivo font-bold text-[17px] text-ink">Mes offres à paiement unique</div>

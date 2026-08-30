@@ -25,7 +25,7 @@ import {
 } from "@/lib/vip";
 import { createPromo, setPromoActive, deletePromo as deletePromoLib } from "@/lib/promo";
 import { generateCoachGiftCodes } from "@/lib/gift";
-import { normalizeSubdomain, isValidSubdomain } from "@/lib/config";
+import { normalizeSlug, isValidSlug } from "@/lib/config";
 import { markAllCoachNotifsRead, markCoachNotifRead } from "@/lib/notifications";
 
 /** Normalise les champs de segmentation reçus du formulaire coach. */
@@ -713,9 +713,10 @@ export interface SubdomainState {
 }
 
 /**
- * Enregistre le sous-domaine personnalisé de la landing du coach. Vide = on
- * retire le sous-domaine (retour au /c/[slug]). Refuse les formes invalides,
- * les sous-domaines réservés et ceux déjà pris par un autre coach.
+ * Enregistre l'ADRESSE PERSONNALISÉE de la landing du coach : le nom qui apparaît
+ * à la fin de l'URL (`fitme90.com/<nom>`, et aussi `<nom>.fitme90.com` si le DNS
+ * générique est branché). Stocké dans la colonne `subdomain`. Vide = on retire.
+ * Refuse les formes invalides, les noms réservés et ceux déjà pris.
  */
 export async function saveSubdomain(_prev: SubdomainState, formData: FormData): Promise<SubdomainState> {
   const ctx = await getAdminOrNull();
@@ -726,29 +727,30 @@ export async function saveSubdomain(_prev: SubdomainState, formData: FormData): 
   const raw = String(formData.get("subdomain") ?? "");
   const admin = createAdminClient();
 
-  // Champ vidé : on retire le sous-domaine.
+  // Champ vidé : on retire l'adresse personnalisée.
   if (!raw.trim()) {
     await admin.from("tenants").update({ subdomain: null }).eq("id", tenantId);
     revalidatePath("/admin/offres");
     return { ok: true, value: "" };
   }
 
-  const sub = normalizeSubdomain(raw);
-  if (!isValidSubdomain(sub)) {
-    return { error: "Sous-domaine invalide ou réservé (3 à 40 caractères : lettres, chiffres, tirets).", value: sub };
+  const sub = normalizeSlug(raw);
+  if (!isValidSlug(sub)) {
+    return { error: "Adresse invalide ou réservée (3 à 40 caractères : lettres, chiffres, tirets).", value: sub };
   }
 
-  // Déjà pris par un AUTRE coach ?
+  // Déjà prise par un AUTRE coach ? (unicité aussi sur le slug pour éviter les
+  // collisions avec le chemin /c/[slug] d'un autre coach.)
   const { data: taken } = await admin
     .from("tenants")
     .select("id")
-    .eq("subdomain", sub)
+    .or(`subdomain.eq.${sub},slug.eq.${sub}`)
     .neq("id", tenantId)
     .maybeSingle<{ id: string }>();
-  if (taken) return { error: "Ce sous-domaine est déjà utilisé.", value: sub };
+  if (taken) return { error: "Cette adresse est déjà utilisée.", value: sub };
 
   const { error } = await admin.from("tenants").update({ subdomain: sub }).eq("id", tenantId);
-  if (error) return { error: "Enregistrement impossible (sous-domaine peut-être déjà pris).", value: sub };
+  if (error) return { error: "Enregistrement impossible (adresse peut-être déjà prise).", value: sub };
 
   revalidatePath("/admin/offres");
   return { ok: true, value: sub };

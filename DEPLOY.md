@@ -96,26 +96,33 @@ RESEND_FROM=FitMe90 <notifications@fitme90.app>
 4. `NEXT_PUBLIC_SITE_URL` = ton domaine de production.
 5. Déploie. Chaque push sur la branche déploie ; chaque branche donne un aperçu.
 
-## 6 bis. Sous-domaines personnalisés des coachs (optionnel)
+## 6 bis. Adresse personnalisée des coachs
 
-Chaque coach peut donner à sa landing une adresse à son nom
-(`sébastien.tondomaine.com`) au lieu de `tondomaine.com/c/son-slug`. Le réglage
-se fait dans le dashboard coach (**Ma page → Sous-domaine personnalisé**). Pour
-activer la fonctionnalité :
+Trois niveaux de personnalisation de l'URL de la landing coach :
 
-1. **DNS générique** : chez ton registraire, ajoute un enregistrement joker
-   `*.tondomaine.com` (CNAME vers `cname.vercel-dns.com`, ou l'ALIAS/A que
-   Vercel indique). Cela dirige tous les sous-domaines vers l'app.
-2. **Vercel → Domains** : ajoute le domaine joker `*.tondomaine.com` au projet
-   (en plus du domaine principal). Vercel gère le certificat TLS wildcard.
-3. **Variable d'env** : renseigne `NEXT_PUBLIC_ROOT_DOMAIN=tondomaine.com`
-   (Production + Preview), puis redéploie.
+**a) Adresse par chemin (actif par défaut, aucune config).**
+Chaque coach choisit le nom à la FIN de l'adresse dans **Ma page → Adresse
+personnalisée** : `tondomaine.com/<nom>` (au lieu de `.../c/<slug>`). Le
+`proxy.ts` réécrit tout segment de 1er niveau non réservé vers `/c/<nom>`, résolu
+par `slug` **ou** `subdomain`. La liste des segments réservés (routes de l'app)
+est dans `lib/config.ts` (`RESERVED_PATH_SEGMENTS`) : à tenir à jour si on ajoute
+une route de 1er niveau.
 
-Tant que `NEXT_PUBLIC_ROOT_DOMAIN` est vide, rien n'est réécrit : les coachs
-peuvent déjà enregistrer leur sous-domaine, il deviendra actif au déploiement
-suivant une fois le domaine branché. Le `proxy.ts` réécrit alors la racine d'un
-sous-domaine vers la landing du coach (`/c/[sous-domaine]`), qui se résout par
-`slug` **ou** `subdomain`.
+**b) Sous-domaine (optionnel).**
+La même adresse marche aussi en sous-domaine (`<nom>.tondomaine.com`) si :
+1. **DNS générique** : enregistrement joker `*.tondomaine.com` (CNAME vers
+   `cname.vercel-dns.com`, ou ce que Vercel indique).
+2. **Vercel → Domains** : ajoute `*.tondomaine.com` au projet.
+3. **Variable d'env** : `NEXT_PUBLIC_ROOT_DOMAIN=tondomaine.com` (Production +
+   Preview), puis redéploie.
+
+**c) Domaine 100% personnalisé (premium, à venir).**
+La tuyauterie est prête : colonne `tenants.custom_domain` + résolution dans
+`proxy.ts` (un hôte étranger → landing du coach via `lib/custom-domain.ts`).
+Pour activer pour un coach premium : renseigner `custom_domain` sur son tenant,
+puis ajouter ce domaine dans **Vercel → Domains** (le coach pointe son DNS vers
+Vercel). Requiert `NEXT_PUBLIC_ROOT_DOMAIN` défini (pour distinguer un hôte
+étranger). L'activation en libre-service arrivera avec les abonnements premium.
 
 ## 7. Recette de bout en bout (mode test Stripe)
 
