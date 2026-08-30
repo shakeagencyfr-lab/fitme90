@@ -6,6 +6,7 @@ import { Alert, Button, Field } from "@/components/ui";
 import {
   signInAction,
   signUpAction,
+  signUpCoachAction,
   requestResetAction,
   updatePasswordAction,
   type AuthState,
@@ -128,6 +129,85 @@ export function SignupForm({ coachSlug, offerId, interval }: { coachSlug?: strin
       <p className="text-[14px] text-muted text-center">
         Déjà un compte ?{" "}
         <Link href="/connexion" className="text-brand font-medium">
+          Se connecter
+        </Link>
+      </p>
+    </form>
+  );
+}
+
+export function CoachSignupForm() {
+  const [state, action, pending] = useActionState(signUpCoachAction, initial);
+  return (
+    <form action={action} className="flex flex-col gap-4">
+      <Title sub="Crée ton espace coach. Un e-mail de confirmation te sera envoyé.">
+        Créer mon espace coach
+      </Title>
+      {state.error ? <Alert>{state.error}</Alert> : null}
+      <Field
+        id="tenant_name"
+        name="tenant_name"
+        type="text"
+        label="Nom de ta marque / salle"
+        required
+        placeholder="Ex : Studio Forme, Coach Léa…"
+        help="C'est le nom que verront tes clients (marque blanche)."
+      />
+      <Field
+        id="coach_name"
+        name="coach_name"
+        type="text"
+        label="Ton prénom (coach)"
+        placeholder="Ex : Léa"
+        help="Le prénom sous lequel l'assistant IA s'adressera à tes clients."
+      />
+      <Field
+        id="email"
+        name="email"
+        type="email"
+        label="E-mail"
+        autoComplete="email"
+        inputMode="email"
+        required
+        placeholder="lea@exemple.fr"
+      />
+      <Field
+        id="password"
+        name="password"
+        type="password"
+        label="Mot de passe"
+        autoComplete="new-password"
+        required
+        help="8 caractères minimum."
+      />
+      <Field
+        id="confirm"
+        name="confirm"
+        type="password"
+        label="Confirme le mot de passe"
+        autoComplete="new-password"
+        required
+      />
+      <label className="flex items-start gap-2.5 text-[13px] text-body leading-relaxed">
+        <input type="checkbox" name="cgv" className="mt-0.5 size-4 accent-brand shrink-0" required />
+        <span>
+          J&apos;accepte les{" "}
+          <Link href="/cgv" className="text-brand" target="_blank">
+            CGV
+          </Link>{" "}
+          et la{" "}
+          <Link href="/confidentialite" className="text-brand" target="_blank">
+            politique de confidentialité
+          </Link>
+          .
+        </span>
+      </label>
+      <Button type="submit" full loading={pending}>
+        Créer mon espace
+      </Button>
+      <p className="text-center text-[14px] text-muted">
+        Déjà un espace coach ?{" "}
+        <Link href="/connexion" className="font-medium text-brand">
           Se connecter
         </Link>
       </p>

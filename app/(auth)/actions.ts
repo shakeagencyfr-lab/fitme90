@@ -102,6 +102,45 @@ export async function signUpAction(
   redirect("/verifie-tes-mails");
 }
 
+// Inscription d'un COACH (page de vente B2B). Crée le compte avec des
+// métadonnées coach ; son tenant est provisionné à la confirmation d'e-mail
+// (voir provisionCoachIfPending), puis il arrive sur son dashboard /admin.
+export async function signUpCoachAction(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const parsed = credentials.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+  if (formData.get("password") !== formData.get("confirm")) {
+    return { error: "Les deux mots de passe ne correspondent pas." };
+  }
+  if (formData.get("cgv") !== "on") {
+    return { error: "Tu dois accepter les CGV et la politique de confidentialité." };
+  }
+  const tenantName = String(formData.get("tenant_name") ?? "").trim().slice(0, 60);
+  const coachName = String(formData.get("coach_name") ?? "").trim().slice(0, 40);
+  if (!tenantName) return { error: "Indique le nom de ta marque / salle." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signUp({
+    ...parsed.data,
+    options: {
+      emailRedirectTo: `${siteUrl()}/auth/confirm?next=/admin`,
+      data: { coach_signup: "1", tenant_name: tenantName, coach_name: coachName },
+    },
+  });
+  if (error) {
+    return { error: "Impossible de créer le compte. Vérifie l'adresse e-mail." };
+  }
+
+  redirect("/verifie-tes-mails");
+}
+
 export async function requestResetAction(
   _prev: AuthState,
   formData: FormData,
