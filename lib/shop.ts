@@ -13,13 +13,14 @@ export interface ShopProduct {
   position: number;
 }
 
-export async function isShopEnabled(): Promise<boolean> {
+export async function isShopEnabled(tenantId: string | null): Promise<boolean> {
+  if (!tenantId) return false;
   try {
     const db = createAdminClient();
     const { data } = await db
       .from("coach_config")
       .select("shop_enabled")
-      .eq("id", true)
+      .eq("tenant_id", tenantId)
       .maybeSingle<{ shop_enabled: boolean }>();
     return !!data?.shop_enabled;
   } catch {

@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
 
   const past = (history ?? []).reverse() as { role: "user" | "assistant"; content: string }[];
 
-  const coachName = await readCoachName();
+  const coachName = await readCoachName(ctx.profile?.tenant_id ?? null);
   const system = `${buildPersona(quiz?.answers ?? {}, { ...DEFAULT_BRAND, coachName })}
 
 PROFIL DU CLIENT :
@@ -419,6 +419,7 @@ ${JSON.stringify(logs ?? [])}`;
       { answers: mergedAnswers, trainDays: quiz.train_days ?? [], equipment },
       "low", // rapide : tenir sous ~60 s dans la requête coach (Vercel Hobby)
       billing.key,
+      ctx!.profile?.tenant_id ?? null,
     );
     totalUsage.input_tokens += result.usage.input_tokens;
     totalUsage.output_tokens += result.usage.output_tokens;

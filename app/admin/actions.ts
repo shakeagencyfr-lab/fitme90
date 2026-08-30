@@ -52,6 +52,8 @@ export async function saveCoachConfig(
 ): Promise<ConfigState> {
   const ctx = await getAdminOrNull();
   if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
 
   const mode = formData.get("mode") === "custom" ? "custom" : "auto";
   const custom = String(formData.get("custom_methodology") ?? "").slice(0, 8000);
@@ -64,13 +66,16 @@ export async function saveCoachConfig(
   const admin = createAdminClient();
   const { error } = await admin
     .from("coach_config")
-    .update({
-      generation_mode: mode,
-      custom_methodology: custom,
-      coach_name: coachName || null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", true);
+    .upsert(
+      {
+        tenant_id: tenantId,
+        generation_mode: mode,
+        custom_methodology: custom,
+        coach_name: coachName || null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "tenant_id" },
+    );
   if (error) return { error: "Enregistrement impossible." };
 
   revalidatePath("/admin/config");
@@ -340,12 +345,16 @@ export interface ShopState {
 export async function setShopEnabled(_prev: ShopState, formData: FormData): Promise<ShopState> {
   const ctx = await getAdminOrNull();
   if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
   const enabled = formData.get("shop_enabled") === "on";
   const admin = createAdminClient();
   const { error } = await admin
     .from("coach_config")
-    .update({ shop_enabled: enabled, updated_at: new Date().toISOString() })
-    .eq("id", true);
+    .upsert(
+      { tenant_id: tenantId, shop_enabled: enabled, updated_at: new Date().toISOString() },
+      { onConflict: "tenant_id" },
+    );
   if (error) return { error: "Enregistrement impossible." };
   revalidatePath("/admin/shop");
   revalidatePath("/app/shop");

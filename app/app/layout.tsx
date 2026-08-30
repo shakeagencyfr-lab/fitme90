@@ -21,19 +21,20 @@ export async function generateMetadata() {
 }
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  // En parallèle : le contexte (mis en cache, partagé avec la page) et l'état
-  // de la boutique, pour ne pas enchaîner deux allers-retours.
-  const [ctx, shopEnabled] = await Promise.all([getSessionContext(), isShopEnabled()]);
+  const ctx = await getSessionContext();
   if (!ctx) redirect("/connexion?suite=/app");
   // Espaces distincts : un compte coach/salle n'a pas d'espace client, il va au
   // dashboard admin.
   if (isCoachAccount(ctx)) redirect("/admin");
 
-  // Onglet Chat VIP + marque blanche (couleur, logo, nom du coach).
-  const [vip, brand, coachName] = await Promise.all([
+  // Config propre au tenant du client (= celui de son coach) : boutique, prénom
+  // du coach IA, Chat VIP, marque blanche. En parallèle après le contexte.
+  const tenantId = ctx.profile?.tenant_id ?? null;
+  const [shopEnabled, vip, brand, coachName] = await Promise.all([
+    isShopEnabled(tenantId),
     clientVipContext(ctx.userId),
     brandForUser(ctx.userId),
-    readCoachName(),
+    readCoachName(tenantId),
   ]);
   // Badge de messages non lus sur l'onglet Chat VIP (seulement si l'option est active).
   const vipUnread = vip.enabled ? await clientUnreadVipCount(ctx.userId) : 0;

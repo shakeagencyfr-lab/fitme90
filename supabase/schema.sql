@@ -245,17 +245,17 @@ revoke all on public.gift_codes from authenticated, anon;
 -- le dashboard admin, de laisser l'IA décider (base evidence-based) ou de
 -- personnaliser la méthodologie. Aucune policy : seul le service role y accède.
 create table if not exists public.coach_config (
-  id                 boolean primary key default true,
+  -- Une ligne par tenant (coach/salle). La clé étrangère vers tenants est posée
+  -- par migration (la table tenants vit dans les migrations, pas ce fichier).
+  tenant_id          uuid primary key,
   generation_mode    text not null default 'auto',
   custom_methodology text not null default '',
   coach_name         text,
   shop_enabled       boolean not null default false,
   updated_at         timestamptz not null default now(),
-  constraint coach_config_singleton check (id = true),
   constraint coach_config_mode check (generation_mode in ('auto','custom'))
 );
 alter table public.coach_config enable row level security;
-insert into public.coach_config (id) values (true) on conflict (id) do nothing;
 
 -- boutique d'affiliation : produits mis en avant par le coach. Lecture pour les
 -- clients connectés, écriture réservée au serveur (service role / dashboard).

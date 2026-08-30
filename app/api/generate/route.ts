@@ -109,6 +109,7 @@ export async function POST() {
       },
       "high",
       billing.key,
+      ctx.profile?.tenant_id ?? null,
     );
   } catch {
     return NextResponse.json(

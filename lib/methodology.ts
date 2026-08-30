@@ -108,14 +108,25 @@ export interface CoachConfig {
   coach_name: string;
 }
 
-/** Lit la config coach (service role). Renvoie des valeurs sûres si absente. */
-export async function readCoachConfig(): Promise<CoachConfig> {
+const DEFAULT_CONFIG: CoachConfig = {
+  generation_mode: "auto",
+  custom_methodology: "",
+  coach_name: COACH_NAME,
+};
+
+/**
+ * Lit la config coach du TENANT (service role). Chaque coach/salle a sa propre
+ * ligne : méthode, prénom du coach IA, boutique. Renvoie des valeurs sûres si
+ * le tenant n'a pas encore de config (ou n'est pas rattaché).
+ */
+export async function readCoachConfig(tenantId: string | null): Promise<CoachConfig> {
+  if (!tenantId) return DEFAULT_CONFIG;
   try {
     const admin = createAdminClient();
     const { data } = await admin
       .from("coach_config")
       .select("generation_mode, custom_methodology, coach_name")
-      .eq("id", true)
+      .eq("tenant_id", tenantId)
       .maybeSingle<{ generation_mode: string; custom_methodology: string | null; coach_name: string | null }>();
     return {
       generation_mode: data?.generation_mode === "custom" ? "custom" : "auto",
@@ -123,23 +134,23 @@ export async function readCoachConfig(): Promise<CoachConfig> {
       coach_name: (data?.coach_name ?? "").trim() || COACH_NAME,
     };
   } catch {
-    return { generation_mode: "auto", custom_methodology: "", coach_name: COACH_NAME };
+    return DEFAULT_CONFIG;
   }
 }
 
-/** Prénom du coach IA (paramétrable par le coach), sinon la valeur par défaut. */
-export async function readCoachName(): Promise<string> {
-  const cfg = await readCoachConfig();
+/** Prénom du coach IA du tenant (paramétrable), sinon la valeur par défaut. */
+export async function readCoachName(tenantId: string | null): Promise<string> {
+  const cfg = await readCoachConfig(tenantId);
   return cfg.coach_name;
 }
 
 /**
- * Méthodologie effective pour la génération :
+ * Méthodologie effective pour la génération, propre au tenant :
  * - mode "auto" → base evidence-based seule ;
  * - mode "custom" → base + consignes du coach (qui priment).
  */
-export async function effectiveMethodology(): Promise<string> {
-  const cfg = await readCoachConfig();
+export async function effectiveMethodology(tenantId: string | null): Promise<string> {
+  const cfg = await readCoachConfig(tenantId);
   const custom = cfg.custom_methodology.trim();
   if (cfg.generation_mode === "custom" && custom) {
     return `${BASE_METHODOLOGY}\n\nCONSIGNES SPÉCIFIQUES DU COACH (prioritaires sur la base ci-dessus) :\n${custom}`;

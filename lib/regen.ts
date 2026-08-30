@@ -97,6 +97,7 @@ export async function regenerateCycleForUser(userId: string): Promise<boolean> {
       { answers: quiz.answers, trainDays, equipment, priorCycleNote: note },
       "medium",
       billing.key,
+      profile.tenant_id,
     );
 
     const { error: insErr } = await admin.from("programs").insert({
