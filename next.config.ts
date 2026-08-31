@@ -91,10 +91,12 @@ const nextConfig: NextConfig = {
       // remplace pas), donc si le catch-all les couvrait aussi, le navigateur
       // recevait X-Frame-Options: DENY + SAMEORIGIN et bloquait l'aperçu. On
       // les exclut du catch-all pour qu'un seul jeu d'en-têtes s'applique.
-      { source: "/((?!c/[^/]+/embed|c/[^/]+$|r/[^/]+$|$).*)", headers: securityHeaders },
+      { source: "/((?!c/[^/]+/embed|c/[^/]+$|r/[^/]+$|revendeurs$|$).*)", headers: securityHeaders },
       // Landings publiques : framables same-origin (aperçu live du studio).
+      // /revendeurs = page de vente revendeurs (aperçu marque blanche plateforme).
       { source: "/c/:slug", headers: selfFrameHeaders },
       { source: "/r/:slug", headers: selfFrameHeaders },
+      { source: "/revendeurs", headers: selfFrameHeaders },
       { source: "/", headers: selfFrameHeaders },
     ];
   },
