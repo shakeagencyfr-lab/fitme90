@@ -95,37 +95,43 @@ export function usdToEur(usd: number): number {
 export const AI_REALISTIC_MSG_PER_DAY = 8;
 /** Jours d'activité réelle par mois (un client n'utilise pas l'app tous les jours). */
 export const AI_REALISTIC_ACTIVE_DAYS = 26;
+/** Recettes régénérées / jour pour un client actif (comportement réel, ≠ plafond). */
+export const AI_REALISTIC_RECIPES_PER_DAY = 1;
 
 export interface AiCostEstimate {
   /** Usage réaliste d'un client actif, par mois. */
   realMonth: number;
-  /** Borne haute : plafond chat saturé TOUS les jours + les recettes autorisées. */
-  ceilingMonth: number;
+  /** Borne haute garantie, par mois. `null` = non borné (un plafond est illimité). */
+  ceilingMonth: number | null;
 }
 
 /**
- * Estimation du coût IA mensuel par client. `realMonth` reflète un usage
- * réaliste (≈8 messages + le nb de recettes autorisé par jour, ~26 j/mois).
- * `ceilingMonth` est la borne haute garantie : le plafond de messages saturé
- * chaque jour + les recettes, sur 30 jours. `msgCap`/`recipeCap` : 0 = illimité.
+ * Estimation du coût IA mensuel par client.
+ * `realMonth` : usage RÉALISTE, piloté par le comportement (≈8 messages + 1
+ *   recette/jour, ~26 j/mois). Les plafonds ne le réduisent que s'ils sont plus
+ *   bas que ce comportement. Ainsi, AUTORISER plus (plafond haut ou illimité) ne
+ *   fait jamais monter l'estimation réaliste.
+ * `ceilingMonth` : pire cas garanti = les deux plafonds saturés chaque jour sur
+ *   30 jours. `null` si un plafond est sur « illimité » (0) : le coût n'est alors
+ *   pas borné. `msgCap`/`recipeCap` : 0 = illimité.
  */
 export function estimateAiMonthlyCost(msgCap: number, recipeCap: number): AiCostEstimate {
-  const recipesPerDay = recipeCap > 0 ? recipeCap : 3; // illimité borné à 3 pour l'estimation
-  const realDay = AI_REALISTIC_MSG_PER_DAY * AI_COST_COACH_MSG_USD + recipesPerDay * AI_COST_RECIPE_USD;
-  const realMonth = realDay * AI_REALISTIC_ACTIVE_DAYS;
+  const realMsgs = msgCap > 0 ? Math.min(msgCap, AI_REALISTIC_MSG_PER_DAY) : AI_REALISTIC_MSG_PER_DAY;
+  const realRecipes = recipeCap > 0 ? Math.min(recipeCap, AI_REALISTIC_RECIPES_PER_DAY) : AI_REALISTIC_RECIPES_PER_DAY;
+  const realMonth = (realMsgs * AI_COST_COACH_MSG_USD + realRecipes * AI_COST_RECIPE_USD) * AI_REALISTIC_ACTIVE_DAYS;
 
-  const msgPerDay = msgCap > 0 ? msgCap : AI_REALISTIC_MSG_PER_DAY; // chat illimité : usage réaliste
-  const ceilingDay = msgPerDay * AI_COST_COACH_MSG_USD + recipesPerDay * AI_COST_RECIPE_USD;
-  return { realMonth, ceilingMonth: ceilingDay * 30 };
+  // Borne haute seulement si les DEUX plafonds sont fixés (sinon dépense illimitée).
+  const bounded = msgCap > 0 && recipeCap > 0;
+  const ceilingMonth = bounded ? (msgCap * AI_COST_COACH_MSG_USD + recipeCap * AI_COST_RECIPE_USD) * 30 : null;
+  return { realMonth, ceilingMonth };
 }
 
-// ── Revente de crédits IA (mode « revendeur d'IA »). Le revendeur définit
-// DEUX paramètres : le prix de vente d'1 crédit, et le nombre de crédits que
-// coûte une génération de programme. 1 crédit = 1 action « simple » (chat,
-// recette, régénération d'exercice). Le programme coûte plus cher (Opus), d'où
-// un nombre de crédits paramétrable.
-export const DEFAULT_AI_CREDIT_PRICE_CENTS = 40; // 0,40 € par crédit
-export const DEFAULT_AI_PROGRAM_CREDITS = 5;
+// ── Revente de crédits IA (mode « revendeur d'IA »). DEUX types de crédits,
+// réglés chacun avec son propre prix de vente (le revendeur voit coût + marge) :
+//  - « crédit IA » = 1 action simple (chat / recette / exercice) — modèle Haiku ;
+//  - « crédit programme IA » = 1 génération de programme — modèle Opus (plus cher).
+export const DEFAULT_AI_CREDIT_PRICE_CENTS = 40; // 0,40 € / crédit IA
+export const DEFAULT_AI_PROGRAM_CREDIT_PRICE_CENTS = 200; // 2,00 € / crédit programme
 
 export interface CreditMargin {
   /** Coût Anthropic estimé (converti en €). */
@@ -143,15 +149,14 @@ function margin(costEur: number, priceEur: number): CreditMargin {
   return { costEur, priceEur, marginEur, marginPct: priceEur > 0 ? (marginEur / priceEur) * 100 : 0 };
 }
 
-/** Coût / prix / marge d'UNE action simple (1 crédit). */
+/** Coût / prix / marge d'UN crédit IA (1 action simple, Haiku). */
 export function actionCreditMargin(creditPriceCents: number): CreditMargin {
   return margin(usdToEur(AI_COST_ACTION_USD), Math.max(0, creditPriceCents) / 100);
 }
 
-/** Coût / prix / marge d'UNE génération de programme (N crédits). */
-export function programCreditMargin(creditPriceCents: number, programCredits: number): CreditMargin {
-  const priceEur = (Math.max(0, creditPriceCents) / 100) * Math.max(0, programCredits);
-  return margin(usdToEur(AI_COST_PROGRAM_USD), priceEur);
+/** Coût / prix / marge d'UN crédit programme IA (1 génération, Opus). */
+export function programCreditMargin(programPriceCents: number): CreditMargin {
+  return margin(usdToEur(AI_COST_PROGRAM_USD), Math.max(0, programPriceCents) / 100);
 }
 
 export const PRODUCT_NAME = "FitMe90";

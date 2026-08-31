@@ -83,7 +83,7 @@ export function ResellerAiModeForm({ initialMode, initialLimit }: Props) {
                   Plafond de sécurité
                 </div>
                 <span>
-                  {limit > 0 ? (
+                  {ceilingMonth != null ? (
                     <>
                       Jamais plus de ≈ <span className="font-semibold text-ink">${ceilingMonth.toFixed(0)}</span> /
                       client / mois, même en saturant le plafond tous les jours.

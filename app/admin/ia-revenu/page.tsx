@@ -8,7 +8,7 @@ import { ResellerAiModeForm } from "@/components/reseller-ai-mode-form";
 import { ResellerCreditPricingForm } from "@/components/reseller-credit-pricing-form";
 import { ByokForm } from "@/components/byok-form";
 import { Alert, Card, MonoLabel } from "@/components/ui";
-import { DEFAULT_AI_CREDIT_PRICE_CENTS, DEFAULT_AI_PROGRAM_CREDITS } from "@/lib/config";
+import { DEFAULT_AI_CREDIT_PRICE_CENTS, DEFAULT_AI_PROGRAM_CREDIT_PRICE_CENTS } from "@/lib/config";
 
 export const metadata = { title: "Revenu IA, Admin FitMe90" };
 
@@ -23,18 +23,19 @@ export default async function AdminResellerAiPage() {
   const admin = createAdminClient();
   const { data: t } = await admin
     .from("tenants")
-    .select("ai_mode, ai_client_daily_limit, ai_credit_price_cents, ai_program_credits")
+    .select("ai_mode, ai_client_daily_limit, ai_credit_price_cents, ai_program_credit_price_cents")
     .eq("id", tenantId)
     .maybeSingle<{
       ai_mode: string | null;
       ai_client_daily_limit: number | null;
       ai_credit_price_cents: number | null;
-      ai_program_credits: number | null;
+      ai_program_credit_price_cents: number | null;
     }>();
   const mode = t?.ai_mode === "provider" ? "provider" : "byok";
   const limit = t?.ai_client_daily_limit == null ? 60 : Math.max(0, t.ai_client_daily_limit);
   const creditPrice = t?.ai_credit_price_cents == null ? DEFAULT_AI_CREDIT_PRICE_CENTS : Math.max(0, t.ai_credit_price_cents);
-  const programCredits = t?.ai_program_credits == null ? DEFAULT_AI_PROGRAM_CREDITS : Math.max(0, t.ai_program_credits);
+  const programPrice =
+    t?.ai_program_credit_price_cents == null ? DEFAULT_AI_PROGRAM_CREDIT_PRICE_CENTS : Math.max(0, t.ai_program_credit_price_cents);
 
   const [key, usage] = await Promise.all([
     tenantKeyStatus(tenantId!),
@@ -62,7 +63,7 @@ export default async function AdminResellerAiPage() {
 
       {/* Tarification en crédits : uniquement pertinente en mode revendeur d'IA. */}
       {mode === "provider" ? (
-        <ResellerCreditPricingForm initialPriceCents={creditPrice} initialProgramCredits={programCredits} />
+        <ResellerCreditPricingForm initialActionPriceCents={creditPrice} initialProgramPriceCents={programPrice} />
       ) : null}
 
       {/* Aperçu du coût réellement consommé ce mois-ci par le réseau (mode provider). */}

@@ -874,29 +874,29 @@ export async function saveResellerAiMode(_prev: ResellerAiState, formData: FormD
 }
 
 /**
- * Tarification en crédits du revendeur d'IA : prix de vente d'1 crédit (en
- * centimes) et nombre de crédits pour une génération de programme. 1 crédit =
- * 1 action simple (chat / recette / exercice). Le programme (Opus) coûte plus
- * cher, d'où un nombre de crédits paramétrable.
+ * Tarification en crédits du revendeur d'IA. DEUX types de crédits, chacun avec
+ * son prix de vente (en centimes) :
+ *  - crédit IA = 1 action simple (chat / recette / exercice), modèle Haiku ;
+ *  - crédit programme IA = 1 génération de programme, modèle Opus (plus cher).
  */
 export async function saveResellerCredits(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
   const ctx = await getAdminOrNull();
   if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
   const tenantId = ctx.profile.tenant_id;
 
-  const price = Number(String(formData.get("ai_credit_price_cents") ?? "").replace(",", ".").trim());
-  if (!Number.isFinite(price) || price < 0 || price > 100000) {
-    return { error: "Prix par crédit invalide." };
+  const action = Number(String(formData.get("ai_credit_price_cents") ?? "").trim());
+  if (!Number.isInteger(action) || action < 0 || action > 1000000) {
+    return { error: "Prix du crédit IA invalide." };
   }
-  const credits = Number(String(formData.get("ai_program_credits") ?? "").trim());
-  if (!Number.isInteger(credits) || credits < 0 || credits > 1000) {
-    return { error: "Nombre de crédits programme invalide (0 à 1000)." };
+  const program = Number(String(formData.get("ai_program_credit_price_cents") ?? "").trim());
+  if (!Number.isInteger(program) || program < 0 || program > 1000000) {
+    return { error: "Prix du crédit programme invalide." };
   }
 
   const admin = createAdminClient();
   const { error } = await admin
     .from("tenants")
-    .update({ ai_credit_price_cents: Math.round(price), ai_program_credits: credits })
+    .update({ ai_credit_price_cents: action, ai_program_credit_price_cents: program })
     .eq("id", tenantId);
   if (error) return { error: "Enregistrement impossible." };
 
