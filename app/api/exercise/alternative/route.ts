@@ -5,6 +5,7 @@ import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
 import { exerciseShape } from "@/lib/program";
 import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
+import { clientUsesCredits, getWallet, debitWallet } from "@/lib/credits";
 import { LIMIT_COACH_PER_DAY, COACH_CREDENTIAL } from "@/lib/config";
 
 export const runtime = "nodejs";
@@ -20,9 +21,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Disponible pendant tes 90 jours." }, { status: 403 });
   }
 
-  const limit = await checkLimit(ctx.userId, "coach", LIMIT_COACH_PER_DAY, DAY_MS);
-  if (!limit.ok) {
-    return NextResponse.json({ error: "Limite du jour atteinte, réessaie demain." }, { status: 429 });
+  // Porte d'accès : crédits (Modèle crédits) ou plafond journalier.
+  const coachTenant = ctx.profile?.tenant_id ?? null;
+  const useCredits = await clientUsesCredits(coachTenant);
+  if (useCredits) {
+    const wallet = await getWallet(coachTenant);
+    if (wallet.aiCredits < 1) {
+      return NextResponse.json({ error: "Crédits IA épuisés. Ton coach doit recharger." }, { status: 402 });
+    }
+  } else {
+    const limit = await checkLimit(ctx.userId, "coach", LIMIT_COACH_PER_DAY, DAY_MS);
+    if (!limit.ok) {
+      return NextResponse.json({ error: "Limite du jour atteinte, réessaie demain." }, { status: 429 });
+    }
   }
 
   const body = (await req.json().catch(() => ({}))) as {
@@ -73,6 +84,7 @@ export async function POST(req: Request) {
       input_tokens: message.usage.input_tokens,
       output_tokens: message.usage.output_tokens,
     });
+    if (useCredits && coachTenant) await debitWallet(coachTenant, "ai", 1, "action", ctx.userId);
     return NextResponse.json({ exercise });
   } catch {
     return NextResponse.json({ error: "Alternative indisponible, réessaie." }, { status: 502 });

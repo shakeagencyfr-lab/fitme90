@@ -7,6 +7,7 @@ import { screen, type QuizHealthAnswers } from "@/lib/screening";
 import { generateProgram } from "@/lib/program";
 import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { clientOffer } from "@/lib/offers";
+import { clientUsesCredits, getWallet, debitWallet } from "@/lib/credits";
 import { LIMIT_GENERATE_TOTAL } from "@/lib/config";
 
 export const runtime = "nodejs";
@@ -98,6 +99,20 @@ export async function POST() {
     return NextResponse.json({ error: AI_NOT_CONFIGURED_MESSAGE }, { status: 400 });
   }
 
+  // Modèle crédits : une génération coûte 1 crédit programme (modèle Opus). On
+  // vérifie le solde avant l'appel, on débite après succès (jamais de surdébit).
+  const coachTenant = ctx.profile?.tenant_id ?? null;
+  const useCredits = await clientUsesCredits(coachTenant);
+  if (useCredits) {
+    const wallet = await getWallet(coachTenant);
+    if (wallet.programCredits < 1) {
+      return NextResponse.json(
+        { error: "Crédits programme épuisés. Ton coach doit recharger pour générer un nouveau programme." },
+        { status: 402 },
+      );
+    }
+  }
+
   // 5-6. Appel modèle + validation JSON
   let result;
   try {
@@ -164,6 +179,7 @@ export async function POST() {
   }
 
   await recordCall(ctx.userId, "generate", result.usage);
+  if (useCredits && coachTenant) await debitWallet(coachTenant, "program", 1, "generate", ctx.userId);
 
   return NextResponse.json({ plan: result.plan });
 }
