@@ -47,6 +47,7 @@ const FAQ = [
   { q: "C'est vraiment en marque blanche ?", a: "Oui, totalement : ta marque pour tes coachs, et la leur pour leurs clients. FitMe90 reste invisible dans toute la chaîne." },
   { q: "Combien pour démarrer ?", a: "Le démarrage est gratuit : lance ton espace, ta page de vente et recrute tes premiers coachs sans rien avancer." },
   { q: "Quel type de revendeur ça vise ?", a: "Entrepreneurs du fitness, agences, distributeurs d'équipement, franchises de salles, influenceurs : tous ceux qui ont une audience ou un réseau de pros à équiper." },
+  { q: "Combien coûte l'IA, et qui la paie ?", a: "L'IA est en BYOK (chacun sa clé). Compte environ 1 à 2 € de consommation IA par client actif et par mois. Deux options : soit tes coachs branchent leur propre clé et paient leur IA (toi, tu n'as aucun coût IA et ne vends que les abonnements) ; soit tu deviens « revendeur IA » en fournissant ta clé et en revendant les crédits IA à tes coachs avec ta propre marge, tout en plafonnant l'usage. Dans les deux cas, la marge logicielle reste très élevée." },
 ];
 
 export default function RevendeursPage() {
@@ -228,6 +229,7 @@ export default function RevendeursPage() {
               priceMax={300}
               priceDefault={49}
               note="Revenu brut illustratif. Ta marge = ce revenu moins ton abonnement plateforme. À toi de fixer prix et volume."
+              aiNote="Coût IA : en BYOK, chaque coach branche sa propre clé et paie son IA (≈ 1 à 2 €/client actif/mois) — toi, revendeur, tu n'as aucun coût IA. En mode « revendeur IA », tu peux au contraire fournir l'IA et la revendre avec ta marge."
             />
           </Reveal>
         </div>

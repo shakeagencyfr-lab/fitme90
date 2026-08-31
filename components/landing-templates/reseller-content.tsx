@@ -76,6 +76,7 @@ export const FAQ = [
   { q: "Est-ce vraiment à ma marque ?", a: "Oui : ton logo, tes couleurs, ton nom. Tes clients vivent une expérience 100 % à ton image." },
   { q: "Puis-je fixer mes propres prix ?", a: "Totalement. Tu es libre de tes tarifs, tu vends tes abonnements et tu encaisses directement." },
   { q: "En quoi l'IA m'aide vraiment ?", a: "Elle crée les programmes, adapte la nutrition, répond aux clients et relance les inactifs. Tu démultiplies ton impact sans embaucher." },
+  { q: "Combien me coûte un client en consommation IA ?", a: "Très peu. En BYOK, l'IA tourne sur ta propre clé : compte environ 1 à 2 € de consommation IA par client actif et par mois (génération du programme, coach IA au quotidien, recettes). Face à un abonnement client de plusieurs dizaines d'euros, la marge est énorme. Tu peux en plus plafonner l'usage IA par client depuis ton dashboard pour garder un coût totalement maîtrisé." },
   { q: "Mes données et celles de mes clients sont-elles protégées ?", a: "Oui : hébergement en Union Européenne, chiffrement et cloisonnement strict entre comptes." },
 ];
 
