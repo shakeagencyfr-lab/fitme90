@@ -7,6 +7,7 @@ import {
   signInAction,
   signUpAction,
   signUpCoachAction,
+  signUpResellerAction,
   requestResetAction,
   updatePasswordAction,
   type AuthState,
@@ -136,13 +137,14 @@ export function SignupForm({ coachSlug, offerId, interval }: { coachSlug?: strin
   );
 }
 
-export function CoachSignupForm() {
+export function CoachSignupForm({ resellerSlug }: { resellerSlug?: string }) {
   const [state, action, pending] = useActionState(signUpCoachAction, initial);
   return (
     <form action={action} className="flex flex-col gap-4">
       <Title sub="Crée ton espace coach. Un e-mail de confirmation te sera envoyé.">
         Créer mon espace coach
       </Title>
+      {resellerSlug ? <input type="hidden" name="reseller_slug" value={resellerSlug} /> : null}
       {state.error ? <Alert>{state.error}</Alert> : null}
       <Field
         id="tenant_name"
@@ -207,6 +209,84 @@ export function CoachSignupForm() {
       </Button>
       <p className="text-center text-[14px] text-muted">
         Déjà un espace coach ?{" "}
+        <Link href="/connexion" className="font-medium text-brand">
+          Se connecter
+        </Link>
+      </p>
+    </form>
+  );
+}
+
+export function ResellerSignupForm() {
+  const [state, action, pending] = useActionState(signUpResellerAction, initial);
+  return (
+    <form action={action} className="flex flex-col gap-4">
+      <Title sub="Crée ton espace revendeur : héberge tes coachs et salles, fixe tes prix, encaisse sur ton Stripe.">
+        Créer mon espace revendeur
+      </Title>
+      {state.error ? <Alert>{state.error}</Alert> : null}
+      <Field
+        id="tenant_name"
+        name="tenant_name"
+        type="text"
+        label="Nom de ton réseau / enseigne"
+        required
+        placeholder="Ex : NordFit Distribution"
+        help="Le nom sous lequel tu proposes FitMe90 à tes coachs / salles."
+      />
+      <Field
+        id="contact_name"
+        name="contact_name"
+        type="text"
+        label="Ton nom (contact)"
+        placeholder="Ex : Camille"
+      />
+      <Field
+        id="email"
+        name="email"
+        type="email"
+        label="E-mail"
+        autoComplete="email"
+        inputMode="email"
+        required
+        placeholder="camille@exemple.fr"
+      />
+      <Field
+        id="password"
+        name="password"
+        type="password"
+        label="Mot de passe"
+        autoComplete="new-password"
+        required
+        help="8 caractères minimum."
+      />
+      <Field
+        id="confirm"
+        name="confirm"
+        type="password"
+        label="Confirme le mot de passe"
+        autoComplete="new-password"
+        required
+      />
+      <label className="flex items-start gap-2.5 text-[13px] text-body leading-relaxed">
+        <input type="checkbox" name="cgv" className="mt-0.5 size-4 accent-brand shrink-0" required />
+        <span>
+          J&apos;accepte les{" "}
+          <Link href="/cgv" className="text-brand" target="_blank">
+            CGV
+          </Link>{" "}
+          et la{" "}
+          <Link href="/confidentialite" className="text-brand" target="_blank">
+            politique de confidentialité
+          </Link>
+          .
+        </span>
+      </label>
+      <Button type="submit" full loading={pending}>
+        Créer mon espace revendeur
+      </Button>
+      <p className="text-center text-[14px] text-muted">
+        Déjà un espace ?{" "}
         <Link href="/connexion" className="font-medium text-brand">
           Se connecter
         </Link>

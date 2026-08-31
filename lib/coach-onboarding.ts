@@ -21,6 +21,29 @@ async function freeSlug(admin: ReturnType<typeof createAdminClient>, name: strin
 }
 
 /**
+ * Parent (qui facture) d'un nouveau coach : le revendeur dont le slug est passé
+ * dans les métadonnées d'inscription (reseller_slug), s'il existe et est bien un
+ * revendeur ; sinon la plateforme. Un coach est ainsi rattaché soit à un
+ * revendeur, soit directement à la plateforme.
+ */
+async function resolveCoachParent(
+  admin: ReturnType<typeof createAdminClient>,
+  meta: Record<string, unknown> | null | undefined,
+): Promise<string | null> {
+  const slug = (typeof meta?.reseller_slug === "string" ? meta.reseller_slug : "").trim().toLowerCase();
+  if (slug) {
+    const { data } = await admin
+      .from("tenants")
+      .select("id")
+      .eq("slug", slug)
+      .eq("kind", "reseller")
+      .maybeSingle<{ id: string }>();
+    if (data?.id) return data.id;
+  }
+  return platformTenantId();
+}
+
+/**
  * Crée le tenant du coach et le rattache en « owner », si son compte vient
  * d'une inscription coach et qu'il n'a pas encore de tenant. Idempotent.
  */
@@ -44,10 +67,10 @@ export async function provisionCoachIfPending(
   const coachName = (typeof meta.coach_name === "string" ? meta.coach_name : "").trim().slice(0, 40);
 
   const slug = await freeSlug(admin, tenantName);
-  // Rattachement récursif : un nouveau coach est un enfant de la plateforme
-  // (plus tard : de son revendeur). kind='coach' -> sa capacité se compte en
+  // Rattachement récursif : un nouveau coach est un enfant de son revendeur (si
+  // inscrit via son lien) ou de la plateforme. kind='coach' -> capacité en
   // clients. parent_id -> qui le facture (Lot C·3).
-  const parentId = await platformTenantId();
+  const parentId = await resolveCoachParent(admin, meta);
   const { data: tenant, error } = await admin
     .from("tenants")
     .insert({ slug, name: tenantName, kind: "coach", parent_id: parentId })
@@ -57,5 +80,40 @@ export async function provisionCoachIfPending(
 
   const patch: Record<string, string> = { tenant_id: tenant.id, role: "owner" };
   if (coachName) patch.name = coachName;
+  await admin.from("profiles").update(patch).eq("id", userId);
+}
+
+/**
+ * Crée le tenant d'un nouveau REVENDEUR (kind='reseller'), rattaché à la
+ * plateforme, si son compte vient d'une inscription revendeur. Idempotent.
+ */
+export async function provisionResellerIfPending(
+  userId: string,
+  meta: Record<string, unknown> | null | undefined,
+): Promise<void> {
+  if (!meta || meta.reseller_signup !== "1") return;
+
+  const admin = createAdminClient();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("tenant_id")
+    .eq("id", userId)
+    .maybeSingle<{ tenant_id: string | null }>();
+  if (profile?.tenant_id) return;
+
+  const tenantName = (typeof meta.tenant_name === "string" ? meta.tenant_name : "").trim().slice(0, 60) || "Mon réseau";
+  const contactName = (typeof meta.contact_name === "string" ? meta.contact_name : "").trim().slice(0, 40);
+
+  const slug = await freeSlug(admin, tenantName);
+  const parentId = await platformTenantId();
+  const { data: tenant, error } = await admin
+    .from("tenants")
+    .insert({ slug, name: tenantName, kind: "reseller", parent_id: parentId })
+    .select("id")
+    .maybeSingle<{ id: string }>();
+  if (error || !tenant) return;
+
+  const patch: Record<string, string> = { tenant_id: tenant.id, role: "owner" };
+  if (contactName) patch.name = contactName;
   await admin.from("profiles").update(patch).eq("id", userId);
 }

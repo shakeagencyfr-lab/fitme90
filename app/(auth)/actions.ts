@@ -141,13 +141,57 @@ export async function signUpCoachAction(
   const tenantName = String(formData.get("tenant_name") ?? "").trim().slice(0, 60);
   const coachName = String(formData.get("coach_name") ?? "").trim().slice(0, 40);
   if (!tenantName) return { error: "Indique le nom de ta marque / salle." };
+  // Rattachement éventuel à un revendeur (lien /inscription-coach?r=<slug>).
+  const resellerSlug = String(formData.get("reseller_slug") ?? "").trim().slice(0, 80);
+
+  const data: Record<string, string> = { coach_signup: "1", tenant_name: tenantName, coach_name: coachName };
+  if (resellerSlug) data.reseller_slug = resellerSlug;
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
     ...parsed.data,
     options: {
       emailRedirectTo: `${siteUrl()}/auth/confirm?next=/admin`,
-      data: { coach_signup: "1", tenant_name: tenantName, coach_name: coachName },
+      data,
+    },
+  });
+  if (error) {
+    return { error: "Impossible de créer le compte. Vérifie l'adresse e-mail." };
+  }
+
+  redirect("/verifie-tes-mails");
+}
+
+// Inscription d'un REVENDEUR / distributeur : crée le compte avec des
+// métadonnées revendeur ; son tenant (kind='reseller', rattaché à la plateforme)
+// est provisionné à la confirmation d'e-mail (voir provisionResellerIfPending).
+export async function signUpResellerAction(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const parsed = credentials.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+  if (formData.get("password") !== formData.get("confirm")) {
+    return { error: "Les deux mots de passe ne correspondent pas." };
+  }
+  if (formData.get("cgv") !== "on") {
+    return { error: "Tu dois accepter les CGV et la politique de confidentialité." };
+  }
+  const tenantName = String(formData.get("tenant_name") ?? "").trim().slice(0, 60);
+  const contactName = String(formData.get("contact_name") ?? "").trim().slice(0, 40);
+  if (!tenantName) return { error: "Indique le nom de ton réseau / enseigne." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signUp({
+    ...parsed.data,
+    options: {
+      emailRedirectTo: `${siteUrl()}/auth/confirm?next=/admin`,
+      data: { reseller_signup: "1", tenant_name: tenantName, contact_name: contactName },
     },
   });
   if (error) {

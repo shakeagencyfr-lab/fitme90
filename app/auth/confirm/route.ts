@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { applyPendingCoachSelection } from "@/lib/tenant";
-import { provisionCoachIfPending } from "@/lib/coach-onboarding";
+import { provisionCoachIfPending, provisionResellerIfPending } from "@/lib/coach-onboarding";
 
 // Rattache le nouveau client à son coach + offre (métadonnées d'inscription),
 // ou provisionne le tenant d'un nouveau coach, une fois la session établie.
@@ -13,6 +13,7 @@ async function applyCoachSelection(supabase: Awaited<ReturnType<typeof createCli
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return;
+    await provisionResellerIfPending(user.id, user.user_metadata);
     await provisionCoachIfPending(user.id, user.user_metadata);
     await applyPendingCoachSelection(user.id, user.user_metadata);
   } catch {
