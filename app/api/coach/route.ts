@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { recordCall } from "@/lib/ratelimit";
 import { checkCoachAiBudget } from "@/lib/coach-ai-budget";
+import { clientUsesCredits, getWallet, debitWallet } from "@/lib/credits";
 import { MODELS, textOf, parseJsonLoose, effortConfig, anthropic } from "@/lib/anthropic";
 import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
@@ -89,12 +90,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 403 });
   }
 
-  const budget = await checkCoachAiBudget(ctx.userId, ctx.profile?.tenant_id ?? null);
-  if (!budget.ok) {
-    return NextResponse.json(
-      { error: `Limite de ${budget.limit} échanges IA par jour atteinte. Reviens demain.` },
-      { status: 429 },
-    );
+  // Porte d'accès : soit le portefeuille de crédits du coach (Modèle crédits du
+  // revendeur), soit les plafonds journaliers habituels (BYOK / abonnement).
+  const coachTenant = ctx.profile?.tenant_id ?? null;
+  const useCredits = await clientUsesCredits(coachTenant);
+  if (useCredits) {
+    const wallet = await getWallet(coachTenant);
+    if (wallet.aiCredits < 1) {
+      return NextResponse.json(
+        { error: "Crédits IA épuisés. Ton coach doit recharger des crédits pour réactiver l'assistant." },
+        { status: 402 },
+      );
+    }
+  } else {
+    const budget = await checkCoachAiBudget(ctx.userId, coachTenant);
+    if (!budget.ok) {
+      return NextResponse.json(
+        { error: `Limite de ${budget.limit} échanges IA par jour atteinte. Reviens demain.` },
+        { status: 429 },
+      );
+    }
   }
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
@@ -527,6 +542,12 @@ ${JSON.stringify(logs ?? [])}`;
       .eq("title", "Nouvelle conversation");
   }
   await recordCall(ctx.userId, "coach", totalUsage);
+  // Modèle crédits : on débite APRÈS la réponse réussie (jamais de surdébit).
+  // Une adaptation régénère aussi un programme → 1 crédit programme en plus.
+  if (useCredits && coachTenant) {
+    await debitWallet(coachTenant, "ai", 1, "action", ctx.userId);
+    if (adapted) await debitWallet(coachTenant, "program", 1, "generate", ctx.userId);
+  }
 
   // Une adaptation (jours, nutrition, blessure) a modifié programme/questionnaire :
   // on purge le cache des pages concernées pour que tout soit à jour à la nav.

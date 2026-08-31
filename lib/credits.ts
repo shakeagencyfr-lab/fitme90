@@ -103,6 +103,23 @@ export async function resellerModel(tenantId: string | null): Promise<"subscript
   return data?.reseller_model === "credits" ? "credits" : "subscription";
 }
 
+/**
+ * Les clients de ce coach consomment-ils des CRÉDITS (revendeur parent en
+ * Modèle crédits) plutôt que les plafonds journaliers ? Utilisé par les routes
+ * IA pour choisir la porte d'accès : solde de crédits vs plafonds.
+ */
+export async function clientUsesCredits(coachTenantId: string | null): Promise<boolean> {
+  if (!coachTenantId) return false;
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("tenants")
+    .select("parent_id")
+    .eq("id", coachTenantId)
+    .maybeSingle<{ parent_id: string | null }>();
+  if (!data?.parent_id) return false;
+  return (await resellerModel(data.parent_id)) === "credits";
+}
+
 // ------------------------------------------------------------------ packs de crédits
 export interface CreditPack {
   id: number;

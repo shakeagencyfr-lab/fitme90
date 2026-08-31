@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { recordCall } from "@/lib/ratelimit";
 import { checkRecipeAiBudget } from "@/lib/coach-ai-budget";
+import { clientUsesCredits, getWallet, debitWallet } from "@/lib/credits";
 import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
 import { COACH_CREDENTIAL } from "@/lib/config";
@@ -44,18 +45,31 @@ export async function POST() {
     );
   }
 
-  const budget = await checkRecipeAiBudget(ctx.userId, ctx.profile?.tenant_id ?? null);
-  if (!budget.ok) {
-    const n = budget.limit;
-    return NextResponse.json(
-      {
-        error:
-          n === 1
-            ? "Tu as déjà régénéré tes recettes aujourd'hui. Réessaie demain."
-            : `Limite de ${n} régénérations de recettes par jour atteinte. Réessaie demain.`,
-      },
-      { status: 429 },
-    );
+  // Porte d'accès : portefeuille de crédits (Modèle crédits) ou plafond journalier.
+  const coachTenant = ctx.profile?.tenant_id ?? null;
+  const useCredits = await clientUsesCredits(coachTenant);
+  if (useCredits) {
+    const wallet = await getWallet(coachTenant);
+    if (wallet.aiCredits < 1) {
+      return NextResponse.json(
+        { error: "Crédits IA épuisés. Ton coach doit recharger des crédits." },
+        { status: 402 },
+      );
+    }
+  } else {
+    const budget = await checkRecipeAiBudget(ctx.userId, coachTenant);
+    if (!budget.ok) {
+      const n = budget.limit;
+      return NextResponse.json(
+        {
+          error:
+            n === 1
+              ? "Tu as déjà régénéré tes recettes aujourd'hui. Réessaie demain."
+              : `Limite de ${n} régénérations de recettes par jour atteinte. Réessaie demain.`,
+        },
+        { status: 429 },
+      );
+    }
   }
 
   const supabase = await createClient();
@@ -115,6 +129,7 @@ Consignes : 4 à 7 étapes numérotées, chaque étape est une instruction concr
       input_tokens: message.usage.input_tokens,
       output_tokens: message.usage.output_tokens,
     });
+    if (useCredits && coachTenant) await debitWallet(coachTenant, "ai", 1, "action", ctx.userId);
     return NextResponse.json({ recipes: parsed.recipes });
   } catch {
     return NextResponse.json({ error: "Génération des recettes indisponible." }, { status: 502 });
