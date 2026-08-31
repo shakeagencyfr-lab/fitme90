@@ -20,6 +20,8 @@ import { deleteOwnCoachAccount } from "@/lib/account-deletion";
 import { setAffiliation } from "@/lib/affiliation";
 import { setProspectStatus, deleteProspect } from "@/lib/prospects";
 import { createCreditPack, setCreditPackActive, deleteCreditPack, type CreditKind } from "@/lib/credits";
+import { setResellerWhitelabelPrice } from "@/lib/whitelabel";
+import { setTenantSmtp, clearTenantSmtp, testSmtp } from "@/lib/smtp";
 import { saveTenantBranding, uploadTenantAsset, clearTenantAsset, type AssetKind } from "@/lib/branding";
 import { setTenantStripeKey, clearTenantStripeKey, testStripeKey } from "@/lib/coach-payments";
 import {
@@ -986,6 +988,65 @@ export async function removeCreditPack(formData: FormData): Promise<void> {
   if (!id) return;
   await deleteCreditPack(ctx.profile.tenant_id, id);
   revalidatePath("/admin/ia-revenu");
+}
+
+// ------------------------------------------------------------------ upsell marque blanche
+/** Le revendeur fixe le prix mensuel de son upsell marque blanche (0/vide = retiré). */
+export async function saveWhitelabelPrice(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const raw = String(formData.get("price_euros") ?? "").replace(",", ".").trim();
+  let cents: number | null = null;
+  if (raw) {
+    const n = Math.round(Number(raw) * 100);
+    if (!Number.isFinite(n) || n < 0) return { error: "Prix invalide." };
+    cents = n > 0 ? n : null;
+  }
+  await setResellerWhitelabelPrice(ctx.profile.tenant_id, cents);
+  revalidatePath("/admin/ia-revenu");
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ SMTP perso (marque blanche)
+export interface SmtpState {
+  ok?: boolean;
+  error?: string;
+  tested?: boolean;
+}
+
+/** Enregistre le SMTP perso du coach (testé avant sauvegarde). Marque blanche requise. */
+export async function saveSmtp(_prev: SmtpState, formData: FormData): Promise<SmtpState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  if (!secretsEncryptionReady()) {
+    return { error: "Chiffrement non configuré (SECRETS_ENC_KEY manquante côté serveur)." };
+  }
+  const host = String(formData.get("host") ?? "").trim();
+  const portRaw = String(formData.get("port") ?? "").trim();
+  const user = String(formData.get("user") ?? "").trim();
+  const pass = String(formData.get("pass") ?? "").trim();
+  const from = String(formData.get("from") ?? "").trim();
+  const port = Number(portRaw) || 587;
+  if (!host || !user || !pass || !from) return { error: "Renseigne serveur, identifiant, mot de passe et adresse d'envoi." };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(from.replace(/^.*<|>$/g, ""))) {
+    return { error: "Adresse d'envoi invalide." };
+  }
+
+  const test = await testSmtp({ host, port, user, pass, from });
+  if (!test.ok) return { error: `Connexion SMTP refusée : ${test.error ?? "vérifie les identifiants."}` };
+
+  await setTenantSmtp(ctx.profile.tenant_id, { host, port, user, pass, from });
+  revalidatePath("/admin/marque-blanche");
+  return { ok: true, tested: true };
+}
+
+/** Supprime le SMTP perso (retour à l'envoi par défaut de la plateforme). */
+export async function removeSmtp(): Promise<SmtpState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  await clearTenantSmtp(ctx.profile.tenant_id);
+  revalidatePath("/admin/marque-blanche");
+  return { ok: true };
 }
 
 // ------------------------------------------------------------------ codes promo & cadeaux

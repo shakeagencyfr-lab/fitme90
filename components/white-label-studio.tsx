@@ -22,6 +22,8 @@ interface Props {
   previewUrl: string | null;
   /** Jeton recalculé à chaque rendu serveur : force le rechargement de l'aperçu. */
   previewVersion: number;
+  /** Domaine perso verrouillé (option marque blanche non débloquée) ? */
+  domainLocked?: boolean;
 }
 
 // Studio « marque blanche » : configuration à gauche, aperçu live à droite.
@@ -40,6 +42,7 @@ export function WhiteLabelStudio({
   rootDomain,
   previewUrl,
   previewVersion,
+  domainLocked = false,
 }: Props) {
   const router = useRouter();
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
@@ -53,7 +56,22 @@ export function WhiteLabelStudio({
         <BrandingForm branding={branding} namePlaceholder={namePlaceholder} />
         {template ? <TemplateSelector current={template} accent={accent} /> : null}
         <SubdomainForm current={subdomain} slug={slug} siteHost={siteHost} rootDomain={rootDomain} />
-        <CustomDomainCard domain={customDomain} />
+        {domainLocked ? (
+          <div className="flex items-start gap-2.5 rounded-card border border-line bg-surface-2 p-4">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={1.8} className="mt-0.5 shrink-0 text-muted-2" aria-hidden>
+              <rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" />
+            </svg>
+            <div>
+              <div className="font-archivo text-[14.5px] font-bold text-ink">Domaine personnalisé</div>
+              <p className="mt-0.5 text-[12.5px] leading-[1.55] text-muted">
+                Débloque l&apos;option <span className="text-body">marque blanche</span> (domaine perso
+                + e-mails) auprès de ton revendeur pour brancher ton propre domaine.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <CustomDomainCard domain={customDomain} />
+        )}
       </div>
 
       {/* Colonne aperçu live (sticky) */}
