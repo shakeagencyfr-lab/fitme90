@@ -68,6 +68,18 @@ const embedHeaders = [
   },
 ];
 
+// Landings publiques (coach /c/[slug], revendeur /r/[slug], plateforme /) :
+// framables UNIQUEMENT en same-origin, pour l'aperçu live du studio marque
+// blanche. Le cross-origin reste bloqué (frame-ancestors 'self' + SAMEORIGIN).
+const selfFrameCsp = csp.replace("frame-ancestors 'none'", "frame-ancestors 'self'");
+const selfFrameHeaders = securityHeaders.map((h) =>
+  h.key === "Content-Security-Policy"
+    ? { key: h.key, value: selfFrameCsp }
+    : h.key === "X-Frame-Options"
+      ? { key: h.key, value: "SAMEORIGIN" }
+      : h,
+);
+
 const nextConfig: NextConfig = {
   async headers() {
     return [
@@ -75,6 +87,11 @@ const nextConfig: NextConfig = {
       { source: "/c/:slug/embed", headers: embedHeaders },
       // Tout le reste (la route embed exclue) garde les en-têtes stricts.
       { source: "/((?!c/[^/]+/embed).*)", headers: securityHeaders },
+      // Landings publiques : framables same-origin (aperçu live du studio).
+      // Placées après le catch-all pour surcharger X-Frame-Options / CSP.
+      { source: "/c/:slug", headers: selfFrameHeaders },
+      { source: "/r/:slug", headers: selfFrameHeaders },
+      { source: "/", headers: selfFrameHeaders },
     ];
   },
 };

@@ -5,6 +5,7 @@ import { PwaInstall } from "@/components/pwa-install";
 import { listCoachNotifications, unreadCoachNotifCount } from "@/lib/notifications";
 import { tenantNode } from "@/lib/hierarchy";
 import { tenantFreezeState } from "@/lib/freeze";
+import { tenantMonthlyAiUsage } from "@/lib/ai-cost";
 import { CoachFreezeBanner } from "@/components/coach-freeze-banner";
 
 export const metadata = { title: "Admin, FitMe90" };
@@ -16,19 +17,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!ctx) notFound();
 
   const tenantId = ctx.profile?.tenant_id ?? null;
-  const [notifs, unread, node, freeze] = tenantId
+  const [notifs, unread, node, freeze, aiUsage] = tenantId
     ? await Promise.all([
         listCoachNotifications(tenantId),
         unreadCoachNotifCount(tenantId),
         tenantNode(tenantId),
         tenantFreezeState(tenantId),
+        tenantMonthlyAiUsage(tenantId),
       ])
-    : [[], 0, null, { frozen: false, status: null }];
+    : [[], 0, null, { frozen: false, status: null }, { costUsd: 0, calls: 0, sinceIso: "" }];
   const kind = node?.kind ?? "coach";
 
   return (
     <>
-      <AdminShell notifs={notifs} unread={unread} email={ctx.email ?? ""} kind={kind}>
+      <AdminShell notifs={notifs} unread={unread} email={ctx.email ?? ""} kind={kind} aiCostUsd={aiUsage.costUsd} aiCalls={aiUsage.calls}>
         {freeze.frozen ? <CoachFreezeBanner /> : null}
         {children}
       </AdminShell>
