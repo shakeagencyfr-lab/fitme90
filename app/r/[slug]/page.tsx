@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { CoachMark } from "@/components/brand";
 import { Reveal } from "@/components/reveal";
 import { CountUp } from "@/components/count-up";
+import { RevenueSimulator } from "@/components/revenue-simulator";
 import { publicResellerBySlug } from "@/lib/reseller";
 import { DEFAULT_BRAND_COLOR, formatEuros } from "@/lib/config";
 import type { Plan } from "@/lib/plans";
@@ -17,12 +18,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: `${data.reseller.name} — Lance ton business de coaching boosté par l'IA`,
     description:
-      "Ton application de coaching à ta marque, propulsée par l'IA. Sans code, sans technique, premier client offert. Un business ultra-scalable, clé en main.",
+      "Ta web app de coaching à ta marque, propulsée par l'IA. Sans code, sans technique, premier client offert. Un business ultra-scalable, clé en main.",
   };
 }
 
 const MARQUEE = [
-  "Marque blanche", "Coach IA 24/7", "Programmes 90 jours", "Nutrition auto", "Chat VIP",
+  "Marque blanche", "Coach IA 24/7", "Programmes sur-mesure", "Nutrition auto", "Chat VIP",
   "Paiements Stripe", "Zéro code", "Revenus récurrents", "Ultra-scalable", "1er client offert",
 ];
 
@@ -32,7 +33,7 @@ const FEATURES = [
   { icon: "crm", title: "CRM & relances", desc: "Suivi, notifications, rétention automatisée. Tes clients restent, ton chiffre monte." },
   { icon: "bolt", title: "Zéro technique", desc: "Pas de code, pas de serveur, pas de maintenance. Tu vends, on gère la tech." },
   { icon: "shield", title: "Données sécurisées", desc: "Hébergement UE, chiffrement, conformité. La confiance intégrée." },
-  { icon: "phone", title: "App installable", desc: "Tes clients ajoutent ton app à leur écran d'accueil. Une vraie présence, à ta marque." },
+  { icon: "phone", title: "Web app installable", desc: "Tes clients ajoutent ta web app à leur écran d'accueil. Une vraie présence, à ta marque." },
 ];
 
 const SHOWCASE: { kind: "ai" | "program" | "nutrition"; tag: string; title: string; desc: string; points: string[] }[] = [
@@ -46,9 +47,9 @@ const SHOWCASE: { kind: "ai" | "program" | "nutrition"; tag: string; title: stri
   {
     kind: "program",
     tag: "Programmes",
-    title: "90 jours de programme, générés en un clic",
+    title: "Ton programme complet, généré en un clic",
     desc: "Chaque client reçoit un plan personnalisé selon son objectif, son matériel et son niveau. Les cycles évoluent automatiquement.",
-    points: ["Adapté au matériel réel (salle ou maison)", "3 cycles progressifs sur 90 jours", "Se régénère à la progression"],
+    points: ["Adapté au matériel réel (salle ou maison)", "Cycles progressifs, durée personnalisable", "Se régénère à la progression"],
   },
   {
     kind: "nutrition",
@@ -61,21 +62,21 @@ const SHOWCASE: { kind: "ai" | "program" | "nutrition"; tag: string; title: stri
 
 const COMPARE_WITHOUT = [
   "Des dizaines d'heures à créer chaque programme",
-  "Un développeur et des milliers d'euros pour une app",
+  "Un développeur et des milliers d'euros pour une web app",
   "Un chiffre d'affaires plafonné par tes heures",
   "Des clients qui décrochent, sans relance",
   "Excel, PDF et messages éparpillés",
 ];
 const COMPARE_WITH = [
   "Programmes générés en un clic par l'IA",
-  "Ton app en ligne aujourd'hui, sans une ligne de code",
+  "Ta web app en ligne aujourd'hui, sans une ligne de code",
   "Une croissance scalable, revenus récurrents",
   "Relances et rétention automatisées",
   "Tout centralisé, à ta marque",
 ];
 
 const STEPS = [
-  { n: "01", title: "Crée ton espace en 5 min", desc: "Nom, couleurs, logo. Ton application est prête, en ligne, à ta marque." },
+  { n: "01", title: "Crée ton espace en 5 min", desc: "Nom, couleurs, logo. Ta web app est prête, en ligne, à ta marque." },
   { n: "02", title: "Invite tes clients", desc: "Un simple lien. Ils s'inscrivent, l'IA génère tout, tu gardes le contrôle." },
   { n: "03", title: "Encaisse et développe", desc: "Tes tarifs, tes abonnements, ta marge. Une croissance sans plafond." },
 ];
@@ -223,10 +224,12 @@ export default async function ResellerLandingPage({ params }: { params: Promise<
       <header className="relative z-30 sticky top-0 border-b border-white/10 bg-[#080a0c]/70 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-[1160px] items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
           <span className="text-white [&_span]:text-white"><CoachMark brand={{ name: reseller.name, logoUrl: reseller.logoUrl }} size={22} imgClass="h-10 sm:h-12" /></span>
-          <div className="flex items-center gap-2">
-            <a href="#formules" className="hidden text-[14px] font-medium text-white/60 transition-colors hover:text-white sm:inline">Tarifs</a>
-            <Link href={signup} className="tap inline-flex h-10 items-center gap-1.5 rounded-btn bg-brand px-4 text-[14px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">Démarrer gratuitement</Link>
-          </div>
+          <nav className="hidden items-center gap-7 md:flex">
+            {[["#apercu", "Aperçu"], ["#simulateur", "Simulateur"], ["#formules", "Tarifs"], ["#faq", "FAQ"]].map(([href, label]) => (
+              <a key={href} href={href} className="text-[14px] font-medium text-white/60 transition-colors hover:text-white">{label}</a>
+            ))}
+          </nav>
+          <Link href={signup} className="tap inline-flex h-10 items-center gap-1.5 rounded-btn bg-brand px-4 text-[14px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">Démarrer gratuitement</Link>
         </div>
       </header>
 
@@ -273,7 +276,7 @@ export default async function ResellerLandingPage({ params }: { params: Promise<
                 <p className="mt-2 text-[13px] leading-[1.5] text-white/85">Ta séance du jour est prête 💪 On vise +2 reps sur le développé. Prêt ?</p>
               </div>
               <div className="mt-3 rounded-2xl border border-brand/25 bg-brand/[0.08] p-3.5">
-                <div className="flex items-center justify-between"><span className="text-[12px] font-semibold text-white/90">Programme · Jour 24 / 90</span><span className="font-archivo text-[13px] font-bold text-brand">On track</span></div>
+                <div className="flex items-center justify-between"><span className="text-[12px] font-semibold text-white/90">Programme · Cycle 2 · Jour 24</span><span className="font-archivo text-[13px] font-bold text-brand">On track</span></div>
                 <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-brand" style={{ width: "73%" }} /></div>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2">
@@ -304,7 +307,7 @@ export default async function ResellerLandingPage({ params }: { params: Promise<
       <section className="relative z-10 mx-auto grid w-full max-w-[1160px] grid-cols-2 gap-6 px-5 py-14 sm:grid-cols-4 sm:px-8 sm:py-16">
         {[
           { n: 5, s: "", l: "minutes pour lancer" },
-          { n: 90, s: " j", l: "de programme par client" },
+          { n: 100, s: " %", l: "à ta marque" },
           { n: 24, s: "/7", l: "coach IA au travail" },
           { n: 0, s: " €", l: "pour démarrer" },
         ].map((s, i) => (
@@ -374,6 +377,19 @@ export default async function ResellerLandingPage({ params }: { params: Promise<
               </Reveal>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Simulateur de revenus */}
+      <section id="simulateur" className="relative z-10 mx-auto w-full max-w-[1160px] px-5 py-20 sm:px-8 sm:py-28">
+        <Reveal className="mx-auto max-w-[680px] text-center">
+          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">Simulateur</span>
+          <h2 className="mt-4 font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">Combien peux-tu gagner ?</h2>
+          <p className="mt-4 text-[16px] leading-[1.7] text-white/65">Fais glisser les curseurs : ton nombre de clients, ton tarif. Ton revenu récurrent s&apos;affiche en direct.</p>
+        </Reveal>
+        <Reveal delay={100} className="mt-12"><RevenueSimulator /></Reveal>
+        <div className="mt-8 text-center">
+          <Link href={signup} className="tap inline-flex items-center justify-center gap-2 rounded-btn bg-brand px-7 py-4 text-[15px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">Je me lance <Ic name="arrow" className="h-4 w-4" /></Link>
         </div>
       </section>
 
@@ -470,7 +486,7 @@ export default async function ResellerLandingPage({ params }: { params: Promise<
       </section>
 
       {/* FAQ */}
-      <section className="relative z-10 mx-auto w-full max-w-[820px] px-5 py-20 sm:px-8 sm:py-28">
+      <section id="faq" className="relative z-10 mx-auto w-full max-w-[820px] px-5 py-20 sm:px-8 sm:py-28">
         <Reveal className="text-center">
           <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">Questions</span>
           <h2 className="mt-4 font-archivo text-[clamp(26px,4.5vw,40px)] font-extrabold tracking-[-0.025em]">Tout ce que tu te demandes</h2>
