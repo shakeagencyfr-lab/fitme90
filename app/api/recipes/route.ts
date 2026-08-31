@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
-import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
+import { recordCall } from "@/lib/ratelimit";
+import { checkCoachAiBudget } from "@/lib/coach-ai-budget";
 import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
-import { LIMIT_RECIPES_PER_DAY, COACH_CREDENTIAL } from "@/lib/config";
+import { COACH_CREDENTIAL } from "@/lib/config";
 
 export const runtime = "nodejs";
 
@@ -43,10 +44,10 @@ export async function POST() {
     );
   }
 
-  const limit = await checkLimit(ctx.userId, "recipes", LIMIT_RECIPES_PER_DAY, DAY_MS);
-  if (!limit.ok) {
+  const budget = await checkCoachAiBudget(ctx.userId, ctx.profile?.tenant_id ?? null);
+  if (!budget.ok) {
     return NextResponse.json(
-      { error: `Limite de ${limit.max} générations de recettes par jour atteinte.` },
+      { error: `Limite de ${budget.limit} échanges IA par jour atteinte (recettes incluses).` },
       { status: 429 },
     );
   }

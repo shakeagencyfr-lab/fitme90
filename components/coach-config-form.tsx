@@ -3,16 +3,22 @@
 import { useActionState, useState } from "react";
 import { saveCoachConfig, type ConfigState } from "@/app/admin/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
+import { AI_COST_PER_MSG_USD } from "@/lib/config";
 
 interface Props {
   initialMode: "auto" | "custom";
   initialCustom: string;
   initialCoachName: string;
+  initialDailyLimit: number;
 }
 
-export function CoachConfigForm({ initialMode, initialCustom, initialCoachName }: Props) {
+export function CoachConfigForm({ initialMode, initialCustom, initialCoachName, initialDailyLimit }: Props) {
   const [state, action, pending] = useActionState(saveCoachConfig, {} as ConfigState);
   const [mode, setMode] = useState<"auto" | "custom">(initialMode);
+  const [limit, setLimit] = useState<number>(initialDailyLimit);
+
+  const perDay = limit > 0 ? limit * AI_COST_PER_MSG_USD : 0;
+  const perMonth = perDay * 30;
 
   return (
     <Card as="section" className="flex flex-col gap-4">
@@ -92,6 +98,41 @@ export function CoachConfigForm({ initialMode, initialCustom, initialCoachName }
             Écris tes règles comme à un assistant coach. 8000 caractères max.
           </span>
         </label>
+
+        <div className="h-px bg-line" />
+
+        {/* Plafond Coach IA + estimation de coût */}
+        <div className="flex flex-col gap-1">
+          <div className="font-archivo font-bold text-[17px] text-ink">Plafond du Coach IA</div>
+          <p className="text-[13px] text-muted">
+            Nombre maximum d&apos;échanges avec le Coach IA <span className="text-body">par client et par jour</span>,
+            régénérations de recettes incluses. Sert à maîtriser ton coût IA (BYOK).
+          </p>
+        </div>
+        <label className="flex flex-col gap-1.5">
+          <MonoLabel>Échanges / jour / client (0 = illimité)</MonoLabel>
+          <input
+            type="number"
+            name="coach_ai_daily_limit"
+            min={0}
+            max={1000}
+            value={limit}
+            onChange={(e) => setLimit(Math.max(0, Math.min(1000, Number(e.target.value) || 0)))}
+            className="w-full max-w-[160px] rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
+          />
+        </label>
+        <div className="rounded-control border border-line-4 bg-surface-2 p-3.5 text-[13px] leading-relaxed text-muted">
+          {limit > 0 ? (
+            <>
+              Coût IA maximal si un client atteint le plafond <span className="font-semibold text-body">tous les jours</span> :
+              {" "}environ <span className="font-semibold text-body">${perDay.toFixed(2)}/jour</span> et
+              {" "}<span className="font-semibold text-body">${perMonth.toFixed(0)}/mois</span> par client
+              {" "}(estimation prudente, ~${AI_COST_PER_MSG_USD.toFixed(2)}/échange). En usage réel, c&apos;est bien moins.
+            </>
+          ) : (
+            <>Plafond désactivé (illimité) : le coût IA n&apos;est pas borné. Recommandé de fixer une limite pour maîtriser le budget.</>
+          )}
+        </div>
 
         {state.error ? <Alert>{state.error}</Alert> : null}
         {state.ok ? <Alert tone="info">Configuration enregistrée. Elle s&apos;applique aux prochaines générations.</Alert> : null}
