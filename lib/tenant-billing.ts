@@ -155,6 +155,89 @@ export async function verifyPlanCheckout(buyerTenantId: string, sessionId: strin
   }
 }
 
+export interface SwitchResult {
+  ok?: boolean;
+  /** L'appelant doit basculer sur un checkout (pas d'abonnement actif à modifier). */
+  needsCheckout?: boolean;
+  error?: string;
+}
+
+/**
+ * Change le palier d'un tenant qui a DÉJÀ un abonnement actif : met à jour la
+ * ligne récurrente de l'abonnement Stripe existant (upgrade/downgrade avec
+ * proratisation), sans créer de second abonnement. Si aucun abonnement n'est
+ * actif, renvoie needsCheckout pour laisser l'appelant lancer un paiement.
+ */
+export async function switchTenantPlan(
+  tenantId: string,
+  planId: string,
+  interval: "month" | "year",
+): Promise<SwitchResult> {
+  const admin = createAdminClient();
+  const { data: row } = await admin
+    .from("tenants")
+    .select("id, parent_id, plan_id, sub_id, sub_status, sub_current_period_end")
+    .eq("id", tenantId)
+    .maybeSingle<TenantSubRow & { sub_status: string | null; sub_current_period_end: string | null }>();
+
+  if (!row?.parent_id) return { error: "Aucun compte parent à facturer." };
+  // Pas d'abonnement actif à modifier → l'appelant fera un checkout.
+  if (!row.sub_id || !subActive(row.sub_status, row.sub_current_period_end)) {
+    return { needsCheckout: true };
+  }
+
+  const plan = await planById(planId);
+  if (!plan || plan.tenant_id !== row.parent_id || !plan.is_active) {
+    return { error: "Palier introuvable." };
+  }
+  const amount = interval === "year" ? plan.price_year_cents : plan.price_month_cents;
+  if (amount == null || amount <= 0) {
+    return { error: "Ce palier n'a pas de prix pour cet intervalle." };
+  }
+
+  const stripe = await stripeForTenant(row.parent_id);
+  if (!stripe) return { error: "Le compte parent n'a pas configuré ses paiements." };
+
+  try {
+    const sub = await stripe.subscriptions.retrieve(row.sub_id);
+    const itemId = sub.items?.data?.[0]?.id;
+    if (!itemId) return { error: "Abonnement introuvable." };
+
+    // La modification d'un item d'abonnement exige un `price` existant (le
+    // price_data des items d'update n'accepte pas product_data). On crée donc un
+    // Price (le product est créé à la volée), puis on bascule l'item dessus.
+    const price = await stripe.prices.create({
+      currency: "eur",
+      unit_amount: amount,
+      recurring: { interval },
+      product_data: { name: plan.name },
+    });
+
+    const updated = await stripe.subscriptions.update(row.sub_id, {
+      items: [{ id: itemId, price: price.id }],
+      proration_behavior: "create_prorations",
+      cancel_at_period_end: false,
+      metadata: { buyer_tenant_id: tenantId, plan_id: plan.id },
+    });
+
+    const end = (updated as unknown as { current_period_end?: number }).current_period_end;
+    await admin
+      .from("tenants")
+      .update({
+        plan_id: plan.id,
+        sub_status: updated.status,
+        sub_current_period_end: end ? new Date(end * 1000).toISOString() : row.sub_current_period_end,
+        sub_cancel_at_period_end: false,
+        sub_synced_at: new Date().toISOString(),
+        client_limit: plan.client_limit,
+      })
+      .eq("id", tenantId);
+    return { ok: true };
+  } catch {
+    return { error: "Changement de palier impossible. Réessaie dans un instant." };
+  }
+}
+
 export interface TenantBillingState {
   planId: string | null;
   planName: string | null;

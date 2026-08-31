@@ -15,6 +15,7 @@ import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, setOfferActive, deleteOffer } from "@/lib/offers";
 import { createPlan, setPlanActive, deletePlan } from "@/lib/plans";
 import { cancelTenantPlan, reactivateTenantPlan } from "@/lib/tenant-billing";
+import { deleteOwnCoachAccount } from "@/lib/account-deletion";
 import { saveTenantBranding, uploadTenantAsset, clearTenantAsset, type AssetKind } from "@/lib/branding";
 import { setTenantStripeKey, clearTenantStripeKey, testStripeKey } from "@/lib/coach-payments";
 import {
@@ -398,6 +399,28 @@ export async function reactivateMyPlan(): Promise<void> {
   if (!ctx?.profile?.tenant_id) return;
   await reactivateTenantPlan(ctx.profile.tenant_id);
   revalidatePath("/admin/abonnement");
+}
+
+export interface DeleteAccountState {
+  ok?: boolean;
+  error?: string;
+}
+
+/**
+ * Résiliation TOTALE et irréversible : supprime le compte coach, tous ses
+ * clients et toutes les données. Exige la saisie exacte de « SUPPRIMER ».
+ * Après succès, l'utilisateur n'a plus de compte : on le renvoie à l'accueil.
+ */
+export async function deleteMyAccount(_prev: DeleteAccountState, formData: FormData): Promise<DeleteAccountState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const confirm = String(formData.get("confirm") ?? "").trim();
+  if (confirm !== "SUPPRIMER") {
+    return { error: "Tape SUPPRIMER (en majuscules) pour confirmer." };
+  }
+  const res = await deleteOwnCoachAccount(ctx.profile.tenant_id, ctx.userId);
+  if (!res.ok) return { error: res.error ?? "Suppression impossible." };
+  redirect("/?compte=supprime");
 }
 
 // ------------------------------------------------------------------ BYOK Stripe (Lot 3)
