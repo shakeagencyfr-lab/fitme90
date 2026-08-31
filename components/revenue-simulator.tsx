@@ -23,6 +23,7 @@ export function RevenueSimulator({
   priceStep = 5,
   priceDefault = 49,
   note = "Estimation illustrative. À toi de fixer tes tarifs et ton volume.",
+  aiNote,
 }: {
   countLabel?: string;
   countUnit?: string;
@@ -35,6 +36,8 @@ export function RevenueSimulator({
   priceStep?: number;
   priceDefault?: number;
   note?: string;
+  /** Ligne informative sur le coût IA (BYOK), affichée sous le résultat. */
+  aiNote?: string;
 }) {
   const [count, setCount] = useState(countDefault);
   const [price, setPrice] = useState(priceDefault);
@@ -99,7 +102,15 @@ export function RevenueSimulator({
           </div>
         </div>
       </div>
-      <p className="mt-6 text-center text-[12.5px] text-white/40">{note}</p>
+      {aiNote ? (
+        <div className="mt-6 flex items-start gap-2.5 rounded-2xl border border-brand/25 bg-brand/[0.07] px-4 py-3 text-[13px] leading-[1.5] text-white/80">
+          <svg viewBox="0 0 24 24" width="18" height="18" className="mt-0.5 shrink-0 text-brand" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M12 3l1.6 4L18 8.5l-4 3 1 4.5-3-2.4-3 2.4 1-4.5-4-3L10.4 7z" />
+          </svg>
+          <span>{aiNote}</span>
+        </div>
+      ) : null}
+      <p className="mt-4 text-center text-[12.5px] text-white/40">{note}</p>
 
       <style
         dangerouslySetInnerHTML={{

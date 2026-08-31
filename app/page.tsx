@@ -200,7 +200,7 @@ export default async function Home() {
       {/* Simulateur */}
       <section id="simulateur" className="relative z-10 mx-auto w-full max-w-[1160px] px-5 py-20 sm:px-8 sm:py-28">
         <Reveal className="mx-auto max-w-[680px] text-center"><span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">Simulateur</span><h2 className="mt-4 font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">Combien peux-tu gagner ?</h2><p className="mt-4 text-[16px] leading-[1.7] text-white/65">Fais glisser les curseurs : ton nombre de clients, ton tarif. Ton revenu récurrent s&apos;affiche en direct.</p></Reveal>
-        <Reveal delay={100} className="mt-12"><RevenueSimulator /></Reveal>
+        <Reveal delay={100} className="mt-12"><RevenueSimulator aiNote="Le coût de l'IA (BYOK) est d'environ 1 à 2 € par client actif et par mois : négligeable face à ces revenus. La marge reste quasi intégrale." /></Reveal>
         <div className="mt-8 text-center"><Link href={signup} className="tap inline-flex items-center justify-center gap-2 rounded-btn bg-brand px-7 py-4 text-[15px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">Je me lance <LIcon name="arrow" className="h-4 w-4" /></Link></div>
       </section>
 
