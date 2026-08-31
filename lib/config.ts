@@ -78,7 +78,7 @@ export const ROOT_DOMAIN = (process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "")
 // (chemin `fitme90.com/<slug>`) ne doit JAMAIS entrer en collision avec eux.
 // À garder en phase avec les routes de `app/` (dossiers + groupes (auth)/(legal)).
 export const RESERVED_PATH_SEGMENTS = new Set([
-  "app", "admin", "api", "auth", "c", "generation", "questionnaire", "salle",
+  "app", "admin", "api", "auth", "c", "r", "revendeurs", "generation", "questionnaire", "salle",
   "connexion", "inscription", "inscription-coach", "inscription-revendeur", "verifie-tes-mails", "mot-de-passe-oublie",
   "reinitialiser", "cgv", "confidentialite", "mentions-legales",
   "_next", "icons", "favicon.ico", "manifest.webmanifest", "sw.js",
