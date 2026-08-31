@@ -5,7 +5,11 @@ import { tenantCapacity } from "@/lib/entitlements";
 import { tenantBillingState, verifyPlanCheckout } from "@/lib/tenant-billing";
 import { formatEuros } from "@/lib/config";
 import { PlanCheckoutButton } from "@/components/plan-checkout-button";
+import { cancelMyPlan, reactivateMyPlan } from "@/app/admin/actions";
 import { Alert, Card, MonoLabel } from "@/components/ui";
+
+const fmtDate = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }) : null;
 
 export const metadata = { title: "Mon abonnement, Admin FitMe90" };
 
@@ -81,6 +85,40 @@ export default async function AdminBillingPage({
                   ? `Clients illimités · ${cap.used} inscrit${cap.used > 1 ? "s" : ""}`
                   : `${cap.used} / ${cap.limit} client${(cap.limit ?? 0) > 1 ? "s" : ""}`}
               </p>
+            ) : null}
+            {billing?.active && billing.planId ? (
+              billing.cancelAtPeriodEnd ? (
+                <div className="mt-1 flex flex-wrap items-center gap-3">
+                  <span className="text-[12.5px] text-muted-2">
+                    Résiliation prévue{fmtDate(billing.currentPeriodEnd) ? ` le ${fmtDate(billing.currentPeriodEnd)}` : ""}.
+                    Tu gardes ta capacité jusque-là.
+                  </span>
+                  <form action={reactivateMyPlan}>
+                    <button
+                      type="submit"
+                      className="tap text-[12.5px] font-semibold text-brand underline underline-offset-2 hover:opacity-80"
+                    >
+                      Réactiver
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <div className="mt-1 flex flex-wrap items-center gap-3">
+                  {fmtDate(billing.currentPeriodEnd) ? (
+                    <span className="text-[12.5px] text-muted-2">
+                      Prochaine échéance : {fmtDate(billing.currentPeriodEnd)}
+                    </span>
+                  ) : null}
+                  <form action={cancelMyPlan}>
+                    <button
+                      type="submit"
+                      className="tap text-[12.5px] font-semibold text-muted-2 underline underline-offset-2 hover:text-ink"
+                    >
+                      Résilier
+                    </button>
+                  </form>
+                </div>
+              )
             ) : null}
           </Card>
 

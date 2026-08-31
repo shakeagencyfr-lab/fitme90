@@ -1,4 +1,5 @@
 import "server-only";
+import type Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripeForTenant } from "@/lib/coach-payments";
 import { billingParentId } from "@/lib/hierarchy";
@@ -59,23 +60,37 @@ export async function startPlanCheckout(
   const stripe = await stripeForTenant(parentId);
   if (!stripe) return { error: "Le compte parent n'a pas encore configuré ses paiements." };
 
+  // Ligne récurrente + éventuels frais de mise en place one-shot (salles),
+  // ajoutés à la première facture (ligne non récurrente en mode subscription).
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+    {
+      quantity: 1,
+      price_data: {
+        currency: "eur",
+        unit_amount: amount,
+        recurring: { interval },
+        product_data: { name: plan.name },
+      },
+    },
+  ];
+  if (plan.setup_fee_cents > 0) {
+    lineItems.push({
+      quantity: 1,
+      price_data: {
+        currency: "eur",
+        unit_amount: plan.setup_fee_cents,
+        product_data: { name: `${plan.name} — frais de mise en place` },
+      },
+    });
+  }
+
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   try {
     const checkout = await stripe.checkout.sessions.create({
       mode: "subscription",
       client_reference_id: buyerTenantId,
       customer_email: email ?? undefined,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: "eur",
-            unit_amount: amount,
-            recurring: { interval },
-            product_data: { name: plan.name },
-          },
-        },
-      ],
+      line_items: lineItems,
       metadata: { buyer_tenant_id: buyerTenantId, plan_id: plan.id },
       subscription_data: { metadata: { buyer_tenant_id: buyerTenantId, plan_id: plan.id } },
       success_url: `${site}/admin/abonnement?session_id={CHECKOUT_SESSION_ID}`,
@@ -146,6 +161,7 @@ export interface TenantBillingState {
   status: string | null;
   currentPeriodEnd: string | null;
   active: boolean;
+  cancelAtPeriodEnd: boolean;
 }
 
 /** État de facturation courant d'un tenant (écran « Mon abonnement »). */
@@ -153,9 +169,14 @@ export async function tenantBillingState(tenantId: string): Promise<TenantBillin
   const admin = createAdminClient();
   const { data } = await admin
     .from("tenants")
-    .select("plan_id, sub_status, sub_current_period_end")
+    .select("plan_id, sub_status, sub_current_period_end, sub_cancel_at_period_end")
     .eq("id", tenantId)
-    .maybeSingle<{ plan_id: string | null; sub_status: string | null; sub_current_period_end: string | null }>();
+    .maybeSingle<{
+      plan_id: string | null;
+      sub_status: string | null;
+      sub_current_period_end: string | null;
+      sub_cancel_at_period_end: boolean | null;
+    }>();
   const status = data?.sub_status ?? null;
   const periodEnd = data?.sub_current_period_end ?? null;
   let planName: string | null = null;
@@ -166,5 +187,138 @@ export async function tenantBillingState(tenantId: string): Promise<TenantBillin
     status,
     currentPeriodEnd: periodEnd,
     active: subActive(status, periodEnd),
+    cancelAtPeriodEnd: !!data?.sub_cancel_at_period_end,
   };
+}
+
+interface TenantSubRow {
+  id: string;
+  parent_id: string | null;
+  plan_id: string | null;
+  sub_id: string | null;
+}
+
+/**
+ * Applique l'état d'un abonnement tenant : met à jour le statut/période et, si
+ * l'abonnement n'est plus en règle, ramène la capacité au palier gratuit
+ * (blocage des nouveaux clients, sans supprimer les existants). Retourne true si
+ * un déclassement a eu lieu.
+ */
+async function applyTenantSub(row: TenantSubRow, sub: Stripe.Subscription): Promise<boolean> {
+  const status = sub.status;
+  const end = (sub as unknown as { current_period_end?: number }).current_period_end;
+  const periodEnd = end ? new Date(end * 1000).toISOString() : null;
+  const active = subActive(status, periodEnd);
+  const plan = row.plan_id ? await planById(row.plan_id) : null;
+
+  const admin = createAdminClient();
+  await admin
+    .from("tenants")
+    .update({
+      sub_status: status,
+      sub_current_period_end: periodEnd,
+      sub_cancel_at_period_end: !!sub.cancel_at_period_end,
+      sub_synced_at: new Date().toISOString(),
+      client_limit: active && plan ? plan.client_limit : FREE_TIER_CLIENT_LIMIT,
+    })
+    .eq("id", row.id);
+  return !active;
+}
+
+/** Relit l'abonnement d'un tenant (clé du parent) et applique l'état. */
+export async function syncTenantSubscription(tenantId: string): Promise<void> {
+  const admin = createAdminClient();
+  const { data: row } = await admin
+    .from("tenants")
+    .select("id, parent_id, plan_id, sub_id")
+    .eq("id", tenantId)
+    .maybeSingle<TenantSubRow>();
+  if (!row?.sub_id || !row.parent_id) return;
+  const stripe = await stripeForTenant(row.parent_id);
+  if (!stripe) return;
+  try {
+    const sub = await stripe.subscriptions.retrieve(row.sub_id);
+    await applyTenantSub(row, sub);
+  } catch {
+    /* on garde l'état stocké */
+  }
+}
+
+/** Resynchronise tous les abonnements tenants (cron). Regroupe par parent. */
+export async function syncAllTenantSubscriptions(): Promise<{ synced: number; downgraded: number }> {
+  const admin = createAdminClient();
+  const { data: rows } = await admin
+    .from("tenants")
+    .select("id, parent_id, plan_id, sub_id")
+    .not("sub_id", "is", null)
+    .returns<TenantSubRow[]>();
+
+  const byParent = new Map<string, TenantSubRow[]>();
+  for (const r of rows ?? []) {
+    if (!r.parent_id || !r.sub_id) continue;
+    const list = byParent.get(r.parent_id) ?? [];
+    list.push(r);
+    byParent.set(r.parent_id, list);
+  }
+
+  let synced = 0;
+  let downgraded = 0;
+  for (const [parentId, tenants] of byParent) {
+    const stripe = await stripeForTenant(parentId);
+    if (!stripe) continue;
+    for (const t of tenants) {
+      try {
+        const sub = await stripe.subscriptions.retrieve(t.sub_id!);
+        const wasDown = await applyTenantSub(t, sub);
+        synced++;
+        if (wasDown) downgraded++;
+      } catch {
+        /* on n'interrompt pas le lot pour un abonnement */
+      }
+    }
+  }
+  return { synced, downgraded };
+}
+
+/**
+ * Résilie l'abonnement d'un tenant à la fin de la période courante (il garde sa
+ * capacité jusque-là, puis le cron le ramène au palier gratuit).
+ */
+export async function cancelTenantPlan(tenantId: string): Promise<boolean> {
+  const admin = createAdminClient();
+  const { data: row } = await admin
+    .from("tenants")
+    .select("id, parent_id, plan_id, sub_id")
+    .eq("id", tenantId)
+    .maybeSingle<TenantSubRow>();
+  if (!row?.sub_id || !row.parent_id) return false;
+  const stripe = await stripeForTenant(row.parent_id);
+  if (!stripe) return false;
+  try {
+    const sub = await stripe.subscriptions.update(row.sub_id, { cancel_at_period_end: true });
+    await applyTenantSub(row, sub);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Annule une résiliation programmée : l'abonnement se poursuit normalement. */
+export async function reactivateTenantPlan(tenantId: string): Promise<boolean> {
+  const admin = createAdminClient();
+  const { data: row } = await admin
+    .from("tenants")
+    .select("id, parent_id, plan_id, sub_id")
+    .eq("id", tenantId)
+    .maybeSingle<TenantSubRow>();
+  if (!row?.sub_id || !row.parent_id) return false;
+  const stripe = await stripeForTenant(row.parent_id);
+  if (!stripe) return false;
+  try {
+    const sub = await stripe.subscriptions.update(row.sub_id, { cancel_at_period_end: false });
+    await applyTenantSub(row, sub);
+    return true;
+  } catch {
+    return false;
+  }
 }
