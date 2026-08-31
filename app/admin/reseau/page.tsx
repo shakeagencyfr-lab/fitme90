@@ -18,7 +18,9 @@ export default async function AdminNetworkPage() {
     slug = data?.slug ?? null;
   }
   const coaches = tenantId ? await listChildTenants(tenantId) : [];
-  const inviteUrl = slug ? `${SITE_URL || ""}/inscription-coach?r=${slug}` : null;
+  const base = SITE_URL || "";
+  const landingUrl = slug ? `${base}/r/${slug}` : null;
+  const inviteUrl = slug ? `${base}/inscription-coach?r=${slug}` : null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -36,17 +38,37 @@ export default async function AdminNetworkPage() {
         <Alert>Aucun compte (tenant) n&apos;est rattaché à ton profil.</Alert>
       ) : (
         <>
-          {/* Lien d'invitation : un coach qui s'inscrit via ce lien rejoint ton réseau. */}
+          {/* Liens à partager : ta page de vente (marque blanche) et le lien
+              d'inscription directe. Un coach qui passe par là rejoint ton réseau. */}
           {inviteUrl ? (
-            <Card className="flex flex-col gap-2">
-              <MonoLabel>Lien d&apos;invitation coach</MonoLabel>
-              <p className="text-[12.5px] leading-[1.6] text-muted-2">
-                Partage ce lien : les coachs qui s&apos;inscrivent avec deviennent membres de ton
-                réseau (et sont facturés par toi).
-              </p>
-              <code className="block overflow-x-auto rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5 font-mono text-[12.5px] text-ink">
-                {inviteUrl}
-              </code>
+            <Card className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <MonoLabel>Ta page de vente (marque blanche)</MonoLabel>
+                <p className="text-[12.5px] leading-[1.6] text-muted-2">
+                  Ta landing à ta marque pour convaincre les coachs. Personnalise couleurs et logo
+                  dans <Link href="/admin/integrations" className="text-brand hover:underline">Intégrations</Link>.
+                </p>
+                {landingUrl ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <code className="min-w-0 flex-1 overflow-x-auto rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5 font-mono text-[12.5px] text-ink">
+                      {landingUrl}
+                    </code>
+                    <Link
+                      href={`/r/${slug}`}
+                      target="_blank"
+                      className="tap inline-flex h-10 items-center rounded-btn border border-line-4 px-3.5 text-[13px] font-semibold text-body hover:border-ink"
+                    >
+                      Voir ↗
+                    </Link>
+                  </div>
+                ) : null}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <MonoLabel>Lien d&apos;inscription directe</MonoLabel>
+                <code className="block overflow-x-auto rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5 font-mono text-[12.5px] text-ink">
+                  {inviteUrl}
+                </code>
+              </div>
             </Card>
           ) : null}
 
