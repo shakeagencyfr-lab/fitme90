@@ -19,9 +19,11 @@ export default async function AdminResellerAiPage() {
   const ctx = await getAdminOrNull();
   const tenantId = ctx?.profile?.tenant_id ?? null;
 
-  // Réservé aux revendeurs / plateforme (un coach n'a pas de coachs enfants).
+  // Réservé aux revendeurs : c'est leur levier de monétisation de l'IA
+  // (BYOK vs crédits). La plateforme vend des abonnements (Paliers), pas l'IA,
+  // et un coach n'a pas de coachs enfants.
   const node = tenantId ? await tenantNode(tenantId) : null;
-  if (!node || node.kind === "coach") redirect("/admin");
+  if (!node || node.kind !== "reseller") redirect("/admin");
 
   const admin = createAdminClient();
   const { data: t } = await admin
