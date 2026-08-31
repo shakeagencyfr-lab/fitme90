@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminOrNull } from "@/lib/admin";
+import { tenantNode } from "@/lib/hierarchy";
 import { computeAccess, accessLabel } from "@/lib/access";
 import { aiCostForUsers, totalCost, formatUsd } from "@/lib/ai-cost";
 import { listCoachVipThreads } from "@/lib/vip";
@@ -28,6 +30,11 @@ export default async function AdminClientsPage() {
   // Cloisonnement par tenant : un coach ne voit QUE ses propres clients.
   const gate = await getAdminOrNull();
   const tenantId = gate?.profile?.tenant_id ?? null;
+  // Un revendeur n'a pas de clients directs : sa page d'accueil est « Mes coachs ».
+  if (tenantId) {
+    const node = await tenantNode(tenantId);
+    if (node?.kind === "reseller") redirect("/admin/reseau");
+  }
   const admin = createAdminClient();
   const [{ data: profiles }, { data: logs }] = await Promise.all([
     tenantId

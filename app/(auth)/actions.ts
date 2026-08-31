@@ -5,6 +5,8 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminEmail } from "@/lib/admin";
 import { capacityForSlug } from "@/lib/entitlements";
+import { provisionCoachIfPending, provisionResellerIfPending } from "@/lib/coach-onboarding";
+import { applyPendingCoachSelection } from "@/lib/tenant";
 
 function siteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -43,6 +45,21 @@ export async function signInAction(
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Filet de sécurité : provisionne le coach / revendeur au login si la
+  // confirmation d'e-mail n'a pas déclenché le rattachement (selon le flux du
+  // lien Supabase, notre route /auth/confirm peut ne pas recevoir le jeton).
+  // Idempotent : ne refait rien si le tenant est déjà posé.
+  if (user) {
+    try {
+      await provisionResellerIfPending(user.id, user.user_metadata);
+      await provisionCoachIfPending(user.id, user.user_metadata);
+      await applyPendingCoachSelection(user.id, user.user_metadata);
+    } catch {
+      /* non bloquant */
+    }
+  }
+
   let coach = isAdminEmail(user?.email);
   if (!coach && user) {
     const { data: prof } = await supabase
