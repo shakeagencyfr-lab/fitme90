@@ -83,12 +83,16 @@ const selfFrameHeaders = securityHeaders.map((h) =>
 const nextConfig: NextConfig = {
   async headers() {
     return [
-      // La route embed d'abord, avec ses en-têtes permissifs (framable).
+      // La route embed d'abord, avec ses en-têtes permissifs (framable partout).
       { source: "/c/:slug/embed", headers: embedHeaders },
-      // Tout le reste (la route embed exclue) garde les en-têtes stricts.
-      { source: "/((?!c/[^/]+/embed).*)", headers: securityHeaders },
+      // Tout le reste garde les en-têtes stricts, SAUF les routes framables
+      // same-origin (racine, /c/:slug, /r/:slug) et la route embed : Next.js
+      // FUSIONNE les en-têtes de plusieurs `source` qui matchent (il ne les
+      // remplace pas), donc si le catch-all les couvrait aussi, le navigateur
+      // recevait X-Frame-Options: DENY + SAMEORIGIN et bloquait l'aperçu. On
+      // les exclut du catch-all pour qu'un seul jeu d'en-têtes s'applique.
+      { source: "/((?!c/[^/]+/embed|c/[^/]+$|r/[^/]+$|$).*)", headers: securityHeaders },
       // Landings publiques : framables same-origin (aperçu live du studio).
-      // Placées après le catch-all pour surcharger X-Frame-Options / CSP.
       { source: "/c/:slug", headers: selfFrameHeaders },
       { source: "/r/:slug", headers: selfFrameHeaders },
       { source: "/", headers: selfFrameHeaders },
