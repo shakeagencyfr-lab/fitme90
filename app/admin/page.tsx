@@ -30,10 +30,11 @@ export default async function AdminClientsPage() {
   // Cloisonnement par tenant : un coach ne voit QUE ses propres clients.
   const gate = await getAdminOrNull();
   const tenantId = gate?.profile?.tenant_id ?? null;
-  // Un revendeur n'a pas de clients directs : sa page d'accueil est « Mes coachs ».
+  // Un revendeur / la plateforme n'ont pas de clients directs : leur page
+  // d'accueil est « Mon réseau » (coachs + revendeurs rattachés).
   if (tenantId) {
     const node = await tenantNode(tenantId);
-    if (node?.kind === "reseller") redirect("/admin/reseau");
+    if (node?.kind === "reseller" || node?.kind === "platform") redirect("/admin/reseau");
   }
   const admin = createAdminClient();
   const [{ data: profiles }, { data: logs }] = await Promise.all([
