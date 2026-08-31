@@ -59,7 +59,7 @@ export default async function AdminResellerAiPage() {
         </p>
       </div>
 
-      <ResellerAiModeForm initialMode={mode} initialLimit={limit} />
+      <ResellerAiModeForm initialMode={mode} initialLimit={limit} keyConfigured={key.configured} />
 
       {/* Tarification en crédits : uniquement pertinente en mode revendeur d'IA. */}
       {mode === "provider" ? (

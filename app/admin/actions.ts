@@ -10,6 +10,7 @@ import {
   setTenantAnthropicKey,
   clearTenantAnthropicKey,
   testAnthropicKey,
+  tenantKeyStatus,
 } from "@/lib/tenant";
 import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, setOfferActive, deleteOffer } from "@/lib/offers";
@@ -148,7 +149,12 @@ export async function removeAnthropicKey(): Promise<ByokState> {
   const tenantId = ctx.profile?.tenant_id;
   if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
   await clearTenantAnthropicKey(tenantId);
+  // Sécurité : un revendeur ne peut pas rester « fournisseur d'IA » sans clé.
+  // On repasse en BYOK (sans effet pour un coach, déjà en byok).
+  const admin = createAdminClient();
+  await admin.from("tenants").update({ ai_mode: "byok" }).eq("id", tenantId).eq("ai_mode", "provider");
   revalidatePath("/admin/compte");
+  revalidatePath("/admin/ia-revenu");
   return { ok: true };
 }
 
@@ -852,6 +858,16 @@ export async function saveResellerAiMode(_prev: ResellerAiState, formData: FormD
   const tenantId = ctx.profile.tenant_id;
 
   const mode = formData.get("ai_mode") === "provider" ? "provider" : "byok";
+
+  // Garde-fou : le mode « revendeur d'IA » exige que le revendeur ait branché
+  // SA clé Anthropic (c'est elle qui alimente tout son réseau). Sans clé, on
+  // reste en BYOK.
+  if (mode === "provider") {
+    const key = await tenantKeyStatus(tenantId);
+    if (!key.configured) {
+      return { error: "Branche d'abord ta clé Anthropic pour activer le mode revendeur d'IA." };
+    }
+  }
 
   // Plafond journalier imposé aux clients des coachs (0 = illimité). Défaut 60.
   const rawLimit = String(formData.get("ai_client_daily_limit") ?? "").trim();
