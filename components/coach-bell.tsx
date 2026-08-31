@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { CoachNotif } from "@/lib/notifications";
-import { markAllNotificationsRead, markNotificationRead } from "@/app/admin/actions";
+import { markAllNotificationsRead, markNotificationRead, clearNotifications } from "@/app/admin/actions";
 
 function relTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -92,6 +92,13 @@ export function CoachBell({
     void refresh();
   }
 
+  async function clearAll() {
+    setItems([]);
+    setCount(0);
+    await clearNotifications();
+    void refresh();
+  }
+
   function openNotif(n: CoachNotif) {
     setOpen(false);
     if (n.read_at) return;
@@ -132,11 +139,18 @@ export function CoachBell({
           ].join(" ")}>
             <div className="flex items-center justify-between gap-3 border-b border-line-2 px-4 py-3">
               <span className="font-archivo font-bold text-[15px] text-ink">Notifications</span>
-              {count > 0 ? (
-                <button onClick={markAll} className="text-[12.5px] font-semibold text-brand hover:underline">
-                  Tout marquer comme lu
-                </button>
-              ) : null}
+              <div className="flex items-center gap-3">
+                {count > 0 ? (
+                  <button onClick={markAll} className="text-[12.5px] font-semibold text-brand hover:underline">
+                    Tout marquer comme lu
+                  </button>
+                ) : null}
+                {items.length > 0 ? (
+                  <button onClick={clearAll} className="text-[12.5px] font-semibold text-muted hover:text-ink hover:underline">
+                    Vider
+                  </button>
+                ) : null}
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto">

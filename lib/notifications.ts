@@ -79,6 +79,12 @@ export async function markAllCoachNotifsRead(tenantId: string): Promise<void> {
     .is("read_at", null);
 }
 
+/** Vide toutes les notifications du tenant (suppression définitive). */
+export async function clearCoachNotifications(tenantId: string): Promise<void> {
+  const admin = createAdminClient();
+  await admin.from("coach_notifications").delete().eq("tenant_id", tenantId);
+}
+
 /** Marque une notification précise comme lue (garde-fou tenant). */
 export async function markCoachNotifRead(tenantId: string, id: string): Promise<void> {
   const admin = createAdminClient();

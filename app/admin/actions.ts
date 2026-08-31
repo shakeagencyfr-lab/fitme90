@@ -39,7 +39,7 @@ import {
 import { createPromo, setPromoActive, deletePromo as deletePromoLib } from "@/lib/promo";
 import { generateCoachGiftCodes } from "@/lib/gift";
 import { normalizeSlug, isValidSlug } from "@/lib/config";
-import { markAllCoachNotifsRead, markCoachNotifRead } from "@/lib/notifications";
+import { markAllCoachNotifsRead, markCoachNotifRead, clearCoachNotifications } from "@/lib/notifications";
 import { saveCoachExerciseMedia, deleteCoachExerciseMedia, uploadExerciseImage } from "@/lib/exercise-guide";
 import { normalizeExerciseName } from "@/lib/exercise-library";
 
@@ -1235,6 +1235,15 @@ export async function markAllNotificationsRead(): Promise<void> {
   const tenantId = ctx?.profile?.tenant_id;
   if (!tenantId) return;
   await markAllCoachNotifsRead(tenantId);
+  revalidatePath("/admin", "layout");
+}
+
+/** Vide toutes les notifications du coach (cloche du dashboard). */
+export async function clearNotifications(): Promise<void> {
+  const ctx = await getAdminOrNull();
+  const tenantId = ctx?.profile?.tenant_id;
+  if (!tenantId) return;
+  await clearCoachNotifications(tenantId);
   revalidatePath("/admin", "layout");
 }
 
