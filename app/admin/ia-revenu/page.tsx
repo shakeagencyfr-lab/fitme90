@@ -61,10 +61,10 @@ export default async function AdminResellerAiPage() {
 
       <ResellerAiModeForm initialMode={mode} initialLimit={limit} keyConfigured={key.configured} />
 
-      {/* Tarification en crédits : uniquement pertinente en mode revendeur d'IA. */}
-      {mode === "provider" ? (
-        <ResellerCreditPricingForm initialActionPriceCents={creditPrice} initialProgramPriceCents={programPrice} />
-      ) : null}
+      {/* Tarification en crédits : toujours visible (elle s'applique quand tu es
+          en mode revendeur d'IA), pour qu'on puisse la régler sans avoir à
+          d'abord enregistrer le mode. */}
+      <ResellerCreditPricingForm initialActionPriceCents={creditPrice} initialProgramPriceCents={programPrice} />
 
       {/* Aperçu du coût réellement consommé ce mois-ci par le réseau (mode provider). */}
       <Card as="section" className="flex flex-col gap-4">
