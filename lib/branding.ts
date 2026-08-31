@@ -126,6 +126,37 @@ export async function tenantBranding(tenantId: string): Promise<Branding> {
   return toBranding(data);
 }
 
+/** Marque affichée dans le bandeau d'un dashboard (nom + logo + accent). */
+export interface DashboardBrand {
+  name: string | null;
+  logoUrl: string | null;
+  brandColor: string | null;
+}
+
+/**
+ * Marque du tenant PARENT — celle qui doit habiller le dashboard d'un tenant.
+ * Un coach voit la marque de son revendeur ; un revendeur celle de la plateforme.
+ * Renvoie null si le tenant n'a pas de parent (plateforme) : le bandeau retombe
+ * alors sur le wordmark FitMe90 par défaut.
+ */
+export async function parentDashboardBrand(tenantId: string | null): Promise<DashboardBrand | null> {
+  if (!tenantId) return null;
+  const admin = createAdminClient();
+  const { data: self } = await admin
+    .from("tenants")
+    .select("parent_id")
+    .eq("id", tenantId)
+    .maybeSingle<{ parent_id: string | null }>();
+  if (!self?.parent_id) return null;
+  const { data: parent } = await admin
+    .from("tenants")
+    .select("name, logo_url, brand_color")
+    .eq("id", self.parent_id)
+    .maybeSingle<{ name: string | null; logo_url: string | null; brand_color: string | null }>();
+  if (!parent) return null;
+  return { name: parent.name, logoUrl: parent.logo_url, brandColor: parent.brand_color };
+}
+
 export interface SaveBrandingResult {
   ok: boolean;
   error?: string;

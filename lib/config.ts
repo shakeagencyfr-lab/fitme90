@@ -47,11 +47,16 @@ export function formatEuros(cents: number | null | undefined): string {
   return `${s} €`;
 }
 
-/** Fenêtre de consultation en lecture seule après la fin du programme. */
-export const GRACE_DAYS = 30;
+/** Fenêtre de consultation en lecture seule après la fin du programme (ou après
+ *  un impayé). Le plan reste lisible et exportable en PDF pendant ce délai. */
+export const GRACE_DAYS = 14;
 
-/** Dernier jour où le plan reste consultable (90 + 30). */
-export const ACCESS_DAYS = PROGRAM_DAYS + GRACE_DAYS; // 120
+/** Dernier jour où le plan reste consultable (durée programme + grâce). */
+export const ACCESS_DAYS = PROGRAM_DAYS + GRACE_DAYS;
+
+/** Délai après un impayé d'abonnement au-delà duquel le compte client est
+ *  définitivement supprimé (RGPD : on ne conserve pas des données non payées). */
+export const PURGE_AFTER_DAYS = 14;
 
 /** Plafonds d'appels au modèle (BUILD_PLAN étape 4). */
 export const LIMIT_GENERATE_TOTAL = 3; // par utilisateur, au total

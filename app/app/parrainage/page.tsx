@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { SITE_URL } from "@/lib/config";
 import { ReferralLink } from "@/components/referral-link";
 
-export const metadata = { title: "Parrainage, FitMe90" };
+export const metadata = { title: "Parrainage" };
 export const dynamic = "force-dynamic";
 
 const fmtDate = (iso: string) =>

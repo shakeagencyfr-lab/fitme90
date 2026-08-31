@@ -5,7 +5,7 @@ import { restPattern, startWeekday } from "@/lib/schedule";
 import { DAYS } from "@/lib/questionnaire";
 import { NutritionView } from "@/components/nutrition-view";
 
-export const metadata = { title: "Nutrition, FitMe90" };
+export const metadata = { title: "Nutrition" };
 
 export default async function NutritionPage() {
   const { ctx, plan, answers, trainDays } = await loadEspaceOrRedirect();

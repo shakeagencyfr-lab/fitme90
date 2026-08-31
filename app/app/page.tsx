@@ -12,7 +12,7 @@ import { DAYS } from "@/lib/questionnaire";
 import type { Plan } from "@/lib/program";
 import { PROGRAM_DAYS } from "@/lib/config";
 
-export const metadata = { title: "Programme, FitMe90" };
+export const metadata = { title: "Programme" };
 
 async function loadPlanAndDays(
   userId: string,
@@ -138,6 +138,9 @@ export default async function ProgrammePage() {
           Ton programme
         </h1>
         <p className="text-[15px] leading-[1.6] text-muted">{plan.summary}</p>
+        <ButtonLink href="/plan-pdf" variant="ghost" className="mt-1 h-10 self-start">
+          Exporter mon plan en PDF
+        </ButtonLink>
       </header>
 
       {access.phase === "grace" ? (

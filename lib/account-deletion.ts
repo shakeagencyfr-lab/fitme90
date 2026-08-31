@@ -38,6 +38,33 @@ async function purgeUser(userId: string): Promise<void> {
   }
 }
 
+/**
+ * Purge complète et irréversible d'UN client : toutes ses données, son profil
+ * et son compte auth. Garde-fou : ne touche JAMAIS un compte `owner` (coach).
+ * Utilisée par la suppression manuelle et par le nettoyage des impayés.
+ */
+export async function purgeClientAccount(userId: string): Promise<void> {
+  const admin = createAdminClient();
+  const { data: prof } = await admin
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .maybeSingle<{ role: string | null }>();
+  if (!prof || prof.role === "owner") return; // jamais un coach
+
+  for (const [table, col] of USER_TABLES) {
+    await admin.from(table).delete().eq(col, userId);
+  }
+  // Libère d'éventuels codes cadeaux consommés (réutilisables).
+  await admin.from("gift_codes").update({ used_by: null, used_at: null }).eq("used_by", userId);
+  await admin.from("profiles").delete().eq("id", userId);
+  try {
+    await admin.auth.admin.deleteUser(userId);
+  } catch {
+    /* le profil est déjà supprimé : on n'échoue pas le flux */
+  }
+}
+
 export interface DeleteAccountResult {
   ok: boolean;
   error?: string;

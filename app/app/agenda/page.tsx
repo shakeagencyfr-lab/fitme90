@@ -10,7 +10,7 @@ import {
 import { DAYS } from "@/lib/questionnaire";
 import { MonoLabel } from "@/components/ui";
 
-export const metadata = { title: "Agenda, FitMe90" };
+export const metadata = { title: "Agenda" };
 
 const DAY_MS = 86_400_000;
 const cycleOf = (d: number) => (d <= 30 ? 0 : d <= 60 ? 1 : 2);

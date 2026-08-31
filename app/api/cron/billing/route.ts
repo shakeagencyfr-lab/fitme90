@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { syncAllSubscriptions } from "@/lib/subscription";
 import { syncAllTenantSubscriptions } from "@/lib/tenant-billing";
 import { autoRegenSubscribers } from "@/lib/regen";
+import { purgeLapsedClients } from "@/lib/lapsed";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // la régénération appelle le modèle (peut être long)
@@ -26,5 +27,8 @@ export async function GET(req: Request) {
   // défaut de paiement -> retour au palier gratuit.
   const { synced: tenantSynced, downgraded: tenantDowngraded } = await syncAllTenantSubscriptions();
   const { checked, regenerated } = await autoRegenSubscribers();
-  return NextResponse.json({ synced, restricted, tenantSynced, tenantDowngraded, checked, regenerated });
+  // 3) Suppression des comptes clients en impayé prolongé (> 14 j). DRY-RUN tant
+  //    que ENABLE_ACCOUNT_PURGE≠"1" : on compte sans supprimer.
+  const purge = await purgeLapsedClients();
+  return NextResponse.json({ synced, restricted, tenantSynced, tenantDowngraded, checked, regenerated, purge });
 }

@@ -14,7 +14,7 @@ import { SubscriptionCard } from "@/components/subscription-card";
 import { isAdminEmail } from "@/lib/admin";
 import { COACH_CREDENTIAL } from "@/lib/config";
 
-export const metadata = { title: "Profil, FitMe90" };
+export const metadata = { title: "Profil" };
 
 export default async function ProfilPage() {
   const ctx = await getSessionContext();

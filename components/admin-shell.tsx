@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode, type CSSProperties } from "react";
 import { Wordmark } from "@/components/brand";
 import { CoachBell } from "@/components/coach-bell";
 import { signOutAction } from "@/app/(auth)/actions";
@@ -171,6 +171,9 @@ export function AdminShell({
   kind,
   aiCostUsd = 0,
   aiCalls = 0,
+  brandName = null,
+  brandLogoUrl = null,
+  brandColor = null,
 }: {
   children: ReactNode;
   notifs: CoachNotif[];
@@ -179,14 +182,34 @@ export function AdminShell({
   kind: TenantKind;
   aiCostUsd?: number;
   aiCalls?: number;
+  /** Marque du tenant PARENT (revendeur pour un coach, plateforme pour un
+   *  revendeur). Le dashboard porte CETTE marque — jamais FitMe90 pour un coach. */
+  brandName?: string | null;
+  brandLogoUrl?: string | null;
+  brandColor?: string | null;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const usageCard = <UsageCard costUsd={aiCostUsd} calls={aiCalls} />;
 
+  // Accent du dashboard = couleur du parent (marque blanche complète). À défaut,
+  // le thème garde l'orange par défaut.
+  const accentStyle = brandColor
+    ? ({
+        ["--color-brand" as string]: brandColor,
+        ["--color-brand-hover" as string]: `color-mix(in srgb, ${brandColor} 85%, #000)`,
+      } as CSSProperties)
+    : undefined;
+
   const brandBadge = (
     <div className="flex items-center gap-2.5">
-      <Wordmark size={20} />
+      {brandLogoUrl ? (
+        <img src={brandLogoUrl} alt={brandName ?? ""} className="h-6 w-auto max-w-[150px] object-contain" />
+      ) : brandName ? (
+        <span className="font-archivo text-[19px] font-extrabold tracking-[-0.02em] text-ink">{brandName}</span>
+      ) : (
+        <Wordmark size={20} />
+      )}
       <span className="rounded-pill border border-line-4 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">
         Admin
       </span>
@@ -216,7 +239,7 @@ export function AdminShell({
   );
 
   return (
-    <div className="min-h-dvh bg-paper lg:flex">
+    <div className="min-h-dvh bg-paper lg:flex" style={accentStyle}>
       {/* ───────── Barre latérale (desktop ≥ lg) ───────── */}
       <aside className="sticky top-0 hidden h-dvh w-[264px] shrink-0 flex-col gap-5 border-r border-line bg-surface px-4 py-5 lg:flex">
         <div className="flex items-center justify-between gap-2">
