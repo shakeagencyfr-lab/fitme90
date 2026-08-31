@@ -53,6 +53,34 @@ export async function creditWallet(
   return next;
 }
 
+/**
+ * Crédite un ACHAT de façon idempotente (une session Stripe ne peut créditer
+ * qu'une fois). On « réserve » d'abord le mouvement (insert du ledger avec ref
+ * unique) : si le ref existe déjà, l'achat a déjà été traité → on ne recrédite
+ * pas. Sinon on incrémente le solde. Renvoie true si le crédit vient d'être posé.
+ */
+export async function applyPurchaseCredit(
+  tenantId: string,
+  kind: CreditKind,
+  credits: number,
+  sessionRef: string,
+): Promise<boolean> {
+  if (!credits || credits <= 0 || !sessionRef) return false;
+  const admin = createAdminClient();
+  // Claim-first : l'index unique partiel bloque un second crédit du même ref.
+  const { error } = await admin
+    .from("credit_ledger")
+    .insert({ tenant_id: tenantId, kind, delta: credits, reason: "purchase", ref: sessionRef });
+  if (error) return false; // conflit d'unicité = déjà crédité
+
+  await admin.from("credit_wallets").upsert({ tenant_id: tenantId }, { onConflict: "tenant_id" });
+  const w = await getWallet(tenantId);
+  const col = COL[kind];
+  const next = (kind === "ai" ? w.aiCredits : w.programCredits) + credits;
+  await admin.from("credit_wallets").update({ [col]: next, updated_at: new Date().toISOString() }).eq("tenant_id", tenantId);
+  return true;
+}
+
 export interface DebitResult {
   ok: boolean;
   remaining: number;
