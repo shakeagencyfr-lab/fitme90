@@ -7,6 +7,7 @@ import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
 import { MODELS, textOf, parseJsonLoose, effortConfig, anthropic } from "@/lib/anthropic";
 import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
+import { clientCoachAiIncluded } from "@/lib/offers";
 import { buildPersona, DEFAULT_BRAND } from "@/lib/coach-persona";
 import { readCoachName } from "@/lib/methodology";
 import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
@@ -65,6 +66,14 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const ctx = await getSessionContext();
   if (!ctx) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+
+  // Le Coach IA doit être inclus dans l'offre du client (upsell par plan).
+  if (!(await clientCoachAiIncluded(ctx.userId))) {
+    return NextResponse.json(
+      { error: "Le Coach IA n'est pas inclus dans ta formule." },
+      { status: 403 },
+    );
+  }
 
   // Le coach IA s'ARRÊTE après J90 (règle produit). Contrôle serveur.
   if (!ctx.access.coachEnabled) {

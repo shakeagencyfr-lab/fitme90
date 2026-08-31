@@ -32,7 +32,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
     items: [
       { href: "/admin", label: "Clients", kinds: ["coach", "platform"], icon: <I d="M16 19a4 4 0 0 0-8 0||M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7||M20 19a3.5 3.5 0 0 0-4-3.4||M8 15.6A3.5 3.5 0 0 0 4 19" /> },
       { href: "/admin/reseau", label: "Mes coachs", kinds: ["platform", "reseller"], icon: <I d="M12 3v4||M6 21v-3a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v3||M12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4" /> },
-      { href: "/admin/abonnements", label: "Abonnements", kinds: ["coach", "platform"], icon: <I d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5z||M4 10h16" /> },
+      { href: "/admin/plans", label: "Plans", kinds: ["coach", "platform"], icon: <I d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5z||M4 10h16" /> },
       { href: "/admin/paliers", label: "Paliers", kinds: ["platform", "reseller"], icon: <I d="M12 4l8 4-8 4-8-4z||M4 12l8 4 8-4||M4 16l8 4 8-4" /> },
       { href: "/admin/codes", label: "Codes", kinds: ["coach", "platform"], icon: <I d="M4 9V7a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2a2 2 0 0 0 0 4v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2a2 2 0 0 0 0-4||M14 6v12" /> },
     ],
@@ -41,7 +41,6 @@ const GROUPS: { label: string; items: Item[] }[] = [
     label: "Contenu",
     items: [
       { href: "/admin/marque-blanche", label: "Marque blanche", icon: <I d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13A1.5 1.5 0 0 1 18.5 20h-13A1.5 1.5 0 0 1 4 18.5z||M9 20V4" /> },
-      { href: "/admin/offres", label: "Ma page", kinds: ["coach", "platform"], icon: <I d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13A1.5 1.5 0 0 1 18.5 20h-13A1.5 1.5 0 0 1 4 18.5z||M4 9h16||M8 4v5" /> },
       { href: "/admin/exercices", label: "Exercices", kinds: ["coach", "platform"], icon: <I d="M6.5 9.5v5||M17.5 9.5v5||M4 11v2||M20 11v2||M6.5 12h11" /> },
       { href: "/admin/shop", label: "Boutique", kinds: ["coach", "platform"], icon: <I d="M6 8h12l-1 12H7z||M9 8V6a3 3 0 0 1 6 0v2" /> },
     ],

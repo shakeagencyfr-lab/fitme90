@@ -9,6 +9,7 @@ import { OnboardingTour } from "@/components/onboarding-tour";
 import { PwaInstall } from "@/components/pwa-install";
 import { isShopEnabled } from "@/lib/shop";
 import { clientVipContext, clientUnreadVipCount } from "@/lib/vip";
+import { clientCoachAiIncluded } from "@/lib/offers";
 import { brandForUser } from "@/lib/branding";
 import { brandMetadataForUser } from "@/lib/brand-metadata";
 import { readCoachName } from "@/lib/methodology";
@@ -32,12 +33,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // Config propre au tenant du client (= celui de son coach) : boutique, prénom
   // du coach IA, Chat VIP, marque blanche. En parallèle après le contexte.
   const tenantId = ctx.profile?.tenant_id ?? null;
-  const [shopEnabled, vip, brand, coachName, freeze] = await Promise.all([
+  const [shopEnabled, vip, brand, coachName, freeze, aiIncluded] = await Promise.all([
     isShopEnabled(tenantId),
     clientVipContext(ctx.userId),
     brandForUser(ctx.userId),
     readCoachName(tenantId),
     tenantFreezeState(tenantId),
+    clientCoachAiIncluded(ctx.userId),
   ]);
 
   // Compte du coach gelé (défaut de paiement au revendeur) : les clients perdent
@@ -80,7 +82,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         ) : null}
         <PageTransition>{children}</PageTransition>
       </main>
-      {ctx.access.coachEnabled ? <CoachWidget coachName={coachName} /> : null}
+      {ctx.access.coachEnabled && aiIncluded ? <CoachWidget coachName={coachName} /> : null}
       <OnboardingTour />
       {/* Invite à installer l'app (Android natif ; iOS marche à suivre).
           Côté client : on attend la fin du tutoriel d'accueil. */}
