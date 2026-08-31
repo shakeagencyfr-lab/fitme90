@@ -1,11 +1,11 @@
-// Logotype My Fitness App (Archivo 800, « Fit » en accent, comme l'icône).
+// Logotype My Fitness App (Archivo 800, majuscules, « Fitness » en cuivre).
 export function Wordmark({ size = 20 }: { size?: number }) {
   return (
     <span
-      className="font-archivo font-extrabold tracking-[-0.02em] text-ink"
+      className="font-archivo font-extrabold uppercase tracking-[0.04em] text-ink"
       style={{ fontSize: size }}
     >
-      My <span className="text-brand">Fit</span>ness App
+      My <span className="text-[#A67C52] dark:text-[#C0946B]">Fitness</span> App
     </span>
   );
 }
