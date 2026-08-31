@@ -2,14 +2,15 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DAY_MS } from "@/lib/ratelimit";
 
-// Budget journalier partagé du Coach IA (messages + régénération de recettes),
-// PAR CLIENT, réglé par le coach pour maîtriser le coût IA (BYOK). Les deux
-// routes (coach, recipes) consomment le même compteur quotidien.
-
-/** Routes comptées dans le budget Coach IA. */
-const BUDGET_ROUTES = ["coach", "recipes"] as const;
+// Budgets journaliers PAR CLIENT, réglés par le coach pour maîtriser le coût IA
+// (BYOK). Deux compteurs SÉPARÉS :
+//  - le chat Coach IA (route "coach", modèle Haiku, peu coûteux) ;
+//  - les régénérations de recettes (route "recipes", modèle Sonnet, plus cher),
+//    bornées à un petit nombre par jour pour garantir un plafond de dépense.
+// Les séparer évite qu'un client dépense tout son budget en recettes (chères).
 
 export const DEFAULT_COACH_AI_DAILY_LIMIT = 60;
+export const DEFAULT_RECIPE_AI_DAILY_LIMIT = 1;
 
 // Combine deux plafonds (0 = illimité) : la contrainte la plus stricte gagne.
 function tighter(a: number, b: number): number {
@@ -49,27 +50,49 @@ export async function coachAiDailyLimit(tenantId: string | null): Promise<number
   return tighter(coachLimit, Math.max(0, parent.ai_client_daily_limit ?? 0));
 }
 
+/** Plafond journalier de régénérations de recettes par client (0 = illimité). */
+export async function recipeAiDailyLimit(tenantId: string | null): Promise<number> {
+  if (!tenantId) return DEFAULT_RECIPE_AI_DAILY_LIMIT;
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("coach_config")
+    .select("recipe_ai_daily_limit")
+    .eq("tenant_id", tenantId)
+    .maybeSingle<{ recipe_ai_daily_limit: number | null }>();
+  return data?.recipe_ai_daily_limit == null
+    ? DEFAULT_RECIPE_AI_DAILY_LIMIT
+    : Math.max(0, data.recipe_ai_daily_limit);
+}
+
 export interface BudgetState {
   ok: boolean;
   used: number;
   limit: number; // 0 = illimité
 }
 
-/**
- * Vérifie le budget Coach IA du jour pour un client. Compte les appels coach +
- * recettes des dernières 24 h et compare à la limite configurée par son coach.
- */
-export async function checkCoachAiBudget(userId: string, tenantId: string | null): Promise<BudgetState> {
-  const limit = await coachAiDailyLimit(tenantId);
+/** Compte les appels d'une route sur les dernières 24 h et compare à la limite. */
+async function checkRouteBudget(userId: string, route: string, limit: number): Promise<BudgetState> {
   if (limit <= 0) return { ok: true, used: 0, limit: 0 }; // illimité
-
   const admin = createAdminClient();
   const { count } = await admin
     .from("ai_calls")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
-    .in("route", BUDGET_ROUTES as unknown as string[])
+    .eq("route", route)
     .gte("created_at", new Date(Date.now() - DAY_MS).toISOString());
   const used = count ?? 0;
   return { ok: used < limit, used, limit };
+}
+
+/**
+ * Budget du CHAT Coach IA du jour pour un client (route "coach" uniquement).
+ * Les recettes ont leur propre plafond (checkRecipeAiBudget).
+ */
+export async function checkCoachAiBudget(userId: string, tenantId: string | null): Promise<BudgetState> {
+  return checkRouteBudget(userId, "coach", await coachAiDailyLimit(tenantId));
+}
+
+/** Budget des régénérations de recettes du jour pour un client (route "recipes"). */
+export async function checkRecipeAiBudget(userId: string, tenantId: string | null): Promise<BudgetState> {
+  return checkRouteBudget(userId, "recipes", await recipeAiDailyLimit(tenantId));
 }

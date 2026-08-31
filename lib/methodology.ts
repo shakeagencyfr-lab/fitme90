@@ -114,7 +114,8 @@ export interface CoachConfig {
   generation_mode: "auto" | "custom";
   custom_methodology: string;
   coach_name: string;
-  coach_ai_daily_limit: number; // 0 = illimité
+  coach_ai_daily_limit: number; // chat Coach IA / jour / client (0 = illimité)
+  recipe_ai_daily_limit: number; // régénérations de recettes / jour / client (0 = illimité)
 }
 
 const DEFAULT_CONFIG: CoachConfig = {
@@ -122,6 +123,7 @@ const DEFAULT_CONFIG: CoachConfig = {
   custom_methodology: "",
   coach_name: COACH_NAME,
   coach_ai_daily_limit: 60,
+  recipe_ai_daily_limit: 1,
 };
 
 /**
@@ -135,14 +137,15 @@ export async function readCoachConfig(tenantId: string | null): Promise<CoachCon
     const admin = createAdminClient();
     const { data } = await admin
       .from("coach_config")
-      .select("generation_mode, custom_methodology, coach_name, coach_ai_daily_limit")
+      .select("generation_mode, custom_methodology, coach_name, coach_ai_daily_limit, recipe_ai_daily_limit")
       .eq("tenant_id", tenantId)
-      .maybeSingle<{ generation_mode: string; custom_methodology: string | null; coach_name: string | null; coach_ai_daily_limit: number | null }>();
+      .maybeSingle<{ generation_mode: string; custom_methodology: string | null; coach_name: string | null; coach_ai_daily_limit: number | null; recipe_ai_daily_limit: number | null }>();
     return {
       generation_mode: data?.generation_mode === "custom" ? "custom" : "auto",
       custom_methodology: data?.custom_methodology ?? "",
       coach_name: (data?.coach_name ?? "").trim() || COACH_NAME,
       coach_ai_daily_limit: data?.coach_ai_daily_limit == null ? 60 : Math.max(0, data.coach_ai_daily_limit),
+      recipe_ai_daily_limit: data?.recipe_ai_daily_limit == null ? 1 : Math.max(0, data.recipe_ai_daily_limit),
     };
   } catch {
     return DEFAULT_CONFIG;

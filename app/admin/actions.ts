@@ -68,12 +68,21 @@ export async function saveCoachConfig(
     .trim()
     .slice(0, 40);
 
-  // Plafond journalier du Coach IA par client (recettes incluses). 0 = illimité.
+  // Plafond journalier du CHAT Coach IA par client. 0 = illimité.
   const rawLimit = String(formData.get("coach_ai_daily_limit") ?? "").trim();
   let dailyLimit = 60;
   if (rawLimit) {
     const n = Number(rawLimit);
     if (Number.isInteger(n) && n >= 0 && n <= 1000) dailyLimit = n;
+  }
+
+  // Plafond journalier des régénérations de recettes par client (modèle plus
+  // cher, borné séparément). 0 = illimité. Défaut 1.
+  const rawRecipe = String(formData.get("recipe_ai_daily_limit") ?? "").trim();
+  let recipeLimit = 1;
+  if (rawRecipe) {
+    const n = Number(rawRecipe);
+    if (Number.isInteger(n) && n >= 0 && n <= 100) recipeLimit = n;
   }
 
   const admin = createAdminClient();
@@ -86,6 +95,7 @@ export async function saveCoachConfig(
         custom_methodology: custom,
         coach_name: coachName || null,
         coach_ai_daily_limit: dailyLimit,
+        recipe_ai_daily_limit: recipeLimit,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "tenant_id" },

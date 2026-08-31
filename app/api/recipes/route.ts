@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { recordCall } from "@/lib/ratelimit";
-import { checkCoachAiBudget } from "@/lib/coach-ai-budget";
+import { checkRecipeAiBudget } from "@/lib/coach-ai-budget";
 import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
 import { COACH_CREDENTIAL } from "@/lib/config";
@@ -44,10 +44,16 @@ export async function POST() {
     );
   }
 
-  const budget = await checkCoachAiBudget(ctx.userId, ctx.profile?.tenant_id ?? null);
+  const budget = await checkRecipeAiBudget(ctx.userId, ctx.profile?.tenant_id ?? null);
   if (!budget.ok) {
+    const n = budget.limit;
     return NextResponse.json(
-      { error: `Limite de ${budget.limit} échanges IA par jour atteinte (recettes incluses).` },
+      {
+        error:
+          n === 1
+            ? "Tu as déjà régénéré tes recettes aujourd'hui. Réessaie demain."
+            : `Limite de ${n} régénérations de recettes par jour atteinte. Réessaie demain.`,
+      },
       { status: 429 },
     );
   }

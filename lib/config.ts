@@ -59,15 +59,53 @@ export const LIMIT_COACH_PER_DAY = 60; // messages par jour (défaut historique)
 export const LIMIT_RECIPES_PER_DAY = 20;
 export const LIMIT_ANALYZE_GYM_TOTAL = 10;
 
-// ── Estimations de coût IA (BYOK), en USD. Volontairement PRUDENTES (hautes) :
-// servent à afficher un plafond de coût maîtrisé, pas une facture exacte. Les
-// tarifs Anthropic évoluent ; ce sont des repères d'ordre de grandeur.
-/** Coût estimé d'un échange Coach IA (message ou régénération de recette). */
-export const AI_COST_PER_MSG_USD = 0.05;
+// ── Estimations de coût IA (BYOK), en USD. Fondées sur la conso RÉELLE mesurée
+// (table ai_calls) et les tarifs publics Anthropic, arrondies vers le HAUT par
+// prudence. Repères d'ordre de grandeur, pas une facture exacte.
+//
+// Mesuré : un message Coach IA ≈ 12 000 tokens d'entrée + 150 de sortie sur
+// Haiku 4.5 ($1 / $5 le M) ≈ $0.013. Une régénération de 3 recettes tourne sur
+// Sonnet 5 ($2 / $10 le M), sortie plafonnée à ~3 800 tokens ≈ $0.04–0.05.
+/** Coût estimé d'UN message Coach IA (chat, modèle Haiku). */
+export const AI_COST_COACH_MSG_USD = 0.015;
+/** Coût estimé d'UNE régénération de recettes (modèle Sonnet, plus cher). */
+export const AI_COST_RECIPE_USD = 0.06;
+/** Ancien alias (échange générique) — conservé pour compat, aligné sur le chat. */
+export const AI_COST_PER_MSG_USD = AI_COST_COACH_MSG_USD;
 /** Coût IA d'onboarding d'un client (génération programme + analyse salle). */
 export const AI_COST_ONBOARDING_USD = 0.35;
 /** Coût IA récurrent estimé par client et par mois (usage typique modéré). */
 export const AI_COST_PER_CLIENT_MONTH_USD = 1.5;
+
+// Hypothèses d'usage RÉALISTE pour un client engagé (≠ le plafond de sécurité).
+// Sert à afficher une estimation crédible plutôt que le pire cas théorique.
+/** Messages Coach IA / jour pour un client vraiment actif. */
+export const AI_REALISTIC_MSG_PER_DAY = 8;
+/** Jours d'activité réelle par mois (un client n'utilise pas l'app tous les jours). */
+export const AI_REALISTIC_ACTIVE_DAYS = 26;
+
+export interface AiCostEstimate {
+  /** Usage réaliste d'un client actif, par mois. */
+  realMonth: number;
+  /** Borne haute : plafond chat saturé TOUS les jours + les recettes autorisées. */
+  ceilingMonth: number;
+}
+
+/**
+ * Estimation du coût IA mensuel par client. `realMonth` reflète un usage
+ * réaliste (≈8 messages + le nb de recettes autorisé par jour, ~26 j/mois).
+ * `ceilingMonth` est la borne haute garantie : le plafond de messages saturé
+ * chaque jour + les recettes, sur 30 jours. `msgCap`/`recipeCap` : 0 = illimité.
+ */
+export function estimateAiMonthlyCost(msgCap: number, recipeCap: number): AiCostEstimate {
+  const recipesPerDay = recipeCap > 0 ? recipeCap : 3; // illimité borné à 3 pour l'estimation
+  const realDay = AI_REALISTIC_MSG_PER_DAY * AI_COST_COACH_MSG_USD + recipesPerDay * AI_COST_RECIPE_USD;
+  const realMonth = realDay * AI_REALISTIC_ACTIVE_DAYS;
+
+  const msgPerDay = msgCap > 0 ? msgCap : AI_REALISTIC_MSG_PER_DAY; // chat illimité : usage réaliste
+  const ceilingDay = msgPerDay * AI_COST_COACH_MSG_USD + recipesPerDay * AI_COST_RECIPE_USD;
+  return { realMonth, ceilingMonth: ceilingDay * 30 };
+}
 
 export const PRODUCT_NAME = "FitMe90";
 
