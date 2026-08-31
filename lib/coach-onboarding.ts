@@ -9,7 +9,7 @@ import { platformTenantId } from "@/lib/hierarchy";
 // Best-effort : ne bloque jamais la confirmation.
 
 /** Trouve un slug libre à partir d'un nom (suffixe -2, -3… si déjà pris). */
-async function freeSlug(admin: ReturnType<typeof createAdminClient>, name: string): Promise<string> {
+export async function freeSlug(admin: ReturnType<typeof createAdminClient>, name: string): Promise<string> {
   const base = normalizeSlug(name) || "coach";
   for (let i = 0; i < 50; i++) {
     const candidate = i === 0 ? base : `${base}-${i + 1}`;
