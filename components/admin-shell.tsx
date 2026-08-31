@@ -7,12 +7,14 @@ import { Wordmark } from "@/components/brand";
 import { CoachBell } from "@/components/coach-bell";
 import { signOutAction } from "@/app/(auth)/actions";
 import type { CoachNotif } from "@/lib/notifications";
+import type { TenantKind } from "@/lib/hierarchy";
 
 // Navigation du dashboard coach, façon « app shell » soigné : barre latérale
 // verticale à partir de lg ; sur mobile, barre du haut flottante + tiroir en
 // carte arrondie. Onglets regroupés par thème, item actif en pastille.
 
-type Item = { href: string; label: string; icon: ReactNode };
+// `kinds` restreint l'item à certains niveaux ; absent = visible par tous.
+type Item = { href: string; label: string; icon: ReactNode; kinds?: TenantKind[] };
 
 function I({ d }: { d: string }) {
   return (
@@ -28,39 +30,48 @@ const GROUPS: { label: string; items: Item[] }[] = [
   {
     label: "Pilotage",
     items: [
-      { href: "/admin", label: "Clients", icon: <I d="M16 19a4 4 0 0 0-8 0||M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7||M20 19a3.5 3.5 0 0 0-4-3.4||M8 15.6A3.5 3.5 0 0 0 4 19" /> },
-      { href: "/admin/abonnements", label: "Abonnements", icon: <I d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5z||M4 10h16" /> },
-      { href: "/admin/paliers", label: "Paliers", icon: <I d="M12 4l8 4-8 4-8-4z||M4 12l8 4 8-4||M4 16l8 4 8-4" /> },
-      { href: "/admin/codes", label: "Codes", icon: <I d="M4 9V7a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2a2 2 0 0 0 0 4v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2a2 2 0 0 0 0-4||M14 6v12" /> },
+      { href: "/admin", label: "Clients", kinds: ["coach", "platform"], icon: <I d="M16 19a4 4 0 0 0-8 0||M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7||M20 19a3.5 3.5 0 0 0-4-3.4||M8 15.6A3.5 3.5 0 0 0 4 19" /> },
+      { href: "/admin/reseau", label: "Mes coachs", kinds: ["platform", "reseller"], icon: <I d="M12 3v4||M6 21v-3a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v3||M12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4" /> },
+      { href: "/admin/abonnements", label: "Abonnements", kinds: ["coach", "platform"], icon: <I d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5z||M4 10h16" /> },
+      { href: "/admin/paliers", label: "Paliers", kinds: ["platform", "reseller"], icon: <I d="M12 4l8 4-8 4-8-4z||M4 12l8 4 8-4||M4 16l8 4 8-4" /> },
+      { href: "/admin/codes", label: "Codes", kinds: ["coach", "platform"], icon: <I d="M4 9V7a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2a2 2 0 0 0 0 4v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2a2 2 0 0 0 0-4||M14 6v12" /> },
     ],
   },
   {
     label: "Contenu",
     items: [
-      { href: "/admin/offres", label: "Ma page", icon: <I d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13A1.5 1.5 0 0 1 18.5 20h-13A1.5 1.5 0 0 1 4 18.5z||M4 9h16||M8 4v5" /> },
-      { href: "/admin/exercices", label: "Exercices", icon: <I d="M6.5 9.5v5||M17.5 9.5v5||M4 11v2||M20 11v2||M6.5 12h11" /> },
-      { href: "/admin/shop", label: "Boutique", icon: <I d="M6 8h12l-1 12H7z||M9 8V6a3 3 0 0 1 6 0v2" /> },
+      { href: "/admin/offres", label: "Ma page", kinds: ["coach", "platform"], icon: <I d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13A1.5 1.5 0 0 1 18.5 20h-13A1.5 1.5 0 0 1 4 18.5z||M4 9h16||M8 4v5" /> },
+      { href: "/admin/exercices", label: "Exercices", kinds: ["coach", "platform"], icon: <I d="M6.5 9.5v5||M17.5 9.5v5||M4 11v2||M20 11v2||M6.5 12h11" /> },
+      { href: "/admin/shop", label: "Boutique", kinds: ["coach", "platform"], icon: <I d="M6 8h12l-1 12H7z||M9 8V6a3 3 0 0 1 6 0v2" /> },
     ],
   },
   {
     label: "Réglages",
     items: [
       { href: "/admin/abonnement", label: "Mon abonnement", icon: <I d="M4 8a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z||M4 10h9||M15 13h2.5" /> },
-      { href: "/admin/config", label: "Configuration IA", icon: <I d="M12 4l1.4 3.6L17 9l-3.6 1.4L12 14l-1.4-3.6L7 9l3.6-1.4z||M18 15l.7 1.8L20.5 17.5l-1.8.7L18 20l-.7-1.8L15.5 17.5l1.8-.7z" /> },
+      { href: "/admin/config", label: "Configuration IA", kinds: ["coach", "platform"], icon: <I d="M12 4l1.4 3.6L17 9l-3.6 1.4L12 14l-1.4-3.6L7 9l3.6-1.4z||M18 15l.7 1.8L20.5 17.5l-1.8.7L18 20l-.7-1.8L15.5 17.5l1.8-.7z" /> },
       { href: "/admin/integrations", label: "Intégrations", icon: <I d="M9 7V4||M15 7V4||M7 7h10v4a5 5 0 0 1-10 0z||M12 16v4" /> },
-      { href: "/admin/notifications", label: "Notifications", icon: <I d="M12 4a5 5 0 0 0-5 5v3.5L5.5 15h13L17 12.5V9a5 5 0 0 0-5-5||M10 18a2 2 0 0 0 4 0" /> },
+      { href: "/admin/notifications", label: "Notifications", kinds: ["coach", "platform"], icon: <I d="M12 4a5 5 0 0 0-5 5v3.5L5.5 15h13L17 12.5V9a5 5 0 0 0-5-5||M10 18a2 2 0 0 0 4 0" /> },
     ],
   },
 ];
+
+/** Groupes filtrés pour un niveau de tenant (items sans `kinds` = tous). */
+function groupsForKind(kind: TenantKind): { label: string; items: Item[] }[] {
+  return GROUPS.map((g) => ({
+    label: g.label,
+    items: g.items.filter((it) => !it.kinds || it.kinds.includes(kind)),
+  })).filter((g) => g.items.length > 0);
+}
 
 function isActive(pathname: string, href: string): boolean {
   return href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
 }
 
-function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+function NavList({ pathname, kind, onNavigate }: { pathname: string; kind: TenantKind; onNavigate?: () => void }) {
   return (
     <nav className="flex flex-col gap-5">
-      {GROUPS.map((g) => (
+      {groupsForKind(kind).map((g) => (
         <div key={g.label} className="flex flex-col gap-1">
           <div className="px-3 pb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">{g.label}</div>
           {g.items.map((it) => {
@@ -150,11 +161,13 @@ export function AdminShell({
   notifs,
   unread,
   email,
+  kind,
 }: {
   children: ReactNode;
   notifs: CoachNotif[];
   unread: number;
   email: string;
+  kind: TenantKind;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -199,7 +212,7 @@ export function AdminShell({
           <CoachBell notifs={notifs} unread={unread} align="left" />
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <NavList pathname={pathname} />
+          <NavList pathname={pathname} kind={kind} />
         </div>
         <div className="flex flex-col gap-3">
           {statusCard}
@@ -239,7 +252,7 @@ export function AdminShell({
               </button>
             </div>
             <div className="-mr-2 min-h-0 flex-1 overflow-y-auto pr-2">
-              <NavList pathname={pathname} onNavigate={() => setOpen(false)} />
+              <NavList pathname={pathname} kind={kind} onNavigate={() => setOpen(false)} />
             </div>
             <div className="flex flex-col gap-3">
               {statusCard}

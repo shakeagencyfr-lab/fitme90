@@ -3,6 +3,7 @@ import { getAdminOrNull } from "@/lib/admin";
 import { AdminShell } from "@/components/admin-shell";
 import { PwaInstall } from "@/components/pwa-install";
 import { listCoachNotifications, unreadCoachNotifCount } from "@/lib/notifications";
+import { tenantNode } from "@/lib/hierarchy";
 
 export const metadata = { title: "Admin, FitMe90" };
 
@@ -13,13 +14,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!ctx) notFound();
 
   const tenantId = ctx.profile?.tenant_id ?? null;
-  const [notifs, unread] = tenantId
-    ? await Promise.all([listCoachNotifications(tenantId), unreadCoachNotifCount(tenantId)])
-    : [[], 0];
+  const [notifs, unread, node] = tenantId
+    ? await Promise.all([
+        listCoachNotifications(tenantId),
+        unreadCoachNotifCount(tenantId),
+        tenantNode(tenantId),
+      ])
+    : [[], 0, null];
+  const kind = node?.kind ?? "coach";
 
   return (
     <>
-      <AdminShell notifs={notifs} unread={unread} email={ctx.email ?? ""}>
+      <AdminShell notifs={notifs} unread={unread} email={ctx.email ?? ""} kind={kind}>
         {children}
       </AdminShell>
       {/* Invite à installer l'app (Android : invite native ; iOS : marche à suivre). */}
