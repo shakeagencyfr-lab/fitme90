@@ -12,6 +12,8 @@ import { clientVipContext, clientUnreadVipCount } from "@/lib/vip";
 import { brandForUser } from "@/lib/branding";
 import { brandMetadataForUser } from "@/lib/brand-metadata";
 import { readCoachName } from "@/lib/methodology";
+import { tenantFreezeState } from "@/lib/freeze";
+import { FrozenScreen } from "@/components/frozen-screen";
 import { PROGRAM_DAYS } from "@/lib/config";
 
 // Onglet + favicon en marque blanche (coach du client connecté).
@@ -30,12 +32,17 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // Config propre au tenant du client (= celui de son coach) : boutique, prénom
   // du coach IA, Chat VIP, marque blanche. En parallèle après le contexte.
   const tenantId = ctx.profile?.tenant_id ?? null;
-  const [shopEnabled, vip, brand, coachName] = await Promise.all([
+  const [shopEnabled, vip, brand, coachName, freeze] = await Promise.all([
     isShopEnabled(tenantId),
     clientVipContext(ctx.userId),
     brandForUser(ctx.userId),
     readCoachName(tenantId),
+    tenantFreezeState(tenantId),
   ]);
+
+  // Compte du coach gelé (défaut de paiement au revendeur) : les clients perdent
+  // temporairement l'accès, sans rien perdre de leurs données.
+  if (freeze.frozen) return <FrozenScreen brand={brand} />;
   // Badge de messages non lus sur l'onglet Chat VIP (seulement si l'option est active).
   const vipUnread = vip.enabled ? await clientUnreadVipCount(ctx.userId) : 0;
 
