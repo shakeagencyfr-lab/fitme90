@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeSlug } from "@/lib/config";
+import { platformTenantId } from "@/lib/hierarchy";
 
 // Provisionnement d'un nouveau coach (Lot B multi-coach, phase 1) : à la
 // confirmation d'e-mail, si le compte a été créé via /inscription-coach
@@ -43,9 +44,13 @@ export async function provisionCoachIfPending(
   const coachName = (typeof meta.coach_name === "string" ? meta.coach_name : "").trim().slice(0, 40);
 
   const slug = await freeSlug(admin, tenantName);
+  // Rattachement récursif : un nouveau coach est un enfant de la plateforme
+  // (plus tard : de son revendeur). kind='coach' -> sa capacité se compte en
+  // clients. parent_id -> qui le facture (Lot C·3).
+  const parentId = await platformTenantId();
   const { data: tenant, error } = await admin
     .from("tenants")
-    .insert({ slug, name: tenantName })
+    .insert({ slug, name: tenantName, kind: "coach", parent_id: parentId })
     .select("id")
     .maybeSingle<{ id: string }>();
   if (error || !tenant) return;
