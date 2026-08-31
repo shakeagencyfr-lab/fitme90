@@ -873,6 +873,37 @@ export async function saveResellerAiMode(_prev: ResellerAiState, formData: FormD
   return { ok: true };
 }
 
+/**
+ * Tarification en crédits du revendeur d'IA : prix de vente d'1 crédit (en
+ * centimes) et nombre de crédits pour une génération de programme. 1 crédit =
+ * 1 action simple (chat / recette / exercice). Le programme (Opus) coûte plus
+ * cher, d'où un nombre de crédits paramétrable.
+ */
+export async function saveResellerCredits(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const tenantId = ctx.profile.tenant_id;
+
+  const price = Number(String(formData.get("ai_credit_price_cents") ?? "").replace(",", ".").trim());
+  if (!Number.isFinite(price) || price < 0 || price > 100000) {
+    return { error: "Prix par crédit invalide." };
+  }
+  const credits = Number(String(formData.get("ai_program_credits") ?? "").trim());
+  if (!Number.isInteger(credits) || credits < 0 || credits > 1000) {
+    return { error: "Nombre de crédits programme invalide (0 à 1000)." };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("tenants")
+    .update({ ai_credit_price_cents: Math.round(price), ai_program_credits: credits })
+    .eq("id", tenantId);
+  if (error) return { error: "Enregistrement impossible." };
+
+  revalidatePath("/admin/ia-revenu");
+  return { ok: true };
+}
+
 // ------------------------------------------------------------------ codes promo & cadeaux
 export interface PromoFormState {
   ok?: boolean;
