@@ -114,10 +114,13 @@ export async function signUpAction(
 
   const offerId = String(formData.get("offer_id") ?? "").trim().slice(0, 40);
   const interval = String(formData.get("interval") ?? "").trim();
+  // Code de parrainage (affiliation) éventuel, transporté jusqu'à la confirmation.
+  const ref = String(formData.get("ref") ?? "").trim().toUpperCase().slice(0, 16);
   const data: Record<string, string> = {};
   if (coachSlug) data.coach_slug = coachSlug;
   if (offerId) data.offer_id = offerId;
   if (interval === "month" || interval === "year") data.interval = interval;
+  if (/^[A-Z0-9]{4,16}$/.test(ref)) data.ref = ref;
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({

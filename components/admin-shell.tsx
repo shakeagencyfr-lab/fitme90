@@ -43,6 +43,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
       { href: "/admin/marque-blanche", label: "Marque blanche", icon: <I d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13A1.5 1.5 0 0 1 18.5 20h-13A1.5 1.5 0 0 1 4 18.5z||M9 20V4" /> },
       { href: "/admin/exercices", label: "Exercices", kinds: ["coach", "platform"], icon: <I d="M6.5 9.5v5||M17.5 9.5v5||M4 11v2||M20 11v2||M6.5 12h11" /> },
       { href: "/admin/shop", label: "Boutique", kinds: ["coach", "platform"], icon: <I d="M6 8h12l-1 12H7z||M9 8V6a3 3 0 0 1 6 0v2" /> },
+      { href: "/admin/affiliation", label: "Affiliation", kinds: ["coach", "platform"], icon: <I d="M8.7 13.3 15.3 16.7||M15.3 7.3 8.7 10.7||M6 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5||M18 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5||M18 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5" /> },
     ],
   },
   {

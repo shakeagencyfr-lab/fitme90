@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { anthropic, MODELS } from "@/lib/anthropic";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptSecret, decryptSecret, keyHint, secretsEncryptionReady } from "@/lib/crypto";
+import { attachReferral } from "@/lib/affiliation";
 
 // BYOK STRICT (par défaut) : si le tenant n'a pas de clé Anthropic valide, on ne
 // bascule PAS sur la clé plateforme (ANTHROPIC_API_KEY) pour les appels facturés
@@ -49,12 +50,13 @@ export async function tenantIdForUser(userId: string): Promise<string | null> {
  */
 export async function applyPendingCoachSelection(
   userId: string,
-  meta: { coach_slug?: unknown; offer_id?: unknown; interval?: unknown } | null | undefined,
+  meta: { coach_slug?: unknown; offer_id?: unknown; interval?: unknown; ref?: unknown } | null | undefined,
 ): Promise<void> {
   const slug = typeof meta?.coach_slug === "string" ? meta.coach_slug.trim() : "";
   const offerId = typeof meta?.offer_id === "string" ? meta.offer_id.trim() : "";
   const interval = meta?.interval === "year" ? "year" : meta?.interval === "month" ? "month" : "";
-  if (!slug && !offerId) return;
+  const ref = typeof meta?.ref === "string" ? meta.ref.trim() : "";
+  if (!slug && !offerId && !ref) return;
 
   const admin = createAdminClient();
   const { data: profile } = await admin
@@ -92,8 +94,13 @@ export async function applyPendingCoachSelection(
   if (!profile?.tenant_id) patch.tenant_id = tenantId;
   if (!profile?.selected_offer_id && validOffer) patch.selected_offer_id = validOffer;
   if (!profile?.selected_interval && interval) patch.selected_interval = interval;
-  if (Object.keys(patch).length === 0) return;
-  await admin.from("profiles").update(patch).eq("id", userId);
+  if (Object.keys(patch).length > 0) {
+    await admin.from("profiles").update(patch).eq("id", userId);
+  }
+
+  // Parrainage : rattache le nouveau client à son parrain si le code est valide
+  // et que l'affiliation est active pour ce coach (idempotent).
+  if (ref) await attachReferral(userId, tenantId, ref);
 }
 
 /** Clé Anthropic (déchiffrée) du tenant de l'utilisateur, sinon null. */

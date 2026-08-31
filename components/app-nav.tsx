@@ -57,6 +57,14 @@ const I = {
       <path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" />
     </>
   ),
+  parrainage: (
+    <>
+      <circle cx="6" cy="12" r="2.2" />
+      <circle cx="18" cy="6" r="2.2" />
+      <circle cx="18" cy="18" r="2.2" />
+      <path d="M8 11 16 7M8 13l8 4" />
+    </>
+  ),
   plus: (
     <>
       <circle cx="5" cy="12" r="1.4" />
@@ -70,10 +78,11 @@ type IconKey = keyof typeof I;
 type Item = { href: string; label: string; icon: IconKey };
 
 // Onglets rangés dans « Plus » sur mobile (le reste va dans la barre du bas).
-const IN_MORE = ["/app/evolution", "/app/shop", "/app/chat"];
+const IN_MORE = ["/app/evolution", "/app/shop", "/app/chat", "/app/parrainage"];
 
-// Construit la liste des onglets selon les options activées (boutique, chat VIP).
-function buildItems(shopEnabled: boolean, vipEnabled: boolean): Item[] {
+// Construit la liste des onglets selon les options activées (boutique, chat VIP,
+// parrainage).
+function buildItems(shopEnabled: boolean, vipEnabled: boolean, affiliationEnabled: boolean): Item[] {
   return [
     { href: "/app", label: "Programme", icon: "programme" },
     { href: "/app/agenda", label: "Agenda", icon: "agenda" },
@@ -82,6 +91,7 @@ function buildItems(shopEnabled: boolean, vipEnabled: boolean): Item[] {
     { href: "/app/evolution", label: "Évolution", icon: "evolution" },
     ...(vipEnabled ? [{ href: "/app/chat", label: "Chat VIP", icon: "chat" } as Item] : []),
     ...(shopEnabled ? [{ href: "/app/shop", label: "Boutique", icon: "shop" } as Item] : []),
+    ...(affiliationEnabled ? [{ href: "/app/parrainage", label: "Parrainage", icon: "parrainage" } as Item] : []),
     { href: "/app/profil", label: "Profil", icon: "profil" },
   ];
 }
@@ -125,6 +135,7 @@ export function AppNav({
   cycleName,
   shopEnabled = false,
   vipEnabled = false,
+  affiliationEnabled = false,
   vipUnread = 0,
   brandName = null,
   brandLogoUrl = null,
@@ -134,13 +145,14 @@ export function AppNav({
   cycleName?: string;
   shopEnabled?: boolean;
   vipEnabled?: boolean;
+  affiliationEnabled?: boolean;
   vipUnread?: number;
   brandName?: string | null;
   brandLogoUrl?: string | null;
 }) {
   const pathname = usePathname();
   const [more, setMore] = useState(false);
-  const ALL = buildItems(shopEnabled, vipEnabled);
+  const ALL = buildItems(shopEnabled, vipEnabled, affiliationEnabled);
   const PRIMARY = ALL.filter((i) => !IN_MORE.includes(i.href));
   const SECONDARY = ALL.filter((i) => IN_MORE.includes(i.href));
   const isActive = (href: string) =>
