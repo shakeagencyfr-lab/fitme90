@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { listPlans, type Plan } from "@/lib/plans";
+import { asLandingTemplate, type LandingTemplate } from "@/lib/offers";
 
 // Résolution publique d'un revendeur par son slug, pour sa landing marque
 // blanche (/r/[slug]) : sa marque + les paliers qu'il propose aux coachs/salles.
@@ -13,6 +14,7 @@ export interface PublicReseller {
   tagline: string | null;
   headline: string | null;
   logoUrl: string | null;
+  landingTemplate: LandingTemplate;
 }
 
 export interface PublicResellerLanding {
@@ -27,7 +29,7 @@ export async function publicResellerBySlug(slug: string): Promise<PublicReseller
   const admin = createAdminClient();
   const { data: tenant } = await admin
     .from("tenants")
-    .select("id, name, slug, kind, brand_color, tagline, headline, logo_url")
+    .select("id, name, slug, kind, brand_color, tagline, headline, logo_url, landing_template")
     .eq("slug", key)
     .eq("kind", "reseller")
     .maybeSingle<{
@@ -39,6 +41,7 @@ export async function publicResellerBySlug(slug: string): Promise<PublicReseller
       tagline: string | null;
       headline: string | null;
       logo_url: string | null;
+      landing_template: string | null;
     }>();
   if (!tenant) return null;
 
@@ -56,6 +59,7 @@ export async function publicResellerBySlug(slug: string): Promise<PublicReseller
       tagline: tenant.tagline,
       headline: tenant.headline,
       logoUrl: tenant.logo_url,
+      landingTemplate: asLandingTemplate(tenant.landing_template),
     },
     plans,
   };

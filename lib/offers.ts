@@ -59,6 +59,13 @@ export async function listOffers(tenantId: string): Promise<Offer[]> {
   return (data ?? []) as Offer[];
 }
 
+export type LandingTemplate = "onyx" | "lumen";
+
+/** Normalise la valeur stockée en une clé de template connue (défaut onyx). */
+export function asLandingTemplate(v: string | null | undefined): LandingTemplate {
+  return v === "lumen" ? "lumen" : "onyx";
+}
+
 export interface PublicTenant {
   id: string;
   name: string;
@@ -69,6 +76,7 @@ export interface PublicTenant {
   headline: string | null;
   logoUrl: string | null;
   faviconUrl: string | null;
+  landingTemplate: LandingTemplate;
   aboutEnabled: boolean;
   aboutTitle: string | null;
   aboutText: string | null;
@@ -94,7 +102,7 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
   const query = admin
     .from("tenants")
     .select(
-      "id, name, slug, brand_color, tagline, headline, logo_url, favicon_url, about_enabled, about_title, about_text, about_photo_url",
+      "id, name, slug, brand_color, tagline, headline, logo_url, favicon_url, landing_template, about_enabled, about_title, about_text, about_photo_url",
     );
   const { data: tenant } = await (safe
     ? query.or(`slug.eq.${key},subdomain.eq.${key}`)
@@ -110,6 +118,7 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
       headline: string | null;
       logo_url: string | null;
       favicon_url: string | null;
+      landing_template: string | null;
       about_enabled: boolean | null;
       about_title: string | null;
       about_text: string | null;
@@ -151,6 +160,7 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
       headline: tenant.headline,
       logoUrl: tenant.logo_url,
       faviconUrl: tenant.favicon_url,
+      landingTemplate: asLandingTemplate(tenant.landing_template),
       aboutEnabled: !!tenant.about_enabled,
       aboutTitle: tenant.about_title,
       aboutText: tenant.about_text,
@@ -158,6 +168,20 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
     },
     offers: sellable,
   };
+}
+
+/** Template de landing d'un tenant par slug/sous-domaine (requête légère). */
+export async function landingTemplateBySlug(slug: string): Promise<LandingTemplate> {
+  const key = (slug ?? "").toLowerCase();
+  if (!/^[a-z0-9-]{1,63}$/.test(key)) return "onyx";
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("tenants")
+    .select("landing_template")
+    .or(`slug.eq.${key},subdomain.eq.${key}`)
+    .limit(1)
+    .maybeSingle<{ landing_template: string | null }>();
+  return asLandingTemplate(data?.landing_template);
 }
 
 /** Une offre par son id (ou null). */

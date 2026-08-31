@@ -187,7 +187,29 @@ export async function saveBranding(_prev: BrandingState, formData: FormData): Pr
     aboutText: String(formData.get("about_text") ?? ""),
   });
   if (!res.ok) return { error: res.error };
-  revalidatePath("/admin/offres");
+  revalidatePath("/admin/marque-blanche");
+  return { ok: true };
+}
+
+export interface TemplateState {
+  ok?: boolean;
+  error?: string;
+}
+
+/** Enregistre le template de landing choisi (onyx | lumen). */
+export async function saveLandingTemplate(_prev: TemplateState, formData: FormData): Promise<TemplateState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const raw = String(formData.get("template") ?? "");
+  const template = raw === "lumen" ? "lumen" : raw === "onyx" ? "onyx" : null;
+  if (!template) return { error: "Template inconnu." };
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("tenants")
+    .update({ landing_template: template })
+    .eq("id", ctx.profile.tenant_id);
+  if (error) return { error: "Enregistrement impossible." };
+  revalidatePath("/admin/marque-blanche");
   return { ok: true };
 }
 
@@ -210,7 +232,7 @@ export async function uploadAsset(formData: FormData): Promise<BrandingState> {
   if (!(file instanceof File)) return { error: "Aucun fichier." };
   const res = await uploadTenantAsset(ctx.profile.tenant_id, kind, file);
   if (!res.ok) return { error: res.error };
-  revalidatePath("/admin/offres");
+  revalidatePath("/admin/marque-blanche");
   return { ok: true };
 }
 
@@ -221,7 +243,7 @@ export async function removeAsset(kind: string): Promise<BrandingState> {
   const k = asKind(kind);
   if (!k) return { error: "Type d'image invalide." };
   await clearTenantAsset(ctx.profile.tenant_id, k);
-  revalidatePath("/admin/offres");
+  revalidatePath("/admin/marque-blanche");
   return { ok: true };
 }
 
@@ -909,7 +931,7 @@ export async function saveSubdomain(_prev: SubdomainState, formData: FormData): 
   // Champ vidé : on retire l'adresse personnalisée.
   if (!raw.trim()) {
     await admin.from("tenants").update({ subdomain: null }).eq("id", tenantId);
-    revalidatePath("/admin/offres");
+    revalidatePath("/admin/marque-blanche");
     return { ok: true, value: "" };
   }
 
@@ -931,6 +953,6 @@ export async function saveSubdomain(_prev: SubdomainState, formData: FormData): 
   const { error } = await admin.from("tenants").update({ subdomain: sub }).eq("id", tenantId);
   if (error) return { error: "Enregistrement impossible (adresse peut-être déjà prise).", value: sub };
 
-  revalidatePath("/admin/offres");
+  revalidatePath("/admin/marque-blanche");
   return { ok: true, value: sub };
 }

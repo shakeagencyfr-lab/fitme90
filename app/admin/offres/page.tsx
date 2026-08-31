@@ -1,13 +1,9 @@
 import Link from "next/link";
 import { getAdminOrNull } from "@/lib/admin";
 import { listOffers } from "@/lib/offers";
-import { tenantBranding } from "@/lib/branding";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { MAX_OFFERS_PER_TENANT, programDaysForMonths, formatEuros, ROOT_DOMAIN, SITE_HOST } from "@/lib/config";
+import { MAX_OFFERS_PER_TENANT, programDaysForMonths, formatEuros } from "@/lib/config";
 import { OfferForm } from "@/components/offer-form";
-import { BrandingForm } from "@/components/branding-form";
-import { SubdomainForm } from "@/components/subdomain-form";
-import { CustomDomainCard } from "@/components/custom-domain-card";
 import { EmbedSnippet } from "@/components/embed-snippet";
 import { toggleOffer, removeOffer } from "@/app/admin/actions";
 import { Alert, Card } from "@/components/ui";
@@ -39,23 +35,16 @@ export default async function AdminPublicPage() {
   const tenantId = ctx?.profile?.tenant_id ?? null;
   const allOffers = tenantId ? await listOffers(tenantId) : [];
   const offers = allOffers.filter((o) => o.billing_type !== "subscription");
-  const branding = tenantId ? await tenantBranding(tenantId) : null;
 
   let slug: string | null = null;
-  let subdomain: string | null = null;
-  let customDomain: string | null = null;
-  let tenantName = "Mon coaching";
   if (tenantId) {
     const admin = createAdminClient();
     const { data } = await admin
       .from("tenants")
-      .select("slug, name, subdomain, custom_domain")
+      .select("slug")
       .eq("id", tenantId)
-      .maybeSingle<{ slug: string; name: string; subdomain: string | null; custom_domain: string | null }>();
+      .maybeSingle<{ slug: string }>();
     slug = data?.slug ?? null;
-    subdomain = data?.subdomain ?? null;
-    customDomain = data?.custom_domain ?? null;
-    tenantName = data?.name ?? tenantName;
   }
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "";
 
@@ -87,11 +76,14 @@ export default async function AdminPublicPage() {
         <Alert>Aucun compte (tenant) n&apos;est rattaché à ton profil.</Alert>
       ) : (
         <>
-          {branding ? <BrandingForm branding={branding} namePlaceholder={tenantName} /> : null}
-
-          <SubdomainForm current={subdomain} slug={slug} siteHost={SITE_HOST} rootDomain={ROOT_DOMAIN} />
-
-          <CustomDomainCard domain={customDomain} />
+          <Alert tone="info">
+            Le design de ta page (logo, couleurs, textes, template et adresse) se règle
+            désormais dans l&apos;onglet{" "}
+            <Link href="/admin/marque-blanche" className="font-semibold text-brand underline">
+              Marque blanche
+            </Link>
+            , avec un aperçu en direct.
+          </Alert>
 
           <div className="flex flex-col gap-3">
             <div className="font-archivo font-bold text-[17px] text-ink">Mes offres à paiement unique</div>
