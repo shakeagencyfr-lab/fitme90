@@ -4,12 +4,20 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { listChildTenants } from "@/lib/hierarchy";
 import { SITE_URL } from "@/lib/config";
 import { Alert, Card, MonoLabel } from "@/components/ui";
+import { CreateAccountForm } from "@/components/create-account-form";
+import { SupportLoginButton } from "@/components/support-login-button";
 
-export const metadata = { title: "Mes coachs, Admin FitMe90" };
+export const metadata = { title: "Mon réseau, Admin FitMe90" };
+export const dynamic = "force-dynamic";
 
-export default async function AdminNetworkPage() {
+export default async function AdminNetworkPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ assistance?: string }>;
+}) {
   const ctx = await getAdminOrNull();
   const tenantId = ctx?.profile?.tenant_id ?? null;
+  const sp = await searchParams;
 
   let slug: string | null = null;
   let kind: "platform" | "reseller" | "coach" = "reseller";
@@ -24,6 +32,7 @@ export default async function AdminNetworkPage() {
     kind = data?.kind === "platform" || data?.kind === "coach" ? data.kind : "reseller";
   }
   const isPlatform = kind === "platform";
+  const isNetworkOperator = kind !== "coach";
   const children = tenantId ? await listChildTenants(tenantId) : [];
   const base = SITE_URL || "";
   const landingUrl = slug ? `${base}/r/${slug}` : null;
@@ -58,6 +67,12 @@ export default async function AdminNetworkPage() {
         <Alert>Aucun compte (tenant) n&apos;est rattaché à ton profil.</Alert>
       ) : (
         <>
+          {sp.assistance === "refus" ? (
+            <Alert>Accès d&apos;assistance refusé : ce compte n&apos;est pas dans ton réseau.</Alert>
+          ) : sp.assistance === "echec" ? (
+            <Alert>Le lien de connexion d&apos;assistance n&apos;a pas pu être généré. Réessaie.</Alert>
+          ) : null}
+
           {/* Plateforme : recrutement des revendeurs (page publique). Un revendeur
               qui s'inscrit ici devient un enfant direct de la plateforme. */}
           {isPlatform ? (
@@ -114,6 +129,9 @@ export default async function AdminNetworkPage() {
             </Card>
           ) : null}
 
+          {/* Création manuelle d'un compte enfant + lien de connexion à copier. */}
+          {isNetworkOperator ? <CreateAccountForm canCreateReseller={isPlatform} /> : null}
+
           <div className="grid grid-cols-2 gap-3">
             <Card>
               <Stat
@@ -131,7 +149,7 @@ export default async function AdminNetworkPage() {
               <table className="w-full min-w-[560px] border-collapse text-[13.5px]">
                 <thead>
                   <tr className="border-b border-line text-left text-muted-2">
-                    {[isPlatform ? "Compte" : "Coach / salle", "Adresse", "Clients", "Abonnement"].map((h) => (
+                    {[isPlatform ? "Compte" : "Coach / salle", "Adresse", "Clients", "Abonnement", "Assistance"].map((h) => (
                       <th key={h} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.08em]">
                         {h}
                       </th>
@@ -171,11 +189,18 @@ export default async function AdminNetworkPage() {
                           <span className="rounded-pill bg-surface-2 px-2.5 py-0.5 text-[12px] font-medium text-muted-2">Palier gratuit</span>
                         )}
                       </td>
+                      <td className="px-4 py-3">
+                        {c.ownerUserId ? (
+                          <SupportLoginButton targetUserId={c.ownerUserId} name={c.name} />
+                        ) : (
+                          <span className="font-mono text-[11px] text-muted-2">sans compte</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                   {children.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-muted">
+                      <td colSpan={5} className="px-4 py-8 text-center text-muted">
                         {isPlatform
                           ? "Aucun compte rattaché pour l'instant. Partage un lien d'invitation ci-dessus."
                           : "Aucun coach pour l'instant. Partage ton lien d'invitation ci-dessus."}

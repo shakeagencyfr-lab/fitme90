@@ -612,6 +612,20 @@ begin
 end;
 $$;
 
+-- Journal des accès d'assistance (« master admin ») : trace chaque connexion
+-- d'un opérateur (plateforme / revendeur) dans un sous-compte de sa descendance.
+-- Table server-only (RLS + droits révoqués, cf. section 5).
+create table if not exists public.support_access_log (
+  id uuid primary key default gen_random_uuid(),
+  actor_user_id uuid not null references auth.users(id) on delete cascade,
+  actor_tenant_id uuid references public.tenants(id) on delete set null,
+  target_user_id uuid not null references auth.users(id) on delete cascade,
+  target_tenant_id uuid references public.tenants(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists support_access_log_actor_idx on public.support_access_log (actor_user_id, created_at desc);
+create index if not exists support_access_log_target_idx on public.support_access_log (target_user_id, created_at desc);
+
 -- =====================================================================
 -- 5. RLS — activation partout, puis droits ajustés par table
 -- =====================================================================
@@ -636,7 +650,8 @@ begin
     'plans','tenant_secrets','coach_config','prospects',
     'credit_wallets','credit_ledger','credit_packs',
     'coach_notes','coach_notifications','vip_messages','scheduled_pushes',
-    'ai_calls','gift_codes','promo_codes','exercise_guides','exercise_media','shop_products'
+    'ai_calls','gift_codes','promo_codes','exercise_guides','exercise_media','shop_products',
+    'support_access_log'
   ]
   loop
     execute format('revoke all on public.%I from anon, authenticated;', t);

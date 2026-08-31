@@ -73,6 +73,8 @@ export interface ChildTenant {
   clientCount: number;
   clientLimit: number | null;
   subStatus: string | null;
+  /** Utilisateur « owner » du tenant enfant (null s'il n'en a pas). */
+  ownerUserId: string | null;
 }
 
 /** Comptes enfants d'un tenant (coachs/salles d'un revendeur, ou d'une plateforme). */
@@ -89,15 +91,20 @@ export async function listChildTenants(parentId: string): Promise<ChildTenant[]>
   const list = kids ?? [];
   if (list.length === 0) return [];
 
-  // Nombre de clients par enfant (une requête, agrégée en mémoire).
+  // Profils des enfants en une requête : compte des clients + owner de chaque
+  // tenant (pour l'accès d'assistance). Agrégé en mémoire.
   const { data: profs } = await admin
     .from("profiles")
-    .select("tenant_id")
+    .select("tenant_id, id, role")
     .in("tenant_id", list.map((k) => k.id))
-    .eq("role", "client")
-    .returns<{ tenant_id: string }[]>();
+    .in("role", ["client", "owner"])
+    .returns<{ tenant_id: string; id: string; role: string | null }[]>();
   const counts = new Map<string, number>();
-  for (const p of profs ?? []) counts.set(p.tenant_id, (counts.get(p.tenant_id) ?? 0) + 1);
+  const owners = new Map<string, string>();
+  for (const p of profs ?? []) {
+    if (p.role === "client") counts.set(p.tenant_id, (counts.get(p.tenant_id) ?? 0) + 1);
+    else if (p.role === "owner" && !owners.has(p.tenant_id)) owners.set(p.tenant_id, p.id);
+  }
 
   return list.map((k) => ({
     id: k.id,
@@ -107,5 +114,6 @@ export async function listChildTenants(parentId: string): Promise<ChildTenant[]>
     clientCount: counts.get(k.id) ?? 0,
     clientLimit: k.client_limit,
     subStatus: k.sub_status,
+    ownerUserId: owners.get(k.id) ?? null,
   }));
 }

@@ -2,8 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminOrNull } from "@/lib/admin";
+import { tenantNode } from "@/lib/hierarchy";
+import { createChildTenantAccount } from "@/lib/admin-provision";
+import { isDescendantTenant, loginLinkForUser, logSupportAccess } from "@/lib/support-access";
 import { broadcastPushToUsers } from "@/lib/push";
 import { resolveAudience, type AudienceFilter } from "@/lib/audience";
 import {
@@ -1291,4 +1295,86 @@ export async function saveSubdomain(_prev: SubdomainState, formData: FormData): 
 
   revalidatePath("/admin/marque-blanche");
   return { ok: true, value: sub };
+}
+
+// ───────────────────────── Réseau : création & assistance ─────────────────────────
+
+/** Origine absolue de la requête (https://host), pour des liens copiables. */
+async function requestOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  return host ? `${proto}://${host}` : "";
+}
+
+export interface CreateAccountState {
+  error?: string;
+  ok?: boolean;
+  /** Lien de connexion à usage unique, à copier et transmettre au titulaire. */
+  link?: string;
+  email?: string;
+  name?: string;
+}
+
+// Création manuelle d'un compte enfant depuis le dashboard réseau. La plateforme
+// crée revendeurs ou coachs ; un revendeur ne crée que des coachs. On renvoie un
+// lien de connexion (valable ~1 h) que l'opérateur copie et envoie.
+export async function createNetworkAccount(
+  _prev: CreateAccountState,
+  formData: FormData,
+): Promise<CreateAccountState> {
+  const ctx = await getAdminOrNull();
+  const actorTenantId = ctx?.profile?.tenant_id ?? null;
+  if (!ctx || !actorTenantId) return { error: "Session expirée. Reconnecte-toi." };
+  const node = await tenantNode(actorTenantId);
+  if (!node || node.kind === "coach") return { error: "Réservé à la plateforme et aux revendeurs." };
+
+  const name = String(formData.get("name") ?? "").trim().slice(0, 60);
+  const email = String(formData.get("email") ?? "").trim();
+  const contactName = String(formData.get("contact_name") ?? "").trim().slice(0, 40);
+  // Un revendeur ne crée que des coachs ; seule la plateforme crée des revendeurs.
+  const wants = String(formData.get("kind") ?? "");
+  const kind: "reseller" | "coach" = node.kind === "platform" && wants === "reseller" ? "reseller" : "coach";
+
+  const created = await createChildTenantAccount({ parentTenantId: actorTenantId, kind, name, email, contactName });
+  if (!created.ok) return { error: created.error, name, email };
+
+  const origin = await requestOrigin();
+  const link = origin ? await loginLinkForUser(created.userId, "/admin", origin) : null;
+  revalidatePath("/admin/reseau");
+  return { ok: true, email, name, link: link ?? undefined };
+}
+
+// Connexion d'assistance (« master admin ») dans un sous-compte. Réservée à la
+// plateforme et aux revendeurs, uniquement vers un compte de LEUR descendance.
+// Établit une vraie session dans le compte cible (l'opérateur devra se
+// reconnecter à son propre espace ensuite). Tracée dans support_access_log.
+export async function supportLoginAs(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  const actorTenantId = ctx?.profile?.tenant_id ?? null;
+  if (!ctx || !actorTenantId) redirect("/admin/reseau?assistance=refus");
+  const node = await tenantNode(actorTenantId);
+  if (!node || node.kind === "coach") redirect("/admin/reseau?assistance=refus");
+
+  const targetUserId = String(formData.get("target_user_id") ?? "").trim();
+  if (!targetUserId) redirect("/admin/reseau?assistance=refus");
+
+  const admin = createAdminClient();
+  const { data: prof } = await admin
+    .from("profiles")
+    .select("tenant_id")
+    .eq("id", targetUserId)
+    .maybeSingle<{ tenant_id: string | null }>();
+  const targetTenantId = prof?.tenant_id ?? null;
+  // Autorisation : la cible doit être un compte de la descendance de l'acteur.
+  if (!targetTenantId || !(await isDescendantTenant(actorTenantId, targetTenantId))) {
+    redirect("/admin/reseau?assistance=refus");
+  }
+
+  const origin = await requestOrigin();
+  const link = origin ? await loginLinkForUser(targetUserId, "/admin", origin) : null;
+  if (!link) redirect("/admin/reseau?assistance=echec");
+
+  await logSupportAccess({ actorUserId: ctx.userId, actorTenantId, targetUserId, targetTenantId });
+  redirect(link);
 }
