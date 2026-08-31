@@ -58,7 +58,7 @@ function libraryGuide(name: string): ResolvedGuide | null {
   return {
     name: entry.name,
     muscle: entry.muscle,
-    frames: libraryFrames(entry.key),
+    frames: entry.noPhoto ? [] : libraryFrames(entry.key),
     steps: entry.guide.steps,
     cues: entry.guide.cues,
     mistakes: entry.guide.mistakes,

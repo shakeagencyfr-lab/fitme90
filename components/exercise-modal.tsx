@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { MuscleIllustration } from "@/components/muscle-illustration";
 
 // Fiche exercice en modale : image(s) + groupe musculaire + étapes + conseils +
 // erreurs. Les données viennent de /api/exercise/guide (coach > bibliothèque > IA).
@@ -115,10 +116,9 @@ export function ExerciseModal({ name, onClose }: { name: string | null; onClose:
               ))}
             </div>
           ) : (
-            <div className="flex aspect-[3/1] w-full items-center justify-center bg-surface-2 text-muted-2">
-              <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M6.5 9v6M17.5 9v6M4 10.5v3M20 10.5v3M6.5 12h11" />
-              </svg>
+            // Pas de photo (fiche IA) : illustration du groupe musculaire ciblé.
+            <div className="flex aspect-[3/2] w-full items-center justify-center bg-surface-2 py-4 text-muted-2">
+              <MuscleIllustration muscle={guide?.muscle ?? name} className="h-full w-auto" />
             </div>
           )}
 
