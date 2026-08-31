@@ -19,6 +19,7 @@ import { cancelTenantPlan, reactivateTenantPlan, syncTenantSubscription } from "
 import { deleteOwnCoachAccount } from "@/lib/account-deletion";
 import { setAffiliation } from "@/lib/affiliation";
 import { setProspectStatus, deleteProspect } from "@/lib/prospects";
+import { createCreditPack, setCreditPackActive, deleteCreditPack, type CreditKind } from "@/lib/credits";
 import { saveTenantBranding, uploadTenantAsset, clearTenantAsset, type AssetKind } from "@/lib/branding";
 import { setTenantStripeKey, clearTenantStripeKey, testStripeKey } from "@/lib/coach-payments";
 import {
@@ -918,6 +919,73 @@ export async function saveResellerCredits(_prev: ResellerAiState, formData: Form
 
   revalidatePath("/admin/ia-revenu");
   return { ok: true };
+}
+
+/**
+ * Choix du modèle de revente du revendeur : 'subscription' (Modèle A, abonnements,
+ * coachs en BYOK) ou 'credits' (Modèle B, packs de crédits, clients illimités).
+ * Le Modèle crédits suppose une clé Anthropic branchée (c'est elle qui alimente
+ * l'IA de tout le réseau) : on l'exige, comme pour le mode fournisseur.
+ */
+export async function saveResellerModelChoice(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const tenantId = ctx.profile.tenant_id;
+  const model = formData.get("reseller_model") === "credits" ? "credits" : "subscription";
+
+  if (model === "credits") {
+    const key = await tenantKeyStatus(tenantId);
+    if (!key.configured) {
+      return { error: "Branche d'abord ta clé Anthropic pour vendre des crédits IA." };
+    }
+  }
+
+  const admin = createAdminClient();
+  // En Modèle crédits, l'IA est fournie par le revendeur → on force ai_mode.
+  const patch: Record<string, string> = { reseller_model: model };
+  if (model === "credits") patch.ai_mode = "provider";
+  const { error } = await admin.from("tenants").update(patch).eq("id", tenantId);
+  if (error) return { error: "Enregistrement impossible." };
+
+  revalidatePath("/admin/ia-revenu");
+  return { ok: true };
+}
+
+/** Crée un pack de crédits (revendeur). */
+export async function addCreditPack(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const kind: CreditKind = formData.get("kind") === "program" ? "program" : "ai";
+  const name = String(formData.get("name") ?? "");
+  const credits = Number(String(formData.get("credits") ?? "").trim());
+  const euros = String(formData.get("price_euros") ?? "").replace(",", ".").trim();
+  const priceCents = Math.round(Number(euros) * 100);
+  if (!Number.isFinite(priceCents) || priceCents <= 0) return { error: "Prix invalide." };
+  const res = await createCreditPack(ctx.profile.tenant_id, { kind, name, credits, priceCents });
+  if (!res.ok) return { error: res.error };
+  revalidatePath("/admin/ia-revenu");
+  return { ok: true };
+}
+
+/** Active / désactive un pack (form action directe). */
+export async function toggleCreditPack(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = Number(formData.get("id") ?? 0);
+  const active = formData.get("active") === "on";
+  if (!id) return;
+  await setCreditPackActive(ctx.profile.tenant_id, id, active);
+  revalidatePath("/admin/ia-revenu");
+}
+
+/** Supprime un pack (form action directe). */
+export async function removeCreditPack(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = Number(formData.get("id") ?? 0);
+  if (!id) return;
+  await deleteCreditPack(ctx.profile.tenant_id, id);
+  revalidatePath("/admin/ia-revenu");
 }
 
 // ------------------------------------------------------------------ codes promo & cadeaux

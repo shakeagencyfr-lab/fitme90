@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { tenantNode } from "@/lib/hierarchy";
 import { tenantKeyStatus } from "@/lib/tenant";
 import { resellerMonthlyAiUsage } from "@/lib/ai-cost";
+import { listCreditPacks } from "@/lib/credits";
+import { ResellerModelForm } from "@/components/reseller-model-form";
 import { ResellerAiModeForm } from "@/components/reseller-ai-mode-form";
 import { ResellerCreditPricingForm } from "@/components/reseller-credit-pricing-form";
 import { ByokForm } from "@/components/byok-form";
@@ -23,23 +25,26 @@ export default async function AdminResellerAiPage() {
   const admin = createAdminClient();
   const { data: t } = await admin
     .from("tenants")
-    .select("ai_mode, ai_client_daily_limit, ai_credit_price_cents, ai_program_credit_price_cents")
+    .select("ai_mode, reseller_model, ai_client_daily_limit, ai_credit_price_cents, ai_program_credit_price_cents")
     .eq("id", tenantId)
     .maybeSingle<{
       ai_mode: string | null;
+      reseller_model: string | null;
       ai_client_daily_limit: number | null;
       ai_credit_price_cents: number | null;
       ai_program_credit_price_cents: number | null;
     }>();
   const mode = t?.ai_mode === "provider" ? "provider" : "byok";
+  const resellerModel = t?.reseller_model === "credits" ? "credits" : "subscription";
   const limit = t?.ai_client_daily_limit == null ? 60 : Math.max(0, t.ai_client_daily_limit);
   const creditPrice = t?.ai_credit_price_cents == null ? DEFAULT_AI_CREDIT_PRICE_CENTS : Math.max(0, t.ai_credit_price_cents);
   const programPrice =
     t?.ai_program_credit_price_cents == null ? DEFAULT_AI_PROGRAM_CREDIT_PRICE_CENTS : Math.max(0, t.ai_program_credit_price_cents);
 
-  const [key, usage] = await Promise.all([
+  const [key, usage, packs] = await Promise.all([
     tenantKeyStatus(tenantId!),
     resellerMonthlyAiUsage(tenantId),
+    listCreditPacks(tenantId!),
   ]);
 
   const cost = `$${usage.costUsd.toFixed(2)}`;
@@ -58,6 +63,8 @@ export default async function AdminResellerAiPage() {
           consommation par client et tu la refactures dans tes paliers.
         </p>
       </div>
+
+      <ResellerModelForm initialModel={resellerModel} keyConfigured={key.configured} packs={packs} />
 
       <ResellerAiModeForm initialMode={mode} initialLimit={limit} keyConfigured={key.configured} />
 
