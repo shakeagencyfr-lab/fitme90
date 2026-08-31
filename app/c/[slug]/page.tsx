@@ -7,6 +7,7 @@ import { programDaysForMonths, formatEuros, DEFAULT_BRAND_COLOR } from "@/lib/co
 import { GridScan, AppPreview, MacroOrbit } from "@/components/landing-visuals";
 import { S } from "@/components/landing-icons";
 import { SubscriptionPrice } from "@/components/subscription-price";
+import { Reveal } from "@/components/reveal";
 
 export const dynamic = "force-dynamic";
 export const viewport: Viewport = { themeColor: "#0a0b0c" };
@@ -110,7 +111,7 @@ function Brand({ tenant, imgClass = "h-11", textClass = "text-[20px]" }: { tenan
 function OfferCard({ offer, slug, chargesEnabled }: { offer: Offer; slug: string; chargesEnabled: boolean }) {
   const isSub = offer.billing_type === "subscription";
   return (
-    <article className="flex flex-col gap-5 rounded-card-lg border border-white/12 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-7">
+    <article className="flex flex-col gap-5 rounded-card-lg border border-white/12 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-7 transition-all duration-300 hover:-translate-y-1 hover:border-brand/40">
       <div className="flex flex-col gap-1.5">
         <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-brand">
           {isSub ? "Abonnement" : durationText(offer.duration_months)}
@@ -184,7 +185,7 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
 
   return (
     <div
-      className="min-h-dvh scroll-smooth bg-[#0a0b0c] text-white [scrollbar-color:#333_#0a0b0c]"
+      className="min-h-dvh scroll-smooth bg-[#0a0b0c] pb-[76px] text-white [scrollbar-color:#333_#0a0b0c] sm:pb-0"
       style={
         {
           ["--color-brand" as string]: accent,
@@ -194,6 +195,14 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
         } as CSSProperties
       }
     >
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+        @keyframes clUp { from { opacity:0; transform:translateY(20px) } to { opacity:1; transform:translateY(0) } }
+        .cl-up { animation: clUp .85s cubic-bezier(.22,1,.36,1) both }
+      `,
+        }}
+      />
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0a0b0c]/80 backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
@@ -220,12 +229,12 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
           <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-r from-[#0a0b0c] via-[#0a0b0c]/85 to-transparent" />
           <div className="pointer-events-none absolute -right-40 -top-40 -z-10 h-[520px] w-[520px] rounded-full bg-brand/25 blur-[130px]" />
           <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-7 px-5 pb-24 pt-[clamp(48px,9vw,96px)] sm:px-8">
-            <Chip><S.spark className="h-3.5 w-3.5" /> Coaching personnalisé</Chip>
-            <h1 className="max-w-[16ch] font-archivo text-[clamp(42px,9vw,92px)] font-extrabold leading-[0.94] tracking-[-0.045em] text-balance text-white">
+            <span className="cl-up inline-block"><Chip><S.spark className="h-3.5 w-3.5" /> Coaching personnalisé</Chip></span>
+            <h1 className="cl-up max-w-[16ch] font-archivo text-[clamp(42px,9vw,92px)] font-extrabold leading-[0.94] tracking-[-0.045em] text-balance text-white" style={{ animationDelay: "70ms" }}>
               {title}
             </h1>
-            <p className="max-w-[54ch] text-[clamp(16px,2.2vw,20px)] leading-[1.55] text-white/70">{tagline}</p>
-            <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
+            <p className="cl-up max-w-[54ch] text-[clamp(16px,2.2vw,20px)] leading-[1.55] text-white/70" style={{ animationDelay: "140ms" }}>{tagline}</p>
+            <div className="cl-up flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap" style={{ animationDelay: "210ms" }}>
               {offers.length > 0 ? (
                 <a href="#offres" className="tap inline-flex h-[54px] items-center justify-center gap-2 rounded-btn bg-brand px-8 text-[16px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]">
                   Voir les programmes <S.arrow className="h-4.5 w-4.5" />
@@ -265,13 +274,13 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
         {/* Fonctionnalités */}
         <section className="scroll-mt-24">
           <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(64px,9vw,110px)] sm:px-8">
-            <div className="flex flex-col items-center gap-4 text-center">
+            <Reveal className="flex flex-col items-center gap-4 text-center">
               <Chip>Fonctionnalités</Chip>
               <h2 className={sectionTitle}>Tout ce qu&apos;il faut pour réussir</h2>
-            </div>
+            </Reveal>
             <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {features.map((f, i) => (
-                <div key={f.title} className={`flex flex-col gap-4 rounded-card border p-6 transition-colors ${i === 2 ? "border-brand/50 bg-brand/[0.06]" : "border-white/10 bg-white/[0.03] hover:border-white/20"}`}>
+                <div key={f.title} className={`flex flex-col gap-4 rounded-card border p-6 transition-all duration-300 hover:-translate-y-1 ${i === 2 ? "border-brand/50 bg-brand/[0.06]" : "border-white/10 bg-white/[0.03] hover:border-white/25"}`}>
                   <span className="inline-flex h-12 w-12 items-center justify-center rounded-[12px] border border-brand/30 bg-brand/10 text-brand">
                     <f.icon className="h-6 w-6" />
                   </span>
@@ -355,10 +364,10 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
         {/* Comment ça marche */}
         <section id="methode" className="scroll-mt-24">
           <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(64px,9vw,110px)] sm:px-8">
-            <div className="flex flex-col items-center gap-4 text-center">
+            <Reveal className="flex flex-col items-center gap-4 text-center">
               <Chip>Comment ça marche</Chip>
               <h2 className={sectionTitle}>3 étapes vers ta transformation</h2>
-            </div>
+            </Reveal>
             <div className="mt-12 grid gap-8 md:grid-cols-3">
               {steps.map((s) => (
                 <div key={s.k} className="flex flex-col gap-3">
@@ -423,10 +432,10 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
         {/* Offres */}
         <section id="offres" className="scroll-mt-20 border-t border-white/10 bg-white/[0.015]">
           <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(64px,9vw,110px)] sm:px-8">
-            <div className="flex flex-col items-center gap-4 text-center">
+            <Reveal className="flex flex-col items-center gap-4 text-center">
               <Chip>Programmes</Chip>
               <h2 className={sectionTitle}>Choisis ton programme</h2>
-            </div>
+            </Reveal>
             {offers.length === 0 ? (
               <div className="mx-auto mt-10 max-w-[520px] rounded-card border border-white/10 bg-white/[0.03] p-6 text-center text-[15px] text-white/60">
                 Aucune offre disponible pour le moment. Reviens bientôt.
@@ -470,10 +479,10 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
         {/* FAQ */}
         <section className="border-t border-white/10">
           <div className="mx-auto w-full max-w-[820px] px-5 py-[clamp(64px,9vw,110px)] sm:px-8">
-            <div className="flex flex-col items-center gap-4 text-center">
+            <Reveal className="flex flex-col items-center gap-4 text-center">
               <Chip>FAQ</Chip>
               <h2 className={sectionTitle}>Questions fréquentes</h2>
-            </div>
+            </Reveal>
             <div className="mt-10 overflow-hidden rounded-card border border-white/10 bg-white/[0.03]">
               {faqs.map((f, i) => (
                 <details key={f.q} className={`group ${i > 0 ? "border-t border-white/10" : ""}`}>
@@ -523,6 +532,15 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
           </p>
         </div>
       </footer>
+
+      {/* CTA collante mobile */}
+      {offers.length > 0 ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#0a0b0c]/92 px-4 py-3 backdrop-blur-xl sm:hidden">
+          <a href="#offres" className="tap flex w-full items-center justify-center gap-2 rounded-btn bg-brand py-3.5 text-[15px] font-semibold text-white active:scale-[0.98]">
+            Voir les programmes <S.arrow className="h-4 w-4" />
+          </a>
+        </div>
+      ) : null}
     </div>
   );
 }
