@@ -88,7 +88,7 @@ const STEPS: {
   {
     tag: "Coach IA",
     title: "5. Ton coach, disponible 24h/24",
-    body: "Ce bouton, en bas à droite, est là 24 heures sur 24, 7 jours sur 7, pendant tes 90 jours. Ouvre-le pour discuter :",
+    body: "Ce bouton, en bas à droite, est là 24 heures sur 24, 7 jours sur 7, pendant ton programme. Ouvre-le pour discuter :",
     bullets: [
       "Pose tes questions, envoie une photo d'un repas ou d'une machine, ou dicte à la voix.",
       "Tu peux créer plusieurs conversations (icône ≡ en haut) et les retrouver quand tu veux.",
@@ -100,7 +100,7 @@ const STEPS: {
   {
     tag: "Régularité",
     title: "6. Reste sur la durée",
-    body: "Tout est pensé pour t'aider à aller au bout des 90 jours :",
+    body: "Tout est pensé pour t'aider à aller au bout de ton programme :",
     bullets: [
       "Ton score de régularité et tes séances validées s'affichent sur l'accueil.",
       "Une séance oubliée apparaît « à rattraper » : tu peux la faire quand tu veux, ton programme ne se décale pas.",

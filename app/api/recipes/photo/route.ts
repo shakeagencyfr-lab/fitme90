@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
   const ctx = await getSessionContext();
   if (!ctx) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   if (!ctx.access.coachEnabled) {
-    return NextResponse.json({ error: "Disponible pendant tes 90 jours." }, { status: 403 });
+    return NextResponse.json({ error: "Disponible pendant ton programme." }, { status: 403 });
   }
 
   const limit = await checkLimit(ctx.userId, "recipes", LIMIT_RECIPES_PER_DAY, DAY_MS);

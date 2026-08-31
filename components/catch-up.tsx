@@ -3,7 +3,7 @@ import { Card, MonoLabel } from "@/components/ui";
 
 // Bloc « séances à rattraper » : liste les entraînements passés non validés,
 // avec un lien direct vers chaque séance. Modèle « calendrier fixe » : les
-// dates ne bougent pas, on rattrape quand on veut pendant les 90 jours.
+// dates ne bougent pas, on rattrape quand on veut pendant ton programme.
 export function CatchUp({ items }: { items: { day: number; date: string }[] }) {
   if (!items.length) return null;
   const shown = items.slice(0, 4);
@@ -18,7 +18,7 @@ export function CatchUp({ items }: { items: { day: number; date: string }[] }) {
       </div>
       <p className="text-[13px] leading-[1.6] text-muted">
         Ces séances d&apos;entraînement sont passées sans être validées. Pas de panique, tu
-        peux les rattraper quand tu veux pendant tes 90 jours.
+        peux les rattraper quand tu veux pendant ton programme.
       </p>
       <div className="flex flex-col gap-2">
         {shown.map((it) => (

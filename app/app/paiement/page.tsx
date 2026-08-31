@@ -93,7 +93,7 @@ export default async function PaiementPage() {
         </h1>
         <p className="text-[15px] leading-[1.6] text-muted">
           Sans abonnement. Programme d'entraînement et accompagnement nutritionnel
-          sur 90 jours, conçus par un {COACH_CREDENTIAL.toLowerCase()}.
+          sur toute la durée du programme, conçus par un {COACH_CREDENTIAL.toLowerCase()}.
         </p>
       </header>
 
@@ -101,7 +101,7 @@ export default async function PaiementPage() {
         {[
           "Programme d'entraînement périodisé, adapté à ta salle",
           "Nutrition jour par jour, allergènes et régime respectés",
-          "Coach IA disponible pendant tes 90 jours",
+          "Coach IA disponible pendant ton programme",
           "Plan consultable 30 jours de plus après la fin",
           "Export PDF complet",
         ].map((t) => (

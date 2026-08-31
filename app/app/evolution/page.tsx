@@ -100,7 +100,7 @@ export default async function EvolutionPage() {
         <MeasurementForm />
       ) : (
         <Card>
-          <p className="text-[14px] text-muted">Le suivi est en lecture seule : tes 90 jours sont terminés.</p>
+          <p className="text-[14px] text-muted">Le suivi est en lecture seule : ton programme est terminé.</p>
         </Card>
       )}
 

@@ -12,7 +12,7 @@ export interface EvoState {
 export async function addWeight(_prev: EvoState, formData: FormData): Promise<EvoState> {
   const ctx = await getSessionContext();
   if (!ctx) return { error: "Non authentifié." };
-  if (!ctx.access.canLog) return { error: "Le suivi est actif pendant tes 90 jours." };
+  if (!ctx.access.canLog) return { error: "Le suivi est actif pendant ton programme." };
 
   const kg = Number(String(formData.get("kg")).replace(",", "."));
   if (!kg || kg < 20 || kg > 400) return { error: "Poids invalide." };
@@ -37,7 +37,7 @@ export async function addWeight(_prev: EvoState, formData: FormData): Promise<Ev
 export async function addMeasurement(_prev: EvoState, formData: FormData): Promise<EvoState> {
   const ctx = await getSessionContext();
   if (!ctx) return { error: "Non authentifié." };
-  if (!ctx.access.canLog) return { error: "Le suivi est actif pendant tes 90 jours." };
+  if (!ctx.access.canLog) return { error: "Le suivi est actif pendant ton programme." };
 
   const num = (k: string) => {
     const v = Number(String(formData.get(k) ?? "").replace(",", "."));
