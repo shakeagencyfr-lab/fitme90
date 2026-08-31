@@ -14,7 +14,7 @@ import {
 import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, setOfferActive, deleteOffer } from "@/lib/offers";
 import { createPlan, setPlanActive, deletePlan } from "@/lib/plans";
-import { cancelTenantPlan, reactivateTenantPlan } from "@/lib/tenant-billing";
+import { cancelTenantPlan, reactivateTenantPlan, syncTenantSubscription } from "@/lib/tenant-billing";
 import { deleteOwnCoachAccount } from "@/lib/account-deletion";
 import { saveTenantBranding, uploadTenantAsset, clearTenantAsset, type AssetKind } from "@/lib/branding";
 import { setTenantStripeKey, clearTenantStripeKey, testStripeKey } from "@/lib/coach-payments";
@@ -399,6 +399,15 @@ export async function reactivateMyPlan(): Promise<void> {
   if (!ctx?.profile?.tenant_id) return;
   await reactivateTenantPlan(ctx.profile.tenant_id);
   revalidatePath("/admin/abonnement");
+}
+
+/** Re-synchronise l'abonnement avec Stripe (après une régularisation de paiement). */
+export async function refreshMyBilling(): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  await syncTenantSubscription(ctx.profile.tenant_id);
+  revalidatePath("/admin/abonnement");
+  revalidatePath("/admin", "layout");
 }
 
 export interface DeleteAccountState {

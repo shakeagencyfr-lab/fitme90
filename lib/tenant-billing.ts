@@ -138,6 +138,22 @@ export async function verifyPlanCheckout(buyerTenantId: string, sessionId: strin
     if (!active) return false;
 
     const admin = createAdminClient();
+
+    // Régularisation / re-souscription : si un ancien abonnement (différent)
+    // traînait (souvent en past_due), on l'annule pour ne pas double-facturer.
+    const { data: prev } = await admin
+      .from("tenants")
+      .select("sub_id")
+      .eq("id", buyerTenantId)
+      .maybeSingle<{ sub_id: string | null }>();
+    if (prev?.sub_id && prev.sub_id !== subId) {
+      try {
+        await stripe.subscriptions.cancel(prev.sub_id);
+      } catch {
+        /* ancien abonnement déjà clos ou introuvable : on continue */
+      }
+    }
+
     await admin
       .from("tenants")
       .update({

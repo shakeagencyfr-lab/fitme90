@@ -4,6 +4,8 @@ import { AdminShell } from "@/components/admin-shell";
 import { PwaInstall } from "@/components/pwa-install";
 import { listCoachNotifications, unreadCoachNotifCount } from "@/lib/notifications";
 import { tenantNode } from "@/lib/hierarchy";
+import { tenantFreezeState } from "@/lib/freeze";
+import { CoachFreezeBanner } from "@/components/coach-freeze-banner";
 
 export const metadata = { title: "Admin, FitMe90" };
 
@@ -14,18 +16,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!ctx) notFound();
 
   const tenantId = ctx.profile?.tenant_id ?? null;
-  const [notifs, unread, node] = tenantId
+  const [notifs, unread, node, freeze] = tenantId
     ? await Promise.all([
         listCoachNotifications(tenantId),
         unreadCoachNotifCount(tenantId),
         tenantNode(tenantId),
+        tenantFreezeState(tenantId),
       ])
-    : [[], 0, null];
+    : [[], 0, null, { frozen: false, status: null }];
   const kind = node?.kind ?? "coach";
 
   return (
     <>
       <AdminShell notifs={notifs} unread={unread} email={ctx.email ?? ""} kind={kind}>
+        {freeze.frozen ? <CoachFreezeBanner /> : null}
         {children}
       </AdminShell>
       {/* Invite à installer l'app (Android : invite native ; iOS : marche à suivre). */}

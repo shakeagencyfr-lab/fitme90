@@ -5,9 +5,10 @@ import { tenantCapacity } from "@/lib/entitlements";
 import { tenantBillingState, verifyPlanCheckout } from "@/lib/tenant-billing";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatEuros } from "@/lib/config";
+import { FROZEN_STATUSES } from "@/lib/freeze";
 import { PlanChangeButton } from "@/components/plan-change-button";
 import { DeleteAccountCard } from "@/components/delete-account-card";
-import { cancelMyPlan, reactivateMyPlan } from "@/app/admin/actions";
+import { cancelMyPlan, reactivateMyPlan, refreshMyBilling } from "@/app/admin/actions";
 import { Alert, Card, MonoLabel } from "@/components/ui";
 
 const fmtDate = (iso: string | null) =>
@@ -60,6 +61,7 @@ export default async function AdminBillingPage({
   // Paliers vendables : actifs et avec au moins un prix.
   const sellable = plans.filter((p) => p.is_active && (p.price_month_cents != null || p.price_year_cents != null));
   const hasActiveSub = !!(billing?.active && billing.planId);
+  const frozen = !!(billing?.status && FROZEN_STATUSES.has(billing.status));
 
   return (
     <div className="flex flex-col gap-5">
@@ -76,6 +78,30 @@ export default async function AdminBillingPage({
 
       {justPaid ? <Alert tone="info">Paiement confirmé, ta capacité est débloquée. Merci !</Alert> : null}
       {sp.annule ? <Alert>Paiement annulé. Tu peux réessayer quand tu veux.</Alert> : null}
+
+      {frozen ? (
+        <Card className="flex flex-col gap-3 border-alert-line bg-alert/40">
+          <div className="flex flex-col gap-1">
+            <div className="font-archivo font-bold text-[16px] text-alert-ink">Paiement en échec — compte suspendu</div>
+            <p className="text-[13.5px] leading-[1.6] text-body">
+              Ton dernier paiement n&apos;a pas abouti. Tes clients n&apos;ont plus accès à leur espace tant que
+              la situation n&apos;est pas régularisée (tes données et les leurs sont conservées).
+            </p>
+            <p className="text-[13px] leading-[1.6] text-muted">
+              Pour régulariser : reprends ci-dessous l&apos;offre de ton choix (nouveau paiement), puis
+              vérifie ton statut. Si tu viens de payer, actualise pour réactiver immédiatement.
+            </p>
+          </div>
+          <form action={refreshMyBilling}>
+            <button
+              type="submit"
+              className="tap inline-flex h-10 items-center justify-center gap-1.5 rounded-btn border border-line-4 bg-surface px-4 text-[13.5px] font-semibold text-ink hover:border-ink"
+            >
+              Actualiser mon statut de paiement
+            </button>
+          </form>
+        </Card>
+      ) : null}
 
       {!tenantId ? (
         <Alert>Aucun compte (tenant) n&apos;est rattaché à ton profil.</Alert>
