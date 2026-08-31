@@ -10,7 +10,7 @@ import { parentDashboardBrand } from "@/lib/branding";
 import { CoachFreezeBanner } from "@/components/coach-freeze-banner";
 
 // Titre neutre : le dashboard est en marque blanche (marque du parent affichée
-// dans le bandeau). On évite « FitMe90 » dans l'onglet du navigateur.
+// dans le bandeau). On évite « My Fitness App » dans l'onglet du navigateur.
 export const metadata = { title: "Espace admin" };
 
 // Toutes les pages /admin/* passent par ce garde : accès réservé aux e-mails

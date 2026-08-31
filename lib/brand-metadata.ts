@@ -3,10 +3,10 @@ import type { Metadata } from "next";
 import { brandForSlug, brandForUser, type PublicBrand } from "@/lib/branding";
 
 // Métadonnées (titre + favicon d'onglet) adaptées au coach, en marque blanche.
-// Le favicon du coach devient l'icône d'onglet ; sinon on garde celui de FitMe90.
+// Le favicon du coach devient l'icône d'onglet ; sinon on garde celui de My Fitness App.
 
 function metaFor(brand: PublicBrand | null, baseTitle: string): Metadata {
-  const suffix = brand?.name ?? "FitMe90";
+  const suffix = brand?.name ?? "My Fitness App";
   const meta: Metadata = { title: `${baseTitle}, ${suffix}` };
   if (brand?.faviconUrl) {
     meta.icons = { icon: [{ url: brand.faviconUrl }], apple: [{ url: brand.faviconUrl }] };

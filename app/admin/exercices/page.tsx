@@ -6,7 +6,7 @@ import { ExerciseMediaForm } from "@/components/exercise-media-form";
 import { ExerciseCatalog } from "@/components/exercise-catalog";
 import { Alert, Card, MonoLabel } from "@/components/ui";
 
-export const metadata = { title: "Exercices, Admin FitMe90" };
+export const metadata = { title: "Exercices, Admin My Fitness App" };
 
 export default async function AdminExercisesPage() {
   const ctx = await getAdminOrNull();

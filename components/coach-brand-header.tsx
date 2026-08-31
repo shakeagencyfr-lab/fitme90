@@ -3,7 +3,7 @@ import { brandForSlug } from "@/lib/branding";
 import { CoachMark } from "@/components/brand";
 
 // En-tête de marque des pages auth : logo/nom du coach (ou du revendeur) si on
-// arrive depuis sa page, sinon FitMe90. `hrefBase` fixe la landing de retour
+// arrive depuis sa page, sinon My Fitness App. `hrefBase` fixe la landing de retour
 // ("/c" pour un coach, "/r" pour un revendeur). Rendu au-dessus du formulaire.
 export async function CoachBrandHeader({ slug, hrefBase = "/c" }: { slug?: string; hrefBase?: "/c" | "/r" }) {
   const brand = slug ? await brandForSlug(slug) : null;

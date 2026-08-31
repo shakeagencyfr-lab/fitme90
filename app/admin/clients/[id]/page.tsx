@@ -16,7 +16,7 @@ import { clientVipContext, listVipMessages, markThreadRead, type VipMessage } fr
 import { aiCostForUser, formatUsd } from "@/lib/ai-cost";
 import type { Plan } from "@/lib/program";
 
-export const metadata = { title: "Fiche client, Admin FitMe90" };
+export const metadata = { title: "Fiche client, Admin My Fitness App" };
 
 type Prof = {
   id: string;

@@ -22,7 +22,7 @@ export function CustomDomainCard({ domain }: { domain: string | null }) {
       {domain ? (
         <p className="text-[13.5px] leading-[1.6] text-muted">
           Ta page publique est servie sur ton propre domaine :{" "}
-          <span className="font-mono text-body">{domain}</span> (marque blanche totale, aucune mention FitMe90 dans l&apos;URL).
+          <span className="font-mono text-body">{domain}</span> (marque blanche totale, aucune mention My Fitness App dans l&apos;URL).
         </p>
       ) : (
         <p className="text-[13.5px] leading-[1.6] text-muted">

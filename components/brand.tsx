@@ -1,17 +1,17 @@
-// Logotype FitMe90 (README : Archivo 800, le « 90 » en accent).
+// Logotype My Fitness App (Archivo 800, le mot « App » en accent).
 export function Wordmark({ size = 20 }: { size?: number }) {
   return (
     <span
       className="font-archivo font-extrabold tracking-[-0.02em] text-ink"
       style={{ fontSize: size }}
     >
-      FitMe<span className="text-brand">90</span>
+      My Fitness <span className="text-brand">App</span>
     </span>
   );
 }
 
 // Marque affichée en marque blanche : le logo du coach s'il en a un, sinon son
-// nom, sinon le wordmark FitMe90 par défaut. `imgClass` fixe la hauteur du logo.
+// nom, sinon le wordmark My Fitness App par défaut. `imgClass` fixe la hauteur du logo.
 export function CoachMark({
   brand,
   size = 20,

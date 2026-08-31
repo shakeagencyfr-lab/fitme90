@@ -11,7 +11,7 @@ import { tenantBranding } from "@/lib/branding";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Programme revendeur — Lance ton SaaS de coaching IA en marque blanche | FitMe90",
+  title: "Programme revendeur — Lance ton SaaS de coaching IA en marque blanche | My Fitness App",
   description:
     "Deviens éditeur de ta propre plateforme de coaching sportif boostée par l'IA, en marque blanche. Revenus récurrents, marge logicielle, zéro développement. Démarrage gratuit.",
 };
@@ -48,7 +48,7 @@ const FEATURES = [
 const FAQ = [
   { q: "Dois-je savoir coder ou héberger quoi que ce soit ?", a: "Non. Tout est géré : hébergement, mises à jour, IA, sécurité. Tu te concentres sur le commercial et la relation avec tes coachs." },
   { q: "Comment je gagne de l'argent ?", a: "Tu fixes librement les prix que tu factures à tes coachs et salles (abonnements mensuels/annuels, frais de mise en place). Tu encaisses sur ton propre Stripe ; ta marge = ce que tu factures moins ton abonnement plateforme." },
-  { q: "C'est vraiment en marque blanche ?", a: "Oui, totalement : ta marque pour tes coachs, et la leur pour leurs clients. FitMe90 reste invisible dans toute la chaîne." },
+  { q: "C'est vraiment en marque blanche ?", a: "Oui, totalement : ta marque pour tes coachs, et la leur pour leurs clients. My Fitness App reste invisible dans toute la chaîne." },
   { q: "Combien pour démarrer ?", a: "Le démarrage est gratuit : lance ton espace, ta page de vente et recrute tes premiers coachs sans rien avancer." },
   { q: "Quel type de revendeur ça vise ?", a: "Entrepreneurs du fitness, agences, distributeurs d'équipement, franchises de salles, influenceurs : tous ceux qui ont une audience ou un réseau de pros à équiper." },
   { q: "Combien coûte l'IA, et qui la paie ?", a: "L'IA est en BYOK (chacun sa clé). Compte environ 1 à 2 € de consommation IA par client actif et par mois. Deux options : soit tes coachs branchent leur propre clé et paient leur IA (toi, tu n'as aucun coût IA et ne vends que les abonnements) ; soit tu deviens « revendeur IA » en fournissant ta clé et en revendant les crédits IA à tes coachs avec ta propre marge, tout en plafonnant l'usage. Dans les deux cas, la marge logicielle reste très élevée." },
@@ -364,7 +364,7 @@ export default async function RevendeursPage() {
               <Wordmark size={18} />
             )}
           </Link>
-          <p className="text-[12.5px] text-white/45">Programme revendeur FitMe90 — lance ton SaaS de coaching IA en marque blanche.</p>
+          <p className="text-[12.5px] text-white/45">Programme revendeur My Fitness App — lance ton SaaS de coaching IA en marque blanche.</p>
           <Link href="/" className="text-[13px] text-white/50 underline underline-offset-2 hover:text-white">Retour à l&apos;accueil</Link>
         </div>
       </footer>

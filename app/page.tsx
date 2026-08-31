@@ -13,7 +13,7 @@ export const viewport: Viewport = { themeColor: "#080a0c" };
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "FitMe90 — Lance ta web app de coaching sportif, boostée par l'IA",
+  title: "My Fitness App — Lance ta web app de coaching sportif, boostée par l'IA",
   description:
     "Ta propre application de coaching à ta marque, propulsée par l'IA. Sans code, sans technique, premier client offert. Programmes, nutrition, chat VIP, paiements. Un business scalable, clé en main.",
 };
@@ -180,7 +180,7 @@ export default async function Home() {
         <Reveal className="mx-auto max-w-[680px] text-center"><span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">Le déclic</span><h2 className="mt-4 font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">Change de dimension, sans changer de métier</h2></Reveal>
         <div className="mt-12 grid gap-4 md:grid-cols-2">
           <Reveal className="rounded-[24px] border border-white/10 bg-white/[0.02] p-7"><div className="inline-flex items-center gap-2 rounded-pill border border-white/10 px-3 py-1 text-[12px] font-semibold text-white/50">Sans plateforme</div><ul className="mt-5 flex flex-col gap-3.5">{COMPARE_WITHOUT.map((t) => (<li key={t} className="flex items-start gap-3 text-[14.5px] leading-[1.5] text-white/55"><span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/50"><LIcon name="x" className="h-3 w-3" /></span>{t}</li>))}</ul></Reveal>
-          <Reveal delay={120} className="relative overflow-hidden rounded-[24px] border border-brand/30 bg-gradient-to-b from-brand/[0.10] to-transparent p-7"><div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full blur-2xl" style={{ background: `color-mix(in srgb, ${accent} 30%, transparent)` }} /><div className="relative"><div className="inline-flex items-center gap-2 rounded-pill bg-brand/15 px-3 py-1 text-[12px] font-semibold text-brand">Avec FitMe90</div><ul className="mt-5 flex flex-col gap-3.5">{COMPARE_WITH.map((t) => (<li key={t} className="flex items-start gap-3 text-[14.5px] font-medium leading-[1.5] text-white/90"><span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-brand text-white"><LIcon name="check" className="h-3 w-3" /></span>{t}</li>))}</ul></div></Reveal>
+          <Reveal delay={120} className="relative overflow-hidden rounded-[24px] border border-brand/30 bg-gradient-to-b from-brand/[0.10] to-transparent p-7"><div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full blur-2xl" style={{ background: `color-mix(in srgb, ${accent} 30%, transparent)` }} /><div className="relative"><div className="inline-flex items-center gap-2 rounded-pill bg-brand/15 px-3 py-1 text-[12px] font-semibold text-brand">Avec My Fitness App</div><ul className="mt-5 flex flex-col gap-3.5">{COMPARE_WITH.map((t) => (<li key={t} className="flex items-start gap-3 text-[14.5px] font-medium leading-[1.5] text-white/90"><span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-brand text-white"><LIcon name="check" className="h-3 w-3" /></span>{t}</li>))}</ul></div></Reveal>
         </div>
       </section>
 

@@ -1,4 +1,4 @@
-export const metadata = { title: "Politique de confidentialité, FitMe90" };
+export const metadata = { title: "Politique de confidentialité, My Fitness App" };
 
 export default function ConfidentialitePage() {
   return (
@@ -7,7 +7,7 @@ export default function ConfidentialitePage() {
       <p className="muted">Dernière mise à jour : à compléter. Conforme au RGPD.</p>
 
       <h2>Responsable du traitement</h2>
-      <p>[Exploitant de FitMe90, voir mentions légales]. Contact : [e-mail].</p>
+      <p>[Exploitant de My Fitness App, voir mentions légales]. Contact : [e-mail].</p>
 
       <h2>Données collectées</h2>
       <ul>

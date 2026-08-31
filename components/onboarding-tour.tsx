@@ -111,7 +111,7 @@ const STEPS: {
   {
     tag: "Installe l'app",
     title: "7. Installe l'app et active les rappels",
-    body: "Pour ne rien oublier, installe FitMe90 sur ton téléphone et active les notifications. C'est ce qui fait la différence sur la régularité.",
+    body: "Pour ne rien oublier, installe My Fitness App sur ton téléphone et active les notifications. C'est ce qui fait la différence sur la régularité.",
     bullets: [
       "Android / Chrome : menu ⋮ en haut à droite, puis « Installer l'application » (ou « Ajouter à l'écran d'accueil »).",
       "iPhone / Safari : bouton Partager (le carré avec la flèche), puis « Sur l'écran d'accueil ». Ouvre ensuite l'app depuis son icône.",

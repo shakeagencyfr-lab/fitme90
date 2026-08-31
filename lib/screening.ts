@@ -1,5 +1,5 @@
 // ------------------------------------------------------------------ *
-// FitMe90 — EXCLUSION MÉDICALE (garde-fou juridique central)
+// My Fitness App — EXCLUSION MÉDICALE (garde-fou juridique central)
 //
 // Un coach professionnel diplômé d'État accompagne un public vers un objectif
 // de forme. Quand une pathologie, une grossesse ou un traitement médical est

@@ -149,7 +149,7 @@ export async function GET(req: Request) {
     if (!todayRest && !todayDone) {
       payload = {
         title: "Ta séance du jour t'attend",
-        body: `Jour ${day} sur ${PROGRAM_DAYS}. Ouvre FitMe90 et valide ta séance.`,
+        body: `Jour ${day} sur ${PROGRAM_DAYS}. Ouvre My Fitness App et valide ta séance.`,
         url: "/app/seance",
         tag: "seance-du-jour",
       };
@@ -164,7 +164,7 @@ export async function GET(req: Request) {
       if (late >= MISSED_RELANCE_THRESHOLD) {
         payload = {
           title: "On rattrape ensemble ?",
-          body: `Tu as ${late} séances en retard. Pas de panique, ouvre FitMe90 et rattrape-les à ton rythme.`,
+          body: `Tu as ${late} séances en retard. Pas de panique, ouvre My Fitness App et rattrape-les à ton rythme.`,
           url: "/app",
           tag: "rattrapage",
         };

@@ -46,7 +46,7 @@ export async function tenantIdForUser(userId: string): Promise<string | null> {
  * Rattache un nouveau client au tenant de son coach + mémorise l'offre choisie,
  * à partir des métadonnées d'inscription (coach_slug / offer_id passées à la
  * création du compte). Idempotent : n'écrase JAMAIS un tenant/offre déjà posé,
- * et ne fait rien si les métadonnées sont absentes (inscription FitMe90 directe).
+ * et ne fait rien si les métadonnées sont absentes (inscription My Fitness App directe).
  */
 export async function applyPendingCoachSelection(
   userId: string,

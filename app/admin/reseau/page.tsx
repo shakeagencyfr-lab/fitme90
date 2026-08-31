@@ -7,7 +7,7 @@ import { Alert, Card, MonoLabel } from "@/components/ui";
 import { CreateAccountForm } from "@/components/create-account-form";
 import { SupportLoginButton } from "@/components/support-login-button";
 
-export const metadata = { title: "Mon réseau, Admin FitMe90" };
+export const metadata = { title: "Mon réseau, Admin My Fitness App" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminNetworkPage({

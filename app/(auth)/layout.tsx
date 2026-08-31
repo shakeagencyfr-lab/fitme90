@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
-  // Le bandeau de marque (logo du coach ou FitMe90) est rendu par chaque page
+  // Le bandeau de marque (logo du coach ou My Fitness App) est rendu par chaque page
   // via <CoachBrandHeader>, pour pouvoir l'adapter au coach (marque blanche).
   return (
     <div className="min-h-dvh flex flex-col bg-paper">

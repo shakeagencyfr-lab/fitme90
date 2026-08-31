@@ -1,4 +1,4 @@
-// Constantes produit FitMe90. Centralisées pour éviter les valeurs
+// Constantes produit My Fitness App. Centralisées pour éviter les valeurs
 // magiques dispersées (prix, durées) et garder une source unique.
 
 /** Prix unique du programme, en euros. Paiement une fois pour 90 jours. */
@@ -12,7 +12,7 @@ export const CURRENCY = "eur";
 /** Durée du programme actif : coach IA disponible, séances loggables. */
 export const PROGRAM_DAYS = 90;
 
-/** Couleur d'accent par défaut de la page publique (orange FitMe90). */
+/** Couleur d'accent par défaut de la page publique (orange My Fitness App). */
 export const DEFAULT_BRAND_COLOR = "#e0551f";
 
 /** Durées d'offres proposables par un coach (en mois). Choix prédéfinis. */
@@ -164,7 +164,7 @@ export function programCreditMargin(programPriceCents: number): CreditMargin {
   return margin(usdToEur(AI_COST_PROGRAM_USD), Math.max(0, programPriceCents) / 100);
 }
 
-export const PRODUCT_NAME = "FitMe90";
+export const PRODUCT_NAME = "My Fitness App";
 
 /**
  * Domaine racine pour les sous-domaines coach (ex "fitme90.com"), sans protocole
@@ -227,7 +227,7 @@ export function isRewritablePathSegment(seg: string): boolean {
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/+$/, "");
 
 /** Nom d'hôte du site public (sans protocole), pour l'affichage "fitme90.com/xxx". */
-export const SITE_HOST = SITE_URL.replace(/^https?:\/\//, "") || ROOT_DOMAIN || "fitme90.com";
+export const SITE_HOST = SITE_URL.replace(/^https?:\/\//, "") || ROOT_DOMAIN || "myfitnessapp.fit";
 
 /** URL de la landing d'un coach par son slug d'adresse personnalisée (chemin). */
 export function coachPathUrl(slug: string | null | undefined): string | null {

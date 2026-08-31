@@ -296,7 +296,7 @@ export function buildBrief({ answers, trainDays, equipment, priorCycleNote }: Br
   const lines = describeAnswers(answers);
   const adaptations = readAdaptations(answers);
   const parts = [
-    "Profil client FitMe90 — transformation sur 90 jours.",
+    "Profil client My Fitness App — transformation sur 90 jours.",
     lines.length
       ? lines.join("\n")
       : "Profil par défaut : femme 34 ans, 68 kg, 170 cm, 3 séances/semaine.",

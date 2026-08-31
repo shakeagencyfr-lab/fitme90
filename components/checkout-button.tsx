@@ -30,7 +30,7 @@ export function CheckoutButton() {
         Payer 190 € et débloquer
       </Button>
       <p className="text-[12.5px] text-muted-2 text-center">
-        Paiement sécurisé par Stripe. Aucune donnée de carte ne transite par FitMe90.
+        Paiement sécurisé par Stripe. Aucune donnée de carte ne transite par My Fitness App.
       </p>
     </div>
   );

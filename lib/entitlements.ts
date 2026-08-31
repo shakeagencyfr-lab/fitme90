@@ -55,7 +55,7 @@ export async function tenantCapacity(tenantId: string): Promise<TenantCapacity> 
 /**
  * Capacité d'un tenant résolu par slug — utilisé au moment de l'inscription
  * d'un client sur la landing d'un coach (le slug voyage dans le formulaire).
- * Renvoie null si le slug n'existe pas (inscription FitMe90 directe : pas de
+ * Renvoie null si le slug n'existe pas (inscription My Fitness App directe : pas de
  * limite à appliquer).
  */
 export async function capacityForSlug(slug: string): Promise<TenantCapacity | null> {
