@@ -103,10 +103,7 @@ export async function applyPendingCoachSelection(
   if (ref) await attachReferral(userId, tenantId, ref);
 }
 
-/** Clé Anthropic (déchiffrée) du tenant de l'utilisateur, sinon null. */
-export async function tenantAnthropicKey(userId: string): Promise<string | null> {
-  const tenantId = await tenantIdForUser(userId);
-  if (!tenantId) return null;
+async function tenantOwnKey(tenantId: string): Promise<string | null> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("tenant_secrets")
@@ -114,6 +111,36 @@ export async function tenantAnthropicKey(userId: string): Promise<string | null>
     .eq("tenant_id", tenantId)
     .maybeSingle<{ anthropic_key_enc: string | null }>();
   return decryptSecret(data?.anthropic_key_enc ?? null);
+}
+
+/**
+ * Clé Anthropic (déchiffrée) à utiliser pour cet utilisateur, sinon null.
+ * BYOK d'abord : la clé du tenant du client (son coach). À défaut, si le
+ * revendeur parent est en mode « provider » (revendeur IA), on utilise SA clé —
+ * c'est lui qui fournit et facture l'IA à ses coachs.
+ */
+export async function tenantAnthropicKey(userId: string): Promise<string | null> {
+  const tenantId = await tenantIdForUser(userId);
+  if (!tenantId) return null;
+
+  const own = await tenantOwnKey(tenantId);
+  if (own) return own;
+
+  // Repli : clé du revendeur parent s'il est fournisseur d'IA.
+  const admin = createAdminClient();
+  const { data: t } = await admin
+    .from("tenants")
+    .select("parent_id")
+    .eq("id", tenantId)
+    .maybeSingle<{ parent_id: string | null }>();
+  if (!t?.parent_id) return null;
+  const { data: parent } = await admin
+    .from("tenants")
+    .select("ai_mode")
+    .eq("id", t.parent_id)
+    .maybeSingle<{ ai_mode: string | null }>();
+  if (parent?.ai_mode !== "provider") return null;
+  return tenantOwnKey(t.parent_id);
 }
 
 /**
