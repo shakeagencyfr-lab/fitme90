@@ -1,281 +1,681 @@
--- FitMe90 — schéma Supabase
--- À exécuter dans l'éditeur SQL du projet. Région UE obligatoire (données de santé).
+-- FitMe90 — schéma complet de la base (snapshot fidèle de la production).
 --
--- Durcissements par rapport au handoff d'origine :
---   1. `start_date` reste NULL à l'inscription et n'est posée qu'à la GÉNÉRATION
---      du programme, par le serveur (service role). Le compte à rebours des
---      90 jours démarre donc à la génération, pas à la création du compte.
---   2. `start_date` ET `paid` sont retirés des droits d'écriture du client
---      (privilèges par colonne) : sinon un client pourrait réinitialiser son
---      compteur ou se déclarer payé.
---   3. `ai_calls` (compteur de rate limit / coûts) n'a AUCUNE politique client :
---      seul le serveur (service role) y écrit et le lit. Sans ça, un client
---      pourrait supprimer ses lignes pour contourner les plafonds d'appels.
+-- Régénéré par introspection du catalogue Postgres. Contrairement à l'ancienne
+-- version, ce fichier couvre TOUT le schéma `public` (tenants, plans, offres,
+-- crédits, SMTP…), et non plus un sous-ensemble. Il est reproductible tel quel
+-- sur une base vierge Supabase (l'ordre respecte les dépendances : tables, puis
+-- clés étrangères, index, fonctions, RLS).
+--
+-- Modèle de sécurité : RLS activé partout. Les tables « données du client »
+-- portent une policy `auth.uid() = user_id`. Toutes les autres sont
+-- SERVER-ONLY (RLS activé + droits révoqués à anon/authenticated) : seul le
+-- service_role y accède, via le code serveur.
+--
+-- Note : `auth.users` est géré par Supabase (schéma auth). Les FK vers
+-- auth.users(id) supposent donc une base Supabase.
 
--- ---------------------------------------------------------------- profils
-create table public.profiles (
-  id          uuid primary key references auth.users on delete cascade,
-  email       text,
-  name        text,
-  sex         text,
-  age         int,
-  height_cm   numeric,
-  rest_hr     int,
-  paid        boolean not null default false,
-  photo_consent_at timestamptz,          -- consentement explicite photos corporelles
-  medical_hold boolean not null default false, -- exclusion médicale (voir lib/screening.ts)
-  start_date  date,                       -- posée à la génération, par le serveur
-  created_at  timestamptz not null default now()
+-- =====================================================================
+-- 1. TABLES (colonnes uniquement — les clés étrangères sont ajoutées plus bas)
+-- =====================================================================
+
+create table if not exists public.tenants (
+  id uuid not null default gen_random_uuid(),
+  slug text not null,
+  name text not null,
+  plan text not null default 'starter'::text,
+  status text not null default 'active'::text,
+  created_at timestamptz not null default now(),
+  stripe_account_id text,
+  stripe_charges_enabled boolean not null default false,
+  commission_bps integer,
+  brand_color text,
+  tagline text,
+  headline text,
+  logo_url text,
+  favicon_url text,
+  about_enabled boolean not null default false,
+  about_title text,
+  about_text text,
+  about_photo_url text,
+  notify_emails text[] not null default '{}'::text[],
+  subdomain text,
+  custom_domain text,
+  client_limit integer default 1,
+  parent_id uuid,
+  kind text not null default 'coach'::text,
+  plan_id uuid,
+  sub_id text,
+  sub_status text,
+  sub_current_period_end timestamptz,
+  sub_synced_at timestamptz,
+  sub_cancel_at_period_end boolean not null default false,
+  landing_template text not null default 'onyx'::text,
+  ai_mode text not null default 'byok'::text,
+  ai_client_daily_limit integer not null default 60,
+  ai_credit_price_cents integer not null default 40,
+  ai_program_credits integer not null default 5,
+  ai_program_credit_price_cents integer not null default 200,
+  reseller_model text not null default 'subscription'::text,
+  whitelabel_addon_price_cents integer,
+  whitelabel_enabled boolean not null default false,
+  whitelabel_sub_id text,
+  whitelabel_sub_status text,
+  constraint tenants_pkey primary key (id),
+  constraint tenants_slug_key unique (slug),
+  constraint tenants_kind_check check (kind = any (array['platform','reseller','coach'])),
+  constraint tenants_commission_bps_check check (commission_bps is null or (commission_bps >= 0 and commission_bps <= 3000))
 );
 
--- réponses au questionnaire, gardées brutes : le questionnaire évoluera
-create table public.questionnaires (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null references auth.users on delete cascade,
-  answers     jsonb not null,
-  train_days  text[] not null default '{}',
-  created_at  timestamptz not null default now()
+create table if not exists public.profiles (
+  id uuid not null,
+  email text,
+  name text,
+  sex text,
+  age integer,
+  height_cm numeric,
+  rest_hr integer,
+  paid boolean not null default false,
+  photo_consent_at timestamptz,
+  medical_hold boolean not null default false,
+  start_date date,
+  created_at timestamptz not null default now(),
+  medical_ack_at timestamptz,
+  medical_ack_name text,
+  medical_ack_reasons text[],
+  tenant_id uuid,
+  role text not null default 'client'::text,
+  selected_offer_id uuid,
+  selected_interval text,
+  subscription_id text,
+  stripe_customer_id text,
+  subscription_status text,
+  subscription_interval text,
+  subscription_current_period_end timestamptz,
+  subscription_synced_at timestamptz,
+  subscription_cancel_at_period_end boolean not null default false,
+  referral_code text,
+  referred_by uuid,
+  constraint profiles_pkey primary key (id),
+  constraint profiles_selected_interval_check check (selected_interval = any (array['month','year']))
 );
 
--- ------------------------------------------------------------- matériel
-create table public.equipment (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null references auth.users on delete cascade,
-  name        text not null,
-  confidence  text,
-  enabled     boolean not null default true,
-  source      text not null default 'photo'   -- 'photo' | 'manuel'
+create table if not exists public.plans (
+  id uuid not null default gen_random_uuid(),
+  tenant_id uuid not null,
+  name text not null,
+  price_month_cents integer,
+  price_year_cents integer,
+  client_limit integer,
+  setup_fee_cents integer not null default 0,
+  is_active boolean not null default true,
+  "position" integer not null default 0,
+  created_at timestamptz not null default now(),
+  constraint plans_pkey primary key (id)
 );
 
--- ------------------------------------------------------------- programme
-create table public.programs (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null references auth.users on delete cascade,
-  plan        jsonb not null,        -- summary, cycles, weekPlan, session, nutrition
-  version     int not null default 1,
-  model       text,
-  created_at  timestamptz not null default now()
+create table if not exists public.offers (
+  id uuid not null default gen_random_uuid(),
+  tenant_id uuid not null,
+  name text not null,
+  duration_months integer not null,
+  "position" integer not null default 0,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  price_cents integer,
+  currency text not null default 'eur'::text,
+  vip_chat boolean not null default false,
+  billing_type text not null default 'one_time'::text,
+  price_month_cents integer,
+  price_year_cents integer,
+  coach_ai boolean not null default true,
+  constraint offers_pkey primary key (id),
+  constraint offers_billing_type_check check (billing_type = any (array['one_time','subscription'])),
+  constraint offers_duration_months_check check (duration_months = any (array[1,2,3,6,9,12])),
+  constraint offers_price_cents_check check (price_cents is null or price_cents >= 0)
 );
 
--- --------------------------------------------------------------- journal
-create table public.session_logs (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null references auth.users on delete cascade,
-  day         int not null check (day between 1 and 90),
-  volume      numeric,
-  sets_done   int,
-  entries     jsonb,                 -- détail série par série
+create table if not exists public.tenant_secrets (
+  tenant_id uuid not null,
+  anthropic_key_enc text,
+  anthropic_key_hint text,
+  updated_at timestamptz not null default now(),
+  stripe_key_enc text,
+  stripe_key_hint text,
+  smtp_host text,
+  smtp_port integer,
+  smtp_user text,
+  smtp_pass_enc text,
+  smtp_from text,
+  constraint tenant_secrets_pkey primary key (tenant_id)
+);
+
+create table if not exists public.coach_config (
+  tenant_id uuid not null,
+  generation_mode text not null default 'auto'::text,
+  custom_methodology text not null default ''::text,
+  updated_at timestamptz not null default now(),
+  shop_enabled boolean not null default false,
+  coach_name text,
+  affiliation_enabled boolean not null default false,
+  affiliation_reward text,
+  coach_ai_daily_limit integer not null default 60,
+  lead_magnet_enabled boolean not null default false,
+  recipe_ai_daily_limit integer not null default 1,
+  constraint coach_config_pkey primary key (tenant_id),
+  constraint coach_config_mode check (generation_mode = any (array['auto','custom']))
+);
+
+create table if not exists public.prospects (
+  id uuid not null default gen_random_uuid(),
+  tenant_id uuid not null,
+  name text not null,
+  email text not null,
+  goal text,
+  level text,
+  days integer,
+  equipment text,
+  status text not null default 'nouveau'::text,
+  created_at timestamptz not null default now(),
+  constraint prospects_pkey primary key (id)
+);
+
+-- Portefeuille de crédits IA (Modèle B « revendeur en crédits »).
+create table if not exists public.credit_wallets (
+  tenant_id uuid not null,
+  ai_credits integer not null default 0,
+  program_credits integer not null default 0,
+  updated_at timestamptz not null default now(),
+  constraint credit_wallets_pkey primary key (tenant_id)
+);
+
+create table if not exists public.credit_ledger (
+  id bigint generated always as identity,
+  tenant_id uuid not null,
+  kind text not null,
+  delta integer not null,
+  reason text not null,
+  ref text,
+  created_at timestamptz not null default now(),
+  constraint credit_ledger_pkey primary key (id)
+);
+
+create table if not exists public.credit_packs (
+  id bigint generated always as identity,
+  tenant_id uuid not null,
+  kind text not null,
+  name text not null,
+  credits integer not null,
+  price_cents integer not null,
+  currency text not null default 'eur'::text,
+  is_active boolean not null default true,
+  "position" integer not null default 0,
+  created_at timestamptz not null default now(),
+  constraint credit_packs_pkey primary key (id)
+);
+
+create table if not exists public.questionnaires (
+  id uuid not null default gen_random_uuid(),
+  user_id uuid not null,
+  answers jsonb not null,
+  train_days text[] not null default '{}'::text[],
+  created_at timestamptz not null default now(),
+  constraint questionnaires_pkey primary key (id)
+);
+
+create table if not exists public.equipment (
+  id uuid not null default gen_random_uuid(),
+  user_id uuid not null,
+  name text not null,
+  confidence text,
+  enabled boolean not null default true,
+  source text not null default 'photo'::text,
+  constraint equipment_pkey primary key (id)
+);
+
+create table if not exists public.programs (
+  id uuid not null default gen_random_uuid(),
+  user_id uuid not null,
+  plan jsonb not null,
+  version integer not null default 1,
+  model text,
+  created_at timestamptz not null default now(),
+  duration_months integer,
+  constraint programs_pkey primary key (id),
+  constraint programs_duration_months_check check (duration_months is null or duration_months = any (array[1,2,3,6,9,12]))
+);
+
+create table if not exists public.session_logs (
+  id uuid not null default gen_random_uuid(),
+  user_id uuid not null,
+  day integer not null,
+  volume numeric,
+  sets_done integer,
+  entries jsonb,
   validated_at timestamptz not null default now(),
-  unique (user_id, day)
+  constraint session_logs_pkey primary key (id),
+  constraint session_logs_user_id_day_key unique (user_id, day),
+  constraint session_logs_day_check check (day >= 1 and day <= 90)
 );
 
-create table public.weights (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null references auth.users on delete cascade,
-  kg          numeric not null,
-  measured_at date not null default current_date
+create table if not exists public.weights (
+  id uuid not null default gen_random_uuid(),
+  user_id uuid not null,
+  kg numeric not null,
+  measured_at date not null default current_date,
+  constraint weights_pkey primary key (id)
 );
 
-create table public.measurements (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null references auth.users on delete cascade,
-  waist numeric, hips numeric, chest numeric, thigh numeric, arm numeric,
-  measured_at date not null default current_date
+create table if not exists public.measurements (
+  id uuid not null default gen_random_uuid(),
+  user_id uuid not null,
+  waist numeric,
+  hips numeric,
+  chest numeric,
+  thigh numeric,
+  arm numeric,
+  measured_at date not null default current_date,
+  constraint measurements_pkey primary key (id)
 );
 
-create table public.photos (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null references auth.users on delete cascade,
-  storage_path text not null,        -- body-photos/{user_id}/{uuid}.jpg
-  kind        text not null default 'progress',  -- 'progress' | 'gym'
-  taken_at    date not null default current_date
+create table if not exists public.photos (
+  id uuid not null default gen_random_uuid(),
+  user_id uuid not null,
+  storage_path text not null,
+  kind text not null default 'progress'::text,
+  taken_at date not null default current_date,
+  constraint photos_pkey primary key (id)
 );
 
--- conversations avec le coach : plusieurs fils, listables et consultables
-create table public.coach_conversations (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null references auth.users on delete cascade,
-  title       text not null default 'Nouvelle conversation',
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
-);
-create index on public.coach_conversations (user_id, updated_at desc);
-
-create table public.coach_messages (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null references auth.users on delete cascade,
-  conversation_id uuid references public.coach_conversations(id) on delete cascade,
-  role        text not null check (role in ('user','assistant')),
-  content     text not null,
-  created_at  timestamptz not null default now()
-);
-create index on public.coach_messages (conversation_id, created_at);
-
--- liste des courses : uniquement l'état coché, la liste elle-même est recalculée
-create table public.shopping_checks (
-  user_id     uuid not null references auth.users on delete cascade,
-  item_key    text not null,
-  primary key (user_id, item_key)
+create table if not exists public.coach_conversations (
+  id uuid not null default gen_random_uuid(),
+  user_id uuid not null,
+  title text not null default 'Nouvelle conversation'::text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint coach_conversations_pkey primary key (id)
 );
 
--- abonnements Web Push (rappels de séance, relances). Une ligne par appareil
--- (endpoint unique). Le client écrit SA ligne (RLS own_rows) ; l'envoi se fait
--- côté serveur en service role (cron). `endpoint` est la clé : un même appareil
--- qui se ré-abonne écrase proprement l'ancienne entrée.
-create table public.push_subscriptions (
-  endpoint    text primary key,
-  user_id     uuid not null references auth.users on delete cascade,
-  p256dh      text not null,
-  auth        text not null,
-  created_at  timestamptz not null default now()
+create table if not exists public.coach_messages (
+  id uuid not null default gen_random_uuid(),
+  user_id uuid not null,
+  role text not null,
+  content text not null,
+  created_at timestamptz not null default now(),
+  conversation_id uuid,
+  constraint coach_messages_pkey primary key (id),
+  constraint coach_messages_role_check check (role = any (array['user','assistant']))
 );
-create index on public.push_subscriptions (user_id);
 
--- notifications programmées par le coach vers tous les abonnés (serveur seul).
-create table public.scheduled_pushes (
-  id          uuid primary key default gen_random_uuid(),
-  -- Cloisonnement par coach : la FK vers tenants est posée par migration.
-  tenant_id   uuid,
-  title       text not null,
-  body        text not null,
-  url         text not null default '/app',
-  send_at     timestamptz not null,
-  sent_at     timestamptz,
-  created_at  timestamptz not null default now()
+create table if not exists public.coach_notes (
+  id uuid not null default gen_random_uuid(),
+  client_id uuid not null,
+  coach_id uuid,
+  tenant_id uuid,
+  body text not null,
+  created_at timestamptz not null default now(),
+  constraint coach_notes_pkey primary key (id)
 );
-create index on public.scheduled_pushes (send_at) where sent_at is null;
-alter table public.scheduled_pushes enable row level security;
-revoke all on public.scheduled_pushes from authenticated, anon;
 
--- compteur d'appels au modèle, sert au rate limit et au suivi des coûts
-create table public.ai_calls (
-  id          bigserial primary key,
-  user_id     uuid not null references auth.users on delete cascade,
-  route       text not null,
-  input_tokens int,
-  output_tokens int,
-  created_at  timestamptz not null default now()
+create table if not exists public.coach_notifications (
+  id uuid not null default gen_random_uuid(),
+  tenant_id uuid not null,
+  type text not null,
+  title text not null,
+  body text,
+  url text,
+  client_id uuid,
+  created_at timestamptz not null default now(),
+  read_at timestamptz,
+  constraint coach_notifications_pkey primary key (id)
 );
-create index on public.ai_calls (user_id, route, created_at desc);
 
--- ------------------------------------------------------------------ RLS
--- Sans ces politiques, la clé anon publique donne accès à toute la base.
--- On applique une politique « ses propres lignes » à toutes les tables
--- possédées par l'utilisateur, SAUF profiles (clé = id) et ai_calls
--- (serveur uniquement, traité plus bas).
-do $$
-declare t text;
-begin
-  foreach t in array array[
-    'questionnaires','equipment','programs','session_logs',
-    'weights','measurements','photos','coach_messages','shopping_checks',
-    'push_subscriptions','coach_conversations'
-  ]
-  loop
-    execute format('alter table public.%I enable row level security', t);
-    execute format($f$create policy "own_rows" on public.%I
-      for all using (auth.uid() = user_id) with check (auth.uid() = user_id)$f$, t);
-  end loop;
-end $$;
+create table if not exists public.vip_messages (
+  id uuid not null default gen_random_uuid(),
+  tenant_id uuid,
+  client_id uuid not null,
+  sender text not null,
+  body text,
+  image_url text,
+  created_at timestamptz not null default now(),
+  read_by_coach boolean not null default false,
+  read_by_client boolean not null default false,
+  constraint vip_messages_pkey primary key (id),
+  constraint vip_messages_sender_check check (sender = any (array['client','coach'])),
+  constraint vip_messages_content_present check ((body is not null and length(btrim(body)) > 0) or image_url is not null)
+);
 
--- profiles : lecture et mise à jour de SA ligne uniquement.
-alter table public.profiles enable row level security;
-create policy "profiles_select" on public.profiles
-  for select using (auth.uid() = id);
-create policy "profiles_update" on public.profiles
-  for update using (auth.uid() = id) with check (auth.uid() = id);
--- (pas de politique insert : le trigger handle_new_user s'en charge)
+create table if not exists public.shopping_checks (
+  user_id uuid not null,
+  item_key text not null,
+  constraint shopping_checks_pkey primary key (user_id, item_key)
+);
 
--- Verrou par colonne : le client ne peut écrire QUE ces champs de profil.
--- `paid`, `start_date`, `medical_hold` restent hors de sa portée : seul le
--- serveur (service role, qui contourne ces droits) les modifie.
-revoke update on public.profiles from authenticated, anon;
-grant update (name, sex, age, height_cm, rest_hr, photo_consent_at)
-  on public.profiles to authenticated;
+create table if not exists public.push_subscriptions (
+  endpoint text not null,
+  user_id uuid not null,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz not null default now(),
+  constraint push_subscriptions_pkey primary key (endpoint)
+);
 
--- ai_calls : verrouillé côté client. RLS activé SANS aucune politique =
--- refus total pour anon/authenticated. Le serveur y accède en service role.
-alter table public.ai_calls enable row level security;
-revoke all on public.ai_calls from authenticated, anon;
+create table if not exists public.scheduled_pushes (
+  id uuid not null default gen_random_uuid(),
+  title text not null,
+  body text not null,
+  url text not null default '/app'::text,
+  send_at timestamptz not null,
+  sent_at timestamptz,
+  created_at timestamptz not null default now(),
+  filter_sex text,
+  filter_goal text,
+  filter_phase text,
+  tenant_id uuid,
+  constraint scheduled_pushes_pkey primary key (id)
+);
 
--- ---------------------------------------------------------- profil auto
--- start_date volontairement NON renseignée ici (posée à la génération).
-create function public.handle_new_user() returns trigger
-language plpgsql security definer set search_path = public as $$
+create table if not exists public.ai_calls (
+  id bigint generated always as identity,
+  user_id uuid not null,
+  route text not null,
+  input_tokens integer,
+  output_tokens integer,
+  created_at timestamptz not null default now(),
+  constraint ai_calls_pkey primary key (id)
+);
+
+create table if not exists public.gift_codes (
+  code text not null,
+  note text,
+  used_by uuid,
+  used_at timestamptz,
+  created_at timestamptz not null default now(),
+  tenant_id uuid,
+  offer_id uuid,
+  kind text not null default 'coach_free'::text,
+  buyer_email text,
+  stripe_session_id text,
+  constraint gift_codes_pkey primary key (code),
+  constraint gift_codes_kind_check check (kind = any (array['coach_free','gift_purchase']))
+);
+
+create table if not exists public.promo_codes (
+  id uuid not null default gen_random_uuid(),
+  tenant_id uuid not null,
+  code text not null,
+  discount_type text not null,
+  discount_value integer not null,
+  active boolean not null default true,
+  max_uses integer,
+  used_count integer not null default 0,
+  expires_at timestamptz,
+  created_at timestamptz not null default now(),
+  constraint promo_codes_pkey primary key (id),
+  constraint promo_codes_tenant_id_code_key unique (tenant_id, code),
+  constraint promo_codes_discount_type_check check (discount_type = any (array['percent','fixed'])),
+  constraint promo_codes_discount_value_check check (discount_value > 0)
+);
+
+create table if not exists public.exercise_guides (
+  exercise_key text not null,
+  name text not null,
+  muscle text,
+  steps jsonb not null default '[]'::jsonb,
+  cues jsonb not null default '[]'::jsonb,
+  mistakes jsonb not null default '[]'::jsonb,
+  source text not null default 'ai'::text,
+  created_at timestamptz not null default now(),
+  constraint exercise_guides_pkey primary key (exercise_key)
+);
+
+create table if not exists public.exercise_media (
+  id uuid not null default gen_random_uuid(),
+  tenant_id uuid not null,
+  exercise_key text not null,
+  name text not null,
+  muscle text,
+  image_url text,
+  instructions text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint exercise_media_pkey primary key (id),
+  constraint exercise_media_tenant_id_exercise_key_key unique (tenant_id, exercise_key)
+);
+
+create table if not exists public.shop_products (
+  id uuid not null default gen_random_uuid(),
+  title text not null,
+  description text not null default ''::text,
+  image_url text not null default ''::text,
+  link_url text not null default ''::text,
+  "position" integer not null default 0,
+  created_at timestamptz not null default now(),
+  constraint shop_products_pkey primary key (id)
+);
+
+-- =====================================================================
+-- 2. CLÉS ÉTRANGÈRES (après création de toutes les tables)
+-- =====================================================================
+
+alter table public.profiles
+  add constraint profiles_id_fkey foreign key (id) references auth.users(id) on delete cascade,
+  add constraint profiles_tenant_id_fkey foreign key (tenant_id) references public.tenants(id),
+  add constraint profiles_selected_offer_id_fkey foreign key (selected_offer_id) references public.offers(id),
+  add constraint profiles_referred_by_fkey foreign key (referred_by) references public.profiles(id) on delete set null;
+
+alter table public.tenants
+  add constraint tenants_parent_id_fkey foreign key (parent_id) references public.tenants(id) on delete set null,
+  add constraint tenants_plan_id_fkey foreign key (plan_id) references public.plans(id) on delete set null;
+
+alter table public.plans
+  add constraint plans_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade;
+
+alter table public.offers
+  add constraint offers_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade;
+
+alter table public.tenant_secrets
+  add constraint tenant_secrets_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade;
+
+alter table public.coach_config
+  add constraint coach_config_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade;
+
+alter table public.prospects
+  add constraint prospects_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade;
+
+alter table public.credit_wallets
+  add constraint credit_wallets_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade;
+
+alter table public.credit_ledger
+  add constraint credit_ledger_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade;
+
+alter table public.credit_packs
+  add constraint credit_packs_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade;
+
+alter table public.questionnaires
+  add constraint questionnaires_user_id_fkey foreign key (user_id) references auth.users(id) on delete cascade;
+alter table public.equipment
+  add constraint equipment_user_id_fkey foreign key (user_id) references auth.users(id) on delete cascade;
+alter table public.programs
+  add constraint programs_user_id_fkey foreign key (user_id) references auth.users(id) on delete cascade;
+alter table public.session_logs
+  add constraint session_logs_user_id_fkey foreign key (user_id) references auth.users(id) on delete cascade;
+alter table public.weights
+  add constraint weights_user_id_fkey foreign key (user_id) references auth.users(id) on delete cascade;
+alter table public.measurements
+  add constraint measurements_user_id_fkey foreign key (user_id) references auth.users(id) on delete cascade;
+alter table public.photos
+  add constraint photos_user_id_fkey foreign key (user_id) references auth.users(id) on delete cascade;
+alter table public.coach_conversations
+  add constraint coach_conversations_user_id_fkey foreign key (user_id) references auth.users(id) on delete cascade;
+alter table public.coach_messages
+  add constraint coach_messages_user_id_fkey foreign key (user_id) references auth.users(id) on delete cascade,
+  add constraint coach_messages_conversation_id_fkey foreign key (conversation_id) references public.coach_conversations(id) on delete cascade;
+alter table public.coach_notes
+  add constraint coach_notes_client_id_fkey foreign key (client_id) references auth.users(id) on delete cascade;
+alter table public.coach_notifications
+  add constraint coach_notifications_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade,
+  add constraint coach_notifications_client_id_fkey foreign key (client_id) references public.profiles(id) on delete set null;
+alter table public.vip_messages
+  add constraint vip_messages_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade,
+  add constraint vip_messages_client_id_fkey foreign key (client_id) references public.profiles(id) on delete cascade;
+alter table public.shopping_checks
+  add constraint shopping_checks_user_id_fkey foreign key (user_id) references auth.users(id) on delete cascade;
+alter table public.push_subscriptions
+  add constraint push_subscriptions_user_id_fkey foreign key (user_id) references auth.users(id) on delete cascade;
+alter table public.scheduled_pushes
+  add constraint scheduled_pushes_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade;
+alter table public.ai_calls
+  add constraint ai_calls_user_id_fkey foreign key (user_id) references auth.users(id) on delete cascade;
+alter table public.gift_codes
+  add constraint gift_codes_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade,
+  add constraint gift_codes_offer_id_fkey foreign key (offer_id) references public.offers(id) on delete set null,
+  add constraint gift_codes_used_by_fkey foreign key (used_by) references auth.users(id) on delete set null;
+alter table public.promo_codes
+  add constraint promo_codes_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade;
+alter table public.exercise_media
+  add constraint exercise_media_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade;
+
+-- =====================================================================
+-- 3. INDEX
+-- =====================================================================
+
+create index if not exists ai_calls_user_id_route_created_at_idx on public.ai_calls (user_id, route, created_at desc);
+create index if not exists coach_conversations_user_idx on public.coach_conversations (user_id, updated_at desc);
+create index if not exists coach_messages_conversation_idx on public.coach_messages (conversation_id, created_at);
+create index if not exists coach_notes_client_idx on public.coach_notes (client_id, created_at desc);
+create index if not exists coach_notifications_tenant_idx on public.coach_notifications (tenant_id, created_at desc);
+create index if not exists coach_notifications_unread_idx on public.coach_notifications (tenant_id) where (read_at is null);
+create unique index if not exists credit_ledger_purchase_ref_uidx on public.credit_ledger (ref) where (reason = 'purchase'::text and ref is not null);
+create index if not exists credit_ledger_tenant_idx on public.credit_ledger (tenant_id, created_at desc);
+create index if not exists credit_packs_tenant_idx on public.credit_packs (tenant_id, "position");
+create index if not exists exercise_media_tenant_idx on public.exercise_media (tenant_id);
+create unique index if not exists gift_codes_session_uidx on public.gift_codes (stripe_session_id) where (stripe_session_id is not null);
+create index if not exists gift_codes_tenant_idx on public.gift_codes (tenant_id);
+create index if not exists offers_tenant_idx on public.offers (tenant_id, "position");
+create index if not exists plans_tenant_id_position_idx on public.plans (tenant_id, "position");
+create unique index if not exists profiles_referral_code_key on public.profiles (referral_code) where (referral_code is not null);
+create index if not exists profiles_referred_by_idx on public.profiles (referred_by);
+create index if not exists profiles_subscription_idx on public.profiles (subscription_id) where (subscription_id is not null);
+create index if not exists promo_codes_tenant_idx on public.promo_codes (tenant_id);
+create index if not exists prospects_tenant_idx on public.prospects (tenant_id, created_at desc);
+create index if not exists push_subscriptions_user_id_idx on public.push_subscriptions (user_id);
+create index if not exists scheduled_pushes_due_idx on public.scheduled_pushes (send_at) where (sent_at is null);
+create index if not exists scheduled_pushes_tenant_idx on public.scheduled_pushes (tenant_id);
+create unique index if not exists tenants_custom_domain_key on public.tenants (lower(custom_domain)) where (custom_domain is not null);
+create index if not exists tenants_parent_idx on public.tenants (parent_id);
+create unique index if not exists tenants_subdomain_key on public.tenants (lower(subdomain)) where (subdomain is not null);
+create index if not exists vip_messages_client_created_idx on public.vip_messages (client_id, created_at);
+create index if not exists vip_messages_tenant_created_idx on public.vip_messages (tenant_id, created_at);
+
+-- =====================================================================
+-- 4. FONCTIONS & TRIGGERS
+-- =====================================================================
+
+-- Crée automatiquement une ligne profiles à l'inscription d'un utilisateur auth.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
 begin
   insert into public.profiles (id, email) values (new.id, new.email);
   return new;
 end $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
-  after insert on auth.users for each row execute function public.handle_new_user();
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
 
--- ------------------------------------------------------------- stockage
--- Bucket `body-photos`, PRIVÉ. Politiques par préfixe user_id/.
-insert into storage.buckets (id, name, public) values ('body-photos','body-photos', false)
-  on conflict (id) do nothing;
+-- Débit atomique d'un portefeuille de crédits (Modèle B). Renvoie le solde
+-- restant, ou NULL si insuffisant : la condition « >= p_amount » est dans
+-- l'UPDATE, donc deux débits simultanés ne peuvent pas passer sous zéro.
+create or replace function public.debit_credit(p_tenant uuid, p_kind text, p_amount integer)
+returns integer
+language plpgsql
+as $$
+declare rem integer;
+begin
+  if p_kind = 'program' then
+    update credit_wallets
+      set program_credits = program_credits - p_amount, updated_at = now()
+      where tenant_id = p_tenant and program_credits >= p_amount
+      returning program_credits into rem;
+  else
+    update credit_wallets
+      set ai_credits = ai_credits - p_amount, updated_at = now()
+      where tenant_id = p_tenant and ai_credits >= p_amount
+      returning ai_credits into rem;
+  end if;
+  return rem;
+end;
+$$;
 
-create policy "photos_own_folder" on storage.objects for all
-  to authenticated
-  using (bucket_id = 'body-photos' and (storage.foldername(name))[1] = auth.uid()::text)
-  with check (bucket_id = 'body-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+-- =====================================================================
+-- 5. RLS — activation partout, puis droits ajustés par table
+-- =====================================================================
 
--- ------------------------------------------------------- codes cadeaux
--- Codes offrant le programme (débloquent paid=true sans paiement).
--- Usage unique : `used_by` est renseigné à l'utilisation. Verrouillé côté
--- client (aucune policy) — seul le serveur (service role) lit/écrit, sinon
--- on pourrait énumérer les codes.
-create table public.gift_codes (
-  code        text primary key,
-  note        text,                 -- à qui / pourquoi (usage interne)
-  used_by     uuid references auth.users on delete set null,
-  used_at     timestamptz,
-  created_at  timestamptz not null default now()
-);
-alter table public.gift_codes enable row level security;
-revoke all on public.gift_codes from authenticated, anon;
+-- RLS activé sur TOUTES les tables du schéma public.
+do $$
+declare r record;
+begin
+  for r in select tablename from pg_tables where schemaname = 'public'
+  loop
+    execute format('alter table public.%I enable row level security;', r.tablename);
+  end loop;
+end $$;
 
--- Exemple d'ajout d'un code (à faire côté serveur / éditeur SQL) :
---   insert into public.gift_codes (code, note) values ('MON-CODE', 'cadeau Léa');
+-- Tables SERVER-ONLY : aucune policy, droits révoqués à anon/authenticated.
+-- Tout accès passe par le service_role (code serveur). (profiles / tenants /
+-- offers NE sont PAS ici : le client y a un accès en lecture, voir section 6.)
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'plans','tenant_secrets','coach_config','prospects',
+    'credit_wallets','credit_ledger','credit_packs',
+    'coach_notes','coach_notifications','vip_messages','scheduled_pushes',
+    'ai_calls','gift_codes','promo_codes','exercise_guides','exercise_media','shop_products'
+  ]
+  loop
+    execute format('revoke all on public.%I from anon, authenticated;', t);
+  end loop;
+end $$;
 
--- Vérification (BUILD_PLAN étape 2) : connecte-toi avec deux comptes de test
--- et confirme qu'aucun ne voit les lignes ni les fichiers de l'autre.
--- Ne pas sauter cette étape.
+-- Tables « données du client » : le rôle authenticated a besoin des privilèges
+-- de table pour que les policies (section 6) s'appliquent réellement.
+grant select, insert, update, delete on
+  public.questionnaires, public.equipment, public.session_logs, public.weights,
+  public.measurements, public.photos, public.shopping_checks, public.push_subscriptions,
+  public.programs, public.coach_conversations, public.coach_messages
+  to authenticated;
+grant select, update on public.profiles to authenticated;
+grant select on public.tenants, public.offers to authenticated;
 
--- ------------------------------------------------------------- config coach
--- Configuration globale de la génération (singleton). Le coach choisit, depuis
--- le dashboard admin, de laisser l'IA décider (base evidence-based) ou de
--- personnaliser la méthodologie. Aucune policy : seul le service role y accède.
-create table if not exists public.coach_config (
-  -- Une ligne par tenant (coach/salle). La clé étrangère vers tenants est posée
-  -- par migration (la table tenants vit dans les migrations, pas ce fichier).
-  tenant_id          uuid primary key,
-  generation_mode    text not null default 'auto',
-  custom_methodology text not null default '',
-  coach_name         text,
-  shop_enabled       boolean not null default false,
-  updated_at         timestamptz not null default now(),
-  constraint coach_config_mode check (generation_mode in ('auto','custom'))
-);
--- RLS activé SANS policy + droits révoqués = refus total pour anon/authenticated
--- (comme ai_calls). Le serveur y accède en service role. La révocation évite que
--- la protection ne repose que sur RLS si celui-ci était un jour désactivé.
-alter table public.coach_config enable row level security;
-revoke all on public.coach_config from anon, authenticated;
+-- =====================================================================
+-- 6. POLICIES — accès client à ses propres données (auth.uid())
+-- =====================================================================
 
--- boutique d'affiliation : produits mis en avant par le coach. Écriture ET
--- lecture réservées au serveur (service role / dashboard) : la liste est rendue
--- côté serveur, jamais lue directement par le navigateur.
-create table if not exists public.shop_products (
-  id          uuid primary key default gen_random_uuid(),
-  title       text not null,
-  description text not null default '',
-  image_url   text not null default '',
-  link_url    text not null default '',
-  position    int not null default 0,
-  created_at  timestamptz not null default now()
-);
--- Lu côté serveur (service_role) uniquement : deny-by-default sous RLS, aucun
--- accès direct du navigateur (comme les autres tables server-only).
-alter table public.shop_products enable row level security;
-revoke all on public.shop_products from anon, authenticated;
+-- Données personnelles : le client (authenticated) accède à ses lignes.
+create policy questionnaires_own on public.questionnaires for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy equipment_own on public.equipment for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy session_logs_own on public.session_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy weights_own on public.weights for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy measurements_own on public.measurements for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy photos_own on public.photos for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy shopping_checks_own on public.shopping_checks for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy push_subscriptions_own on public.push_subscriptions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy programs_own on public.programs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy coach_conversations_own on public.coach_conversations for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy coach_messages_own on public.coach_messages for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Le client lit et met à jour SON profil.
+create policy profiles_select_own on public.profiles for select using (auth.uid() = id);
+create policy profiles_update_own on public.profiles for update using (auth.uid() = id) with check (auth.uid() = id);
+
+-- Le client lit son tenant (son coach) et les offres de ce tenant (landing).
+create policy tenants_select_own on public.tenants for select
+  using (id in (select p.tenant_id from public.profiles p where p.id = auth.uid()));
+create policy offers_select_own on public.offers for select
+  using (tenant_id in (select p.tenant_id from public.profiles p where p.id = auth.uid()));
