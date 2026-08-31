@@ -10,7 +10,7 @@ export function generateMetadata({ searchParams }: { searchParams: Promise<{ c?:
 export default async function InscriptionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ c?: string; r?: string; offer?: string; interval?: string }>;
+  searchParams: Promise<{ c?: string; r?: string; offer?: string; interval?: string; ref?: string }>;
 }) {
   const sp = await searchParams;
   const slug = sp.c ?? sp.r;
@@ -18,7 +18,7 @@ export default async function InscriptionPage({
   return (
     <CoachAccent slug={slug}>
       <CoachBrandHeader slug={slug} hrefBase={hrefBase} />
-      <SignupForm coachSlug={sp.c} offerId={sp.offer} interval={sp.interval} />
+      <SignupForm coachSlug={sp.c} offerId={sp.offer} interval={sp.interval} refCode={sp.ref} />
     </CoachAccent>
   );
 }

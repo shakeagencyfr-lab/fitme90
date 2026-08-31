@@ -16,6 +16,7 @@ import { createOffer, setOfferActive, deleteOffer } from "@/lib/offers";
 import { createPlan, setPlanActive, deletePlan } from "@/lib/plans";
 import { cancelTenantPlan, reactivateTenantPlan, syncTenantSubscription } from "@/lib/tenant-billing";
 import { deleteOwnCoachAccount } from "@/lib/account-deletion";
+import { setAffiliation } from "@/lib/affiliation";
 import { saveTenantBranding, uploadTenantAsset, clearTenantAsset, type AssetKind } from "@/lib/branding";
 import { setTenantStripeKey, clearTenantStripeKey, testStripeKey } from "@/lib/coach-payments";
 import {
@@ -745,6 +746,24 @@ export async function saveNotifyEmails(_prev: NotifyEmailsState, formData: FormD
 
   await setTenantNotifyEmails(tenantId, emails);
   revalidatePath("/admin/notifications");
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ affiliation (parrainage)
+export interface AffiliationState {
+  ok?: boolean;
+  error?: string;
+}
+
+/** Active/désactive l'affiliation et enregistre la récompense (coach). */
+export async function saveAffiliation(_prev: AffiliationState, formData: FormData): Promise<AffiliationState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const enabled = formData.get("affiliation_enabled") === "on";
+  const reward = String(formData.get("affiliation_reward") ?? "");
+  await setAffiliation(ctx.profile.tenant_id, enabled, reward);
+  revalidatePath("/admin/affiliation");
+  revalidatePath("/app/parrainage");
   return { ok: true };
 }
 

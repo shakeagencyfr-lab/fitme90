@@ -10,6 +10,7 @@ import { PwaInstall } from "@/components/pwa-install";
 import { isShopEnabled } from "@/lib/shop";
 import { clientVipContext, clientUnreadVipCount } from "@/lib/vip";
 import { clientCoachAiIncluded } from "@/lib/offers";
+import { affiliationConfig } from "@/lib/affiliation";
 import { brandForUser } from "@/lib/branding";
 import { brandMetadataForUser } from "@/lib/brand-metadata";
 import { readCoachName } from "@/lib/methodology";
@@ -33,13 +34,14 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // Config propre au tenant du client (= celui de son coach) : boutique, prénom
   // du coach IA, Chat VIP, marque blanche. En parallèle après le contexte.
   const tenantId = ctx.profile?.tenant_id ?? null;
-  const [shopEnabled, vip, brand, coachName, freeze, aiIncluded] = await Promise.all([
+  const [shopEnabled, vip, brand, coachName, freeze, aiIncluded, aff] = await Promise.all([
     isShopEnabled(tenantId),
     clientVipContext(ctx.userId),
     brandForUser(ctx.userId),
     readCoachName(tenantId),
     tenantFreezeState(tenantId),
     clientCoachAiIncluded(ctx.userId),
+    affiliationConfig(tenantId),
   ]);
 
   // Compte du coach gelé (défaut de paiement au revendeur) : les clients perdent
@@ -65,6 +67,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         dayPct={dayPct}
         shopEnabled={shopEnabled}
         vipEnabled={vip.enabled}
+        affiliationEnabled={aff.enabled}
         vipUnread={vipUnread}
         brandName={brand?.name ?? null}
         brandLogoUrl={brand?.logoUrl ?? null}
