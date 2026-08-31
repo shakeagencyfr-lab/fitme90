@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { saveBranding, type BrandingState } from "@/app/admin/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
 import { DEFAULT_BRAND_COLOR } from "@/lib/config";
@@ -8,9 +9,15 @@ import { AssetUploader } from "@/components/asset-uploader";
 import type { Branding } from "@/lib/branding";
 
 export function BrandingForm({ branding, namePlaceholder }: { branding: Branding; namePlaceholder: string }) {
+  const router = useRouter();
   const [state, action, pending] = useActionState(saveBranding, {} as BrandingState);
   const [color, setColor] = useState(branding.brandColor ?? DEFAULT_BRAND_COLOR);
   const [aboutOn, setAboutOn] = useState(branding.aboutEnabled);
+
+  // Rafraîchit la page (et l'aperçu live du studio marque blanche) après save.
+  useEffect(() => {
+    if (state.ok) router.refresh();
+  }, [state.ok, router]);
 
   return (
     <Card as="section" className="flex flex-col gap-5">
