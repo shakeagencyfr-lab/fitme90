@@ -6,6 +6,7 @@ import { tenantKeyStatus } from "@/lib/tenant";
 import { resellerMonthlyAiUsage } from "@/lib/ai-cost";
 import { listCreditPacks } from "@/lib/credits";
 import { ResellerModelForm } from "@/components/reseller-model-form";
+import { WhitelabelPriceForm } from "@/components/whitelabel-price-form";
 import { ResellerAiModeForm } from "@/components/reseller-ai-mode-form";
 import { ResellerCreditPricingForm } from "@/components/reseller-credit-pricing-form";
 import { ByokForm } from "@/components/byok-form";
@@ -25,7 +26,7 @@ export default async function AdminResellerAiPage() {
   const admin = createAdminClient();
   const { data: t } = await admin
     .from("tenants")
-    .select("ai_mode, reseller_model, ai_client_daily_limit, ai_credit_price_cents, ai_program_credit_price_cents")
+    .select("ai_mode, reseller_model, ai_client_daily_limit, ai_credit_price_cents, ai_program_credit_price_cents, whitelabel_addon_price_cents")
     .eq("id", tenantId)
     .maybeSingle<{
       ai_mode: string | null;
@@ -33,6 +34,7 @@ export default async function AdminResellerAiPage() {
       ai_client_daily_limit: number | null;
       ai_credit_price_cents: number | null;
       ai_program_credit_price_cents: number | null;
+      whitelabel_addon_price_cents: number | null;
     }>();
   const mode = t?.ai_mode === "provider" ? "provider" : "byok";
   const resellerModel = t?.reseller_model === "credits" ? "credits" : "subscription";
@@ -65,6 +67,8 @@ export default async function AdminResellerAiPage() {
       </div>
 
       <ResellerModelForm initialModel={resellerModel} keyConfigured={key.configured} packs={packs} />
+
+      <WhitelabelPriceForm initialCents={t?.whitelabel_addon_price_cents ?? null} />
 
       <ResellerAiModeForm initialMode={mode} initialLimit={limit} keyConfigured={key.configured} />
 

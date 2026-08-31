@@ -352,11 +352,15 @@ export async function notifyNewVipMessage(opts: {
         const emails = await tenantNotifyEmails(opts.tenantId);
         if (emails.length) {
           tasks.push(
-            sendEmail({
-              to: emails,
-              subject: `Nouveau message VIP de ${opts.clientName}`,
-              text: `${opts.clientName} t'a écrit dans le Chat VIP :\n\n« ${opts.preview} »\n\nRéponds depuis ton dashboard.`,
-            }),
+            sendEmail(
+              {
+                to: emails,
+                subject: `Nouveau message VIP de ${opts.clientName}`,
+                text: `${opts.clientName} t'a écrit dans le Chat VIP :\n\n« ${opts.preview} »\n\nRéponds depuis ton dashboard.`,
+              },
+              // Marque blanche : part du SMTP du coach si débloqué.
+              opts.tenantId,
+            ),
           );
         }
       }

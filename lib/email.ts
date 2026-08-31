@@ -1,8 +1,9 @@
 import "server-only";
+import { activeTenantSmtp, sendViaSmtp } from "@/lib/smtp";
 
-// Envoi d'e-mails transactionnels via Resend (API HTTPS, sans SDK). Gated sur
-// RESEND_API_KEY : sans clé, l'envoi est simplement désactivé (l'app reste
-// fonctionnelle, aucun e-mail n'est tenté) — même logique que le Web Push VAPID.
+// Envoi d'e-mails transactionnels. Par défaut via Resend (API HTTPS), gated sur
+// RESEND_API_KEY. Si un tenant a débloqué la marque blanche ET configuré son
+// SMTP perso, ses e-mails partent de SON serveur, sous SA marque.
 
 const API_KEY = process.env.RESEND_API_KEY;
 const FROM = process.env.RESEND_FROM || "FitMe90 <notifications@fitme90.app>";
@@ -23,7 +24,12 @@ export interface EmailMessage {
  * Ne jette jamais : en cas d'erreur (clé absente, réseau, 4xx/5xx), retourne
  * false pour ne pas casser le flux appelant.
  */
-export async function sendEmail(msg: EmailMessage): Promise<boolean> {
+export async function sendEmail(msg: EmailMessage, fromTenantId?: string | null): Promise<boolean> {
+  // Marque blanche : e-mails envoyés depuis le serveur SMTP du coach si dispo.
+  if (fromTenantId) {
+    const smtp = await activeTenantSmtp(fromTenantId);
+    if (smtp) return sendViaSmtp(smtp, msg);
+  }
   if (!API_KEY) return false;
   const to = msg.to.map((e) => e.trim()).filter(Boolean);
   if (to.length === 0) return false;
