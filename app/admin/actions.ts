@@ -14,6 +14,7 @@ import {
 import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, setOfferActive, deleteOffer } from "@/lib/offers";
 import { createPlan, setPlanActive, deletePlan } from "@/lib/plans";
+import { cancelTenantPlan, reactivateTenantPlan } from "@/lib/tenant-billing";
 import { saveTenantBranding, uploadTenantAsset, clearTenantAsset, type AssetKind } from "@/lib/branding";
 import { setTenantStripeKey, clearTenantStripeKey, testStripeKey } from "@/lib/coach-payments";
 import {
@@ -359,6 +360,22 @@ export async function removePlan(formData: FormData): Promise<void> {
   if (!id) return;
   await deletePlan(ctx.profile.tenant_id, id);
   revalidatePath("/admin/paliers");
+}
+
+/** Résilie l'abonnement du compte à son parent (fin de période). */
+export async function cancelMyPlan(): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  await cancelTenantPlan(ctx.profile.tenant_id);
+  revalidatePath("/admin/abonnement");
+}
+
+/** Annule une résiliation programmée. */
+export async function reactivateMyPlan(): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  await reactivateTenantPlan(ctx.profile.tenant_id);
+  revalidatePath("/admin/abonnement");
 }
 
 // ------------------------------------------------------------------ BYOK Stripe (Lot 3)

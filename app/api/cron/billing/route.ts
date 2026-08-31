@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { syncAllSubscriptions } from "@/lib/subscription";
+import { syncAllTenantSubscriptions } from "@/lib/tenant-billing";
 import { autoRegenSubscribers } from "@/lib/regen";
 
 export const runtime = "nodejs";
@@ -21,6 +22,9 @@ export async function GET(req: Request) {
     }
   }
   const { synced, restricted } = await syncAllSubscriptions();
+  // Abonnements des comptes à leur parent (Lot C·3b) : renouvellements +
+  // défaut de paiement -> retour au palier gratuit.
+  const { synced: tenantSynced, downgraded: tenantDowngraded } = await syncAllTenantSubscriptions();
   const { checked, regenerated } = await autoRegenSubscribers();
-  return NextResponse.json({ synced, restricted, checked, regenerated });
+  return NextResponse.json({ synced, restricted, tenantSynced, tenantDowngraded, checked, regenerated });
 }
