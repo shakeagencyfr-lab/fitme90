@@ -156,7 +156,7 @@ function ShotFrame({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function CoachLumen({ tenant, offers }: { tenant: PublicTenant; offers: Offer[] }) {
+export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: PublicTenant; offers: Offer[]; leadMagnet?: boolean }) {
   const accent = tenant.brandColor || DEFAULT_BRAND_COLOR;
   const title = tenant.headline || tenant.name;
   const tagline =
@@ -433,6 +433,30 @@ export function CoachLumen({ tenant, offers }: { tenant: PublicTenant; offers: O
                     ))}
                   </div>
                 ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {/* Lead magnet : mini-programme gratuit */}
+        {leadMagnet ? (
+          <section className="border-t border-black/8">
+            <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(48px,7vw,80px)] sm:px-8">
+              <div className="relative overflow-hidden rounded-[24px] border border-brand/30 bg-gradient-to-br from-brand/[0.08] to-transparent p-8 sm:p-10">
+                <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-2">
+                    <Eyebrow><S.spark className="h-3.5 w-3.5" /> Offert</Eyebrow>
+                    <h3 className="font-archivo text-[clamp(22px,3.5vw,30px)] font-extrabold leading-tight tracking-[-0.02em] text-ink">
+                      Pas encore décidé ? Reçois ton mini-programme gratuit
+                    </h3>
+                    <p className="max-w-[52ch] text-[15px] leading-[1.6] text-ink/65">
+                      Une semaine d&apos;entraînement calibrée pour toi, à télécharger en PDF. Sans engagement.
+                    </p>
+                  </div>
+                  <Link href={`/c/${tenant.slug}/decouverte`} className="tap inline-flex h-[52px] shrink-0 items-center justify-center gap-2 rounded-btn bg-brand px-7 text-[15px] font-semibold text-white shadow-[0_14px_40px_-12px_var(--color-brand)] transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">
+                    Recevoir mon programme <S.arrow className="h-4.5 w-4.5" />
+                  </Link>
+                </div>
               </div>
             </div>
           </section>

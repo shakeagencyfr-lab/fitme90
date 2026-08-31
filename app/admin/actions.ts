@@ -17,6 +17,7 @@ import { createPlan, setPlanActive, deletePlan } from "@/lib/plans";
 import { cancelTenantPlan, reactivateTenantPlan, syncTenantSubscription } from "@/lib/tenant-billing";
 import { deleteOwnCoachAccount } from "@/lib/account-deletion";
 import { setAffiliation } from "@/lib/affiliation";
+import { setProspectStatus, deleteProspect } from "@/lib/prospects";
 import { saveTenantBranding, uploadTenantAsset, clearTenantAsset, type AssetKind } from "@/lib/branding";
 import { setTenantStripeKey, clearTenantStripeKey, testStripeKey } from "@/lib/coach-payments";
 import {
@@ -774,6 +775,50 @@ export async function saveAffiliation(_prev: AffiliationState, formData: FormDat
   revalidatePath("/admin/affiliation");
   revalidatePath("/app/parrainage");
   return { ok: true };
+}
+
+// ------------------------------------------------------------------ lead magnet / prospects
+export interface LeadMagnetState {
+  ok?: boolean;
+  error?: string;
+}
+
+/** Active/désactive le mini-programme gratuit (lead magnet) sur la landing. */
+export async function setLeadMagnetEnabled(_prev: LeadMagnetState, formData: FormData): Promise<LeadMagnetState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const enabled = formData.get("lead_magnet_enabled") === "on";
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("coach_config")
+    .upsert(
+      { tenant_id: ctx.profile.tenant_id, lead_magnet_enabled: enabled, updated_at: new Date().toISOString() },
+      { onConflict: "tenant_id" },
+    );
+  if (error) return { error: "Enregistrement impossible." };
+  revalidatePath("/admin/prospects");
+  return { ok: true };
+}
+
+/** Met à jour le statut d'un prospect (form action directe). */
+export async function updateProspectStatus(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = String(formData.get("id") ?? "");
+  const status = String(formData.get("status") ?? "");
+  if (!id) return;
+  await setProspectStatus(ctx.profile.tenant_id, id, status);
+  revalidatePath("/admin/prospects");
+}
+
+/** Supprime un prospect (form action directe). */
+export async function removeProspect(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await deleteProspect(ctx.profile.tenant_id, id);
+  revalidatePath("/admin/prospects");
 }
 
 // ------------------------------------------------------------------ codes promo & cadeaux
