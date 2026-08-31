@@ -8,11 +8,14 @@ import { estimateAiMonthlyCost } from "@/lib/config";
 interface Props {
   initialMode: "byok" | "provider";
   initialLimit: number;
+  /** Le revendeur a-t-il branché sa clé Anthropic ? Sans clé, le mode
+   *  « revendeur d'IA » n'est pas activable (BYOK forcé). */
+  keyConfigured: boolean;
 }
 
 // Choix du mode de fourniture de l'IA du revendeur + plafond par client. Le
 // coût projeté (plafond atteint) s'affiche en direct pour piloter la marge.
-export function ResellerAiModeForm({ initialMode, initialLimit }: Props) {
+export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured }: Props) {
   const [state, action, saving] = useActionState(saveResellerAiMode, {} as ResellerAiState);
   const [mode, setMode] = useState<"byok" | "provider">(initialMode);
   const [limit, setLimit] = useState<number>(initialLimit);
@@ -42,12 +45,22 @@ export function ResellerAiModeForm({ initialMode, initialLimit }: Props) {
           />
           <ModeCard
             active={mode === "provider"}
-            onClick={() => setMode("provider")}
+            onClick={() => keyConfigured && setMode("provider")}
+            disabled={!keyConfigured}
             title="Revendeur d'IA"
             desc="Tu fournis ta clé à tes coachs et fixes un plafond de messages/jour par client. Tu absorbes le coût IA et le refactures dans tes paliers."
+            lockNote={keyConfigured ? undefined : "Nécessite ta clé Anthropic (à brancher plus bas)."}
           />
         </div>
         <input type="hidden" name="ai_mode" value={mode} />
+
+        {!keyConfigured ? (
+          <Alert>
+            Pour activer le mode <span className="font-semibold">revendeur d&apos;IA</span>, branche
+            d&apos;abord ta clé Anthropic dans la section ci-dessous. Tant qu&apos;aucune clé
+            n&apos;est enregistrée, tes coachs restent en BYOK (chacun sa clé).
+          </Alert>
+        ) : null}
 
         {mode === "provider" ? (
           <div className="flex flex-col gap-3 rounded-control border border-line-4 bg-surface-2 p-4">
@@ -106,7 +119,7 @@ export function ResellerAiModeForm({ initialMode, initialLimit }: Props) {
         {state.error ? <Alert>{state.error}</Alert> : null}
         {state.ok ? <Alert tone="info">Mode enregistré. Il s&apos;applique dès maintenant.</Alert> : null}
 
-        <Button type="submit" loading={saving} className="self-start h-11">
+        <Button type="submit" loading={saving} disabled={mode === "provider" && !keyConfigured} className="self-start h-11">
           Enregistrer le mode
         </Button>
       </form>
@@ -119,32 +132,48 @@ function ModeCard({
   onClick,
   title,
   desc,
+  disabled = false,
+  lockNote,
 }: {
   active: boolean;
   onClick: () => void;
   title: string;
   desc: string;
+  disabled?: boolean;
+  lockNote?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
+      aria-disabled={disabled}
       className={[
         "flex flex-col gap-1.5 rounded-control border p-4 text-left transition-colors",
-        active ? "border-brand bg-brand/5" : "border-line-4 bg-surface hover:border-ink/40",
+        disabled
+          ? "cursor-not-allowed border-line-4 bg-surface opacity-60"
+          : active
+            ? "border-brand bg-brand/5"
+            : "border-line-4 bg-surface hover:border-ink/40",
       ].join(" ")}
     >
       <div className="flex items-center gap-2">
         <span
           className={[
             "inline-block h-3 w-3 rounded-full border-2",
-            active ? "border-brand bg-brand" : "border-line-4",
+            active && !disabled ? "border-brand bg-brand" : "border-line-4",
           ].join(" ")}
         />
         <span className="font-archivo font-bold text-[15px] text-ink">{title}</span>
+        {disabled ? (
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2} className="text-muted-2" aria-hidden>
+            <rect x="5" y="11" width="14" height="9" rx="2" />
+            <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+          </svg>
+        ) : null}
       </div>
       <p className="text-[12.5px] leading-[1.55] text-muted">{desc}</p>
+      {lockNote ? <p className="text-[12px] font-medium text-[#C4471A]">{lockNote}</p> : null}
     </button>
   );
 }
