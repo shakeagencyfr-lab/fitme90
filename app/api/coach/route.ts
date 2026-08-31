@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
   if (!ctx.access.coachEnabled) {
     const msg =
       ctx.access.phase === "grace"
-        ? "Le coach IA est désactivé après 90 jours. Ton plan reste consultable."
+        ? "Le coach IA est désactivé à la fin de ton programme. Ton plan reste consultable."
         : ctx.access.phase === "ended"
           ? "Ton accès au programme est terminé."
           : ctx.access.phase === "scheduled"

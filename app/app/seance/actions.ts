@@ -28,7 +28,7 @@ export async function saveSession(payload: {
   const ctx = await getSessionContext();
   if (!ctx) return { error: "Non authentifié." };
   if (!ctx.access.canLog) {
-    return { error: "La validation des séances est possible pendant tes 90 jours." };
+    return { error: "La validation des séances est possible pendant ton programme." };
   }
   const day = Math.round(payload.day);
   if (!(day >= 1 && day <= PROGRAM_DAYS)) return { error: "Jour invalide." };

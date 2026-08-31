@@ -40,7 +40,7 @@ export async function POST() {
   if (!ctx) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   if (!ctx.access.coachEnabled) {
     return NextResponse.json(
-      { error: "Le générateur de recettes est disponible pendant tes 90 jours." },
+      { error: "Le générateur de recettes est disponible pendant ton programme." },
       { status: 403 },
     );
   }

@@ -11,7 +11,7 @@ export default function CgvPage() {
       <h2>1. Objet</h2>
       <p>
         Les présentes CGV encadrent la vente du programme My Fitness App : un programme
-        d'entraînement et un accompagnement nutritionnel personnalisés sur 90 jours,
+        d'entraînement et un accompagnement nutritionnel personnalisés sur toute la durée du programme,
         conçus par un coach professionnel diplômé d'État. Il s'agit d'un accompagnement
         sportif et de bien-être, sans visée médicale ni thérapeutique.
       </p>
@@ -25,7 +25,7 @@ export default function CgvPage() {
 
       <h2>3. Durée d'accès</h2>
       <ul>
-        <li>Coach IA et suivi actif : 90 jours à compter de la génération du programme.</li>
+        <li>Coach IA et suivi actif : la durée de l'offre souscrite à compter de la génération du programme.</li>
         <li>Consultation du plan en lecture seule : 30 jours supplémentaires.</li>
         <li>Au-delà, l'accès prend fin. Un nouveau programme peut être commandé.</li>
       </ul>

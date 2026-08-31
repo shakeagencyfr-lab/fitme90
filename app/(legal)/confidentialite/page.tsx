@@ -24,7 +24,7 @@ export default function ConfidentialitePage() {
       <h2>Finalités</h2>
       <ul>
         <li>Générer et suivre ton programme d'entraînement et de nutrition.</li>
-        <li>Fournir l'accompagnement du coach pendant 90 jours.</li>
+        <li>Fournir l'accompagnement du coach pendant la durée de ton programme.</li>
         <li>Gérer le paiement, le compte et le support.</li>
       </ul>
 

@@ -19,7 +19,7 @@ export function StartDateSetting({ current }: { current: string }) {
       <div className="flex flex-col gap-0.5">
         <MonoLabel>Date de début du programme</MonoLabel>
         <p className="text-[13px] text-muted">
-          Le décompte des 90 jours et ton calendrier partent de cette date. La
+          Le décompte de ton programme et ton calendrier partent de cette date. La
           modifier recale l&apos;agenda, les séances et la nutrition.
         </p>
       </div>

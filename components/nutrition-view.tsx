@@ -240,7 +240,7 @@ export function NutritionView({
         </div>
         <p className="text-[12px] text-muted-2">
           <span className="font-semibold text-body capitalize">{dateLong(day)}</span> · jour {day} ·{" "}
-          {dayRest ? "sans entraînement" : "entraînement"}. Les menus varient au fil des 90 jours.
+          {dayRest ? "sans entraînement" : "entraînement"}. Les menus varient au fil de ton programme.
         </p>
       </section>
 

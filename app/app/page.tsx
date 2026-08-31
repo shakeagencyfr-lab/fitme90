@@ -53,7 +53,7 @@ export default async function ProgrammePage() {
     return (
       <Empty
         title="Crée ton programme"
-        body="Réponds au questionnaire et photographie ta salle. Le paiement unique de 190 € intervient juste après, puis ton programme sur 90 jours est généré."
+        body="Réponds au questionnaire et photographie ta salle. Le paiement unique de 190 € intervient juste après, puis ton programme est généré."
         cta={{ href: "/questionnaire", label: "Commencer le questionnaire" }}
       />
     );
@@ -62,7 +62,7 @@ export default async function ProgrammePage() {
     return (
       <Empty
         title="Crée ton programme"
-        body="Réponds au questionnaire et photographie ta salle : ton programme est généré à partir de tes réponses. Le décompte des 90 jours démarre à ce moment-là."
+        body="Réponds au questionnaire et photographie ta salle : ton programme est généré à partir de tes réponses. Le décompte de ton programme démarre à ce moment-là."
         cta={{ href: "/questionnaire", label: "Commencer le questionnaire" }}
       />
     );
@@ -71,7 +71,7 @@ export default async function ProgrammePage() {
     return (
       <Empty
         title="Accès terminé"
-        body="Tes 90 jours et la période de consultation sont écoulés. Pour repartir sur un nouveau cycle, débloque un nouveau programme."
+        body="Ton programme et la période de consultation sont écoulés. Pour repartir sur un nouveau cycle, débloque un nouveau programme."
         cta={{ href: "/app/paiement", label: "Reprendre un programme" }}
       />
     );
