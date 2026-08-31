@@ -3,7 +3,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
-import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
+import { recordCall } from "@/lib/ratelimit";
+import { checkCoachAiBudget } from "@/lib/coach-ai-budget";
 import { MODELS, textOf, parseJsonLoose, effortConfig, anthropic } from "@/lib/anthropic";
 import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
@@ -15,7 +16,7 @@ import { missedDays } from "@/lib/streak";
 import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan } from "@/lib/program";
 import { revalidatePath } from "next/cache";
 import { pnum, grp } from "@/lib/nutrition";
-import { LIMIT_COACH_PER_DAY, PROGRAM_DAYS } from "@/lib/config";
+import { PROGRAM_DAYS } from "@/lib/config";
 
 const DIETS = ["Omnivore", "Flexitarien", "Végétarien", "Végétalien", "Sans porc", "Sans bœuf"];
 
@@ -88,10 +89,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 403 });
   }
 
-  const limit = await checkLimit(ctx.userId, "coach", LIMIT_COACH_PER_DAY, DAY_MS);
-  if (!limit.ok) {
+  const budget = await checkCoachAiBudget(ctx.userId, ctx.profile?.tenant_id ?? null);
+  if (!budget.ok) {
     return NextResponse.json(
-      { error: `Limite de ${limit.max} messages par jour atteinte. Reviens demain.` },
+      { error: `Limite de ${budget.limit} échanges IA par jour atteinte. Reviens demain.` },
       { status: 429 },
     );
   }

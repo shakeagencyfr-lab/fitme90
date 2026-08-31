@@ -67,6 +67,14 @@ export async function saveCoachConfig(
     .trim()
     .slice(0, 40);
 
+  // Plafond journalier du Coach IA par client (recettes incluses). 0 = illimité.
+  const rawLimit = String(formData.get("coach_ai_daily_limit") ?? "").trim();
+  let dailyLimit = 60;
+  if (rawLimit) {
+    const n = Number(rawLimit);
+    if (Number.isInteger(n) && n >= 0 && n <= 1000) dailyLimit = n;
+  }
+
   const admin = createAdminClient();
   const { error } = await admin
     .from("coach_config")
@@ -76,6 +84,7 @@ export async function saveCoachConfig(
         generation_mode: mode,
         custom_methodology: custom,
         coach_name: coachName || null,
+        coach_ai_daily_limit: dailyLimit,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "tenant_id" },

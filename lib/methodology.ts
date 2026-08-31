@@ -8,6 +8,14 @@ import { COACH_NAME } from "@/lib/config";
 
 export const BASE_METHODOLOGY = `Tu raisonnes comme un PRÉPARATEUR PHYSIQUE / COACH SPORTIF PROFESSIONNEL diplômé d'État. Le programme doit être individualisé, cohérent de bout en bout et RÉELLEMENT différent selon l'objectif du client. Deux personnes d'objectifs différents ne reçoivent JAMAIS les mêmes paramètres (volume, répétitions, intensité, repos, cardio, calories, protéines). Applique la méthode ci-dessous avec rigueur.
 
+════════ 0. PRINCIPE DIRECTEUR (raisonnement global) ════════
+Raisonne d'abord GLOBALEMENT, comme un vrai coach face à une personne réelle : lis TOUTES les réponses du questionnaire ensemble et construis une image cohérente du client AVANT de choisir des chiffres. Les blocs chiffrés ci-dessous sont des RÉFÉRENCES de professionnel à CALIBRER et à MÉLANGER selon le cas — jamais des recettes à recopier. Concrètement :
+- Pars des réponses réelles, pas d'un profil-type. Chaque décision doit pouvoir se justifier par un élément du questionnaire.
+- Réconcilie les signaux contradictoires ou mixtes (ex. « prendre du muscle » + « perdre du ventre », peu de temps + objectif ambitieux, contrainte santé + envie d'intensité) en arbitrant selon les PRIORITÉS et les CONTRAINTES déclarées ; explique implicitement l'arbitrage dans les consignes.
+- Pondère par la faisabilité : temps réel, matériel réel, niveau, énergie/sommeil, mode de vie. Un plan parfait mais intenable est un mauvais plan — vise l'adhésion durable.
+- Adapte l'ambition à la durée choisie par le client (elle est personnalisable, pas figée à 90 jours) et au point de départ.
+- Reste cohérent de bout en bout : entraînement, cardio et nutrition doivent tirer dans le MÊME sens que l'objectif dominant.
+
 ════════ 1. LECTURE DU PROFIL (avant tout) ════════
 Décide de chaque paramètre à partir des réponses : objectif principal et secondaire, niveau/expérience, nombre de séances et jours, durée de séance, rapport au cardio, exercices aimés/détestés, matériel réellement disponible, âge, sexe, poids, contraintes santé/blessures, mobilité, habitudes alimentaires, sommeil/énergie, mode de vie. Le programme doit "sentir" le sur-mesure : reprends des éléments concrets du profil dans les consignes.
 
@@ -106,12 +114,14 @@ export interface CoachConfig {
   generation_mode: "auto" | "custom";
   custom_methodology: string;
   coach_name: string;
+  coach_ai_daily_limit: number; // 0 = illimité
 }
 
 const DEFAULT_CONFIG: CoachConfig = {
   generation_mode: "auto",
   custom_methodology: "",
   coach_name: COACH_NAME,
+  coach_ai_daily_limit: 60,
 };
 
 /**
@@ -125,13 +135,14 @@ export async function readCoachConfig(tenantId: string | null): Promise<CoachCon
     const admin = createAdminClient();
     const { data } = await admin
       .from("coach_config")
-      .select("generation_mode, custom_methodology, coach_name")
+      .select("generation_mode, custom_methodology, coach_name, coach_ai_daily_limit")
       .eq("tenant_id", tenantId)
-      .maybeSingle<{ generation_mode: string; custom_methodology: string | null; coach_name: string | null }>();
+      .maybeSingle<{ generation_mode: string; custom_methodology: string | null; coach_name: string | null; coach_ai_daily_limit: number | null }>();
     return {
       generation_mode: data?.generation_mode === "custom" ? "custom" : "auto",
       custom_methodology: data?.custom_methodology ?? "",
       coach_name: (data?.coach_name ?? "").trim() || COACH_NAME,
+      coach_ai_daily_limit: data?.coach_ai_daily_limit == null ? 60 : Math.max(0, data.coach_ai_daily_limit),
     };
   } catch {
     return DEFAULT_CONFIG;

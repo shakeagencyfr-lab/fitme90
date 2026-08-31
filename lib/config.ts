@@ -55,9 +55,19 @@ export const ACCESS_DAYS = PROGRAM_DAYS + GRACE_DAYS; // 120
 
 /** Plafonds d'appels au modèle (BUILD_PLAN étape 4). */
 export const LIMIT_GENERATE_TOTAL = 3; // par utilisateur, au total
-export const LIMIT_COACH_PER_DAY = 60; // messages par jour
+export const LIMIT_COACH_PER_DAY = 60; // messages par jour (défaut historique)
 export const LIMIT_RECIPES_PER_DAY = 20;
 export const LIMIT_ANALYZE_GYM_TOTAL = 10;
+
+// ── Estimations de coût IA (BYOK), en USD. Volontairement PRUDENTES (hautes) :
+// servent à afficher un plafond de coût maîtrisé, pas une facture exacte. Les
+// tarifs Anthropic évoluent ; ce sont des repères d'ordre de grandeur.
+/** Coût estimé d'un échange Coach IA (message ou régénération de recette). */
+export const AI_COST_PER_MSG_USD = 0.05;
+/** Coût IA d'onboarding d'un client (génération programme + analyse salle). */
+export const AI_COST_ONBOARDING_USD = 0.35;
+/** Coût IA récurrent estimé par client et par mois (usage typique modéré). */
+export const AI_COST_PER_CLIENT_MONTH_USD = 1.5;
 
 export const PRODUCT_NAME = "FitMe90";
 
