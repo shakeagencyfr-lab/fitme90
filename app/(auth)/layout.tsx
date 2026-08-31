@@ -5,7 +5,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
   // via <CoachBrandHeader>, pour pouvoir l'adapter au coach (marque blanche).
   return (
     <div className="min-h-dvh flex flex-col bg-paper">
-      <main className="flex-1 flex items-center justify-center px-5 py-10 safe-top">
+      <main className="flex-1 flex items-center justify-center px-5 pb-12 pt-[max(4rem,calc(env(safe-area-inset-top)+2.5rem))]">
         <div className="w-full max-w-[400px]">{children}</div>
       </main>
     </div>
