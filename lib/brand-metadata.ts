@@ -15,13 +15,15 @@ function metaFor(brand: PublicBrand | null, baseTitle: string): Metadata {
   return meta;
 }
 
-/** Pour les pages arrivant depuis /c/[slug] (auth) : marque via le slug. */
+/** Pour les pages arrivant depuis /c/[slug] ou /r/[slug] (auth) : marque via le
+ *  slug. `c` = coach/salle, `r` = revendeur ; brandForSlug résout les deux. */
 export async function brandMetadata(
-  searchParams: Promise<{ c?: string }>,
+  searchParams: Promise<{ c?: string; r?: string }>,
   baseTitle: string,
 ): Promise<Metadata> {
   const sp = await searchParams;
-  const brand = sp.c ? await brandForSlug(sp.c) : null;
+  const slug = sp.c ?? sp.r;
+  const brand = slug ? await brandForSlug(slug) : null;
   return metaFor(brand, baseTitle);
 }
 

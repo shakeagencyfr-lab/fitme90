@@ -188,6 +188,7 @@ export default async function ResellerLandingPage({ params }: { params: Promise<
     reseller.tagline ||
     `${reseller.name} te confie une plateforme de coaching complète, propulsée par l'IA et à ta marque. Tu vends, tu encaisses, tu grandis. Sans limite.`;
   const signup = `/inscription-coach?r=${reseller.slug}`;
+  const login = `/connexion?r=${reseller.slug}`;
 
   const css = `
     @keyframes rlUp { from { opacity: 0; transform: translateY(22px) } to { opacity: 1; transform: translateY(0) } }
@@ -229,7 +230,10 @@ export default async function ResellerLandingPage({ params }: { params: Promise<
               <a key={href} href={href} className="text-[14px] font-medium text-white/60 transition-colors hover:text-white">{label}</a>
             ))}
           </nav>
-          <Link href={signup} className="tap inline-flex h-10 items-center gap-1.5 rounded-btn bg-brand px-4 text-[14px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">Démarrer gratuitement</Link>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link href={login} className="tap inline-flex h-10 items-center rounded-btn px-3 text-[14px] font-semibold text-white/70 transition-colors hover:text-white sm:px-4">Connexion</Link>
+            <Link href={signup} className="tap inline-flex h-10 items-center gap-1.5 rounded-btn bg-brand px-4 text-[14px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">Démarrer gratuitement</Link>
+          </div>
         </div>
       </header>
 
