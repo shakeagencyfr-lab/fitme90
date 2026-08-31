@@ -12,7 +12,7 @@ import { DAYS } from "@/lib/questionnaire";
 import type { Plan } from "@/lib/program";
 import { PROGRAM_DAYS } from "@/lib/config";
 
-export const metadata = { title: "Programme, FitMe90" };
+export const metadata = { title: "Programme" };
 
 async function loadPlanAndDays(
   userId: string,

@@ -6,7 +6,7 @@ import { MeasurementForm } from "@/components/evolution-forms";
 import { RecordsTable } from "@/components/records-table";
 import { personalRecords, type LogEntry } from "@/lib/records";
 
-export const metadata = { title: "Évolution, FitMe90" };
+export const metadata = { title: "Évolution" };
 
 type Measure = {
   waist: number | null;

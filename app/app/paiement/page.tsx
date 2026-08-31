@@ -8,7 +8,7 @@ import { clientOffer, subscriptionPrice } from "@/lib/offers";
 import { createClient } from "@/lib/supabase/server";
 import { PRICE_EUR, COACH_CREDENTIAL, formatEuros, programDaysForMonths } from "@/lib/config";
 
-export const metadata = { title: "Débloquer mon programme, FitMe90" };
+export const metadata = { title: "Débloquer mon programme" };
 
 export default async function PaiementPage() {
   const ctx = await getSessionContext();

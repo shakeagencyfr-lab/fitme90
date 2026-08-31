@@ -10,7 +10,7 @@ import { DepannageButton } from "@/components/depannage-button";
 import { RPE, RPE_INTRO, targetRpe, karvonen, resolveRestSeconds } from "@/lib/fitness";
 import { PROGRAM_DAYS } from "@/lib/config";
 
-export const metadata = { title: "Séance, FitMe90" };
+export const metadata = { title: "Séance" };
 
 interface SavedEntry {
   exercise: string;

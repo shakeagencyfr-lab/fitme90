@@ -54,15 +54,15 @@ describe("computeAccess — durée dynamique (offre du coach)", () => {
     expect(j31.phase).toBe("grace");
   });
 
-  it("offre 6 mois : programme = 180 jours, grâce = +30", () => {
+  it("offre 6 mois : programme = 180 jours, grâce = +14", () => {
     const d180 = programDaysForMonths(6);
     const active = computeAccess(true, start, at("2026-06-01"), d180);
     expect(active.programDays).toBe(180);
     expect(active.phase).toBe("active");
     expect(accessLabel(active)).toBe(`Jour ${active.day} sur 180`);
-    // Fenêtre de grâce = programDays + GRACE_DAYS.
-    const graceEnd = computeAccess(true, start, at("2026-07-15"), d180);
+    // Fenêtre de grâce = programDays + GRACE_DAYS (jour 181 à 194).
+    const graceEnd = computeAccess(true, start, at("2026-07-05"), d180);
     expect(graceEnd.phase).toBe("grace");
-    expect(d180 + GRACE_DAYS).toBe(210);
+    expect(d180 + GRACE_DAYS).toBe(194);
   });
 });

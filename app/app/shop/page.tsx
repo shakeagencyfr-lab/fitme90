@@ -3,7 +3,7 @@ import { getSessionContext } from "@/lib/guard";
 import { isShopEnabled, getShopProducts } from "@/lib/shop";
 import { Card, MonoLabel } from "@/components/ui";
 
-export const metadata = { title: "Boutique, FitMe90" };
+export const metadata = { title: "Boutique" };
 
 export default async function ShopPage() {
   const ctx = await getSessionContext();
@@ -69,7 +69,7 @@ export default async function ShopPage() {
         </div>
       )}
 
-      <MonoLabel>Liens partenaires. FitMe90 peut percevoir une commission sur les achats.</MonoLabel>
+      <MonoLabel>Liens partenaires : une commission peut être perçue sur les achats.</MonoLabel>
     </div>
   );
 }
