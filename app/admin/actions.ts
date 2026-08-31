@@ -13,6 +13,7 @@ import {
 } from "@/lib/tenant";
 import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, setOfferActive, deleteOffer } from "@/lib/offers";
+import { createPlan, setPlanActive, deletePlan } from "@/lib/plans";
 import { saveTenantBranding, uploadTenantAsset, clearTenantAsset, type AssetKind } from "@/lib/branding";
 import { setTenantStripeKey, clearTenantStripeKey, testStripeKey } from "@/lib/coach-payments";
 import {
@@ -288,6 +289,76 @@ export async function removeOffer(formData: FormData): Promise<void> {
   if (!id) return;
   await deleteOffer(ctx.profile.tenant_id, id);
   revalidatePath("/admin/offres");
+}
+
+// ------------------------------------------------------- Paliers d'abonnement (Lot C)
+export interface PlanState {
+  ok?: boolean;
+  error?: string;
+}
+
+// Parse un montant en euros (« 49 » ou « 29,90 ») → centimes, ou null si vide.
+function eurosToCents(raw: unknown): { cents: number | null; bad: boolean } {
+  const s = String(raw ?? "").replace(",", ".").trim();
+  if (!s) return { cents: null, bad: false };
+  const n = Math.round(Number(s) * 100);
+  return { cents: n, bad: !Number.isFinite(n) || n < 0 };
+}
+
+export async function addPlan(_prev: PlanState, formData: FormData): Promise<PlanState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+
+  const name = String(formData.get("name") ?? "");
+  const month = eurosToCents(formData.get("price_month_euros"));
+  const year = eurosToCents(formData.get("price_year_euros"));
+  const setup = eurosToCents(formData.get("setup_fee_euros"));
+  if (month.bad || year.bad || setup.bad) {
+    return { error: "Prix invalide (ex : 49 ou 29,90)." };
+  }
+
+  // Clients inclus : vide ou « illimité » = pas de limite.
+  const rawLimit = String(formData.get("client_limit") ?? "").trim().toLowerCase();
+  let clientLimit: number | null = null;
+  if (rawLimit && rawLimit !== "illimité" && rawLimit !== "illimite") {
+    const n = Number(rawLimit);
+    if (!Number.isInteger(n) || n < 0) return { error: "Nombre de clients invalide." };
+    clientLimit = n;
+  }
+
+  const res = await createPlan(tenantId, {
+    name,
+    priceMonthCents: month.cents,
+    priceYearCents: year.cents,
+    setupFeeCents: setup.cents ?? 0,
+    clientLimit,
+  });
+  if (!res.ok) return { error: res.error };
+  revalidatePath("/admin/paliers");
+  return { ok: true };
+}
+
+/** Active / désactive un palier (form action directe). */
+export async function togglePlan(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = String(formData.get("id") ?? "");
+  const active = formData.get("active") === "on";
+  if (!id) return;
+  await setPlanActive(ctx.profile.tenant_id, id, active);
+  revalidatePath("/admin/paliers");
+}
+
+/** Supprime un palier (form action directe). */
+export async function removePlan(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await deletePlan(ctx.profile.tenant_id, id);
+  revalidatePath("/admin/paliers");
 }
 
 // ------------------------------------------------------------------ BYOK Stripe (Lot 3)

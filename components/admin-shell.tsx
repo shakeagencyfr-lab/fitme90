@@ -30,6 +30,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
     items: [
       { href: "/admin", label: "Clients", icon: <I d="M16 19a4 4 0 0 0-8 0||M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7||M20 19a3.5 3.5 0 0 0-4-3.4||M8 15.6A3.5 3.5 0 0 0 4 19" /> },
       { href: "/admin/abonnements", label: "Abonnements", icon: <I d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5z||M4 10h16" /> },
+      { href: "/admin/paliers", label: "Paliers", icon: <I d="M12 4l8 4-8 4-8-4z||M4 12l8 4 8-4||M4 16l8 4 8-4" /> },
       { href: "/admin/codes", label: "Codes", icon: <I d="M4 9V7a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2a2 2 0 0 0 0 4v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2a2 2 0 0 0 0-4||M14 6v12" /> },
     ],
   },
