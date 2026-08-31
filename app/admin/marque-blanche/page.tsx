@@ -66,7 +66,7 @@ export default async function WhiteLabelPage({
   // Page publique prévisualisée + template applicable selon le niveau.
   const previewUrl =
     kind === "reseller" ? (slug ? `/r/${slug}` : null)
-    : kind === "platform" ? "/"
+    : kind === "platform" ? "/revendeurs"
     : (slug ? `/c/${slug}` : null);
   // La plateforme (landing principale) n'est pas pilotée par template.
   const template = kind === "platform" ? null : asLandingTemplate(t?.landing_template);

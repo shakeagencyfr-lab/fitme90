@@ -5,6 +5,10 @@ import { Reveal } from "@/components/reveal";
 import { RevenueSimulator } from "@/components/revenue-simulator";
 import { LIcon } from "@/components/landing-icon";
 import { DEFAULT_BRAND_COLOR } from "@/lib/config";
+import { platformTenantId } from "@/lib/hierarchy";
+import { tenantBranding } from "@/lib/branding";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Programme revendeur — Lance ton SaaS de coaching IA en marque blanche | FitMe90",
@@ -50,8 +54,15 @@ const FAQ = [
   { q: "Combien coûte l'IA, et qui la paie ?", a: "L'IA est en BYOK (chacun sa clé). Compte environ 1 à 2 € de consommation IA par client actif et par mois. Deux options : soit tes coachs branchent leur propre clé et paient leur IA (toi, tu n'as aucun coût IA et ne vends que les abonnements) ; soit tu deviens « revendeur IA » en fournissant ta clé et en revendant les crédits IA à tes coachs avec ta propre marge, tout en plafonnant l'usage. Dans les deux cas, la marge logicielle reste très élevée." },
 ];
 
-export default function RevendeursPage() {
-  const accent = DEFAULT_BRAND_COLOR;
+export default async function RevendeursPage() {
+  // Personnalisation depuis « Marque blanche » (plateforme) : logo, couleur,
+  // titre et accroche du hero. Le reste de la page reste fixe.
+  const pid = await platformTenantId();
+  const b = pid ? await tenantBranding(pid) : null;
+  const accent = b?.brandColor || DEFAULT_BRAND_COLOR;
+  const heroHeadline = b?.headline?.trim() || null;
+  const heroTagline = b?.tagline?.trim() || null;
+  const logoUrl = b?.logoUrl || null;
   const signup = "/inscription-revendeur";
   const css = `
     @keyframes rvUp { from { opacity:0; transform:translateY(22px) } to { opacity:1; transform:translateY(0) } }
@@ -81,7 +92,14 @@ export default function RevendeursPage() {
       {/* Header */}
       <header className="relative z-30 sticky top-0 border-b border-white/10 bg-[#080a0c]/70 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-[1160px] items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
-          <Link href="/" className="text-white [&_span]:text-white"><Wordmark size={22} /></Link>
+          <Link href="/" className="text-white [&_span]:text-white">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="" className="h-7 w-auto max-w-[170px] object-contain" />
+            ) : (
+              <Wordmark size={22} />
+            )}
+          </Link>
           <nav className="hidden items-center gap-7 md:flex">
             {[["#marche", "Le marché"], ["#simulateur", "Simulateur"], ["#modele", "Rémunération"], ["#faq", "FAQ"]].map(([h, l]) => (
               <a key={h} href={h} className="text-[14px] font-medium text-white/60 transition-colors hover:text-white">{l}</a>
@@ -98,10 +116,20 @@ export default function RevendeursPage() {
             <span className="size-1.5 rounded-full bg-brand" style={{ animation: "rvPulse 2s ease-in-out infinite" }} /> Programme revendeur · Marque blanche totale
           </span>
           <h1 className="rv-up mt-5 font-archivo text-[clamp(34px,6.8vw,62px)] font-extrabold leading-[1.02] tracking-[-0.035em]" style={{ animationDelay: "80ms" }}>
-            <span className="bg-gradient-to-br from-white to-white/70 bg-clip-text text-transparent">Lance ton SaaS de coaching</span> <span className="text-brand">boosté par l&apos;IA.</span>
+            {heroHeadline ? (
+              <span className="bg-gradient-to-br from-white to-white/75 bg-clip-text text-transparent">{heroHeadline}</span>
+            ) : (
+              <>
+                <span className="bg-gradient-to-br from-white to-white/70 bg-clip-text text-transparent">Lance ton SaaS de coaching</span> <span className="text-brand">boosté par l&apos;IA.</span>
+              </>
+            )}
           </h1>
           <p className="rv-up mt-5 max-w-[58ch] text-[16.5px] leading-[1.7] text-white/70" style={{ animationDelay: "160ms" }}>
-            Deviens l&apos;éditeur de ta propre plateforme de coaching sportif, en marque blanche totale. Tu revends aux coachs et aux salles, tu fixes tes prix, tu encaisses. Nous gérons la technologie et l&apos;IA. <span className="text-white/90">Démarrage gratuit.</span>
+            {heroTagline ?? (
+              <>
+                Deviens l&apos;éditeur de ta propre plateforme de coaching sportif, en marque blanche totale. Tu revends aux coachs et aux salles, tu fixes tes prix, tu encaisses. Nous gérons la technologie et l&apos;IA. <span className="text-white/90">Démarrage gratuit.</span>
+              </>
+            )}
           </p>
           <div className="rv-up mt-8 flex flex-wrap items-center gap-3" style={{ animationDelay: "240ms" }}>
             <Link href={signup} className="tap group inline-flex items-center justify-center gap-2 rounded-btn bg-brand px-7 py-4 text-[15.5px] font-semibold text-white shadow-[0_10px_40px_-8px_var(--color-brand)] transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">
@@ -328,7 +356,14 @@ export default function RevendeursPage() {
       {/* Footer */}
       <footer className="relative z-10 border-t border-white/10">
         <div className="mx-auto flex w-full max-w-[1160px] flex-col items-center gap-3 px-5 py-10 text-center sm:px-8">
-          <Link href="/" className="text-white [&_span]:text-white"><Wordmark size={18} /></Link>
+          <Link href="/" className="text-white [&_span]:text-white">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="" className="h-6 w-auto max-w-[150px] object-contain" />
+            ) : (
+              <Wordmark size={18} />
+            )}
+          </Link>
           <p className="text-[12.5px] text-white/45">Programme revendeur FitMe90 — lance ton SaaS de coaching IA en marque blanche.</p>
           <Link href="/" className="text-[13px] text-white/50 underline underline-offset-2 hover:text-white">Retour à l&apos;accueil</Link>
         </div>
