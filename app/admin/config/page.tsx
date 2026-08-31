@@ -27,6 +27,7 @@ export default async function AdminConfigPage() {
         initialCustom={cfg.custom_methodology}
         initialCoachName={cfg.coach_name}
         initialDailyLimit={cfg.coach_ai_daily_limit}
+        initialRecipeLimit={cfg.recipe_ai_daily_limit}
       />
 
       <details className="group rounded-card border border-line bg-surface p-5">

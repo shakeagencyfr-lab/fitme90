@@ -3,22 +3,29 @@
 import { useActionState, useState } from "react";
 import { saveCoachConfig, type ConfigState } from "@/app/admin/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
-import { AI_COST_PER_MSG_USD } from "@/lib/config";
+import { estimateAiMonthlyCost } from "@/lib/config";
 
 interface Props {
   initialMode: "auto" | "custom";
   initialCustom: string;
   initialCoachName: string;
   initialDailyLimit: number;
+  initialRecipeLimit: number;
 }
 
-export function CoachConfigForm({ initialMode, initialCustom, initialCoachName, initialDailyLimit }: Props) {
+export function CoachConfigForm({
+  initialMode,
+  initialCustom,
+  initialCoachName,
+  initialDailyLimit,
+  initialRecipeLimit,
+}: Props) {
   const [state, action, pending] = useActionState(saveCoachConfig, {} as ConfigState);
   const [mode, setMode] = useState<"auto" | "custom">(initialMode);
   const [limit, setLimit] = useState<number>(initialDailyLimit);
+  const [recipeLimit, setRecipeLimit] = useState<number>(initialRecipeLimit);
 
-  const perDay = limit > 0 ? limit * AI_COST_PER_MSG_USD : 0;
-  const perMonth = perDay * 30;
+  const { realMonth, ceilingMonth } = estimateAiMonthlyCost(limit, recipeLimit);
 
   return (
     <Card as="section" className="flex flex-col gap-4">
@@ -101,37 +108,60 @@ export function CoachConfigForm({ initialMode, initialCustom, initialCoachName, 
 
         <div className="h-px bg-line" />
 
-        {/* Plafond Coach IA + estimation de coût */}
+        {/* Plafonds Coach IA + estimation de coût réaliste */}
         <div className="flex flex-col gap-1">
-          <div className="font-archivo font-bold text-[17px] text-ink">Plafond du Coach IA</div>
+          <div className="font-archivo font-bold text-[17px] text-ink">Plafonds du Coach IA</div>
           <p className="text-[13px] text-muted">
-            Nombre maximum d&apos;échanges avec le Coach IA <span className="text-body">par client et par jour</span>,
-            régénérations de recettes incluses. Sert à maîtriser ton coût IA (BYOK).
+            Deux plafonds <span className="text-body">par client et par jour</span> pour maîtriser ton coût
+            IA (BYOK) : les messages du chat, et les régénérations de recettes (comptées à part car le
+            modèle recettes coûte un peu plus).
           </p>
         </div>
-        <label className="flex flex-col gap-1.5">
-          <MonoLabel>Échanges / jour / client (0 = illimité)</MonoLabel>
-          <input
-            type="number"
-            name="coach_ai_daily_limit"
-            min={0}
-            max={1000}
-            value={limit}
-            onChange={(e) => setLimit(Math.max(0, Math.min(1000, Number(e.target.value) || 0)))}
-            className="w-full max-w-[160px] rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
-          />
-        </label>
-        <div className="rounded-control border border-line-4 bg-surface-2 p-3.5 text-[13px] leading-relaxed text-muted">
-          {limit > 0 ? (
-            <>
-              Coût IA maximal si un client atteint le plafond <span className="font-semibold text-body">tous les jours</span> :
-              {" "}environ <span className="font-semibold text-body">${perDay.toFixed(2)}/jour</span> et
-              {" "}<span className="font-semibold text-body">${perMonth.toFixed(0)}/mois</span> par client
-              {" "}(estimation prudente, ~${AI_COST_PER_MSG_USD.toFixed(2)}/échange). En usage réel, c&apos;est bien moins.
-            </>
-          ) : (
-            <>Plafond désactivé (illimité) : le coût IA n&apos;est pas borné. Recommandé de fixer une limite pour maîtriser le budget.</>
-          )}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5">
+            <MonoLabel>Messages chat / jour / client (0 = illimité)</MonoLabel>
+            <input
+              type="number"
+              name="coach_ai_daily_limit"
+              min={0}
+              max={1000}
+              value={limit}
+              onChange={(e) => setLimit(Math.max(0, Math.min(1000, Number(e.target.value) || 0)))}
+              className="w-full max-w-[160px] rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <MonoLabel>Recettes régénérées / jour / client (0 = illimité)</MonoLabel>
+            <input
+              type="number"
+              name="recipe_ai_daily_limit"
+              min={0}
+              max={100}
+              value={recipeLimit}
+              onChange={(e) => setRecipeLimit(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+              className="w-full max-w-[160px] rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
+            />
+          </label>
+        </div>
+        <div className="flex flex-col gap-2 rounded-control border border-line-4 bg-surface-2 p-3.5 text-[13px] leading-relaxed text-muted">
+          <div>
+            <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">Estimation réaliste</span>
+            <div className="mt-0.5 text-body">
+              Un client actif te coûte environ{" "}
+              <span className="font-semibold text-ink">${realMonth.toFixed(2)}/mois</span> en IA
+              {" "}(≈8 messages + {recipeLimit > 0 ? recipeLimit : "quelques"} recette
+              {recipeLimit === 1 ? "" : "s"}/jour). La plupart consomment moins.
+            </div>
+          </div>
+          <div className="border-t border-line pt-2">
+            <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">Plafond de sécurité</span>
+            <div className="mt-0.5">
+              Même si un client saturait ses plafonds <span className="font-semibold text-body">tous les jours</span>,
+              le coût ne dépasserait jamais ≈{" "}
+              <span className="font-semibold text-body">${ceilingMonth.toFixed(0)}/mois</span>. À comparer au
+              prix de ton abonnement : la marge reste très large.
+            </div>
+          </div>
         </div>
 
         {state.error ? <Alert>{state.error}</Alert> : null}

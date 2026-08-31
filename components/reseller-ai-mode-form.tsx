@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { saveResellerAiMode, type ResellerAiState } from "@/app/admin/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
-import { AI_COST_PER_MSG_USD } from "@/lib/config";
+import { estimateAiMonthlyCost } from "@/lib/config";
 
 interface Props {
   initialMode: "byok" | "provider";
@@ -17,8 +17,9 @@ export function ResellerAiModeForm({ initialMode, initialLimit }: Props) {
   const [mode, setMode] = useState<"byok" | "provider">(initialMode);
   const [limit, setLimit] = useState<number>(initialLimit);
 
-  const perClientDay = limit > 0 ? limit * AI_COST_PER_MSG_USD : null;
-  const perClientMonth = perClientDay == null ? null : perClientDay * 30;
+  // Estimation par client : usage réaliste vs plafond de sécurité (recettes
+  // bornées côté coach, on retient 1/jour par défaut pour la projection).
+  const { realMonth, ceilingMonth } = estimateAiMonthlyCost(limit, 1);
 
   return (
     <Card as="section" className="flex flex-col gap-5">
@@ -67,21 +68,34 @@ export function ResellerAiModeForm({ initialMode, initialLimit }: Props) {
               </span>
             </label>
 
-            <div className="flex flex-col gap-1 border-t border-line pt-3 text-[13px] text-body">
-              <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">
-                Coût IA maximum si le plafond est atteint (estimation)
-              </div>
-              {perClientDay == null ? (
-                <span className="text-muted">Illimité — aucun plafond de coût.</span>
-              ) : (
+            <div className="flex flex-col gap-2 border-t border-line pt-3 text-[13px] text-body">
+              <div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">
+                  Coût IA réaliste par client
+                </div>
                 <span>
-                  ≈ <span className="font-semibold text-ink">${perClientDay.toFixed(2)}</span> / client / jour,
-                  soit ≈ <span className="font-semibold text-ink">${perClientMonth!.toFixed(2)}</span> / client / mois au grand maximum.
+                  ≈ <span className="font-semibold text-ink">${realMonth.toFixed(2)}</span> / client / mois pour
+                  un client actif (la plupart consomment moins).
                 </span>
-              )}
+              </div>
+              <div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">
+                  Plafond de sécurité
+                </div>
+                <span>
+                  {limit > 0 ? (
+                    <>
+                      Jamais plus de ≈ <span className="font-semibold text-ink">${ceilingMonth.toFixed(0)}</span> /
+                      client / mois, même en saturant le plafond tous les jours.
+                    </>
+                  ) : (
+                    <span className="text-muted">Plafond désactivé (illimité) — le coût n&apos;est pas borné.</span>
+                  )}
+                </span>
+              </div>
               <span className="text-[12px] text-muted-2">
-                Exemple sur la base d&apos;environ ${AI_COST_PER_MSG_USD.toFixed(2)} par message. Compare-le au
-                prix de tes paliers pour visualiser ta marge.
+                Estimation d&apos;après la conso réelle (message ≈ $0.015, recette ≈ $0.06). Compare au prix de
+                tes paliers pour visualiser ta marge.
               </span>
             </div>
           </div>
