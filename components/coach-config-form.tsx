@@ -149,17 +149,25 @@ export function CoachConfigForm({
             <div className="mt-0.5 text-body">
               Un client actif te coûte environ{" "}
               <span className="font-semibold text-ink">${realMonth.toFixed(2)}/mois</span> en IA
-              {" "}(≈8 messages + {recipeLimit > 0 ? recipeLimit : "quelques"} recette
-              {recipeLimit === 1 ? "" : "s"}/jour). La plupart consomment moins.
+              {" "}(≈8 messages + 1 recette par jour). La plupart consomment moins.
             </div>
           </div>
           <div className="border-t border-line pt-2">
             <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">Plafond de sécurité</span>
             <div className="mt-0.5">
-              Même si un client saturait ses plafonds <span className="font-semibold text-body">tous les jours</span>,
-              le coût ne dépasserait jamais ≈{" "}
-              <span className="font-semibold text-body">${ceilingMonth.toFixed(0)}/mois</span>. À comparer au
-              prix de ton abonnement : la marge reste très large.
+              {ceilingMonth == null ? (
+                <>
+                  Un de tes plafonds est sur <span className="font-semibold text-body">illimité</span> : le coût
+                  maximum n&apos;est pas borné. Fixe les deux plafonds pour garantir un coût mensuel maximum.
+                </>
+              ) : (
+                <>
+                  Même si un client saturait ses plafonds <span className="font-semibold text-body">tous les jours</span>,
+                  le coût ne dépasserait jamais ≈{" "}
+                  <span className="font-semibold text-body">${ceilingMonth.toFixed(0)}/mois</span>. À comparer au
+                  prix de ton abonnement : la marge reste très large.
+                </>
+              )}
             </div>
           </div>
         </div>
