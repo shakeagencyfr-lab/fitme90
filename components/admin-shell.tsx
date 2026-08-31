@@ -139,23 +139,27 @@ function ThemeIconButton() {
   );
 }
 
-const statusCard = (
-  <div className="flex flex-col gap-1 rounded-control border border-line bg-surface-2 px-3.5 py-3">
-    <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-2">
-      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden>
-        <path d="M5 19v-5M12 19V7M19 19v-9" />
-      </svg>
-      Statut
-    </div>
-    <div className="flex items-center gap-2 text-[14px] font-semibold text-ink">
-      <span className="relative flex size-2.5">
-        <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#3FBF6A] opacity-60" />
-        <span className="relative inline-flex size-2.5 rounded-full bg-[#3FBF6A]" />
-      </span>
-      En ligne
-    </div>
-  </div>
-);
+// Carte « conso IA du mois » (BYOK) : coût estimé cumulé depuis le 1er du mois.
+function UsageCard({ costUsd, calls }: { costUsd: number; calls: number }) {
+  const cost = `$${costUsd.toFixed(2)}`;
+  return (
+    <Link
+      href="/admin/compte"
+      className="tap flex flex-col gap-1 rounded-control border border-line bg-surface-2 px-3.5 py-3 transition-colors hover:border-ink/40"
+    >
+      <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-2">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M12 3l1.6 4L18 8.5l-4 3 1 4.5-3-2.4-3 2.4 1-4.5-4-3L10.4 7z" />
+        </svg>
+        Conso IA · ce mois
+      </div>
+      <div className="flex items-baseline gap-2 text-ink">
+        <span className="font-archivo text-[20px] font-extrabold leading-none tracking-[-0.02em]">{cost}</span>
+        <span className="text-[11px] text-muted-2">{calls} appel{calls > 1 ? "s" : ""}</span>
+      </div>
+    </Link>
+  );
+}
 
 export function AdminShell({
   children,
@@ -163,15 +167,20 @@ export function AdminShell({
   unread,
   email,
   kind,
+  aiCostUsd = 0,
+  aiCalls = 0,
 }: {
   children: ReactNode;
   notifs: CoachNotif[];
   unread: number;
   email: string;
   kind: TenantKind;
+  aiCostUsd?: number;
+  aiCalls?: number;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const usageCard = <UsageCard costUsd={aiCostUsd} calls={aiCalls} />;
 
   const brandBadge = (
     <div className="flex items-center gap-2.5">
@@ -216,7 +225,7 @@ export function AdminShell({
           <NavList pathname={pathname} kind={kind} />
         </div>
         <div className="flex flex-col gap-3">
-          {statusCard}
+          {usageCard}
           {footer}
         </div>
       </aside>
@@ -256,7 +265,7 @@ export function AdminShell({
               <NavList pathname={pathname} kind={kind} onNavigate={() => setOpen(false)} />
             </div>
             <div className="flex flex-col gap-3">
-              {statusCard}
+              {usageCard}
               {footer}
             </div>
           </div>

@@ -84,3 +84,44 @@ export function totalCost(costs: Map<string, number>): number {
 export function formatUsd(n: number): string {
   return `$${n.toFixed(2)}`;
 }
+
+/** Premier jour du mois courant (UTC), en ISO. */
+function monthStartIso(now = new Date()): string {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+}
+
+export interface TenantAiUsage {
+  costUsd: number;
+  calls: number;
+  sinceIso: string;
+}
+
+/**
+ * Conso IA (BYOK) du mois courant pour un tenant : somme du coût estimé de tous
+ * les appels IA de ses utilisateurs (clients + compte) depuis le 1er du mois.
+ */
+export async function tenantMonthlyAiUsage(tenantId: string | null): Promise<TenantAiUsage> {
+  const since = monthStartIso();
+  if (!tenantId) return { costUsd: 0, calls: 0, sinceIso: since };
+  const admin = createAdminClient();
+
+  const { data: profs } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .returns<{ id: string }[]>();
+  const ids = (profs ?? []).map((p) => p.id);
+  if (ids.length === 0) return { costUsd: 0, calls: 0, sinceIso: since };
+
+  const { data } = await admin
+    .from("ai_calls")
+    .select("user_id, route, input_tokens, output_tokens")
+    .in("user_id", ids)
+    .gte("created_at", since)
+    .limit(100000)
+    .returns<CallRow[]>();
+
+  let cost = 0;
+  for (const r of data ?? []) cost += rowCost(r);
+  return { costUsd: cost, calls: (data ?? []).length, sinceIso: since };
+}
