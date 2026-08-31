@@ -125,3 +125,52 @@ export async function tenantMonthlyAiUsage(tenantId: string | null): Promise<Ten
   for (const r of data ?? []) cost += rowCost(r);
   return { costUsd: cost, calls: (data ?? []).length, sinceIso: since };
 }
+
+export interface ResellerAiUsage {
+  costUsd: number;
+  calls: number;
+  coachCount: number;
+  sinceIso: string;
+}
+
+/**
+ * Conso IA (BYOK) du mois courant pour un REVENDEUR : somme du coût estimé des
+ * appels IA de tous les comptes rattachés à ses coachs enfants (clients + coachs).
+ * C'est ce que le revendeur absorbe quand il fournit l'IA (mode « provider »).
+ */
+export async function resellerMonthlyAiUsage(resellerTenantId: string | null): Promise<ResellerAiUsage> {
+  const since = monthStartIso();
+  const empty: ResellerAiUsage = { costUsd: 0, calls: 0, coachCount: 0, sinceIso: since };
+  if (!resellerTenantId) return empty;
+  const admin = createAdminClient();
+
+  // Coachs / salles enfants du revendeur.
+  const { data: kids } = await admin
+    .from("tenants")
+    .select("id")
+    .eq("parent_id", resellerTenantId)
+    .returns<{ id: string }[]>();
+  const tenantIds = (kids ?? []).map((k) => k.id);
+  if (tenantIds.length === 0) return empty;
+
+  // Tous les comptes (clients + coachs) de ces tenants.
+  const { data: profs } = await admin
+    .from("profiles")
+    .select("id")
+    .in("tenant_id", tenantIds)
+    .returns<{ id: string }[]>();
+  const ids = (profs ?? []).map((p) => p.id);
+  if (ids.length === 0) return { ...empty, coachCount: tenantIds.length };
+
+  const { data } = await admin
+    .from("ai_calls")
+    .select("user_id, route, input_tokens, output_tokens")
+    .in("user_id", ids)
+    .gte("created_at", since)
+    .limit(100000)
+    .returns<CallRow[]>();
+
+  let cost = 0;
+  for (const r of data ?? []) cost += rowCost(r);
+  return { costUsd: cost, calls: (data ?? []).length, coachCount: tenantIds.length, sinceIso: since };
+}

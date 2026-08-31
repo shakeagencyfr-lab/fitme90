@@ -821,6 +821,48 @@ export async function removeProspect(formData: FormData): Promise<void> {
   revalidatePath("/admin/prospects");
 }
 
+// ------------------------------------------------------------------ mode IA revendeur
+export interface ResellerAiState {
+  ok?: boolean;
+  error?: string;
+}
+
+/**
+ * Mode de fourniture de l'IA pour un revendeur :
+ *  - « byok » : chaque coach branche SA propre clé Anthropic (le revendeur ne
+ *    facture que les abonnements) ;
+ *  - « provider » : le revendeur fournit SA clé à tous ses coachs et fixe un
+ *    plafond de messages/jour par client. Il absorbe le coût IA (visible dans
+ *    « Revenu IA ») et le refacture via ses paliers.
+ * La clé Anthropic elle-même se règle via saveAnthropicKey (identique au coach).
+ */
+export async function saveResellerAiMode(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const tenantId = ctx.profile.tenant_id;
+
+  const mode = formData.get("ai_mode") === "provider" ? "provider" : "byok";
+
+  // Plafond journalier imposé aux clients des coachs (0 = illimité). Défaut 60.
+  const rawLimit = String(formData.get("ai_client_daily_limit") ?? "").trim();
+  let limit = 60;
+  if (rawLimit) {
+    const n = Number(rawLimit);
+    if (Number.isInteger(n) && n >= 0 && n <= 1000) limit = n;
+    else return { error: "Plafond invalide (0 à 1000, 0 = illimité)." };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("tenants")
+    .update({ ai_mode: mode, ai_client_daily_limit: limit })
+    .eq("id", tenantId);
+  if (error) return { error: "Enregistrement impossible." };
+
+  revalidatePath("/admin/ia-revenu");
+  return { ok: true };
+}
+
 // ------------------------------------------------------------------ codes promo & cadeaux
 export interface PromoFormState {
   ok?: boolean;
