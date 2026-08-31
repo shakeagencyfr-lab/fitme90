@@ -1,6 +1,6 @@
 import { PRICE_EUR } from "@/lib/config";
 
-export const metadata = { title: "Conditions générales de vente, FitMe90" };
+export const metadata = { title: "Conditions générales de vente, My Fitness App" };
 
 export default function CgvPage() {
   return (
@@ -10,7 +10,7 @@ export default function CgvPage() {
 
       <h2>1. Objet</h2>
       <p>
-        Les présentes CGV encadrent la vente du programme FitMe90 : un programme
+        Les présentes CGV encadrent la vente du programme My Fitness App : un programme
         d'entraînement et un accompagnement nutritionnel personnalisés sur 90 jours,
         conçus par un coach professionnel diplômé d'État. Il s'agit d'un accompagnement
         sportif et de bien-être, sans visée médicale ni thérapeutique.
@@ -40,7 +40,7 @@ export default function CgvPage() {
 
       <h2>5. Exclusion médicale</h2>
       <p>
-        FitMe90 s'adresse à des personnes en bonne santé. En cas de pathologie, de
+        My Fitness App s'adresse à des personnes en bonne santé. En cas de pathologie, de
         grossesse, de blessure ou de traitement déclaré, la génération est suspendue
         et un avis médical est requis. Le client s'engage à déclarer honnêtement son
         état de santé et à consulter un médecin en cas de doute.
@@ -51,7 +51,7 @@ export default function CgvPage() {
         Le programme est une aide à l'entraînement et à l'hygiène alimentaire. Le
         client reste responsable de l'exécution des exercices dans de bonnes
         conditions de sécurité et de la vérification des ingrédients (notamment en
-        cas d'allergie : le filtrage est une aide, pas une garantie). FitMe90 ne
+        cas d'allergie : le filtrage est une aide, pas une garantie). My Fitness App ne
         saurait être tenu responsable d'un usage contraire aux consignes ou d'une
         contre-indication non déclarée.
       </p>

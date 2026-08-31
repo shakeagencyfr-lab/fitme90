@@ -14,7 +14,7 @@ import { Alert, Card, MonoLabel } from "@/components/ui";
 const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }) : null;
 
-export const metadata = { title: "Mon abonnement, Admin FitMe90" };
+export const metadata = { title: "Mon abonnement, Admin My Fitness App" };
 
 function monthLabel(p: Plan): string | null {
   return p.price_month_cents != null ? `${formatEuros(p.price_month_cents)}/mois` : null;

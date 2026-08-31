@@ -10,7 +10,7 @@ import { tenantCapacity, type TenantCapacity } from "@/lib/entitlements";
 import { CoachOnboarding } from "@/components/coach-onboarding";
 import { Card, MonoLabel } from "@/components/ui";
 
-export const metadata = { title: "Clients, Admin FitMe90" };
+export const metadata = { title: "Clients, Admin My Fitness App" };
 
 type Prof = {
   id: string;

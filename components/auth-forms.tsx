@@ -233,7 +233,7 @@ export function ResellerSignupForm() {
         label="Nom de ton réseau / enseigne"
         required
         placeholder="Ex : NordFit Distribution"
-        help="Le nom sous lequel tu proposes FitMe90 à tes coachs / salles."
+        help="Le nom sous lequel tu proposes My Fitness App à tes coachs / salles."
       />
       <Field
         id="contact_name"

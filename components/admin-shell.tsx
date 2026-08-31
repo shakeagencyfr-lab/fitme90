@@ -184,7 +184,7 @@ export function AdminShell({
   aiCostUsd?: number;
   aiCalls?: number;
   /** Marque du tenant PARENT (revendeur pour un coach, plateforme pour un
-   *  revendeur). Le dashboard porte CETTE marque — jamais FitMe90 pour un coach. */
+   *  revendeur). Le dashboard porte CETTE marque — jamais My Fitness App pour un coach. */
   brandName?: string | null;
   brandLogoUrl?: string | null;
   brandColor?: string | null;

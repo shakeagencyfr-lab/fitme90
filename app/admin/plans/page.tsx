@@ -8,7 +8,7 @@ import { EmbedSnippet } from "@/components/embed-snippet";
 import { toggleOffer, removeOffer } from "@/app/admin/actions";
 import { Alert, Card } from "@/components/ui";
 
-export const metadata = { title: "Plans, Admin FitMe90" };
+export const metadata = { title: "Plans, Admin My Fitness App" };
 
 function durationLabel(months: number): string {
   const total = months === 12 ? "1 an" : `${months} mois`;

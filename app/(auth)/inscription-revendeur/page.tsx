@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Wordmark } from "@/components/brand";
 import { ResellerSignupForm } from "@/components/auth-forms";
 
-export const metadata = { title: "Créer mon espace revendeur, FitMe90" };
+export const metadata = { title: "Créer mon espace revendeur, My Fitness App" };
 
 // Inscription REVENDEUR / distributeur : crée un espace au-dessus des coachs /
 // salles (héberge des coachs, fixe ses prix, encaisse sur son propre Stripe).

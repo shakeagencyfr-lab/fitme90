@@ -411,7 +411,7 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
         </button>
         <div className="min-w-0 flex-1 text-center">
           <div className="truncate font-archivo font-semibold text-[15px] text-ink">{coachName}</div>
-          <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">Coach FitMe90</div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">Coach My Fitness App</div>
         </div>
         <button
           onClick={newConversation}

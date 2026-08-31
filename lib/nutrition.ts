@@ -1,5 +1,5 @@
 // ------------------------------------------------------------------ *
-// FitMe90 — logique métier NUTRITION (recopiée fidèlement de la maquette)
+// My Fitness App — logique métier NUTRITION (recopiée fidèlement de la maquette)
 //
 // Le README l'exige : c'est le seul endroit du projet où un bug est
 // invisible à l'œil nu (filtrage d'allergènes, régimes, mise à l'échelle

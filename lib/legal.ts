@@ -1,7 +1,7 @@
 import { PRODUCT_NAME } from "@/lib/config";
 
 // ------------------------------------------------------------------ *
-// FitMe90 — Décharge de responsabilité / consentement éclairé
+// My Fitness App — Décharge de responsabilité / consentement éclairé
 //
 // Quand une situation de santé est déclarée au questionnaire (traitement,
 // pathologie, grossesse…), on N'EMPÊCHE PLUS l'activation : on présente une

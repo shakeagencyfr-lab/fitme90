@@ -1,4 +1,4 @@
-// Icônes de landing (stroke, currentColor). Partagées entre la landing FitMe90
+// Icônes de landing (stroke, currentColor). Partagées entre la landing My Fitness App
 // et les pages publiques des coachs.
 export type IconProps = { className?: string };
 

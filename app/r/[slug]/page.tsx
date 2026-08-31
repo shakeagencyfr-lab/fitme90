@@ -15,7 +15,7 @@ export async function generateViewport({ params }: { params: Promise<{ slug: str
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const data = await publicResellerBySlug(slug);
-  if (!data) return { title: "FitMe90" };
+  if (!data) return { title: "My Fitness App" };
   return {
     title: `${data.reseller.name} — Lance ton business de coaching boosté par l'IA`,
     description:

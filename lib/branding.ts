@@ -137,7 +137,7 @@ export interface DashboardBrand {
  * Marque du tenant PARENT — celle qui doit habiller le dashboard d'un tenant.
  * Un coach voit la marque de son revendeur ; un revendeur celle de la plateforme.
  * Renvoie null si le tenant n'a pas de parent (plateforme) : le bandeau retombe
- * alors sur le wordmark FitMe90 par défaut.
+ * alors sur le wordmark My Fitness App par défaut.
  */
 export async function parentDashboardBrand(tenantId: string | null): Promise<DashboardBrand | null> {
   if (!tenantId) return null;

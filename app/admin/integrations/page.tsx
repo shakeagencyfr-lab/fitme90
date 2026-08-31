@@ -7,7 +7,7 @@ import { ByokForm } from "@/components/byok-form";
 import { StripeKeyForm } from "@/components/stripe-key-form";
 import { Alert } from "@/components/ui";
 
-export const metadata = { title: "Intégrations, Admin FitMe90" };
+export const metadata = { title: "Intégrations, Admin My Fitness App" };
 
 export default async function AdminIntegrationsPage() {
   const ctx = await getAdminOrNull();

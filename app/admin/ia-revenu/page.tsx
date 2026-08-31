@@ -13,7 +13,7 @@ import { ByokForm } from "@/components/byok-form";
 import { Alert, Card, MonoLabel } from "@/components/ui";
 import { DEFAULT_AI_CREDIT_PRICE_CENTS, DEFAULT_AI_PROGRAM_CREDIT_PRICE_CENTS } from "@/lib/config";
 
-export const metadata = { title: "Revenu IA, Admin FitMe90" };
+export const metadata = { title: "Revenu IA, Admin My Fitness App" };
 
 export default async function AdminResellerAiPage() {
   const ctx = await getAdminOrNull();

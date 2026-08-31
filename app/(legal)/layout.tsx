@@ -6,14 +6,14 @@ export default function LegalLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-dvh bg-paper">
       <header className="px-5 sm:px-8 pt-6 safe-top">
-        <Link href="/" aria-label="Accueil FitMe90">
+        <Link href="/" aria-label="Accueil My Fitness App">
           <Wordmark />
         </Link>
       </header>
       <main className="mx-auto w-full max-w-[760px] px-5 py-10 sm:px-8">
         <div className="mb-8 rounded-control border border-alert-line bg-alert px-4 py-3 text-[13px] leading-relaxed text-alert-ink">
           <strong>Brouillon.</strong> Ce texte est un modèle de départ à faire
-          relire et compléter par un juriste avant toute mise en ligne. FitMe90
+          relire et compléter par un juriste avant toute mise en ligne. My Fitness App
           vend de l'accompagnement lié à la santé : la responsabilité n'est pas
           théorique.
         </div>

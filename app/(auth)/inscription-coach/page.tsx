@@ -16,7 +16,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const sp = await searchParams;
   const brand = sp.r ? await brandForSlug(sp.r) : null;
-  const meta: Metadata = { title: `Créer mon espace coach, ${brand?.name ?? "FitMe90"}` };
+  const meta: Metadata = { title: `Créer mon espace coach, ${brand?.name ?? "My Fitness App"}` };
   if (brand?.faviconUrl) meta.icons = { icon: [{ url: brand.faviconUrl }], apple: [{ url: brand.faviconUrl }] };
   return meta;
 }

@@ -62,7 +62,7 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
     .maybeSingle<ProfileRow>();
 
   // Durée du programme = celle de l'offre achetée (portée par le programme).
-  // Défaut : 90 jours (FitMe90 historique, programmes sans durée).
+  // Défaut : 90 jours (My Fitness App historique, programmes sans durée).
   const { data: prog } = await supabase
     .from("programs")
     .select("duration_months")

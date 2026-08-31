@@ -27,13 +27,13 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FitMe90, Ton programme sport & nutrition sur 90 jours",
+  title: "My Fitness App, Ton programme sport & nutrition personnalisé",
   description:
-    "Un programme d'entraînement et d'accompagnement nutritionnel personnalisé sur 90 jours, conçu par un coach professionnel diplômé d'État.",
-  applicationName: "FitMe90",
+    "Un programme d'entraînement et d'accompagnement nutritionnel personnalisé, conçu par un coach professionnel diplômé d'État.",
+  applicationName: "My Fitness App",
   // Le <link rel="manifest"> est rendu manuellement (crossorigin use-credentials)
   // pour servir un manifest en marque blanche selon le coach du client connecté.
-  appleWebApp: { capable: true, title: "FitMe90", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "My Fitness App", statusBarStyle: "default" },
   icons: {
     icon: [{ url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" }],
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],

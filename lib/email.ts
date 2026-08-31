@@ -9,7 +9,7 @@ const API_KEY = process.env.RESEND_API_KEY;
 // Expéditeur des e-mails transactionnels de la plateforme. Doit être une adresse
 // d'un domaine VÉRIFIÉ chez Resend (sinon l'envoi est refusé). Surchargée par la
 // variable RESEND_FROM. Par défaut : le domaine principal de la plateforme.
-const FROM = process.env.RESEND_FROM || "FitMe90 <notifications@myfitnessapp.fit>";
+const FROM = process.env.RESEND_FROM || "My Fitness App <notifications@myfitnessapp.fit>";
 
 export function emailReady(): boolean {
   return !!API_KEY;

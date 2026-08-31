@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Alert } from "@/components/ui";
 
-// Option « On m'a offert FitMe90 » : débloque le programme avec un code cadeau.
+// Option « On m'a offert My Fitness App » : débloque le programme avec un code cadeau.
 // Repliée par défaut, sous le bouton de paiement.
 export function RedeemForm() {
   const router = useRouter();

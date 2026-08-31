@@ -31,7 +31,7 @@ export async function POST() {
           currency: CURRENCY,
           unit_amount: PRICE_CENTS,
           product_data: {
-            name: `${PRODUCT_NAME} — programme 90 jours`,
+            name: `${PRODUCT_NAME} — programme personnalisé`,
             description:
               "Programme d'entraînement et accompagnement nutritionnel personnalisés. Paiement unique.",
           },

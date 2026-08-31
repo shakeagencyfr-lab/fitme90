@@ -89,7 +89,7 @@ function DetailModal({ ex, onClose }: { ex: LibraryExercise; onClose: () => void
               </ul>
             </Section>
             <p className="border-t border-line-2 pt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">
-              Ressource FitMe90 · lecture seule
+              Ressource My Fitness App · lecture seule
             </p>
           </div>
         </div>

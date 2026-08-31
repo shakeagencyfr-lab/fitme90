@@ -19,7 +19,7 @@ interface Guide {
 
 const SOURCE_LABEL: Record<Guide["source"], string> = {
   coach: "Fiche de ton coach",
-  library: "Bibliothèque FitMe90",
+  library: "Bibliothèque My Fitness App",
   ai: "Fiche générée pour toi",
   none: "",
 };

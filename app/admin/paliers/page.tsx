@@ -5,7 +5,7 @@ import { PlanForm } from "@/components/plan-form";
 import { togglePlan, removePlan } from "@/app/admin/actions";
 import { Alert, Card } from "@/components/ui";
 
-export const metadata = { title: "Paliers, Admin FitMe90" };
+export const metadata = { title: "Paliers, Admin My Fitness App" };
 
 function priceLabel(p: Plan): string {
   const parts: string[] = [];

@@ -146,7 +146,7 @@ export function NotificationSetting() {
         </Alert>
       ) : state === "ios-install" ? (
         <Alert tone="info">
-          Sur iPhone, installe d'abord FitMe90 sur ton écran d'accueil (bouton Partager,
+          Sur iPhone, installe d'abord My Fitness App sur ton écran d'accueil (bouton Partager,
           « Sur l'écran d'accueil »), puis ouvre l'app pour activer les rappels.
         </Alert>
       ) : (

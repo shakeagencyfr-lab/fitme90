@@ -1,4 +1,4 @@
-export const metadata = { title: "Mentions légales, FitMe90" };
+export const metadata = { title: "Mentions légales, My Fitness App" };
 
 export default function MentionsLegalesPage() {
   return (
@@ -8,7 +8,7 @@ export default function MentionsLegalesPage() {
 
       <h2>Éditeur du site</h2>
       <p>
-        FitMe90, [Nom / raison sociale de l'exploitant à compléter]. Coach
+        My Fitness App, [Nom / raison sociale de l'exploitant à compléter]. Coach
         professionnel diplômé d'État et de l'université des sports. [Statut :
         entrepreneur individuel / société, à
         préciser]. SIRET : [à compléter]. Numéro de carte professionnelle
@@ -37,7 +37,7 @@ export default function MentionsLegalesPage() {
 
       <h2>Nature du service</h2>
       <p>
-        FitMe90 propose un accompagnement sportif et de bien-être conçu par un coach
+        My Fitness App propose un accompagnement sportif et de bien-être conçu par un coach
         diplômé. Le service ne constitue pas un acte médical ni diététique
         réglementé et ne remplace pas l'avis d'un professionnel de santé.
       </p>

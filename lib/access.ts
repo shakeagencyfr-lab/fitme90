@@ -1,4 +1,4 @@
-// Cycle de vie de l'accès FitMe90 — logique PURE, sans dépendance réseau,
+// Cycle de vie de l'accès My Fitness App — logique PURE, sans dépendance réseau,
 // donc testable et réutilisable côté serveur (contrôle d'accès) comme
 // côté client (affichage). Le contrôle réel se fait TOUJOURS côté serveur :
 // ces fonctions ne servent qu'à décider, pas à protéger un bouton.
