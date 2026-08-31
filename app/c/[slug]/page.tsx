@@ -1,6 +1,7 @@
 import type { Viewport } from "next";
 import { notFound } from "next/navigation";
 import { publicOffersBySlug, landingTemplateBySlug } from "@/lib/offers";
+import { leadMagnetEnabled } from "@/lib/prospects";
 import { CoachOnyx } from "@/components/landing-templates/coach-onyx";
 import { CoachLumen } from "@/components/landing-templates/coach-lumen";
 
@@ -31,9 +32,10 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
   if (!data) notFound();
 
   const { tenant, offers } = data;
+  const leadMagnet = await leadMagnetEnabled(tenant.id);
   return tenant.landingTemplate === "lumen" ? (
-    <CoachLumen tenant={tenant} offers={offers} />
+    <CoachLumen tenant={tenant} offers={offers} leadMagnet={leadMagnet} />
   ) : (
-    <CoachOnyx tenant={tenant} offers={offers} />
+    <CoachOnyx tenant={tenant} offers={offers} leadMagnet={leadMagnet} />
   );
 }

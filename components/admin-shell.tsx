@@ -31,6 +31,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
     label: "Pilotage",
     items: [
       { href: "/admin", label: "Clients", kinds: ["coach", "platform"], icon: <I d="M16 19a4 4 0 0 0-8 0||M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7||M20 19a3.5 3.5 0 0 0-4-3.4||M8 15.6A3.5 3.5 0 0 0 4 19" /> },
+      { href: "/admin/prospects", label: "Prospects", kinds: ["coach", "platform"], icon: <I d="M15 19a4 4 0 0 0-8 0||M11 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7||M18 8v6||M21 11h-6" /> },
       { href: "/admin/reseau", label: "Mes coachs", kinds: ["platform", "reseller"], icon: <I d="M12 3v4||M6 21v-3a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v3||M12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4" /> },
       { href: "/admin/plans", label: "Plans", kinds: ["coach", "platform"], icon: <I d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5z||M4 10h16" /> },
       { href: "/admin/paliers", label: "Paliers", kinds: ["platform", "reseller"], icon: <I d="M12 4l8 4-8 4-8-4z||M4 12l8 4 8-4||M4 16l8 4 8-4" /> },
