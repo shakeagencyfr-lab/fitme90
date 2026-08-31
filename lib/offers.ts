@@ -22,6 +22,7 @@ export interface Offer {
   position: number;
   is_active: boolean;
   vip_chat: boolean;
+  coach_ai: boolean;
   billing_type: BillingType;
   price_month_cents: number | null;
   price_year_cents: number | null;
@@ -29,7 +30,7 @@ export interface Offer {
 }
 
 const OFFER_COLS =
-  "id, tenant_id, name, duration_months, price_cents, currency, position, is_active, vip_chat, billing_type, price_month_cents, price_year_cents, created_at";
+  "id, tenant_id, name, duration_months, price_cents, currency, position, is_active, vip_chat, coach_ai, billing_type, price_month_cents, price_year_cents, created_at";
 
 /** Prix d'une offre pour un intervalle donné (abonnement), en centimes. */
 export function subscriptionPrice(offer: Offer, interval: "month" | "year"): number | null {
@@ -195,6 +196,16 @@ export async function getOffer(offerId: string): Promise<Offer | null> {
   return (data as Offer) ?? null;
 }
 
+/**
+ * Le Coach IA est-il inclus pour ce client ? Vrai s'il n'a pas d'offre
+ * sélectionnée (inscription directe) ou si son offre inclut le Coach IA.
+ * Faux uniquement si son offre l'exclut explicitement (upsell par plan).
+ */
+export async function clientCoachAiIncluded(userId: string): Promise<boolean> {
+  const offer = await clientOffer(userId);
+  return !offer || offer.coach_ai;
+}
+
 /** L'offre choisie par un client (via profiles.selected_offer_id), ou null. */
 export async function clientOffer(userId: string): Promise<Offer | null> {
   const admin = createAdminClient();
@@ -217,6 +228,7 @@ export interface CreateOfferInput {
   name: string;
   durationMonths: number;
   vipChat?: boolean;
+  coachAi?: boolean;
   billingType?: BillingType;
   /** Paiement unique */
   priceCents?: number | null;
@@ -265,6 +277,7 @@ export async function createOffer(tenantId: string, input: CreateOfferInput): Pr
     price_month_cents: billingType === "subscription" ? priceMonthCents : null,
     price_year_cents: billingType === "subscription" ? priceYearCents : null,
     vip_chat: !!input.vipChat,
+    coach_ai: input.coachAi !== false,
     position: count ?? 0,
   });
   if (error) return { ok: false, error: "Création impossible." };

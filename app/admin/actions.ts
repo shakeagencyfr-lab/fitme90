@@ -264,6 +264,8 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
   const months = Number(formData.get("duration_months") ?? 0);
   const billingType = formData.get("billing_type") === "subscription" ? "subscription" : "one_time";
   const vipChat = formData.get("vip_chat") === "on";
+  // Le Coach IA est inclus par défaut ; la case l'exclut si décochée.
+  const coachAi = formData.get("coach_ai") === "on";
 
   // Parse un montant en euros (« 190 » ou « 29,90 ») → centimes, ou null si vide.
   const toCents = (raw: unknown): { cents: number | null; bad: boolean } => {
@@ -284,13 +286,14 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
     name,
     durationMonths: months,
     vipChat,
+    coachAi,
     billingType,
     priceCents: price.cents,
     priceMonthCents: month.cents,
     priceYearCents: year.cents,
   });
   if (!res.ok) return { error: res.error };
-  revalidatePath("/admin/offres");
+  revalidatePath("/admin/plans");
   return { ok: true };
 }
 
@@ -302,7 +305,7 @@ export async function toggleOffer(formData: FormData): Promise<void> {
   const active = formData.get("active") === "on";
   if (!id) return;
   await setOfferActive(ctx.profile.tenant_id, id, active);
-  revalidatePath("/admin/offres");
+  revalidatePath("/admin/plans");
 }
 
 /** Supprime une offre (form action directe). */
@@ -312,7 +315,7 @@ export async function removeOffer(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await deleteOffer(ctx.profile.tenant_id, id);
-  revalidatePath("/admin/offres");
+  revalidatePath("/admin/plans");
 }
 
 // ------------------------------------------------------- Paliers d'abonnement (Lot C)
