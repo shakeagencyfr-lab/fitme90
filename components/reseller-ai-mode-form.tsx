@@ -94,8 +94,8 @@ export function ResellerAiModeForm({ initialMode, initialLimit }: Props) {
                 </span>
               </div>
               <span className="text-[12px] text-muted-2">
-                Estimation d&apos;après la conso réelle (message ≈ $0.015, recette ≈ $0.06). Compare au prix de
-                tes paliers pour visualiser ta marge.
+                Estimation d&apos;après la conso réelle (chat et recette sur Haiku ≈ $0.015–0.02 l&apos;action).
+                Détaille ta marge par crédit dans la « Tarification en crédits » ci-dessous.
               </span>
             </div>
           </div>

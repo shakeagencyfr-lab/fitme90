@@ -63,19 +63,31 @@ export const LIMIT_ANALYZE_GYM_TOTAL = 10;
 // (table ai_calls) et les tarifs publics Anthropic, arrondies vers le HAUT par
 // prudence. Repères d'ordre de grandeur, pas une facture exacte.
 //
-// Mesuré : un message Coach IA ≈ 12 000 tokens d'entrée + 150 de sortie sur
-// Haiku 4.5 ($1 / $5 le M) ≈ $0.013. Une régénération de 3 recettes tourne sur
-// Sonnet 5 ($2 / $10 le M), sortie plafonnée à ~3 800 tokens ≈ $0.04–0.05.
-/** Coût estimé d'UN message Coach IA (chat, modèle Haiku). */
+// Tout tourne désormais sur Haiku 4.5 ($1 / $5 le M) SAUF la génération du
+// programme (Opus 5, $5 / $25). Mesuré : un message chat ≈ 12k in + 150 out
+// ≈ $0.013 ; une régénération de recettes ≈ 2k in + 3,8k out ≈ $0.02 ; une
+// génération de programme ≈ 9k in + 12,5k out sur Opus ≈ $0.36.
+/** Coût estimé d'UN message Coach IA (chat, Haiku). */
 export const AI_COST_COACH_MSG_USD = 0.015;
-/** Coût estimé d'UNE régénération de recettes (modèle Sonnet, plus cher). */
-export const AI_COST_RECIPE_USD = 0.06;
+/** Coût estimé d'UNE régénération de recettes (Haiku). */
+export const AI_COST_RECIPE_USD = 0.02;
+/** Coût estimé d'UNE action IA « simple » = 1 crédit (chat / recette / exercice, Haiku). */
+export const AI_COST_ACTION_USD = 0.02;
+/** Coût estimé d'UNE génération de programme (Opus, livrable premium). */
+export const AI_COST_PROGRAM_USD = 0.4;
 /** Ancien alias (échange générique) — conservé pour compat, aligné sur le chat. */
 export const AI_COST_PER_MSG_USD = AI_COST_COACH_MSG_USD;
 /** Coût IA d'onboarding d'un client (génération programme + analyse salle). */
 export const AI_COST_ONBOARDING_USD = 0.35;
 /** Coût IA récurrent estimé par client et par mois (usage typique modéré). */
 export const AI_COST_PER_CLIENT_MONTH_USD = 1.5;
+
+// Taux de conversion indicatif USD→EUR pour afficher un coût lisible en euros
+// (le tarif Anthropic est en USD, la revente du revendeur en EUR). Approx.
+export const USD_TO_EUR = 0.92;
+export function usdToEur(usd: number): number {
+  return usd * USD_TO_EUR;
+}
 
 // Hypothèses d'usage RÉALISTE pour un client engagé (≠ le plafond de sécurité).
 // Sert à afficher une estimation crédible plutôt que le pire cas théorique.
@@ -105,6 +117,41 @@ export function estimateAiMonthlyCost(msgCap: number, recipeCap: number): AiCost
   const msgPerDay = msgCap > 0 ? msgCap : AI_REALISTIC_MSG_PER_DAY; // chat illimité : usage réaliste
   const ceilingDay = msgPerDay * AI_COST_COACH_MSG_USD + recipesPerDay * AI_COST_RECIPE_USD;
   return { realMonth, ceilingMonth: ceilingDay * 30 };
+}
+
+// ── Revente de crédits IA (mode « revendeur d'IA »). Le revendeur définit
+// DEUX paramètres : le prix de vente d'1 crédit, et le nombre de crédits que
+// coûte une génération de programme. 1 crédit = 1 action « simple » (chat,
+// recette, régénération d'exercice). Le programme coûte plus cher (Opus), d'où
+// un nombre de crédits paramétrable.
+export const DEFAULT_AI_CREDIT_PRICE_CENTS = 40; // 0,40 € par crédit
+export const DEFAULT_AI_PROGRAM_CREDITS = 5;
+
+export interface CreditMargin {
+  /** Coût Anthropic estimé (converti en €). */
+  costEur: number;
+  /** Ce que paie le client (en €). */
+  priceEur: number;
+  /** Marge du revendeur (en €). */
+  marginEur: number;
+  /** Marge en % du prix de vente (0 si prix nul). */
+  marginPct: number;
+}
+
+function margin(costEur: number, priceEur: number): CreditMargin {
+  const marginEur = priceEur - costEur;
+  return { costEur, priceEur, marginEur, marginPct: priceEur > 0 ? (marginEur / priceEur) * 100 : 0 };
+}
+
+/** Coût / prix / marge d'UNE action simple (1 crédit). */
+export function actionCreditMargin(creditPriceCents: number): CreditMargin {
+  return margin(usdToEur(AI_COST_ACTION_USD), Math.max(0, creditPriceCents) / 100);
+}
+
+/** Coût / prix / marge d'UNE génération de programme (N crédits). */
+export function programCreditMargin(creditPriceCents: number, programCredits: number): CreditMargin {
+  const priceEur = (Math.max(0, creditPriceCents) / 100) * Math.max(0, programCredits);
+  return margin(usdToEur(AI_COST_PROGRAM_USD), priceEur);
 }
 
 export const PRODUCT_NAME = "FitMe90";
