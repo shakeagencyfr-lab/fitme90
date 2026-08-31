@@ -19,6 +19,8 @@ export interface LibraryExercise {
   muscle: string; // groupe musculaire (FR)
   aliases: string[]; // formes reconnues (normalisées au moment du match)
   guide: ExerciseGuide;
+  /** Pas de photo : le visuel affiché est l'illustration du groupe musculaire. */
+  noPhoto?: boolean;
 }
 
 /** Deux images (départ / arrivée) d'une entrée de bibliothèque. */
@@ -640,6 +642,264 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
       ],
       cues: ["Rotation du buste, pas seulement des bras", "Dos droit", "Contrôle le rythme"],
       mistakes: ["Arrondir le dos", "Aller trop vite sans contrôle"],
+    },
+  },
+
+  // ── Mouvements supplémentaires (visuel : illustration du groupe musculaire) ──
+  {
+    key: "rameur",
+    name: "Rameur",
+    muscle: "Dos et cardio",
+    aliases: ["rameur", "rowing machine", "ergometre", "cardio rameur", "aviron"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Attrape la poignée, jambes fléchies, bras tendus, dos droit.",
+        "Pousse fort sur les jambes, puis tire la poignée vers le bas des côtes.",
+        "Reviens dans l'ordre inverse : bras, puis buste, puis jambes.",
+      ],
+      cues: ["La puissance vient des jambes", "Dos gainé, jamais arrondi", "Rythme régulier"],
+      mistakes: ["Tirer d'abord avec les bras", "Arrondir le dos en fin de tirage"],
+    },
+  },
+  {
+    key: "corde-a-sauter",
+    name: "Corde à sauter",
+    muscle: "Cardio et mollets",
+    aliases: ["corde a sauter", "saut a la corde", "jump rope", "skipping"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Coudes près du corps, la corde tourne par les poignets.",
+        "Saute bas, sur la pointe des pieds, genoux souples.",
+        "Garde un rythme régulier et respire.",
+      ],
+      cues: ["Sauts bas et légers", "Regard devant", "Épaules relâchées"],
+      mistakes: ["Sauter trop haut", "Tourner avec les bras au lieu des poignets"],
+    },
+  },
+  {
+    key: "burpees",
+    name: "Burpees",
+    muscle: "Corps entier et cardio",
+    aliases: ["burpees", "burpee"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Debout, descends en position de pompe (mains au sol).",
+        "Fais une pompe (option), puis ramène les pieds sous toi.",
+        "Saute vers le haut, bras tendus, puis recommence.",
+      ],
+      cues: ["Gaine le ventre à la descente", "Réception souple", "Enchaîne à ton rythme"],
+      mistakes: ["Cambrer le dos en planche", "Réception jambes tendues"],
+    },
+  },
+  {
+    key: "mountain-climber",
+    name: "Grimpeur (mountain climber)",
+    muscle: "Abdominaux et cardio",
+    aliases: ["mountain climber", "grimpeur", "climber"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "En position de planche, mains sous les épaules, corps gainé.",
+        "Ramène alternativement un genou vers la poitrine.",
+        "Accélère en gardant le bassin stable.",
+      ],
+      cues: ["Bassin bas et stable", "Épaules au-dessus des mains", "Respiration régulière"],
+      mistakes: ["Monter les fesses", "Poser les mains trop loin devant"],
+    },
+  },
+  {
+    key: "jumping-jack",
+    name: "Jumping jack",
+    muscle: "Cardio",
+    aliases: ["jumping jack", "jumping jacks", "ecart sauté", "sauts ecartes"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Debout, pieds joints, bras le long du corps.",
+        "Saute en écartant les jambes et en levant les bras au-dessus de la tête.",
+        "Reviens en sautant à la position de départ.",
+      ],
+      cues: ["Réception souple", "Rythme régulier", "Gaine le ventre"],
+      mistakes: ["Réception jambes raides", "Aller trop vite sans amplitude"],
+    },
+  },
+  {
+    key: "kettlebell-swing",
+    name: "Kettlebell swing",
+    muscle: "Fessiers et ischios",
+    aliases: ["kettlebell swing", "swing kettlebell", "swing", "balancier kettlebell"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Pieds largeur d'épaules, kettlebell devant toi.",
+        "Bascule les hanches vers l'arrière, dos droit, et arme entre les jambes.",
+        "Projette les hanches vers l'avant pour propulser la kettlebell à hauteur des épaules.",
+      ],
+      cues: ["La puissance vient des hanches", "Dos toujours droit", "Bras relâchés, guides seulement"],
+      mistakes: ["Soulever avec les bras", "Squatter au lieu de charnière de hanche"],
+    },
+  },
+  {
+    key: "thruster",
+    name: "Thruster",
+    muscle: "Cuisses et épaules",
+    aliases: ["thruster", "squat developpe", "squat press"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Charge (haltères ou barre) au niveau des épaules, pieds largeur d'épaules.",
+        "Descends en squat, dos droit.",
+        "Remonte en poussant et enchaîne un développé au-dessus de la tête.",
+      ],
+      cues: ["Un seul mouvement fluide", "Gaine le tronc", "Verrouille les bras en haut"],
+      mistakes: ["Séparer squat et poussée", "Cambrer en fin de développé"],
+    },
+  },
+  {
+    key: "haussements-epaules",
+    name: "Haussements d'épaules (shrugs)",
+    muscle: "Trapèzes",
+    aliases: ["haussements epaules", "shrug", "shrugs", "trapezes halteres", "haussement epaules"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Debout, un haltère dans chaque main, bras le long du corps.",
+        "Hausse les épaules vers les oreilles, sans plier les bras.",
+        "Marque un temps en haut puis redescends lentement.",
+      ],
+      cues: ["Mouvement vertical pur", "Bras tendus", "Contracte les trapèzes en haut"],
+      mistakes: ["Rouler les épaules", "Utiliser l'élan"],
+    },
+  },
+  {
+    key: "oiseau",
+    name: "Oiseau (reverse fly)",
+    muscle: "Épaules (arrière)",
+    aliases: ["oiseau", "reverse fly", "elevations buste penche", "deltoide posterieur", "rear delt fly"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Buste penché en avant, dos droit, un haltère léger dans chaque main.",
+        "Ouvre les bras sur les côtés en serrant les omoplates.",
+        "Reviens en contrôle sans relâcher le dos.",
+      ],
+      cues: ["Serre les omoplates", "Bras légèrement fléchis", "Charge légère, qualité avant tout"],
+      mistakes: ["Se redresser pour tricher", "Charge trop lourde"],
+    },
+  },
+  {
+    key: "good-morning",
+    name: "Good morning",
+    muscle: "Ischios et lombaires",
+    aliases: ["good morning", "bonjour barre", "flexion buste barre"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Barre légère sur le haut du dos, pieds largeur de hanches.",
+        "Bascule les hanches vers l'arrière en penchant le buste, dos droit.",
+        "Reviens en poussant les hanches vers l'avant.",
+      ],
+      cues: ["Charnière de hanche, pas de flexion du dos", "Genoux légèrement fléchis", "Dos gainé"],
+      mistakes: ["Arrondir le bas du dos", "Charge trop lourde"],
+    },
+  },
+  {
+    key: "fente-bulgare",
+    name: "Fente bulgare",
+    muscle: "Cuisses et fessiers",
+    aliases: ["fente bulgare", "squat bulgare", "bulgarian split squat", "fente pied surelevé"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Un pied en arrière posé sur un banc, l'autre devant.",
+        "Descends en pliant la jambe avant, genou dans l'axe du pied.",
+        "Remonte en poussant dans le talon avant.",
+      ],
+      cues: ["Buste droit", "Poids sur la jambe avant", "Genou aligné avec le pied"],
+      mistakes: ["Genou qui rentre", "Se pencher trop en avant"],
+    },
+  },
+  {
+    key: "step-up",
+    name: "Montée sur banc (step-up)",
+    muscle: "Cuisses et fessiers",
+    aliases: ["step up", "montee sur banc", "montees banc", "step ups"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Face à un banc stable, pose un pied entier dessus.",
+        "Monte en poussant dans le talon, sans t'aider de l'élan de l'autre jambe.",
+        "Redescends en contrôle et alterne.",
+      ],
+      cues: ["Pousse dans le talon", "Buste droit", "Contrôle la descente"],
+      mistakes: ["Prendre de l'élan avec la jambe arrière", "Banc trop haut au départ"],
+    },
+  },
+  {
+    key: "gainage-lateral",
+    name: "Gainage latéral (planche latérale)",
+    muscle: "Obliques",
+    aliases: ["gainage lateral", "planche laterale", "side plank", "gainage cote"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Sur le côté, en appui sur l'avant-bras, coude sous l'épaule.",
+        "Décolle le bassin pour aligner tête, hanches et pieds.",
+        "Tiens la position en respirant, puis change de côté.",
+      ],
+      cues: ["Corps aligné", "Hanches hautes", "Épaule éloignée de l'oreille"],
+      mistakes: ["Laisser tomber le bassin", "Retenir sa respiration"],
+    },
+  },
+  {
+    key: "superman",
+    name: "Superman (extensions lombaires)",
+    muscle: "Lombaires",
+    aliases: ["superman", "extensions lombaires", "extension lombaire", "gainage dorsal"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Allongé sur le ventre, bras tendus devant toi.",
+        "Décolle simultanément bras, poitrine et jambes.",
+        "Marque un temps en haut puis redescends lentement.",
+      ],
+      cues: ["Mouvement contrôlé", "Regard vers le sol", "Serre les fessiers"],
+      mistakes: ["Casser la nuque en arrière", "Rebondir sans contrôle"],
+    },
+  },
+  {
+    key: "wall-sit",
+    name: "Chaise (wall sit)",
+    muscle: "Quadriceps",
+    aliases: ["wall sit", "chaise isometrique", "chaise contre le mur", "gainage cuisses"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Dos contre un mur, descends jusqu'à ce que les cuisses soient parallèles au sol.",
+        "Genoux au-dessus des chevilles, angle de 90°.",
+        "Tiens la position en respirant.",
+      ],
+      cues: ["Dos plaqué au mur", "Poids dans les talons", "Respire régulièrement"],
+      mistakes: ["Genoux qui dépassent les orteils", "Se relever trop tôt"],
+    },
+  },
+  {
+    key: "marche-fermier",
+    name: "Marche du fermier",
+    muscle: "Avant-bras et corps entier",
+    aliases: ["marche du fermier", "farmer walk", "farmers walk", "port de charge", "marche fermier"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Une charge lourde dans chaque main, bras le long du corps.",
+        "Tiens-toi grand, épaules basses, ventre gainé.",
+        "Marche à petits pas contrôlés sur la distance voulue.",
+      ],
+      cues: ["Grand et gainé", "Épaules en arrière", "Petits pas réguliers"],
+      mistakes: ["Se pencher en avant", "Épaules qui s'affaissent"],
     },
   },
 ];

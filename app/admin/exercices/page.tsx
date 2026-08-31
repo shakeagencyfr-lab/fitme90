@@ -3,6 +3,7 @@ import { listCoachExerciseMedia } from "@/lib/exercise-guide";
 import { EXERCISE_LIBRARY } from "@/lib/exercise-library";
 import { removeExerciseMedia } from "@/app/admin/actions";
 import { ExerciseMediaForm } from "@/components/exercise-media-form";
+import { ExerciseCatalog } from "@/components/exercise-catalog";
 import { Alert, Card, MonoLabel } from "@/components/ui";
 
 export const metadata = { title: "Exercices, Admin FitMe90" };
@@ -68,6 +69,10 @@ export default async function AdminExercisesPage() {
                 </Card>
               ))
             )}
+          </div>
+
+          <div className="border-t border-line pt-5">
+            <ExerciseCatalog />
           </div>
         </>
       )}

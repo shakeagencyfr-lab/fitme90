@@ -39,9 +39,14 @@ describe("matchLibraryExercise", () => {
     expect(matchLibraryExercise("Développé couché")?.key).toBe("developpe-couche");
   });
 
+  it("reconnaît les mouvements additionnels", () => {
+    expect(matchLibraryExercise("Rameur")?.key).toBe("rameur");
+    expect(matchLibraryExercise("Marche du fermier")?.key).toBe("marche-fermier");
+    expect(matchLibraryExercise("Kettlebell swing")?.key).toBe("kettlebell-swing");
+  });
+
   it("renvoie null pour un exercice inconnu", () => {
-    expect(matchLibraryExercise("Marche du fermier")).toBeNull();
-    expect(matchLibraryExercise("Rameur")).toBeNull();
+    expect(matchLibraryExercise("Yoga du matin")).toBeNull();
     expect(matchLibraryExercise("")).toBeNull();
   });
 });
