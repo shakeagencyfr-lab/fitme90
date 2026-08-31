@@ -221,9 +221,18 @@ function CapacityCard({ cap }: { cap: TenantCapacity }) {
         />
       </div>
       <p className={`text-[12.5px] leading-[1.6] ${cap.full ? "text-alert-ink" : "text-muted-2"}`}>
-        {cap.full
-          ? "Tu as atteint la capacité de ton offre. Pour accueillir un nouveau client, passe à l'offre supérieure. Une place se libère en supprimant un compte client existant."
-          : `${left} place${left > 1 ? "s" : ""} restante${left > 1 ? "s" : ""}. Une place se libère en supprimant un compte client.`}
+        {cap.full ? (
+          <>
+            Tu as atteint la capacité de ton offre. Une place se libère en supprimant un compte
+            client existant, ou{" "}
+            <Link href="/admin/abonnement" className="font-semibold underline underline-offset-2">
+              passe à l&apos;offre supérieure
+            </Link>
+            .
+          </>
+        ) : (
+          `${left} place${left > 1 ? "s" : ""} restante${left > 1 ? "s" : ""}. Une place se libère en supprimant un compte client.`
+        )}
       </p>
     </Card>
   );
