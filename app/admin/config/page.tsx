@@ -2,12 +2,15 @@ import { readCoachConfig, BASE_METHODOLOGY } from "@/lib/methodology";
 import { getAdminOrNull } from "@/lib/admin";
 import { CoachConfigForm } from "@/components/coach-config-form";
 import { MonoLabel } from "@/components/ui";
+import { clientUsesCredits } from "@/lib/credits";
 
 export const metadata = { title: "Configuration IA, Admin My Fitness App" };
 
 export default async function AdminConfigPage() {
   const ctx = await getAdminOrNull();
-  const cfg = await readCoachConfig(ctx?.profile?.tenant_id ?? null);
+  const tenantId = ctx?.profile?.tenant_id ?? null;
+  // Modèle crédits : les plafonds se lisent en crédits, pas en dollars.
+  const [cfg, creditMode] = await Promise.all([readCoachConfig(tenantId), clientUsesCredits(tenantId)]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -28,6 +31,7 @@ export default async function AdminConfigPage() {
         initialCoachName={cfg.coach_name}
         initialDailyLimit={cfg.coach_ai_daily_limit}
         initialRecipeLimit={cfg.recipe_ai_daily_limit}
+        creditMode={creditMode}
       />
 
       <details className="group rounded-card border border-line bg-surface p-5">

@@ -131,6 +131,42 @@ export function estimateAiMonthlyCost(msgCap: number, recipeCap: number): AiCost
   return { realMonth, ceilingMonth };
 }
 
+/**
+ * Barème de débit, tel qu'appliqué par les routes IA. Toute action courante
+ * (message du chat, recette régénérée, exercice alternatif) coûte 1 crédit IA ;
+ * une génération de programme coûte 1 crédit programme. Ces constantes sont la
+ * source unique affichée au coach : si le barème change, l'affichage suit.
+ */
+export const CREDITS_PER_AI_ACTION = 1;
+export const CREDITS_PER_PROGRAM = 1;
+
+export interface CreditUsageEstimate {
+  /** Crédits IA qu'un client actif consomme sur un mois, usage réaliste. */
+  realMonth: number;
+  /**
+   * Crédits IA maximum sur un mois si le client saturait ses deux plafonds tous
+   * les jours. `null` si un plafond est sur « illimité » : rien ne borne alors
+   * la consommation.
+   */
+  ceilingMonth: number | null;
+}
+
+/**
+ * Équivalent de `estimateAiMonthlyCost` pour un coach en modèle CRÉDITS : mêmes
+ * hypothèses d'usage, mais compté en crédits et non en dollars. Le coach n'a pas
+ * de facture Anthropic dans ce modèle, il a un solde qui descend.
+ */
+export function estimateAiMonthlyCredits(msgCap: number, recipeCap: number): CreditUsageEstimate {
+  const realMsgs = msgCap > 0 ? Math.min(msgCap, AI_REALISTIC_MSG_PER_DAY) : AI_REALISTIC_MSG_PER_DAY;
+  const realRecipes = recipeCap > 0 ? Math.min(recipeCap, AI_REALISTIC_RECIPES_PER_DAY) : AI_REALISTIC_RECIPES_PER_DAY;
+  const realMonth = (realMsgs + realRecipes) * CREDITS_PER_AI_ACTION * AI_REALISTIC_ACTIVE_DAYS;
+
+  // Borne haute seulement si les DEUX plafonds sont fixés (sinon consommation illimitée).
+  const bounded = msgCap > 0 && recipeCap > 0;
+  const ceilingMonth = bounded ? (msgCap + recipeCap) * CREDITS_PER_AI_ACTION * 30 : null;
+  return { realMonth, ceilingMonth };
+}
+
 // ── Revente de crédits IA (mode « revendeur d'IA »). DEUX types de crédits,
 // réglés chacun avec son propre prix de vente (le revendeur voit coût + marge) :
 //  - « crédit IA » = 1 action simple (chat / recette / exercice) — modèle Haiku ;

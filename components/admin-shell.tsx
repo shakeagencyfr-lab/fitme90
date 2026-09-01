@@ -142,23 +142,58 @@ function ThemeIconButton() {
   );
 }
 
+const CARD_CLASS =
+  "tap flex flex-col gap-1 rounded-control border border-line bg-surface-2 px-3.5 py-3 transition-colors hover:border-ink/40";
+const CARD_LABEL = "flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-2";
+const SPARK = (
+  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M12 3l1.6 4L18 8.5l-4 3 1 4.5-3-2.4-3 2.4 1-4.5-4-3L10.4 7z" />
+  </svg>
+);
+
 // Carte « conso IA du mois » (BYOK) : coût estimé cumulé depuis le 1er du mois.
+// En BYOK le coach paie sa propre facture Anthropic, donc ce qui l'intéresse
+// est un montant.
 function UsageCard({ costUsd, calls }: { costUsd: number; calls: number }) {
-  const cost = `$${costUsd.toFixed(2)}`;
   return (
-    <Link
-      href="/admin/compte"
-      className="tap flex flex-col gap-1 rounded-control border border-line bg-surface-2 px-3.5 py-3 transition-colors hover:border-ink/40"
-    >
-      <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-2">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M12 3l1.6 4L18 8.5l-4 3 1 4.5-3-2.4-3 2.4 1-4.5-4-3L10.4 7z" />
-        </svg>
+    <Link href="/admin/compte" className={CARD_CLASS}>
+      <div className={CARD_LABEL}>
+        {SPARK}
         Conso IA · ce mois
       </div>
       <div className="flex items-baseline gap-2 text-ink">
-        <span className="font-archivo text-[20px] font-extrabold leading-none tracking-[-0.02em]">{cost}</span>
+        <span className="font-archivo text-[20px] font-extrabold leading-none tracking-[-0.02em]">
+          ${costUsd.toFixed(2)}
+        </span>
         <span className="text-[11px] text-muted-2">{calls} appel{calls > 1 ? "s" : ""}</span>
+      </div>
+    </Link>
+  );
+}
+
+/**
+ * Même emplacement, autre compteur : en modèle CRÉDITS le coach n'a aucune
+ * facture Anthropic, il a un solde qui descend. Afficher un montant en dollars
+ * n'aurait aucun sens pour lui, on montre donc ce qui lui reste. Le solde vire
+ * au rouge à zéro : c'est le moment où l'IA de ses clients s'arrête.
+ */
+function WalletCard({ ai, program }: { ai: number; program: number }) {
+  const empty = ai <= 0;
+  return (
+    <Link href="/admin/credits" className={CARD_CLASS}>
+      <div className={CARD_LABEL}>
+        {SPARK}
+        Crédits · restants
+      </div>
+      <div className="flex items-baseline gap-2">
+        <span
+          className={`font-archivo text-[20px] font-extrabold leading-none tracking-[-0.02em] tabular-nums ${empty ? "text-[#C4471A]" : "text-ink"}`}
+        >
+          {ai}
+        </span>
+        <span className="text-[11px] text-muted-2">
+          IA · {program} programme
+        </span>
       </div>
     </Link>
   );
@@ -172,6 +207,7 @@ export function AdminShell({
   kind,
   aiCostUsd = 0,
   aiCalls = 0,
+  wallet = null,
   brandName = null,
   brandLogoUrl = null,
   brandColor = null,
@@ -183,6 +219,8 @@ export function AdminShell({
   kind: TenantKind;
   aiCostUsd?: number;
   aiCalls?: number;
+  /** Solde de crédits, renseigné UNIQUEMENT quand le coach est en modèle crédits. */
+  wallet?: { ai: number; program: number } | null;
   /** Marque du tenant PARENT (revendeur pour un coach, plateforme pour un
    *  revendeur). Le dashboard porte CETTE marque — jamais My Fitness App pour un coach. */
   brandName?: string | null;
@@ -191,7 +229,13 @@ export function AdminShell({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const usageCard = <UsageCard costUsd={aiCostUsd} calls={aiCalls} />;
+  // En modèle crédits, le solde remplace la conso en dollars : c'est le même
+  // emplacement, mais le chiffre qui compte pour ce coach n'est pas le même.
+  const usageCard = wallet ? (
+    <WalletCard ai={wallet.ai} program={wallet.program} />
+  ) : (
+    <UsageCard costUsd={aiCostUsd} calls={aiCalls} />
+  );
 
   // Accent du dashboard = couleur du parent (marque blanche complète). À défaut,
   // le thème garde l'orange par défaut.
