@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionContext } from "@/lib/guard";
 import { isCoachAccount } from "@/lib/admin";
-import { brandForUser } from "@/lib/branding";
+import { brandForUser, parentDashboardBrand, platformBrand } from "@/lib/branding";
 import { PRODUCT_NAME, iconUrl } from "@/lib/config";
 
 export const runtime = "nodejs";
@@ -32,24 +32,34 @@ export async function GET() {
   let themeColor = "#F4F3F1";
   let icons: Icon[] = APP_ICONS;
 
+  // Icône = le favicon chargé dans la section « Marque blanche » du bon
+  // tenant (coach du client, parent du coach, ou plateforme), en 1re position ;
+  // les PNG My Fitness App restent en repli pour qu'une icône valide existe
+  // toujours (jamais de monogramme généré par le navigateur).
+  const withFavicon = (url: string | null) =>
+    url ? [{ src: url, sizes: "any", purpose: "any" }, ...APP_ICONS] : APP_ICONS;
   try {
     const ctx = await getSessionContext();
-    // Un coach/owner installe SON outil : on garde la marque My Fitness App.
     if (ctx && !isCoachAccount(ctx)) {
       const brand = await brandForUser(ctx.userId);
       if (brand) {
         name = brand.name;
         shortName = brand.name.slice(0, 24);
         if (brand.brandColor) themeColor = brand.brandColor;
-        // Favicon du coach en 1re icône (idéalement carré), puis repli My Fitness App :
-        // ainsi l'installation a TOUJOURS une icône valide, jamais un monogramme.
-        if (brand.faviconUrl) {
-          icons = [
-            { src: brand.faviconUrl, sizes: "any", purpose: "any" },
-            ...APP_ICONS,
-          ];
-        }
+        icons = withFavicon(brand.faviconUrl);
       }
+    } else if (ctx) {
+      // Un coach/owner installe SON outil, à la marque de son parent.
+      const parent = (await parentDashboardBrand(ctx.profile?.tenant_id ?? null)) ?? (await platformBrand());
+      if (parent?.name) {
+        name = parent.name;
+        shortName = parent.name.slice(0, 24);
+      }
+      if (parent?.brandColor) themeColor = parent.brandColor;
+      icons = withFavicon(parent?.faviconUrl ?? null);
+    } else {
+      const platform = await platformBrand();
+      icons = withFavicon(platform?.faviconUrl ?? null);
     }
   } catch {
     /* pas de session : manifest My Fitness App par défaut */

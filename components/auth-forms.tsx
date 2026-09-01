@@ -26,8 +26,16 @@ function Title({ children, sub }: { children: React.ReactNode; sub?: string }) {
   );
 }
 
-export function LoginForm({ suite }: { suite?: string }) {
+/** Suffixe de marque (?c=coach ou ?r=revendeur) pour que les liens croisés restent aux couleurs du bon compte. */
+function brandQuery(coachSlug?: string, resellerSlug?: string): string {
+  if (resellerSlug) return `?r=${encodeURIComponent(resellerSlug)}`;
+  if (coachSlug) return `?c=${encodeURIComponent(coachSlug)}`;
+  return "";
+}
+
+export function LoginForm({ suite, coachSlug, resellerSlug }: { suite?: string; coachSlug?: string; resellerSlug?: string }) {
   const [state, action, pending] = useActionState(signInAction, initial);
+  const q = brandQuery(coachSlug, resellerSlug);
   return (
     <form action={action} className="flex flex-col gap-4">
       <Title>Connexion</Title>
@@ -61,7 +69,7 @@ export function LoginForm({ suite }: { suite?: string }) {
       </Button>
       <p className="text-[14px] text-muted text-center">
         Pas encore de compte ?{" "}
-        <Link href="/inscription" className="text-brand font-medium">
+        <Link href={`/inscription${q}`} className="text-brand font-medium">
           Créer un compte
         </Link>
       </p>
@@ -71,6 +79,7 @@ export function LoginForm({ suite }: { suite?: string }) {
 
 export function SignupForm({ coachSlug, offerId, interval, refCode }: { coachSlug?: string; offerId?: string; interval?: string; refCode?: string }) {
   const [state, action, pending] = useActionState(signUpAction, initial);
+  const q = brandQuery(coachSlug);
   return (
     <form action={action} className="flex flex-col gap-4">
       <Title sub="Un e-mail de confirmation te sera envoyé.">Créer ton compte</Title>
@@ -130,7 +139,7 @@ export function SignupForm({ coachSlug, offerId, interval, refCode }: { coachSlu
       </Button>
       <p className="text-[14px] text-muted text-center">
         Déjà un compte ?{" "}
-        <Link href="/connexion" className="text-brand font-medium">
+        <Link href={`/connexion${q}`} className="text-brand font-medium">
           Se connecter
         </Link>
       </p>
@@ -140,6 +149,7 @@ export function SignupForm({ coachSlug, offerId, interval, refCode }: { coachSlu
 
 export function CoachSignupForm({ resellerSlug }: { resellerSlug?: string }) {
   const [state, action, pending] = useActionState(signUpCoachAction, initial);
+  const q = brandQuery(undefined, resellerSlug);
   return (
     <form action={action} className="flex flex-col gap-4">
       <Title sub="Crée ton espace coach. Un e-mail de confirmation te sera envoyé.">
@@ -210,7 +220,7 @@ export function CoachSignupForm({ resellerSlug }: { resellerSlug?: string }) {
       </Button>
       <p className="text-center text-[14px] text-muted">
         Déjà un espace coach ?{" "}
-        <Link href="/connexion" className="font-medium text-brand">
+        <Link href={`/connexion${q}`} className="font-medium text-brand">
           Se connecter
         </Link>
       </p>

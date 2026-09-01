@@ -1,7 +1,6 @@
-import { readCoachConfig, BASE_METHODOLOGY } from "@/lib/methodology";
+import { readCoachConfig } from "@/lib/methodology";
 import { getAdminOrNull } from "@/lib/admin";
 import { CoachConfigForm } from "@/components/coach-config-form";
-import { MonoLabel } from "@/components/ui";
 import { clientUsesCredits, programCreditCost } from "@/lib/credits";
 
 export const metadata = { title: "Configuration IA, Admin My Fitness App" };
@@ -39,20 +38,9 @@ export default async function AdminConfigPage() {
         programCredits={programCredits}
       />
 
-      <details className="group rounded-card border border-line bg-surface p-5">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
-          <span className="font-archivo font-bold text-[16px] text-ink">
-            Méthodologie de référence (base evidence-based)
-          </span>
-          <span className="text-muted-2 transition-transform group-open:rotate-180">⌄</span>
-        </summary>
-        <div className="mt-3 flex flex-col gap-2">
-          <MonoLabel>Toujours appliquée, complétée par tes consignes en mode personnalisé</MonoLabel>
-          <pre className="overflow-x-auto whitespace-pre-wrap font-plex text-[13px] leading-[1.6] text-body">
-            {BASE_METHODOLOGY}
-          </pre>
-        </div>
-      </details>
+      {/* La méthodologie de référence n'est volontairement PAS affichée : c'est
+          le savoir-faire de la plateforme, ancré dans chaque génération. Le
+          coach la complète par ses consignes, il ne la recopie pas. */}
     </div>
   );
 }

@@ -1,11 +1,12 @@
-// Logotype My Fitness App (Archivo 800, majuscules, « Fitness » en cuivre).
+// Logotype My Fitness App : typographique, minimaliste. « App » prend la couleur
+// principale (celle du tenant en marque blanche, l'orange par défaut).
 export function Wordmark({ size = 20 }: { size?: number }) {
   return (
     <span
-      className="font-archivo font-extrabold uppercase tracking-[0.04em] text-ink"
-      style={{ fontSize: size }}
+      className="inline-flex items-baseline whitespace-nowrap font-archivo font-extrabold tracking-[-0.03em] text-ink"
+      style={{ fontSize: size, lineHeight: 1 }}
     >
-      My <span className="text-[#A67C52] dark:text-[#C0946B]">Fitness</span> App
+      My&nbsp;Fitness&nbsp;<span className="text-brand">App</span>
     </span>
   );
 }
@@ -27,7 +28,7 @@ export function CoachMark({
   }
   if (brand?.name) {
     return (
-      <span className="font-archivo font-extrabold tracking-[-0.02em] text-ink" style={{ fontSize: size }}>
+      <span className="whitespace-nowrap font-archivo font-extrabold tracking-[-0.02em] text-ink" style={{ fontSize: size, lineHeight: 1 }}>
         {brand.name}
       </span>
     );

@@ -98,15 +98,15 @@ export function ResellerOnyx({ reseller, plans }: { reseller: PublicReseller; pl
       {/* Header */}
       <header className="relative z-30 sticky top-0 border-b border-white/10 bg-[#080a0c]/70 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-[1160px] items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
-          <span className="text-white [&_span]:text-white"><CoachMark brand={{ name: reseller.name, logoUrl: reseller.logoUrl }} size={22} imgClass="h-10 sm:h-12" /></span>
+          <span className="min-w-0 flex-1 truncate whitespace-nowrap text-white [&_span]:text-white"><CoachMark brand={{ name: reseller.name, logoUrl: reseller.logoUrl }} size={20} imgClass="h-9 sm:h-12" /></span>
           <nav className="hidden items-center gap-7 md:flex">
             {[["#apercu", "Aperçu"], ["#simulateur", "Simulateur"], ["#formules", "Tarifs"], ["#faq", "FAQ"]].map(([href, label]) => (
               <a key={href} href={href} className="text-[14px] font-medium text-white/60 transition-colors hover:text-white">{label}</a>
             ))}
           </nav>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Link href={login} className="tap inline-flex h-10 items-center rounded-btn px-3 text-[14px] font-semibold text-white/70 transition-colors hover:text-white sm:px-4">Connexion</Link>
-            <Link href={signup} className="tap inline-flex h-10 items-center gap-1.5 rounded-btn bg-brand px-4 text-[14px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">Démarrer gratuitement</Link>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <Link href={login} className="tap hidden h-10 items-center rounded-btn px-3 text-[14px] font-semibold text-white/70 transition-colors hover:text-white sm:inline-flex sm:px-4">Connexion</Link>
+            <Link href={signup} className="tap inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-btn bg-brand px-3.5 text-[13.5px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98] sm:px-4 sm:text-[14px]"><span className="sm:hidden">Démarrer</span><span className="hidden sm:inline">Démarrer gratuitement</span></Link>
           </div>
         </div>
       </header>

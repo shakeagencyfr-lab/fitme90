@@ -7,12 +7,21 @@ import { tenantNode } from "@/lib/hierarchy";
 import { tenantFreezeState } from "@/lib/freeze";
 import { tenantMonthlyAiUsage } from "@/lib/ai-cost";
 import { clientUsesCredits, getWallet } from "@/lib/credits";
-import { parentDashboardBrand } from "@/lib/branding";
+import { parentDashboardBrand, platformBrand } from "@/lib/branding";
+import type { Metadata } from "next";
 import { CoachFreezeBanner } from "@/components/coach-freeze-banner";
 
 // Titre neutre : le dashboard est en marque blanche (marque du parent affichée
-// dans le bandeau). On évite « My Fitness App » dans l'onglet du navigateur.
-export const metadata = { title: "Espace admin" };
+// dans le bandeau). L'icône d'onglet est le favicon du parent (celui chargé
+// dans sa section « Marque blanche »), sinon celui de la plateforme.
+export async function generateMetadata(): Promise<Metadata> {
+  const ctx = await getAdminOrNull();
+  const tenantId = ctx?.profile?.tenant_id ?? null;
+  const brand = (tenantId ? await parentDashboardBrand(tenantId) : null) ?? (await platformBrand());
+  const meta: Metadata = { title: brand?.name ? `Espace admin, ${brand.name}` : "Espace admin" };
+  if (brand?.faviconUrl) meta.icons = { icon: [{ url: brand.faviconUrl }], apple: [{ url: brand.faviconUrl }] };
+  return meta;
+}
 
 // Toutes les pages /admin/* passent par ce garde : accès réservé aux e-mails
 // listés dans ADMIN_EMAILS. Sinon 404 (on ne révèle pas l'existence de l'espace).
