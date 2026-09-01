@@ -20,6 +20,8 @@ export interface Offer {
   is_active: boolean;
   vip_chat: boolean;
   coach_ai: boolean;
+  /** Quota journalier d'actions IA par client sur CE plan (null = réglage général du coach). */
+  coach_ai_daily_limit: number | null;
   billing_type: BillingType;
   price_month_cents: number | null;
   price_year_cents: number | null;
@@ -27,7 +29,7 @@ export interface Offer {
 }
 
 const OFFER_COLS =
-  "id, tenant_id, name, duration_months, price_cents, currency, position, is_active, vip_chat, coach_ai, billing_type, price_month_cents, price_year_cents, created_at";
+  "id, tenant_id, name, duration_months, price_cents, currency, position, is_active, vip_chat, coach_ai, coach_ai_daily_limit, billing_type, price_month_cents, price_year_cents, created_at";
 
 /** Prix d'une offre pour un intervalle donné (abonnement), en centimes. */
 export function subscriptionPrice(offer: Offer, interval: "month" | "year"): number | null {
@@ -227,6 +229,8 @@ export interface CreateOfferInput {
   durationMonths: number;
   vipChat?: boolean;
   coachAi?: boolean;
+  /** Quota journalier d'actions IA par client (0 = illimité, null = défaut du coach). */
+  coachAiDailyLimit?: number | null;
   billingType?: BillingType;
   /** Paiement unique */
   priceCents?: number | null;
@@ -276,6 +280,10 @@ export async function createOffer(tenantId: string, input: CreateOfferInput): Pr
     price_year_cents: billingType === "subscription" ? priceYearCents : null,
     vip_chat: !!input.vipChat,
     coach_ai: input.coachAi !== false,
+    coach_ai_daily_limit:
+      input.coachAi !== false && input.coachAiDailyLimit != null && Number.isFinite(input.coachAiDailyLimit)
+        ? Math.max(0, Math.min(1000, Math.trunc(input.coachAiDailyLimit)))
+        : null,
     position: count ?? 0,
   });
   if (error) return { ok: false, error: "Création impossible." };

@@ -7,7 +7,7 @@ import { screen, type QuizHealthAnswers } from "@/lib/screening";
 import { generateProgram } from "@/lib/program";
 import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { clientOffer } from "@/lib/offers";
-import { clientUsesCredits, getWallet, debitWallet } from "@/lib/credits";
+import { clientUsesCredits, getWallet, debitWallet, programCreditCost } from "@/lib/credits";
 import { LIMIT_GENERATE_TOTAL, programDaysForMonths } from "@/lib/config";
 
 export const runtime = "nodejs";
@@ -99,15 +99,17 @@ export async function POST() {
     return NextResponse.json({ error: AI_NOT_CONFIGURED_MESSAGE }, { status: 400 });
   }
 
-  // Modèle crédits : une génération coûte 1 crédit programme (modèle Opus). On
-  // vérifie le solde avant l'appel, on débite après succès (jamais de surdébit).
+  // Modèle crédits : une génération coûte N crédits IA (réglé par le
+  // fournisseur). On vérifie le solde avant l'appel, on débite après succès
+  // (jamais de surdébit).
   const coachTenant = ctx.profile?.tenant_id ?? null;
   const useCredits = await clientUsesCredits(coachTenant);
+  const programCost = useCredits ? await programCreditCost(coachTenant) : 0;
   if (useCredits) {
     const wallet = await getWallet(coachTenant);
-    if (wallet.programCredits < 1) {
+    if (wallet.credits < programCost) {
       return NextResponse.json(
-        { error: "Crédits programme épuisés. Ton coach doit recharger pour générer un nouveau programme." },
+        { error: `Crédits IA insuffisants (une génération en demande ${programCost}). Ton coach doit recharger.` },
         { status: 402 },
       );
     }
@@ -184,7 +186,7 @@ export async function POST() {
   }
 
   await recordCall(ctx.userId, "generate", result.usage);
-  if (useCredits && coachTenant) await debitWallet(coachTenant, "program", 1, "generate", ctx.userId);
+  if (useCredits && coachTenant) await debitWallet(coachTenant, programCost, "generate", ctx.userId);
 
   return NextResponse.json({ plan: result.plan });
 }

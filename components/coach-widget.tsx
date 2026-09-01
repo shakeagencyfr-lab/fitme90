@@ -143,6 +143,19 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
   const [convId, setConvId] = useState<string | null>(null);
   const [showList, setShowList] = useState(false);
   const [pendingAsk, setPendingAsk] = useState<string | null>(null);
+  // Quota du jour : ce qu'il reste au client et l'heure du renouvellement.
+  const [quota, setQuota] = useState<{ remaining: number | null; limit: number; resetsAt: string } | null>(null);
+
+  async function refreshQuota() {
+    try {
+      const res = await fetch("/api/coach/quota");
+      if (!res.ok) return;
+      const q = (await res.json()) as { remaining: number | null; limit: number; resetsAt: string };
+      setQuota(q);
+    } catch {
+      /* affichage seulement */
+    }
+  }
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const recRef = useRef<Recognition | null>(null);
@@ -164,6 +177,7 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
           fetch("/api/coach/conversations"),
           fetch("/api/coach"),
         ]);
+        refreshQuota();
         const cData = await cRes.json();
         const mData = await mRes.json();
         if (Array.isArray(cData.conversations)) setConversations(cData.conversations);
@@ -366,8 +380,13 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
     } finally {
       setTyping(false);
       setBusy(false);
+      refreshQuota();
     }
   }
+
+  const resetLabel = quota
+    ? new Date(quota.resetsAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })
+    : "";
 
   function send() {
     const text = input.trim();
@@ -615,6 +634,13 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
           Envoyer
         </Button>
       </div>
+      {quota && quota.limit > 0 ? (
+        <div className={`px-3 pb-2 text-[11.5px] ${quota.remaining === 0 ? "text-[#C4471A]" : "text-muted-2"}`}>
+          {quota.remaining === 0
+            ? `Quota du jour utilisé. Il se renouvelle à ${resetLabel}.`
+            : `${quota.remaining} message${(quota.remaining ?? 0) > 1 ? "s" : ""} restant${(quota.remaining ?? 0) > 1 ? "s" : ""} aujourd'hui · renouvelé à ${resetLabel}`}
+        </div>
+      ) : null}
     </div>
   );
 }
