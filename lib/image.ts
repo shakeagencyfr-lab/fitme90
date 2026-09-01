@@ -1,6 +1,6 @@
 // Compression d'image côté navigateur (JPEG, 760–900 px) avant upload.
 // Divise le poids par ~10 (README étape 6). Utilisé par les photos de salle
-// et les photos de progression.
+// et les photos envoyées au coach.
 export async function compressImage(
   file: File,
   maxPx = 880,

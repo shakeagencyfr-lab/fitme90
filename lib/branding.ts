@@ -131,6 +131,26 @@ export interface DashboardBrand {
   name: string | null;
   logoUrl: string | null;
   brandColor: string | null;
+  /** Favicon chargé dans « Marque blanche » : icône d'onglet et d'application. */
+  faviconUrl: string | null;
+}
+
+/**
+ * Marque de la PLATEFORME (tenant racine) : favicon et logo chargés dans sa
+ * section « Marque blanche ». C'est le repli de toutes les pages sans marque
+ * plus précise (accueil, auth sans slug, dashboards de la plateforme).
+ */
+export async function platformBrand(): Promise<DashboardBrand | null> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("tenants")
+    .select("name, logo_url, brand_color, favicon_url")
+    .eq("kind", "platform")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle<{ name: string | null; logo_url: string | null; brand_color: string | null; favicon_url: string | null }>();
+  if (!data) return null;
+  return { name: data.name, logoUrl: data.logo_url, brandColor: data.brand_color, faviconUrl: data.favicon_url };
 }
 
 /**
@@ -150,11 +170,11 @@ export async function parentDashboardBrand(tenantId: string | null): Promise<Das
   if (!self?.parent_id) return null;
   const { data: parent } = await admin
     .from("tenants")
-    .select("name, logo_url, brand_color")
+    .select("name, logo_url, brand_color, favicon_url")
     .eq("id", self.parent_id)
-    .maybeSingle<{ name: string | null; logo_url: string | null; brand_color: string | null }>();
+    .maybeSingle<{ name: string | null; logo_url: string | null; brand_color: string | null; favicon_url: string | null }>();
   if (!parent) return null;
-  return { name: parent.name, logoUrl: parent.logo_url, brandColor: parent.brand_color };
+  return { name: parent.name, logoUrl: parent.logo_url, brandColor: parent.brand_color, faviconUrl: parent.favicon_url };
 }
 
 export interface SaveBrandingResult {

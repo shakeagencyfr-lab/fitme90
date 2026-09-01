@@ -26,7 +26,7 @@ export default async function ConnexionPage({
         {erreur === "lien_invalide" ? (
           <Alert>Ce lien a expiré ou a déjà été utilisé. Reconnecte-toi.</Alert>
         ) : null}
-        <LoginForm suite={suite} />
+        <LoginForm suite={suite} coachSlug={typeof sp.c === "string" ? sp.c : undefined} resellerSlug={resellerSlug} />
       </div>
     </CoachAccent>
   );

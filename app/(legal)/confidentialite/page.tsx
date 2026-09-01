@@ -16,7 +16,7 @@ export default function ConfidentialitePage() {
           Données de santé et de forme : âge, sexe, poids, taille, fréquence
           cardiaque, pathologies déclarées, allergies, régime, blessures.
         </li>
-        <li>Photos de la salle et photos corporelles de progression.</li>
+        <li>Photos de la salle (reconnaissance du matériel).</li>
         <li>Journal des séances, mesures, conversations avec le coach.</li>
         <li>Données de paiement : gérées par Stripe (nous ne stockons aucune carte).</li>
       </ul>
@@ -31,8 +31,7 @@ export default function ConfidentialitePage() {
       <h2>Base légale</h2>
       <p>
         Exécution du contrat (fourniture du programme) et consentement explicite
-        pour les données de santé et les photos corporelles, recueilli séparément
-        et révocable à tout moment.
+        pour les données de santé, recueilli séparément et révocable à tout moment.
       </p>
 
       <h2>Sous-traitants</h2>
@@ -60,13 +59,12 @@ export default function ConfidentialitePage() {
           Export de tes données en JSON et suppression réelle du compte disponibles
           directement dans ton espace, onglet Profil.
         </li>
-        <li>Retrait du consentement photos à tout moment.</li>
         <li>Réclamation auprès de la CNIL.</li>
       </ul>
 
       <h2>Sécurité</h2>
       <p>
-        Cloisonnement par utilisateur (Row Level Security), bucket photos privé et
+        Cloisonnement par utilisateur (Row Level Security), fichiers privés et
         liens temporaires signés, secrets côté serveur uniquement, chiffrement en
         transit (HTTPS/HSTS).
       </p>
