@@ -15,9 +15,93 @@ export const PROGRAM_DAYS = 90;
 /** Couleur d'accent par défaut de la page publique (orange My Fitness App). */
 export const DEFAULT_BRAND_COLOR = "#e0551f";
 
-/** Durées d'offres proposables par un coach (en mois). Choix prédéfinis. */
-export const OFFER_DURATIONS_MONTHS = [1, 2, 3, 6, 9, 12] as const;
+/**
+ * DEUX PRODUITS, pas six durées. Un coach vend « 3 mois » (un objectif, une
+ * date) ou « 12 mois » (le programme qui apprend de toi, 4 blocs de 3 mois).
+ * Ce sont les seules durées qu'une offre peut porter à la création.
+ */
+export const OFFER_DURATIONS_MONTHS = [3, 12] as const;
 export type OfferDurationMonths = (typeof OFFER_DURATIONS_MONTHS)[number];
+
+/**
+ * Durées d'offres créées AVANT le passage à deux produits (1, 2, 6, 9 mois).
+ * Toujours lisibles et servies (un client en cours ne doit rien perdre), mais
+ * plus proposées à la création.
+ */
+export const LEGACY_OFFER_DURATIONS_MONTHS = [1, 2, 6, 9] as const;
+
+export function isProductDuration(m: number): m is OfferDurationMonths {
+  return (OFFER_DURATIONS_MONTHS as readonly number[]).includes(m);
+}
+
+/** Fréquences d'entraînement proposées : chacune a son gabarit de programme. */
+export const SESSIONS_PER_WEEK = [2, 3, 4, 5] as const;
+export type SessionsPerWeek = (typeof SESSIONS_PER_WEEK)[number];
+
+/** Ramène un nombre de jours quelconque sur une fréquence qui a un gabarit. */
+export function clampSessionsPerWeek(n: number): SessionsPerWeek {
+  if (!Number.isFinite(n)) return 3;
+  const v = Math.round(n);
+  return (v <= 2 ? 2 : v >= 5 ? 5 : v) as SessionsPerWeek;
+}
+
+/** Un bloc = 3 cycles de 4 semaines ≈ 90 jours. Le 12 mois en enchaîne quatre. */
+export const BLOCK_MONTHS = 3;
+export const CYCLES_PER_BLOCK = 3;
+
+export interface ProductDef {
+  months: OfferDurationMonths;
+  /** Nom par défaut proposé au coach (il reste libre de le changer). */
+  name: string;
+  /** La promesse, en une ligne : c'est elle qui vend, pas la durée. */
+  promise: string;
+  /** Ce que le client comprend en une phrase. */
+  pitch: string;
+  /** Arguments affichés sur la carte de vente. */
+  bullets: string[];
+  /** Nombre de blocs de 3 mois. */
+  blocks: number;
+}
+
+export const PRODUCTS: Record<OfferDurationMonths, ProductDef> = {
+  3: {
+    months: 3,
+    name: "Transformation 3 mois",
+    promise: "Un objectif, une date",
+    pitch: "Dans 12 semaines, tu vois la différence.",
+    bullets: [
+      "3 cycles de 4 semaines qui montent en intensité",
+      "Programme et nutrition jour par jour",
+      "Coach IA pendant 90 jours",
+      "Photo jour 1, photo jour 90",
+    ],
+    blocks: 1,
+  },
+  12: {
+    months: 12,
+    name: "Évolution 12 mois",
+    promise: "Le programme qui apprend de toi",
+    pitch: "Ce n'est pas un PDF, c'est un coach qui te suit toute l'année.",
+    bullets: [
+      "4 blocs de 3 mois, chacun reconstruit sur tes résultats réels",
+      "L'orientation change en cours d'année : bases, volume, force, pic",
+      "Nutrition qui suit ta courbe de poids",
+      "Coach IA pendant 12 mois",
+    ],
+    blocks: 4,
+  },
+};
+
+/** Produit d'une durée, ou null pour une durée héritée (1, 2, 6, 9 mois). */
+export function productFor(months: number): ProductDef | null {
+  return isProductDuration(months) ? PRODUCTS[months] : null;
+}
+
+/** Équivalent mensuel d'un prix unique (arrondi au centime), pour l'ancrage. */
+export function monthlyEquivalentCents(priceCents: number, months: number): number {
+  if (!Number.isFinite(priceCents) || priceCents <= 0 || months <= 0) return 0;
+  return Math.round(priceCents / months);
+}
 
 /** Nombre max d'offres qu'un coach/salle peut proposer simultanément. */
 export const MAX_OFFERS_PER_TENANT = 3;

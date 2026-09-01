@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSessionContext } from "@/lib/guard";
 import { screen, type QuizHealthAnswers } from "@/lib/screening";
-import { QUIZ } from "@/lib/questionnaire";
+import { QUIZ, DAYS, trainDaysError } from "@/lib/questionnaire";
 
 export interface SaveResult {
   ok?: boolean;
@@ -56,6 +56,10 @@ export async function saveQuestionnaire(payload: {
   // enregistrer ses réponses.
 
   const answers = payload.answers ?? {};
+  // Fréquence 2 à 5 : chaque valeur a son gabarit, rien n'existe en dehors.
+  const trainDays = (payload.trainDays ?? []).filter((d) => DAYS.includes(d));
+  const daysErr = trainDaysError(trainDays.length);
+  if (daysErr) return { error: daysErr };
   const supabase = await createClient();
 
   // Colonnes de profil alimentées par les champs `bind` (droits par colonne).
@@ -79,8 +83,9 @@ export async function saveQuestionnaire(payload: {
 
   const { error } = await supabase.from("questionnaires").insert({
     user_id: ctx.userId,
-    answers,
-    train_days: payload.trainDays ?? [],
+    // La fréquence déclarée suit toujours les jours réellement cochés.
+    answers: { ...answers, freq: String(trainDays.length), train_days: trainDays },
+    train_days: trainDays,
   });
   if (error) return { error: "Enregistrement du questionnaire impossible." };
 

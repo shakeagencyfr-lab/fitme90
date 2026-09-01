@@ -15,6 +15,8 @@ import { readCoachName } from "@/lib/methodology";
 import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
 import { missedDays } from "@/lib/streak";
 import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan } from "@/lib/program";
+import { blockPosition } from "@/lib/block-logic";
+import { CYCLES_PER_BLOCK } from "@/lib/config";
 import { revalidatePath } from "next/cache";
 import { pnum, grp } from "@/lib/nutrition";
 
@@ -439,12 +441,17 @@ ${JSON.stringify(logs ?? [])}`;
       .eq("enabled", true);
     const equipment = (equipRows ?? []).map((e) => e.name as string);
 
+    // On ne régénère que le BLOC EN COURS (3 cycles) : un client 12 mois au
+    // bloc 2 garde ses cycles passés et à venir, seuls les cycles de son bloc
+    // courant sont reconstruits avec la contrainte.
+    const pos = blockPosition(Math.max(1, ctx!.access.day), ctx!.access.programDays);
     const result = await generateProgram(
       {
         answers: mergedAnswers,
         trainDays: quiz.train_days ?? [],
         equipment,
         programDays: ctx!.access.programDays,
+        blockIndex: pos.blockIndex,
       },
       "low", // rapide : tenir sous ~60 s dans la requête coach (Vercel Hobby)
       billing.key,
@@ -452,11 +459,18 @@ ${JSON.stringify(logs ?? [])}`;
     );
     totalUsage.input_tokens += result.usage.input_tokens;
     totalUsage.output_tokens += result.usage.output_tokens;
+    const oldCycles = (program?.plan as Plan | undefined)?.cycles ?? [];
+    const from = pos.blockIndex * CYCLES_PER_BLOCK;
+    const fresh = result.plan.cycles ?? [];
+    const mergedPlan: Plan = {
+      ...result.plan,
+      cycles: [...oldCycles.slice(0, from), ...fresh, ...oldCycles.slice(from + fresh.length)],
+    };
     // duration_months conservée : sinon le prochain calcul d'accès retomberait
     // sur la durée par défaut (90 j) après une adaptation.
     await supabase.from("programs").insert({
       user_id: ctx!.userId,
-      plan: result.plan,
+      plan: mergedPlan,
       model: result.model,
       duration_months: program?.duration_months ?? null,
     });

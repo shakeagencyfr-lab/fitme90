@@ -1,10 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  OFFER_DURATIONS_MONTHS,
-  MAX_OFFERS_PER_TENANT,
-  type OfferDurationMonths,
-} from "@/lib/config";
+import { MAX_OFFERS_PER_TENANT, isProductDuration } from "@/lib/config";
 
 // Catalogue d'offres d'un tenant (coach/salle) : jusqu'à 3 formules, chacune
 // avec une durée prédéfinie. Les clients choisiront leur offre plus tard (via
@@ -16,7 +12,8 @@ export interface Offer {
   id: string;
   tenant_id: string;
   name: string;
-  duration_months: OfferDurationMonths;
+  /** 3 ou 12 pour les deux produits ; 1, 2, 6, 9 sur les offres héritées. */
+  duration_months: number;
   price_cents: number | null;
   currency: string;
   position: number;
@@ -44,8 +41,9 @@ export function hasBothIntervals(offer: Offer): boolean {
     && offer.price_year_cents != null;
 }
 
-export function isValidDuration(m: number): m is OfferDurationMonths {
-  return (OFFER_DURATIONS_MONTHS as readonly number[]).includes(m);
+/** Une offre ne se crée plus que sur l'un des deux produits (3 ou 12 mois). */
+export function isValidDuration(m: number): boolean {
+  return isProductDuration(m);
 }
 
 /** Offres d'un tenant, ordonnées (pour le dashboard). */
@@ -245,7 +243,7 @@ export async function createOffer(tenantId: string, input: CreateOfferInput): Pr
   const trimmed = input.name.trim().slice(0, 80);
   if (!trimmed) return { ok: false, error: "Donne un nom à l'offre." };
   if (!isValidDuration(input.durationMonths)) {
-    return { ok: false, error: "Durée non autorisée." };
+    return { ok: false, error: "Choisis un produit : 3 mois ou 12 mois." };
   }
 
   const billingType: BillingType = input.billingType === "subscription" ? "subscription" : "one_time";

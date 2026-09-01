@@ -25,6 +25,17 @@ export interface Section {
 
 export const DAYS = ["LUN", "MAR", "MER", "JEU", "VEN", "SAM", "DIM"];
 
+/** Bornes de jours d'entraînement par semaine : un gabarit existe pour chacune. */
+export const MIN_TRAIN_DAYS = 2;
+export const MAX_TRAIN_DAYS = 5;
+
+/** Message d'erreur unique pour un nombre de jours hors gabarit. */
+export function trainDaysError(count: number): string | null {
+  if (count < MIN_TRAIN_DAYS) return `Choisis au moins ${MIN_TRAIN_DAYS} jours d'entraînement.`;
+  if (count > MAX_TRAIN_DAYS) return `${MAX_TRAIN_DAYS} jours par semaine maximum : le repos fait partie du programme.`;
+  return null;
+}
+
 export const QUIZ: Section[] = [
   {
     title: "Qui es-tu ?",
@@ -55,8 +66,8 @@ export const QUIZ: Section[] = [
     fields: [
       { key: "level", label: "Expérience en musculation", type: "choice", options: ["Jamais", "Moins d'un an", "1 à 3 ans", "Plus de 3 ans"] },
       { key: "training_history", label: "Ton passé sportif", type: "text", optional: true, placeholder: "2 ans de crossfit, arrêt il y a 6 mois…" },
-      { key: "freq", label: "Séances par semaine", type: "choice", options: ["2", "3", "4", "5", "6"] },
-      { key: "train_days", label: "Jours d'entraînement", type: "days" },
+      { key: "freq", label: "Séances par semaine", type: "choice", options: ["2", "3", "4", "5"], help: "Chaque fréquence a son propre gabarit de programme, construit par un coach." },
+      { key: "train_days", label: "Jours d'entraînement", type: "days", help: "Entre 2 et 5 jours, autant que de séances choisies." },
       { key: "start_date", label: "Date de début du programme", type: "date", help: "Le jour exact où tu veux démarrer. Le décompte de ton programme et ton calendrier partent de cette date." },
       { key: "dur", label: "Durée par séance", type: "choice", options: ["30 min", "45 min", "60 min", "90 min"] },
       { key: "session_time", label: "Moment préféré pour t'entraîner", type: "choice", options: ["Matin", "Midi", "Après-midi", "Soir", "Variable"] },

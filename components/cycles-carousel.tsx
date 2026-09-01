@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { blockDef, blocksForMonths } from "@/lib/templates";
+import { CYCLES_PER_BLOCK } from "@/lib/config";
 
 type Cycle = { label: string; name: string; weeks: string; body: string };
 
@@ -31,12 +33,22 @@ const EXPL_SINGLE = {
 };
 
 // Pour un nombre de cycles variable : 1er = fondations, dernier = pic,
-// intermédiaires = progression.
+// intermédiaires = progression. Au-delà d'un bloc (produit 12 mois), le
+// « pourquoi » vient de l'orientation du bloc (Fondations, Construction,
+// Intensité, Réalisation) et la position dans le bloc donne le reste.
 function explFor(i: number, total: number) {
   if (total === 1) return EXPL_SINGLE;
-  if (i === 0) return EXPL[0];
-  if (i === total - 1) return EXPL[2];
-  return EXPL[1];
+  if (total <= CYCLES_PER_BLOCK) {
+    if (i === 0) return EXPL[0];
+    if (i === total - 1) return EXPL[2];
+    return EXPL[1];
+  }
+  const blockIndex = Math.floor(i / CYCLES_PER_BLOCK);
+  const inBlock = i % CYCLES_PER_BLOCK;
+  const totalBlocks = Math.max(2, blocksForMonths(total));
+  const block = blockDef(blockIndex, totalBlocks);
+  const base = inBlock === 0 ? EXPL[0] : inBlock === CYCLES_PER_BLOCK - 1 ? EXPL[2] : EXPL[1];
+  return { ...base, why: `${block.name} : ${block.orientation}` };
 }
 
 const DOT = ["bg-brand", "bg-ink", "bg-cardio"];

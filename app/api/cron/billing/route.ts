@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { syncAllSubscriptions } from "@/lib/subscription";
 import { syncAllTenantSubscriptions } from "@/lib/tenant-billing";
-import { autoRegenSubscribers } from "@/lib/regen";
+import { autoAppendBlocks } from "@/lib/blocks";
 import { purgeLapsedClients } from "@/lib/lapsed";
 
 export const runtime = "nodejs";
@@ -11,8 +11,9 @@ export const maxDuration = 300; // la régénération appelle le modèle (peut �
 // 1) resynchronise l'état des abonnements Stripe (BYOK, sans webhook plateforme)
 //    en relisant chaque abonnement avec la clé du coach ; l'accès en lecture
 //    seule est ensuite appliqué au vol par le guard sur défaut de paiement.
-// 2) régénère automatiquement le cycle (~4 semaines) des abonnés EN RÈGLE, en
-//    tenant compte du cycle précédent (Lot ④).
+// 2) construit le BLOC SUIVANT (3 cycles) des clients dont la fin de bloc
+//    approche : produit 12 mois (4 blocs) et abonnés mensuels en règle. Chaque
+//    bloc est bâti sur le vécu du précédent (lib/blocks.ts).
 // Protégé par CRON_SECRET (Vercel envoie « Authorization: Bearer <secret> »).
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -26,9 +27,9 @@ export async function GET(req: Request) {
   // Abonnements des comptes à leur parent (Lot C·3b) : renouvellements +
   // défaut de paiement -> retour au palier gratuit.
   const { synced: tenantSynced, downgraded: tenantDowngraded } = await syncAllTenantSubscriptions();
-  const { checked, regenerated } = await autoRegenSubscribers();
+  const blocks = await autoAppendBlocks();
   // 3) Suppression des comptes clients en impayé prolongé (> 14 j). DRY-RUN tant
   //    que ENABLE_ACCOUNT_PURGE≠"1" : on compte sans supprimer.
   const purge = await purgeLapsedClients();
-  return NextResponse.json({ synced, restricted, tenantSynced, tenantDowngraded, checked, regenerated, purge });
+  return NextResponse.json({ synced, restricted, tenantSynced, tenantDowngraded, blocks, purge });
 }
