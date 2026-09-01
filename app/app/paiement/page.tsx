@@ -6,7 +6,7 @@ import { CoachCheckoutButton } from "@/components/coach-checkout-button";
 import { RedeemForm } from "@/components/redeem-form";
 import { clientOffer, subscriptionPrice } from "@/lib/offers";
 import { createClient } from "@/lib/supabase/server";
-import { PRICE_EUR, COACH_CREDENTIAL, GRACE_DAYS, formatEuros, programDaysForMonths } from "@/lib/config";
+import { PRICE_EUR, COACH_CREDENTIAL, GRACE_DAYS, formatEuros, programDaysForMonths, productFor, monthlyEquivalentCents } from "@/lib/config";
 
 export const metadata = { title: "Débloquer mon programme" };
 
@@ -62,18 +62,36 @@ export default async function PaiementPage() {
   // Offre à PAIEMENT UNIQUE.
   if (offer && offer.price_cents != null && offer.price_cents > 0) {
     const durationLabel = offer.duration_months === 12 ? "1 an" : `${offer.duration_months} mois`;
+    const product = productFor(offer.duration_months);
+    const perMonth = monthlyEquivalentCents(offer.price_cents, offer.duration_months);
     return (
       <div className="mx-auto flex max-w-[520px] flex-col gap-6 py-4">
         <header className="flex flex-col gap-2">
-          <MonoLabel className="text-brand">{offer.name}</MonoLabel>
+          <MonoLabel className="text-brand">{product ? `${offer.name} · ${product.promise}` : offer.name}</MonoLabel>
           <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
             {formatEuros(offer.price_cents)}, une fois
           </h1>
+          {perMonth > 0 && offer.duration_months > 1 ? (
+            <p className="text-[14px] text-muted-2">
+              soit <span className="font-semibold text-body">{formatEuros(perMonth)}/mois</span> sur {durationLabel}.
+            </p>
+          ) : null}
           <p className="text-[15px] leading-[1.6] text-muted">
-            Programme d&apos;entraînement et accompagnement nutritionnel sur{" "}
-            {durationLabel} ({programDaysForMonths(offer.duration_months)} jours), avec coach IA.
+            {product
+              ? product.pitch
+              : `Programme d'entraînement et accompagnement nutritionnel sur ${durationLabel} (${programDaysForMonths(offer.duration_months)} jours), avec coach IA.`}
           </p>
         </header>
+        {product ? (
+          <Card className="flex flex-col gap-3">
+            {product.bullets.map((t) => (
+              <div key={t} className="flex items-start gap-2.5 text-[14.5px] text-body">
+                <span className="text-brand mt-0.5" aria-hidden>✓</span>
+                <span>{t}</span>
+              </div>
+            ))}
+          </Card>
+        ) : null}
         <CoachCheckoutButton priceLabel={formatEuros(offer.price_cents)} allowPromo />
         <p className="text-[12px] text-muted-2 leading-relaxed">
           Accompagnement sportif et de bien-être, sans visée médicale. En cas de

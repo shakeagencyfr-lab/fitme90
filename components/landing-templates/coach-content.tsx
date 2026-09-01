@@ -3,11 +3,55 @@
 // design, jamais par le fond. Les icônes sont des composants SVG (RSC-safe).
 
 import { S } from "@/components/landing-icons";
-import { programDaysForMonths } from "@/lib/config";
+import { programDaysForMonths, productFor, monthlyEquivalentCents } from "@/lib/config";
+import type { Offer } from "@/lib/offers";
 
 export function durationText(months: number): string {
   const label = months === 12 ? "1 an" : `${months} mois`;
   return `${label} · ${programDaysForMonths(months)} jours`;
+}
+
+/**
+ * Ce que dit la carte d'une offre. Deux produits, deux discours : le 3 mois se
+ * vend sur un résultat daté, le 12 mois sur un programme qui apprend du client.
+ * Partagé par tous les templates pour que seul le design diffère.
+ */
+export interface OfferCardCopy {
+  /** Petit libellé au-dessus du nom : la promesse, pas la durée. */
+  eyebrow: string;
+  /** Une phrase sous le nom, ce que le client comprend. */
+  pitch: string | null;
+  /** Arguments de la carte. */
+  bullets: string[];
+  /** Équivalent mensuel d'un prix unique (« soit 41 €/mois »), 0 si non pertinent. */
+  perMonthCents: number;
+  /** Carte à mettre en avant (le 12 mois, quand il y a le choix). */
+  featured: boolean;
+}
+
+export function offerCardCopy(offer: Offer, offers: Offer[]): OfferCardCopy {
+  const isSub = offer.billing_type === "subscription";
+  const product = productFor(offer.duration_months);
+  const base = product
+    ? product.bullets
+    : ["Programme conçu par ton coach", "Accompagnement nutritionnel", "Coach IA inclus"];
+  const bullets = [
+    ...base,
+    ...(offer.vip_chat ? ["Chat VIP avec ton coach"] : []),
+    "Espace client et suivi",
+  ];
+  const eyebrow = product
+    ? `${product.months} mois · ${product.promise}`
+    : isSub
+      ? "Abonnement"
+      : durationText(offer.duration_months);
+  const perMonthCents =
+    !isSub && offer.price_cents != null && offer.duration_months > 1
+      ? monthlyEquivalentCents(offer.price_cents, offer.duration_months)
+      : 0;
+  // « Le plus choisi » : le 12 mois, seulement s'il y a une alternative à côté.
+  const featured = offer.duration_months === 12 && offers.length >= 2;
+  return { eyebrow, pitch: product?.pitch ?? null, bullets, perMonthCents, featured };
 }
 
 export const features = [
@@ -67,5 +111,6 @@ export const faqs = [
   { q: "Comment se passe le paiement ?", a: "Le paiement est sécurisé par Stripe, directement auprès de ton coach. Selon le programme choisi, c'est un paiement unique ou un abonnement (mensuel ou annuel), résiliable à tout moment depuis ton espace." },
   { q: "Qui conçoit vraiment le programme ?", a: "Ton coach. Le programme est bâti sur SA méthode ; il s'appuie sur une IA qu'il a entraînée sur sa façon de travailler. L'assistant IA prolonge cet accompagnement au quotidien, mais ne remplace pas ton coach ni un avis médical." },
   { q: "J'ai une blessure, une pathologie ou une grossesse ?", a: "Un écran santé au démarrage repère les situations à risque. Le programme est adapté ou mis en pause en attendant l'avis de ton médecin." },
-  { q: "Que se passe-t-il après le programme ?", a: "Le coach IA se désactive à la fin, mais ton plan reste consultable un moment de plus en lecture seule." },
+  { q: "3 mois ou 12 mois, quelle différence ?", a: "Le 3 mois est un sprint avec une ligne d'arrivée : 3 cycles qui montent en intensité, pour un résultat visible en 12 semaines. Le 12 mois est un programme qui apprend de toi : 4 blocs de 3 mois, chacun reconstruit sur ce que tu as réellement fait dans le précédent, avec une orientation qui change en cours d'année (bases, volume, force, pic)." },
+  { q: "Que se passe-t-il après le programme ?", a: "Le coach IA se désactive à la fin, mais ton plan reste consultable un moment de plus en lecture seule. Sur un 3 mois, ton coach te propose de continuer sur 12 mois en déduisant ce que tu as déjà payé." },
 ];

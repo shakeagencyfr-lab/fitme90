@@ -6,7 +6,7 @@ import { S } from "@/components/landing-icons";
 import { SubscriptionPrice } from "@/components/subscription-price";
 import { Reveal } from "@/components/reveal";
 import {
-  durationText,
+  offerCardCopy,
   features,
   salleBullets,
   steps,
@@ -86,13 +86,21 @@ function LumenAppCard({ name }: { name: string }) {
   );
 }
 
-function OfferCard({ offer, slug, chargesEnabled, featured }: { offer: Offer; slug: string; chargesEnabled: boolean; featured: boolean }) {
+function OfferCard({ offer, offers, slug, chargesEnabled }: { offer: Offer; offers: Offer[]; slug: string; chargesEnabled: boolean }) {
   const isSub = offer.billing_type === "subscription";
+  const copy = offerCardCopy(offer, offers);
+  const featured = copy.featured;
   return (
-    <article className={`flex flex-col gap-5 rounded-[24px] border p-7 transition-all duration-300 hover:-translate-y-1 ${featured ? "border-brand/40 bg-white shadow-[0_30px_70px_-32px_rgba(30,20,10,.45)]" : "border-black/8 bg-white hover:border-brand/30"}`}>
+    <article className={`relative flex flex-col gap-5 rounded-[24px] border p-7 transition-all duration-300 hover:-translate-y-1 ${featured ? "border-brand/40 bg-white shadow-[0_30px_70px_-32px_rgba(30,20,10,.45)]" : "border-black/8 bg-white hover:border-brand/30"}`}>
+      {featured ? (
+        <span className="absolute -top-3 left-6 rounded-pill bg-brand px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-white">
+          Le plus choisi
+        </span>
+      ) : null}
       <div className="flex flex-col gap-1.5">
-        <span className={eyebrow}>{isSub ? "Abonnement" : durationText(offer.duration_months)}</span>
+        <span className={eyebrow}>{copy.eyebrow}</span>
         <h3 className="font-archivo text-[22px] font-bold leading-tight tracking-[-0.02em] text-ink">{offer.name}</h3>
+        {copy.pitch ? <p className="text-[14px] leading-[1.5] text-ink/60">{copy.pitch}</p> : null}
       </div>
 
       {isSub ? (
@@ -105,22 +113,23 @@ function OfferCard({ offer, slug, chargesEnabled, featured }: { offer: Offer; sl
           variant="light"
         />
       ) : (
-        <div className="flex items-end gap-2">
-          <span className="font-archivo text-[clamp(40px,7vw,56px)] font-extrabold leading-none tracking-[-0.03em] text-ink">
-            {formatEuros(offer.price_cents)}
-          </span>
-          <span className="pb-2 text-[13px] text-ink/50">paiement unique</span>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-end gap-2">
+            <span className="font-archivo text-[clamp(40px,7vw,56px)] font-extrabold leading-none tracking-[-0.03em] text-ink">
+              {formatEuros(offer.price_cents)}
+            </span>
+            <span className="pb-2 text-[13px] text-ink/50">paiement unique</span>
+          </div>
+          {copy.perMonthCents > 0 ? (
+            <span className="text-[13px] text-ink/55">
+              soit <span className="font-semibold text-ink">{formatEuros(copy.perMonthCents)}/mois</span> sur {offer.duration_months} mois
+            </span>
+          ) : null}
         </div>
       )}
 
       <ul className="flex flex-col gap-2 border-t border-black/8 pt-4">
-        {[
-          "Programme conçu par ton coach",
-          "Accompagnement nutritionnel",
-          "Assistant IA inclus",
-          ...(offer.vip_chat ? ["Chat VIP avec ton coach"] : []),
-          "Espace client & suivi",
-        ].map((it) => (
+        {copy.bullets.map((it) => (
           <li key={it} className="flex items-start gap-2.5 text-[14px] leading-[1.5] text-ink/75">
             <S.check className="mt-0.5 h-4.5 w-4.5 shrink-0 text-brand" />
             {it}
@@ -483,8 +492,8 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
                       : "max-w-[1120px] sm:grid-cols-2 lg:grid-cols-3"
                 }`}
               >
-                {offers.map((o, i) => (
-                  <OfferCard key={o.id} offer={o} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} featured={offers.length === 3 && i === 1} />
+                {offers.map((o) => (
+                  <OfferCard key={o.id} offer={o} offers={offers} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} />
                 ))}
               </div>
             )}
