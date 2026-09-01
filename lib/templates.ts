@@ -13,10 +13,17 @@ import { CYCLES_PER_BLOCK, clampSessionsPerWeek, type SessionsPerWeek } from "./
 export interface SessionSlot {
   code: string;
   title: string;
-  /** Groupes musculaires visés, pour le libellé et la cohérence exercices/titre. */
+  /** Ce que la séance vise, tel que le client le lira. */
   focus: string;
-  /** Patrons de mouvement à couvrir OBLIGATOIREMENT dans la séance. */
+  /** Patrons de mouvement PRINCIPAUX, obligatoires, travaillés lourd ou en volume. */
   patterns: string[];
+  /**
+   * Patron SECONDAIRE, léger (un seul exercice, jamais lourd) : c'est lui qui
+   * garantit qu'aucun muscle ne reste une semaine entière sans stimulus.
+   */
+  secondary?: string;
+  /** Groupes musculaires réellement touchés (principal + secondaire), pour le contrôle de fréquence. */
+  muscles: string[];
 }
 
 export interface WeekSplit {
@@ -25,112 +32,145 @@ export interface WeekSplit {
 }
 
 /**
- * Répartition hebdomadaire par fréquence. Chaque muscle est travaillé au moins
- * deux fois par semaine, poussée et tirage restent équilibrés, le bas du corps
- * n'est jamais sacrifié. Les titres sont ceux que le client verra.
+ * PRINCIPE DIRECTEUR, validé avec le coach : chaque muscle est travaillé AU
+ * MOINS DEUX FOIS PAR SEMAINE, quelle que soit la fréquence. Le « bro split »
+ * (un muscle par jour, une fois par semaine) est exclu partout : Push / Pull /
+ * Legs sur 3 jours, ou Haut / Bas sur 2 jours, en sont des formes déguisées.
+ *
+ * La base est la semaine à 5 séances (Push, Pull, Jambes quadriceps, Haut du
+ * corps, Jambes ischio-jambiers). Les fréquences plus basses en descendent :
+ * on fusionne, on ne supprime jamais un muscle. Quand un jour a un focus
+ * (quadriceps, ischio), l'autre moitié de la jambe reçoit UN exercice léger,
+ * jamais zéro, jamais un second jour lourd. Le lourd alterne d'une séance à
+ * l'autre. Mollets et gainage se glissent sur les jours jambes.
  */
 export const SPLITS: Record<SessionsPerWeek, WeekSplit> = {
   2: {
-    name: "Full body A / B",
+    name: "Full body A / B, dominantes croisées",
     sessions: [
       {
         code: "A",
-        title: "Full body A",
-        focus: "corps entier, dominante squat et poussée",
-        patterns: ["squat ou fente", "poussée horizontale", "tirage horizontal", "charnière de hanche légère", "gainage"],
+        title: "Full body · poussée + quadriceps",
+        focus: "corps entier, dominante poussée et quadriceps",
+        patterns: ["squat lourd", "poussée horizontale (développé couché)", "poussée verticale (développé militaire)", "tirage horizontal (rowing)"],
+        secondary: "ischio-jambiers léger (leg curl ou soulevé roumain léger)",
+        muscles: ["quadriceps", "pectoraux", "épaules", "dos", "triceps", "ischio-jambiers"],
       },
       {
         code: "B",
-        title: "Full body B",
-        focus: "corps entier, dominante charnière et tirage",
-        patterns: ["charnière de hanche", "tirage vertical", "poussée verticale", "squat ou fente légère", "gainage"],
+        title: "Full body · tirage + ischio-jambiers",
+        focus: "corps entier, dominante tirage et chaîne postérieure",
+        patterns: ["soulevé roumain ou charnière lourde", "tirage vertical (tractions ou tirage)", "poussée inclinée", "hip thrust ou pont fessier"],
+        secondary: "quadriceps léger (fente ou presse légère)",
+        // Épaules : avant par la poussée inclinée, arrière par le tirage vertical.
+        muscles: ["ischio-jambiers", "fessiers", "dos", "biceps", "pectoraux", "épaules", "quadriceps"],
       },
     ],
   },
   3: {
-    name: "Full body A / B / C",
-    sessions: [
-      {
-        code: "A",
-        title: "Full body A · poussée",
-        focus: "corps entier, accent pectoraux, épaules, quadriceps",
-        patterns: ["squat", "poussée horizontale", "poussée verticale", "tirage horizontal", "gainage"],
-      },
-      {
-        code: "B",
-        title: "Full body B · tirage",
-        focus: "corps entier, accent dos, ischio-jambiers, fessiers",
-        patterns: ["charnière de hanche", "tirage vertical", "tirage horizontal", "fente", "gainage"],
-      },
-      {
-        code: "C",
-        title: "Full body C · densité",
-        focus: "corps entier, enchaînements et points faibles",
-        patterns: ["squat ou fente", "poussée", "tirage", "isolation bras ou épaules", "gainage ou finisher"],
-      },
-    ],
-  },
-  4: {
-    name: "Haut / Bas × 2",
-    sessions: [
-      {
-        code: "A",
-        title: "Haut du corps A",
-        focus: "pectoraux, dos, épaules, dominante force",
-        patterns: ["poussée horizontale lourde", "tirage horizontal lourd", "poussée verticale", "tirage vertical", "bras"],
-      },
-      {
-        code: "B",
-        title: "Bas du corps A",
-        focus: "quadriceps, fessiers, dominante squat",
-        patterns: ["squat lourd", "fente ou presse", "charnière de hanche légère", "mollets", "gainage"],
-      },
-      {
-        code: "C",
-        title: "Haut du corps B",
-        focus: "pectoraux, dos, épaules, dominante volume",
-        patterns: ["poussée inclinée", "tirage vertical", "poussée verticale", "tirage horizontal", "isolation épaules et bras"],
-      },
-      {
-        code: "D",
-        title: "Bas du corps B",
-        focus: "ischio-jambiers, fessiers, dominante charnière",
-        patterns: ["soulevé de terre ou variante", "hip thrust ou pont", "squat léger ou fente", "ischio isolation", "gainage"],
-      },
-    ],
-  },
-  5: {
-    name: "Haut / Bas / Poussée / Tirage / Jambes",
+    name: "Haut / Bas quadriceps / Full body charnière",
     sessions: [
       {
         code: "A",
         title: "Haut du corps",
-        focus: "pectoraux, dos, épaules, force",
-        patterns: ["poussée horizontale lourde", "tirage horizontal lourd", "poussée verticale", "tirage vertical"],
+        focus: "pectoraux, dos, épaules, bras : poussée et tirage à égalité",
+        patterns: ["poussée horizontale (développé couché)", "tirage vertical", "poussée verticale (développé militaire)", "tirage horizontal (rowing)", "bras (biceps et triceps)"],
+        muscles: ["pectoraux", "dos", "épaules", "biceps", "triceps"],
       },
       {
         code: "B",
-        title: "Bas du corps",
-        focus: "quadriceps, ischio-jambiers, fessiers, force",
-        patterns: ["squat lourd", "charnière de hanche lourde", "fente", "mollets", "gainage"],
+        title: "Bas du corps · quadriceps",
+        focus: "quadriceps en priorité, mollets, gainage",
+        patterns: ["squat lourd", "presse ou fente", "mollets", "gainage"],
+        secondary: "ischio-jambiers léger (leg curl)",
+        muscles: ["quadriceps", "fessiers", "mollets", "ischio-jambiers"],
       },
       {
         code: "C",
-        title: "Poussée",
-        focus: "pectoraux, épaules, triceps, volume",
-        patterns: ["poussée inclinée", "poussée verticale", "écarté ou isolation pectoraux", "élévations latérales", "triceps"],
+        title: "Full body · charnière",
+        focus: "chaîne postérieure lourde, haut du corps en rappel",
+        patterns: ["soulevé roumain ou hip thrust lourd", "poussée inclinée", "tirage horizontal", "fessiers"],
+        secondary: "quadriceps léger (fente ou presse légère)",
+        muscles: ["ischio-jambiers", "fessiers", "pectoraux", "dos", "épaules", "quadriceps"],
+      },
+    ],
+  },
+  4: {
+    name: "Haut poussée / Bas quadriceps / Haut tirage / Bas ischio",
+    sessions: [
+      {
+        code: "A",
+        title: "Haut du corps · dominante poussée",
+        focus: "pectoraux, épaules, triceps en lourd",
+        patterns: ["développé couché lourd", "développé militaire", "poussée inclinée ou écarté", "triceps"],
+        secondary: "un tirage horizontal (rowing) en rappel",
+        muscles: ["pectoraux", "épaules", "triceps", "dos"],
+      },
+      {
+        code: "B",
+        title: "Bas du corps · quadriceps",
+        focus: "quadriceps en priorité, mollets, gainage",
+        patterns: ["squat lourd", "presse ou fente", "mollets", "gainage"],
+        secondary: "ischio-jambiers léger (leg curl)",
+        muscles: ["quadriceps", "fessiers", "mollets", "ischio-jambiers"],
+      },
+      {
+        code: "C",
+        title: "Haut du corps · dominante tirage",
+        focus: "dos, arrière d'épaule, biceps en lourd",
+        patterns: ["tractions ou tirage vertical lourd", "rowing", "arrière d'épaule", "biceps"],
+        secondary: "une poussée inclinée en rappel",
+        muscles: ["dos", "épaules", "biceps", "pectoraux"],
       },
       {
         code: "D",
-        title: "Tirage",
-        focus: "dos, arrière d'épaules, biceps, volume",
-        patterns: ["tirage vertical", "tirage horizontal", "arrière d'épaules", "biceps", "gainage"],
+        title: "Bas du corps · ischio-jambiers",
+        focus: "ischio-jambiers et fessiers en priorité",
+        patterns: ["soulevé roumain", "hip thrust", "leg curl", "gainage"],
+        secondary: "quadriceps léger (fente ou presse légère)",
+        muscles: ["ischio-jambiers", "fessiers", "quadriceps"],
+      },
+    ],
+  },
+  5: {
+    name: "Push / Pull / Jambes quadriceps / Haut du corps / Jambes ischio",
+    sessions: [
+      {
+        code: "A",
+        title: "Push",
+        focus: "pectoraux, épaules, triceps",
+        patterns: ["poussée horizontale (développé couché)", "poussée verticale (développé militaire)", "poussée inclinée ou écarté", "élévations latérales", "triceps"],
+        muscles: ["pectoraux", "épaules", "triceps"],
+      },
+      {
+        code: "B",
+        title: "Pull",
+        focus: "dos, arrière d'épaule, biceps",
+        patterns: ["tirage vertical (tractions ou tirage)", "tirage horizontal (rowing)", "arrière d'épaule", "biceps"],
+        muscles: ["dos", "épaules", "biceps"],
+      },
+      {
+        code: "C",
+        title: "Jambes · quadriceps",
+        focus: "quadriceps en priorité, mollets",
+        patterns: ["squat lourd", "presse", "fente", "mollets"],
+        secondary: "ischio-jambiers léger (leg curl)",
+        muscles: ["quadriceps", "fessiers", "mollets", "ischio-jambiers"],
+      },
+      {
+        code: "D",
+        title: "Haut du corps",
+        focus: "pectoraux et dos en composés lourds, épaules, bras",
+        patterns: ["poussée horizontale lourde", "tirage horizontal lourd", "poussée verticale", "tirage vertical", "bras"],
+        muscles: ["pectoraux", "dos", "épaules", "biceps", "triceps"],
       },
       {
         code: "E",
-        title: "Jambes",
-        focus: "quadriceps, ischio-jambiers, fessiers, volume",
-        patterns: ["presse ou squat léger", "hip thrust", "fente ou bulgare", "ischio isolation", "mollets"],
+        title: "Jambes · ischio-jambiers",
+        focus: "ischio-jambiers et fessiers en priorité, mollets",
+        patterns: ["soulevé roumain", "hip thrust", "leg curl", "mollets"],
+        secondary: "quadriceps léger (fente ou presse légère)",
+        muscles: ["ischio-jambiers", "fessiers", "mollets", "quadriceps"],
       },
     ],
   },
@@ -309,7 +349,7 @@ export function templatePrompt(input: TemplateInput): string {
   const sessions = split.sessions
     .map(
       (s) =>
-        `  ${s.code}. "${s.title}" : ${s.focus}. Patrons obligatoires : ${s.patterns.join(", ")}.`,
+        `  ${s.code}. "${s.title}" : ${s.focus}. Patrons PRINCIPAUX obligatoires : ${s.patterns.join(", ")}.${s.secondary ? ` Patron SECONDAIRE obligatoire, UN seul exercice, léger : ${s.secondary}.` : ""}`,
     )
     .join("\n");
 
@@ -332,7 +372,9 @@ ${blockLine}
 
 RÉPARTITION HEBDOMADAIRE « ${split.name} », ${freq} séances distinctes par semaine, dans CHAQUE cycle, avec EXACTEMENT ces titres et cette lettre :
 ${sessions}
-Chaque séance couvre TOUS ses patrons obligatoires (un exercice au moins par patron), avec le matériel du client. Les exercices peuvent changer d'un cycle à l'autre (variantes), les titres et les patrons, non.
+Chaque séance couvre TOUS ses patrons principaux (un exercice au moins par patron) ET son patron secondaire s'il y en a un, avec le matériel du client. Les exercices peuvent changer d'un cycle à l'autre (variantes), les titres et les patrons, non.
+
+FRÉQUENCE (RÈGLE NON NÉGOCIABLE) : cette répartition fait travailler chaque muscle AU MOINS DEUX FOIS PAR SEMAINE. Ne la transforme jamais en « un muscle par jour » : c'est le bro split, il est exclu. Le patron secondaire est là pour ça : un seul exercice, léger (charges modérées, 2 à 3 séries), jamais un second jour lourd. Le lourd alterne d'une séance à l'autre. Mollets et gainage se placent sur les séances jambes et ne prennent jamais une séance à eux.
 
 CYCLES DE CE BLOC (${cycleCount}), numérotés et libellés EXACTEMENT ainsi :
 ${cycles}`;

@@ -73,7 +73,12 @@ La structure des cycles (nombre, nom, reps, repos, RPE, décharge) est IMPOSÉE 
 - Décharge/allègement dès que la fatigue s'accumule (sommeil, énergie en berne, performances qui baissent).
 
 ════════ 5. CONSTRUCTION DE LA SEMAINE ════════
-La répartition (titres des séances, lettres, patrons obligatoires) est celle du gabarit reçu plus haut. Chaque muscle est ainsi travaillé 2×/semaine ; à toi de choisir, pour chaque patron, l'exercice le plus pertinent pour CE client (matériel, niveau, blessures, goûts).
+La répartition (titres des séances, lettres, patrons principaux et secondaire) est celle du gabarit reçu plus haut ; à toi de choisir, pour chaque patron, l'exercice le plus pertinent pour CE client (matériel, niveau, blessures, goûts). Principes qui la fondent, à respecter dans chaque choix :
+- CHAQUE MUSCLE AU MOINS DEUX FOIS PAR SEMAINE, quelle que soit la fréquence. Le bro split (un muscle par jour, une fois par semaine) est exclu : c'est la première cause de stagnation. Push / Pull / Legs sur 3 jours ou Haut / Bas sur 2 jours en sont des formes déguisées, on ne les construit jamais.
+- La référence est la semaine à 5 séances : Push, Pull, Jambes focus quadriceps, Haut du corps, Jambes focus ischio-jambiers. Les fréquences plus basses en descendent en FUSIONNANT (Haut/Bas ×2 avec dominantes, Haut/Bas/Full body, Full body A/B croisés), jamais en supprimant un muscle.
+- Quand une séance a un focus (quadriceps ou ischio-jambiers), l'autre moitié de la jambe reçoit UN exercice léger (2 à 3 séries, charge modérée) : jamais zéro, jamais un second jour lourd.
+- Le lourd alterne : on ne pousse pas lourd deux séances de suite, on ne tire pas lourd deux séances de suite.
+- Mollets et gainage se glissent en fin de séance jambes ; ils ne prennent jamais une séance à eux.
 
 ════════ 6. SÉLECTION ET ORDRE DES EXERCICES ════════
 - Prioriser les mouvements composés (squat/fente, charnière de hanche, poussée horizontale et verticale, tirage horizontal et vertical) avant l'isolation.
