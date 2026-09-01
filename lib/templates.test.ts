@@ -43,6 +43,44 @@ describe("répartitions hebdomadaires", () => {
     }
   });
 
+  // Principe validé avec le coach : chaque muscle au moins deux fois par
+  // semaine, quelle que soit la fréquence. C'est le test qui interdit le bro
+  // split pour de bon : si quelqu'un réécrit une répartition en « un muscle par
+  // jour », il casse ici.
+  it("travaille chaque grand groupe musculaire au moins deux fois par semaine", () => {
+    const groups = ["pectoraux", "dos", "épaules", "quadriceps", "ischio-jambiers"];
+    for (const n of SESSIONS_PER_WEEK) {
+      for (const g of groups) {
+        const hits = SPLITS[n].sessions.filter((s) => s.muscles.includes(g)).length;
+        expect(hits, `${g} sur ${n} séances`).toBeGreaterThanOrEqual(2);
+      }
+    }
+  });
+
+  it("donne un rappel léger à l'autre moitié de la jambe sur chaque jour à focus", () => {
+    for (const n of SESSIONS_PER_WEEK) {
+      for (const s of SPLITS[n].sessions) {
+        if (/quadriceps/.test(s.title)) expect(s.secondary).toMatch(/ischio/);
+        if (/ischio/.test(s.title)) expect(s.secondary).toMatch(/quadriceps/);
+      }
+    }
+  });
+
+  it("suit la base à 5 séances validée : Push, Pull, quadriceps, Haut, ischio, dans cet ordre", () => {
+    expect(SPLITS[5].sessions.map((s) => s.title)).toEqual([
+      "Push",
+      "Pull",
+      "Jambes · quadriceps",
+      "Haut du corps",
+      "Jambes · ischio-jambiers",
+    ]);
+  });
+
+  it("refuse les bro splits déguisés : pas de Push/Pull/Legs sur 3 jours, pas de Haut/Bas sur 2", () => {
+    expect(SPLITS[3].sessions.map((s) => s.title).join(" ")).not.toMatch(/^Push Pull/);
+    expect(SPLITS[2].sessions.every((s) => /Full body/.test(s.title))).toBe(true);
+  });
+
   it("ramène toute fréquence hors gabarit sur 2 à 5", () => {
     expect(clampSessionsPerWeek(1)).toBe(2);
     expect(clampSessionsPerWeek(6)).toBe(5);
@@ -110,8 +148,15 @@ describe("templatePrompt", () => {
     for (const s of SPLITS[4].sessions) {
       expect(p).toContain(`"${s.title}"`);
       for (const pat of s.patterns) expect(p).toContain(pat);
+      if (s.secondary) expect(p).toContain(s.secondary);
     }
     expect(p).toContain("4 séances distinctes");
+  });
+
+  it("rappelle au modèle la règle des deux fois par semaine et l'interdiction du bro split", () => {
+    const p = templatePrompt({ sessionsPerWeek: 3, blockIndex: 0, totalBlocks: 1 });
+    expect(p).toContain("DEUX FOIS PAR SEMAINE");
+    expect(p).toMatch(/bro split/);
   });
 
   it("numérote les cycles du 2e bloc à partir du cycle 4 et des semaines 13", () => {
