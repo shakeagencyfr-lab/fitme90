@@ -3,7 +3,12 @@
 import { useActionState, useState } from "react";
 import { saveCoachConfig, type ConfigState } from "@/app/admin/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
-import { estimateAiMonthlyCost } from "@/lib/config";
+import {
+  estimateAiMonthlyCost,
+  estimateAiMonthlyCredits,
+  CREDITS_PER_AI_ACTION,
+  CREDITS_PER_PROGRAM,
+} from "@/lib/config";
 
 interface Props {
   initialMode: "auto" | "custom";
@@ -11,6 +16,12 @@ interface Props {
   initialCoachName: string;
   initialDailyLimit: number;
   initialRecipeLimit: number;
+  /**
+   * Le coach consomme-t-il des CRÉDITS fournis par son revendeur plutôt que sa
+   * propre clé (BYOK) ? Change l'unité de tout le bloc « plafonds » : un solde
+   * de crédits qui descend, pas une facture Anthropic en dollars.
+   */
+  creditMode: boolean;
 }
 
 export function CoachConfigForm({
@@ -19,6 +30,7 @@ export function CoachConfigForm({
   initialCoachName,
   initialDailyLimit,
   initialRecipeLimit,
+  creditMode,
 }: Props) {
   const [state, action, pending] = useActionState(saveCoachConfig, {} as ConfigState);
   const [mode, setMode] = useState<"auto" | "custom">(initialMode);
@@ -26,6 +38,7 @@ export function CoachConfigForm({
   const [recipeLimit, setRecipeLimit] = useState<number>(initialRecipeLimit);
 
   const { realMonth, ceilingMonth } = estimateAiMonthlyCost(limit, recipeLimit);
+  const credits = estimateAiMonthlyCredits(limit, recipeLimit);
 
   return (
     <Card as="section" className="flex flex-col gap-4">
@@ -112,9 +125,20 @@ export function CoachConfigForm({
         <div className="flex flex-col gap-1">
           <div className="font-archivo font-bold text-[17px] text-ink">Plafonds du Coach IA</div>
           <p className="text-[13px] text-muted">
-            Deux plafonds <span className="text-body">par client et par jour</span> pour maîtriser ton coût
-            IA (BYOK) : les messages du chat, et les régénérations de recettes (comptées à part car le
-            modèle recettes coûte un peu plus).
+            {creditMode ? (
+              <>
+                Deux plafonds <span className="text-body">par client et par jour</span> pour maîtriser ta
+                consommation de crédits : les messages du chat, et les régénérations de recettes. Chaque
+                action décompte {CREDITS_PER_AI_ACTION} crédit IA de ton solde ; une génération de
+                programme décompte {CREDITS_PER_PROGRAM} crédit programme.
+              </>
+            ) : (
+              <>
+                Deux plafonds <span className="text-body">par client et par jour</span> pour maîtriser ton
+                coût IA (BYOK) : les messages du chat, et les régénérations de recettes (comptées à part
+                car le modèle recettes coûte un peu plus).
+              </>
+            )}
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -143,19 +167,48 @@ export function CoachConfigForm({
             />
           </label>
         </div>
+        {/* Même bloc, deux unités : des dollars pour un coach BYOK (il reçoit une
+            facture Anthropic), des crédits pour un coach en modèle crédits (il
+            voit un solde descendre). */}
         <div className="flex flex-col gap-2 rounded-control border border-line-4 bg-surface-2 p-3.5 text-[13px] leading-relaxed text-muted">
           <div>
             <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">Estimation réaliste</span>
             <div className="mt-0.5 text-body">
-              Un client actif te coûte environ{" "}
-              <span className="font-semibold text-ink">${realMonth.toFixed(2)}/mois</span> en IA
-              {" "}(≈8 messages + 1 recette par jour). La plupart consomment moins.
+              {creditMode ? (
+                <>
+                  Un client actif consomme environ{" "}
+                  <span className="font-semibold text-ink">{credits.realMonth} crédits IA/mois</span>
+                  {" "}(≈8 messages + 1 recette par jour), plus {CREDITS_PER_PROGRAM} crédit programme à
+                  chaque génération. La plupart consomment moins.
+                </>
+              ) : (
+                <>
+                  Un client actif te coûte environ{" "}
+                  <span className="font-semibold text-ink">${realMonth.toFixed(2)}/mois</span> en IA
+                  {" "}(≈8 messages + 1 recette par jour). La plupart consomment moins.
+                </>
+              )}
             </div>
           </div>
           <div className="border-t border-line pt-2">
             <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">Plafond de sécurité</span>
             <div className="mt-0.5">
-              {ceilingMonth == null ? (
+              {creditMode ? (
+                credits.ceilingMonth == null ? (
+                  <>
+                    Un de tes plafonds est sur <span className="font-semibold text-body">illimité</span> : rien ne
+                    borne le nombre de crédits qu&apos;un client peut consommer. Fixe les deux plafonds pour
+                    garantir un maximum mensuel.
+                  </>
+                ) : (
+                  <>
+                    Même si un client saturait ses plafonds{" "}
+                    <span className="font-semibold text-body">tous les jours</span>, il ne dépasserait jamais{" "}
+                    <span className="font-semibold text-body">{credits.ceilingMonth} crédits IA/mois</span>.
+                    Multiplie par ton nombre de clients pour dimensionner tes recharges.
+                  </>
+                )
+              ) : ceilingMonth == null ? (
                 <>
                   Un de tes plafonds est sur <span className="font-semibold text-body">illimité</span> : le coût
                   maximum n&apos;est pas borné. Fixe les deux plafonds pour garantir un coût mensuel maximum.

@@ -6,6 +6,7 @@ import { listCoachNotifications, unreadCoachNotifCount } from "@/lib/notificatio
 import { tenantNode } from "@/lib/hierarchy";
 import { tenantFreezeState } from "@/lib/freeze";
 import { tenantMonthlyAiUsage } from "@/lib/ai-cost";
+import { clientUsesCredits, getWallet } from "@/lib/credits";
 import { parentDashboardBrand } from "@/lib/branding";
 import { CoachFreezeBanner } from "@/components/coach-freeze-banner";
 
@@ -20,7 +21,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!ctx) notFound();
 
   const tenantId = ctx.profile?.tenant_id ?? null;
-  const [notifs, unread, node, freeze, aiUsage, parentBrand] = tenantId
+  const [notifs, unread, node, freeze, aiUsage, parentBrand, useCredits] = tenantId
     ? await Promise.all([
         listCoachNotifications(tenantId),
         unreadCoachNotifCount(tenantId),
@@ -28,9 +29,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         tenantFreezeState(tenantId),
         tenantMonthlyAiUsage(tenantId),
         parentDashboardBrand(tenantId),
+        clientUsesCredits(tenantId),
       ])
-    : [[], 0, null, { frozen: false, status: null }, { costUsd: 0, calls: 0, sinceIso: "" }, null];
+    : [[], 0, null, { frozen: false, status: null }, { costUsd: 0, calls: 0, sinceIso: "" }, null, false];
   const kind = node?.kind ?? "coach";
+
+  // En modèle crédits, la carte du bandeau montre le solde restant plutôt qu'une
+  // conso en dollars : ce coach ne paie pas Anthropic, il dépense des crédits.
+  const bal = useCredits && tenantId ? await getWallet(tenantId) : null;
+  const wallet = bal ? { ai: bal.aiCredits, program: bal.programCredits } : null;
 
   return (
     <>
@@ -41,6 +48,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         kind={kind}
         aiCostUsd={aiUsage.costUsd}
         aiCalls={aiUsage.calls}
+        wallet={wallet}
         brandName={parentBrand?.name ?? null}
         brandLogoUrl={parentBrand?.logoUrl ?? null}
         brandColor={parentBrand?.brandColor ?? null}
