@@ -26,6 +26,10 @@ interface Props {
 export function ResellerModelForm({ initialModel, keyConfigured, packs, aiUnitCents, programUnitCents }: Props) {
   const [state, action, saving] = useActionState(saveResellerModelChoice, {} as ResellerAiState);
   const [model, setModel] = useState<"subscription" | "credits">(initialModel);
+  // Modèle réellement en base. `state.ok` couvre l'instant entre l'enregistrement
+  // et la revalidation de la page.
+  const savedModel = state.ok ? model : initialModel;
+  const unsaved = model !== savedModel;
 
   return (
     <Card as="section" className="flex flex-col gap-5">
@@ -59,13 +63,32 @@ export function ResellerModelForm({ initialModel, keyConfigured, packs, aiUnitCe
         {state.error ? <Alert>{state.error}</Alert> : null}
         {state.ok ? <Alert tone="info">Modèle enregistré.</Alert> : null}
 
-        <Button type="submit" loading={saving} disabled={model === "credits" && !keyConfigured} className="self-start h-11">
-          Enregistrer le modèle
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" loading={saving} disabled={model === "credits" && !keyConfigured} className="h-11">
+            Enregistrer le modèle
+          </Button>
+          {unsaved ? (
+            <span className="text-[13px] text-[#C4471A]">
+              Choix pas encore enregistré, rien n&apos;a changé pour tes coachs.
+            </span>
+          ) : null}
+        </div>
       </form>
 
-      {model === "credits" ? (
+      {/* Les packs ne s'affichent QUE si le modèle « Crédits IA » est réellement
+          enregistré. Sinon on pouvait créer des packs sur une simple sélection
+          non sauvegardée : les coachs ne voyaient rien, sans que rien ne le dise.
+          Après un enregistrement réussi, on n'attend pas la revalidation pour
+          ouvrir la section. */}
+      {savedModel === "credits" ? (
         <PacksManager packs={packs} aiUnitCents={aiUnitCents} programUnitCents={programUnitCents} />
+      ) : model === "credits" ? (
+        <div className="border-t border-line pt-5">
+          <Alert>
+            Enregistre d&apos;abord le modèle « Crédits IA » ci-dessus : tes packs ne peuvent exister
+            que dans ce modèle, et tes coachs ne les verraient pas.
+          </Alert>
+        </div>
       ) : null}
     </Card>
   );
