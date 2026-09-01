@@ -6,7 +6,7 @@ import { CoachCheckoutButton } from "@/components/coach-checkout-button";
 import { RedeemForm } from "@/components/redeem-form";
 import { clientOffer, subscriptionPrice } from "@/lib/offers";
 import { createClient } from "@/lib/supabase/server";
-import { PRICE_EUR, COACH_CREDENTIAL, formatEuros, programDaysForMonths } from "@/lib/config";
+import { PRICE_EUR, COACH_CREDENTIAL, GRACE_DAYS, formatEuros, programDaysForMonths } from "@/lib/config";
 
 export const metadata = { title: "Débloquer mon programme" };
 
@@ -102,7 +102,7 @@ export default async function PaiementPage() {
           "Programme d'entraînement périodisé, adapté à ta salle",
           "Nutrition jour par jour, allergènes et régime respectés",
           "Coach IA disponible pendant ton programme",
-          "Plan consultable 30 jours de plus après la fin",
+          `Plan consultable ${GRACE_DAYS} jours de plus après la fin`,
           "Export PDF complet",
         ].map((t) => (
           <div key={t} className="flex items-start gap-2.5 text-[14.5px] text-body">

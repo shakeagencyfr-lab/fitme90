@@ -1,4 +1,4 @@
-import { PRICE_EUR } from "@/lib/config";
+import { PRICE_EUR, GRACE_DAYS } from "@/lib/config";
 
 export const metadata = { title: "Conditions générales de vente, My Fitness App" };
 
@@ -26,7 +26,7 @@ export default function CgvPage() {
       <h2>3. Durée d'accès</h2>
       <ul>
         <li>Coach IA et suivi actif : la durée de l'offre souscrite à compter de la génération du programme.</li>
-        <li>Consultation du plan en lecture seule : 30 jours supplémentaires.</li>
+        <li>Consultation du plan en lecture seule : {GRACE_DAYS} jours supplémentaires.</li>
         <li>Au-delà, l'accès prend fin. Un nouveau programme peut être commandé.</li>
       </ul>
 
