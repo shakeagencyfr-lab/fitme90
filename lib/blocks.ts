@@ -2,7 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateProgram, CYCLE_DAYS, type Plan } from "@/lib/program";
 import { anthropicKeyForBilling } from "@/lib/tenant";
-import { clientUsesCredits, getWallet, debitWallet, programCreditCost } from "@/lib/credits";
+import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
 import { recordCall } from "@/lib/ratelimit";
 import { programDay } from "@/lib/access";
 import { subscriptionIsActive } from "@/lib/subscription";
@@ -119,14 +119,10 @@ export async function appendNextBlock(userId: string, force = false): Promise<Ap
     const billing = await anthropicKeyForBilling(userId);
     if (billing.missing) return { ok: false, reason: "no_key" };
 
-    // Modèle crédits : un bloc = une génération = N crédits IA.
+    // Crédits : un bloc = une génération = N crédits IA, à chaque étage concerné.
     const coachTenant = profile.tenant_id;
-    const useCredits = await clientUsesCredits(coachTenant);
-    const programCost = useCredits ? await programCreditCost(coachTenant) : 0;
-    if (useCredits && coachTenant) {
-      const wallet = await getWallet(coachTenant);
-      if (wallet.credits < programCost) return { ok: false, reason: "no_credits" };
-    }
+    const allowance = await checkAiAllowance(coachTenant, "program");
+    if (!allowance.ok) return { ok: false, reason: "no_credits" };
 
     const equipment = (equipRows ?? []).map((e) => (e as { name: string }).name);
     const result = await generateProgram(
@@ -160,7 +156,7 @@ export async function appendNextBlock(userId: string, force = false): Promise<Ap
     if (insErr) return { ok: false, reason: "failed" };
 
     await recordCall(userId, "block", result.usage);
-    if (useCredits && coachTenant) await debitWallet(coachTenant, programCost, "block", userId);
+    await chargeAiUsage(coachTenant, "program", "block", userId);
 
     return { ok: true, blockIndex, cycles: result.plan.cycles?.length ?? 0 };
   } catch {

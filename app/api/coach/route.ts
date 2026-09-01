@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { recordCall } from "@/lib/ratelimit";
 import { checkCoachAiBudget } from "@/lib/coach-ai-budget";
-import { clientUsesCredits, getWallet, debitWallet, programCreditCost } from "@/lib/credits";
+import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
 import { MODELS, textOf, parseJsonLoose, effortConfig, anthropic } from "@/lib/anthropic";
 import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
@@ -104,16 +104,10 @@ export async function POST(req: NextRequest) {
       { status: 429 },
     );
   }
-  const useCredits = await clientUsesCredits(coachTenant);
-  if (useCredits) {
-    const wallet = await getWallet(coachTenant);
-    if (wallet.credits < 1) {
-      return NextResponse.json(
-        { error: "Crédits IA épuisés. Ton coach doit recharger des crédits pour réactiver l'assistant." },
-        { status: 402 },
-      );
-    }
-  }
+  // Crédits (coach chez son revendeur, revendeur chez la plateforme) : on
+  // vérifie avant l'appel, on débite après succès.
+  const allowance = await checkAiAllowance(coachTenant, "action");
+  if (!allowance.ok) return NextResponse.json({ error: allowance.error }, { status: 402 });
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
@@ -567,9 +561,9 @@ ${JSON.stringify(logs ?? [])}`;
   await recordCall(ctx.userId, "coach", totalUsage);
   // Modèle crédits : on débite APRÈS la réponse réussie (jamais de surdébit).
   // Une adaptation régénère aussi un programme → 1 crédit programme en plus.
-  if (useCredits && coachTenant) {
-    await debitWallet(coachTenant, 1, "message", ctx.userId);
-    if (adapted) await debitWallet(coachTenant, await programCreditCost(coachTenant), "generate", ctx.userId);
+  {
+    await chargeAiUsage(coachTenant, "action", "message", ctx.userId);
+    if (adapted) await chargeAiUsage(coachTenant, "program", "generate", ctx.userId);
   }
 
   // Une adaptation (jours, nutrition, blessure) a modifié programme/questionnaire :

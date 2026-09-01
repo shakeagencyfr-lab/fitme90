@@ -1355,7 +1355,8 @@ export async function createNetworkAccount(
   const wants = String(formData.get("kind") ?? "");
   const kind: "reseller" | "coach" = node.kind === "platform" && wants === "reseller" ? "reseller" : "coach";
 
-  const created = await createChildTenantAccount({ parentTenantId: actorTenantId, kind, name, email, contactName });
+  const aiSupply = formData.get("ai_supply") === "platform_credits" ? "platform_credits" : "byok";
+  const created = await createChildTenantAccount({ parentTenantId: actorTenantId, kind, name, email, contactName, aiSupply });
   if (!created.ok) return { error: created.error, name, email };
 
   const origin = await requestOrigin();

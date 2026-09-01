@@ -1,55 +1,122 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAdminOrNull } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { tenantNode } from "@/lib/hierarchy";
+import { tenantNode, platformTenantId } from "@/lib/hierarchy";
 import { tenantKeyStatus } from "@/lib/tenant";
 import { resellerMonthlyAiUsage } from "@/lib/ai-cost";
-import { listCreditPacks } from "@/lib/credits";
+import { listCreditPacks, getWallet, programCreditCost } from "@/lib/credits";
 import { ResellerModelForm } from "@/components/reseller-model-form";
 import { WhitelabelPriceForm } from "@/components/whitelabel-price-form";
 import { ResellerAiModeForm } from "@/components/reseller-ai-mode-form";
 import { ResellerCreditPricingForm } from "@/components/reseller-credit-pricing-form";
 import { ByokForm } from "@/components/byok-form";
 import { Alert, Card, MonoLabel } from "@/components/ui";
-import { DEFAULT_AI_CREDIT_PRICE_CENTS, DEFAULT_PROGRAM_CREDITS } from "@/lib/config";
+import { DEFAULT_AI_CREDIT_PRICE_CENTS, DEFAULT_PROGRAM_CREDITS, formatEuros } from "@/lib/config";
 
 export const metadata = { title: "Revenu IA, Admin My Fitness App" };
 
+interface TenantAiRow {
+  ai_mode: string | null;
+  ai_supply: string | null;
+  reseller_model: string | null;
+  ai_client_daily_limit: number | null;
+  ai_credit_price_cents: number | null;
+  ai_program_credits: number | null;
+  whitelabel_addon_price_cents: number | null;
+}
+
+const AI_COLS =
+  "ai_mode, ai_supply, reseller_model, ai_client_daily_limit, ai_credit_price_cents, ai_program_credits, whitelabel_addon_price_cents";
+
+/**
+ * Revenu IA. Deux visages :
+ *  - PLATEFORME : vend des crédits IA à ses revendeurs (prix, crédits par
+ *    génération, packs) et branche sa clé Anthropic.
+ *  - REVENDEUR : choisit son modèle (abonnement ou crédits) et revend l'IA à ses
+ *    coachs. S'il achète ses crédits à la plateforme, il voit le prix d'achat,
+ *    son solde, et fixe son prix de revente ; sinon il branche sa propre clé.
+ */
 export default async function AdminResellerAiPage() {
   const ctx = await getAdminOrNull();
   const tenantId = ctx?.profile?.tenant_id ?? null;
-
-  // Réservé aux revendeurs : c'est leur levier de monétisation de l'IA
-  // (BYOK vs crédits). La plateforme vend des abonnements (Paliers), pas l'IA,
-  // et un coach n'a pas de coachs enfants.
   const node = tenantId ? await tenantNode(tenantId) : null;
-  if (!node || node.kind !== "reseller") redirect("/admin");
+  if (!node || node.kind === "coach") redirect("/admin");
+  const isPlatform = node.kind === "platform";
 
   const admin = createAdminClient();
-  const { data: t } = await admin
-    .from("tenants")
-    .select("ai_mode, reseller_model, ai_client_daily_limit, ai_credit_price_cents, ai_program_credits, whitelabel_addon_price_cents")
-    .eq("id", tenantId)
-    .maybeSingle<{
-      ai_mode: string | null;
-      reseller_model: string | null;
-      ai_client_daily_limit: number | null;
-      ai_credit_price_cents: number | null;
-      ai_program_credits: number | null;
-      whitelabel_addon_price_cents: number | null;
-    }>();
-  const mode = t?.ai_mode === "provider" ? "provider" : "byok";
-  const resellerModel = t?.reseller_model === "credits" ? "credits" : "subscription";
-  const limit = t?.ai_client_daily_limit == null ? 60 : Math.max(0, t.ai_client_daily_limit);
+  const { data: t } = await admin.from("tenants").select(AI_COLS).eq("id", tenantId).maybeSingle<TenantAiRow>();
   const creditPrice = t?.ai_credit_price_cents == null ? DEFAULT_AI_CREDIT_PRICE_CENTS : Math.max(0, t.ai_credit_price_cents);
   const programCredits =
     t?.ai_program_credits == null || t.ai_program_credits < 1 ? DEFAULT_PROGRAM_CREDITS : t.ai_program_credits;
 
-  const [key, usage, packs] = await Promise.all([
-    tenantKeyStatus(tenantId!),
+  const [key, packs] = await Promise.all([tenantKeyStatus(tenantId!), listCreditPacks(tenantId!)]);
+
+  // ─────────────────────────────── PLATEFORME
+  if (isPlatform) {
+    return (
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-1.5">
+          <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
+            Revenu IA
+          </h1>
+          <p className="max-w-[72ch] text-[15px] leading-[1.6] text-muted">
+            Tu vends des crédits IA à tes revendeurs en « crédits plateforme » (choix fait à la
+            création de leur compte). L&apos;IA tourne sur ta clé Anthropic, chaque action de leurs
+            coachs débite leur solde, et ils revendent le crédit à leurs coachs avec leur marge.
+          </p>
+        </div>
+
+        <ResellerCreditPricingForm
+          initialPriceCents={creditPrice}
+          initialProgramCredits={programCredits}
+          buyerLabel="tes revendeurs"
+        />
+
+        <ResellerModelForm
+          initialModel="credits"
+          keyConfigured={key.configured}
+          packs={packs}
+          unitCents={creditPrice}
+          buyerLabel="tes revendeurs"
+          packsOnly
+        />
+
+        {!key.configured ? (
+          <Alert>
+            Aucune clé Anthropic enregistrée : tes revendeurs en crédits plateforme ne peuvent pas
+            faire tourner l&apos;IA. Branche ta clé ci-dessous.
+          </Alert>
+        ) : null}
+        <ByokForm configured={key.configured} hint={key.hint} encryptionReady={key.encryptionReady} />
+      </div>
+    );
+  }
+
+  // ─────────────────────────────── REVENDEUR
+  const buysFromPlatform = t?.ai_supply === "platform_credits";
+  const mode = buysFromPlatform || t?.ai_mode === "provider" ? "provider" : "byok";
+  const resellerModel = t?.reseller_model === "credits" ? "credits" : "subscription";
+  const limit = t?.ai_client_daily_limit == null ? 60 : Math.max(0, t.ai_client_daily_limit);
+
+  const [usage, wallet, platformId] = await Promise.all([
     resellerMonthlyAiUsage(tenantId),
-    listCreditPacks(tenantId!),
+    buysFromPlatform ? getWallet(tenantId) : Promise.resolve(null),
+    platformTenantId(),
   ]);
+  let buyPriceCents: number | null = null;
+  let platformProgramCredits: number | null = null;
+  if (buysFromPlatform && platformId) {
+    const { data: p } = await admin
+      .from("tenants")
+      .select("ai_credit_price_cents")
+      .eq("id", platformId)
+      .maybeSingle<{ ai_credit_price_cents: number | null }>();
+    buyPriceCents = p?.ai_credit_price_cents ?? DEFAULT_AI_CREDIT_PRICE_CENTS;
+    platformProgramCredits = await programCreditCost(tenantId);
+  }
+  // Une source d'IA existe : sa clé, ou les crédits de la plateforme.
+  const aiSourceReady = key.configured || buysFromPlatform;
 
   const cost = `$${usage.costUsd.toFixed(2)}`;
   const perCoach = usage.coachCount > 0 ? usage.costUsd / usage.coachCount : 0;
@@ -61,33 +128,68 @@ export default async function AdminResellerAiPage() {
           Revenu IA
         </h1>
         <p className="max-w-[72ch] text-[15px] leading-[1.6] text-muted">
-          Décide comment l&apos;IA est fournie à ton réseau de coachs. Soit chaque coach paie sa
-          consommation (tu ne factures que les abonnements), soit tu deviens{" "}
-          <span className="text-body">revendeur d&apos;IA</span> : tu fournis ta clé, tu plafonnes la
-          consommation par client et tu la refactures dans tes paliers.
+          {buysFromPlatform ? (
+            <>
+              Tu achètes tes crédits IA à la plateforme et tu les revends à tes coachs avec ta marge.
+              L&apos;IA tourne sur la clé de la plateforme : chaque action de tes coachs débite ton
+              solde, et ton prix de revente fait ta marge.
+            </>
+          ) : (
+            <>
+              Décide comment l&apos;IA est fournie à ton réseau de coachs. Soit chaque coach paie sa
+              consommation (tu ne factures que les abonnements), soit tu deviens{" "}
+              <span className="text-body">revendeur d&apos;IA</span> : tu fournis ta clé et tu revends
+              des crédits à tes coachs.
+            </>
+          )}
         </p>
       </div>
 
-      {/* Les packs se tarifent à partir des prix unitaires réglés plus bas
-          (« Tarification en crédits ») : on les passe au formulaire pour qu'il
-          calcule le prix de vente tout seul. */}
+      {buysFromPlatform && wallet ? (
+        <Card as="section" className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <MonoLabel>Ton solde de crédits plateforme</MonoLabel>
+            <div className="flex items-baseline gap-2">
+              <span className={`font-archivo text-[30px] font-extrabold leading-none tracking-[-0.02em] tabular-nums ${wallet.credits <= 0 ? "text-[#C4471A]" : "text-ink"}`}>
+                {wallet.credits}
+              </span>
+              <span className="text-[13px] text-muted">crédit{wallet.credits > 1 ? "s" : ""} IA</span>
+            </div>
+            <span className="text-[12.5px] text-muted-2">
+              Achetés {formatEuros(buyPriceCents ?? 0)} le crédit ; une génération de programme t&apos;en
+              débite {platformProgramCredits ?? DEFAULT_PROGRAM_CREDITS}.
+            </span>
+          </div>
+          <Link
+            href="/admin/credits"
+            className="tap inline-flex h-11 items-center rounded-btn bg-brand px-5 text-[14px] font-semibold text-white hover:bg-brand-hover"
+          >
+            Recharger et voir le détail
+          </Link>
+        </Card>
+      ) : null}
+
       <ResellerModelForm
         initialModel={resellerModel}
-        keyConfigured={key.configured}
+        keyConfigured={aiSourceReady}
         packs={packs}
         unitCents={creditPrice}
+        buyPriceCents={buyPriceCents}
       />
 
       <WhitelabelPriceForm initialCents={t?.whitelabel_addon_price_cents ?? null} />
 
-      <ResellerAiModeForm initialMode={mode} initialLimit={limit} keyConfigured={key.configured} />
+      {/* En crédits plateforme, la fourniture est fixée : pas de choix BYOK / provider. */}
+      {!buysFromPlatform ? (
+        <ResellerAiModeForm initialMode={mode} initialLimit={limit} keyConfigured={key.configured} />
+      ) : null}
 
-      {/* Tarification en crédits : toujours visible (elle s'applique quand tu es
-          en mode revendeur d'IA), pour qu'on puisse la régler sans avoir à
-          d'abord enregistrer le mode. */}
-      <ResellerCreditPricingForm initialPriceCents={creditPrice} initialProgramCredits={programCredits} />
+      <ResellerCreditPricingForm
+        initialPriceCents={creditPrice}
+        initialProgramCredits={programCredits}
+        buyPriceCents={buyPriceCents}
+      />
 
-      {/* Aperçu du coût réellement consommé ce mois-ci par le réseau (mode provider). */}
       <Card as="section" className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <div className="font-archivo font-bold text-[17px] text-ink">
@@ -95,7 +197,7 @@ export default async function AdminResellerAiPage() {
           </div>
           <p className="max-w-[72ch] text-[13px] leading-[1.6] text-muted">
             Estimation cumulée depuis le 1er du mois, sur la consommation de tous les comptes de tes
-            coachs. En mode revendeur d&apos;IA, c&apos;est la dépense que tes paliers doivent couvrir.
+            coachs.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -105,19 +207,21 @@ export default async function AdminResellerAiPage() {
           <Metric label="Coût moyen / coach" value={`$${perCoach.toFixed(2)}`} />
         </div>
         <p className="text-[12px] leading-[1.6] text-muted-2">
-          Chiffres d&apos;exemple : estimation à partir des tarifs publics Anthropic (le modèle réel
-          peut varier). Ils servent au pilotage du budget, pas à la facturation.
+          Estimation à partir des tarifs publics Anthropic. Elle sert au pilotage, pas à la facturation.
         </p>
       </Card>
 
-      {/* Clé Anthropic du revendeur : requise en mode revendeur d'IA. */}
-      {mode === "provider" && !key.configured ? (
-        <Alert>
-          Mode revendeur d&apos;IA activé mais aucune clé Anthropic n&apos;est enregistrée. Branche ta
-          clé ci-dessous pour que tes coachs puissent utiliser l&apos;IA.
-        </Alert>
+      {!buysFromPlatform ? (
+        <>
+          {mode === "provider" && !key.configured ? (
+            <Alert>
+              Mode revendeur d&apos;IA activé mais aucune clé Anthropic n&apos;est enregistrée. Branche ta
+              clé ci-dessous pour que tes coachs puissent utiliser l&apos;IA.
+            </Alert>
+          ) : null}
+          <ByokForm configured={key.configured} hint={key.hint} encryptionReady={key.encryptionReady} />
+        </>
       ) : null}
-      <ByokForm configured={key.configured} hint={key.hint} encryptionReady={key.encryptionReady} />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { Button, Alert, Card, MonoLabel } from "@/components/ui";
 export function CreateAccountForm({ canCreateReseller }: { canCreateReseller: boolean }) {
   const [state, action, saving] = useActionState(createNetworkAccount, {} as CreateAccountState);
   const [kind, setKind] = useState<"reseller" | "coach">(canCreateReseller ? "reseller" : "coach");
+  const [supply, setSupply] = useState<"byok" | "platform_credits">("byok");
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -57,6 +58,30 @@ export function CreateAccountForm({ canCreateReseller }: { canCreateReseller: bo
         ) : (
           <input type="hidden" name="kind" value="coach" />
         )}
+
+        {canCreateReseller && kind === "reseller" ? (
+          <div className="flex flex-col gap-1.5">
+            <MonoLabel>Fourniture de l&apos;IA</MonoLabel>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {([
+                ["byok", "Sa propre clé (BYOK)", "Le revendeur branche sa clé Anthropic et paie sa consommation."],
+                ["platform_credits", "Crédits achetés chez toi", "Il t'achète des packs de crédits IA et les revend à ses coachs avec sa marge."],
+              ] as const).map(([val, title, desc]) => (
+                <label
+                  key={val}
+                  className={[
+                    "tap flex cursor-pointer flex-col gap-0.5 rounded-control border px-3.5 py-2.5 transition-colors",
+                    supply === val ? "border-brand bg-brand/[0.06]" : "border-line-4 hover:border-ink/40",
+                  ].join(" ")}
+                >
+                  <input type="radio" name="ai_supply" value={val} checked={supply === val} onChange={() => setSupply(val)} className="sr-only" />
+                  <span className="text-[14px] font-semibold text-ink">{title}</span>
+                  <span className="text-[12px] text-muted-2">{desc}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5">

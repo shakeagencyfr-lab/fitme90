@@ -7,7 +7,7 @@ import { screen, type QuizHealthAnswers } from "@/lib/screening";
 import { generateProgram } from "@/lib/program";
 import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { clientOffer } from "@/lib/offers";
-import { clientUsesCredits, getWallet, debitWallet, programCreditCost } from "@/lib/credits";
+import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
 import { LIMIT_GENERATE_TOTAL, programDaysForMonths } from "@/lib/config";
 
 export const runtime = "nodejs";
@@ -103,17 +103,8 @@ export async function POST() {
   // fournisseur). On vérifie le solde avant l'appel, on débite après succès
   // (jamais de surdébit).
   const coachTenant = ctx.profile?.tenant_id ?? null;
-  const useCredits = await clientUsesCredits(coachTenant);
-  const programCost = useCredits ? await programCreditCost(coachTenant) : 0;
-  if (useCredits) {
-    const wallet = await getWallet(coachTenant);
-    if (wallet.credits < programCost) {
-      return NextResponse.json(
-        { error: `Crédits IA insuffisants (une génération en demande ${programCost}). Ton coach doit recharger.` },
-        { status: 402 },
-      );
-    }
-  }
+  const allowance = await checkAiAllowance(coachTenant, "program");
+  if (!allowance.ok) return NextResponse.json({ error: allowance.error }, { status: 402 });
 
   // 5-6. Appel modèle + validation JSON. La durée de l'offre achetée détermine
   // le nombre de cycles générés (1 mois = 1 cycle, 3 mois = 3, 6 mois = 6).
@@ -186,7 +177,7 @@ export async function POST() {
   }
 
   await recordCall(ctx.userId, "generate", result.usage);
-  if (useCredits && coachTenant) await debitWallet(coachTenant, programCost, "generate", ctx.userId);
+  await chargeAiUsage(coachTenant, "program", "generate", ctx.userId);
 
   return NextResponse.json({ plan: result.plan });
 }
