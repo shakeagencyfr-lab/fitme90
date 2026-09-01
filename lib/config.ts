@@ -181,6 +181,23 @@ export function creditPackMargin(
 }
 
 /**
+ * Prix de vente CONSEILLÉ d'un pack, en centimes : ce que valent ses crédits aux
+ * prix unitaires que le revendeur a déjà fixés dans « Tarification en crédits ».
+ * Le formulaire de pack s'en sert pour remplir le prix tout seul, plutôt que de
+ * redemander un tarif déjà réglé une fois pour toutes.
+ */
+export function suggestedPackPriceCents(
+  aiCredits: number,
+  programCredits: number,
+  aiUnitCents: number,
+  programUnitCents: number,
+): number {
+  const ai = Math.max(0, Math.trunc(aiCredits || 0));
+  const prog = Math.max(0, Math.trunc(programCredits || 0));
+  return ai * Math.max(0, Math.round(aiUnitCents || 0)) + prog * Math.max(0, Math.round(programUnitCents || 0));
+}
+
+/**
  * Libellé lisible du contenu d'un pack : « 100 crédits IA », « 5 crédits
  * programme », ou les deux réunis pour un pack hybride. Chaîne vide si le pack
  * ne contient rien (cas impossible côté base, mais on ne ment pas).

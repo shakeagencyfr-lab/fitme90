@@ -68,7 +68,16 @@ export default async function AdminResellerAiPage() {
         </p>
       </div>
 
-      <ResellerModelForm initialModel={resellerModel} keyConfigured={key.configured} packs={packs} />
+      {/* Les packs se tarifent à partir des prix unitaires réglés plus bas
+          (« Tarification en crédits ») : on les passe au formulaire pour qu'il
+          calcule le prix de vente tout seul. */}
+      <ResellerModelForm
+        initialModel={resellerModel}
+        keyConfigured={key.configured}
+        packs={packs}
+        aiUnitCents={creditPrice}
+        programUnitCents={programPrice}
+      />
 
       <WhitelabelPriceForm initialCents={t?.whitelabel_addon_price_cents ?? null} />
 

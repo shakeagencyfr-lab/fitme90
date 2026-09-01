@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { creditPackContents, creditPackMargin, actionCreditMargin, programCreditMargin } from "./config";
+import {
+  creditPackContents,
+  creditPackMargin,
+  suggestedPackPriceCents,
+  actionCreditMargin,
+  programCreditMargin,
+} from "./config";
 
 // Packs HYBRIDES : un pack peut contenir des crédits IA ET des crédits
 // programme, vendus en un seul paiement. Le coût du revendeur est la somme des
@@ -53,5 +59,35 @@ describe("creditPackMargin", () => {
     const m = creditPackMargin(0, 0, 1000);
     expect(m.costEur).toBe(0);
     expect(m.marginEur).toBe(10);
+  });
+});
+
+describe("suggestedPackPriceCents", () => {
+  it("additionne les crédits à leurs prix unitaires de revente", () => {
+    // 100 crédits IA à 0,40 € + 5 crédits programme à 2,00 € = 50,00 €
+    expect(suggestedPackPriceCents(100, 5, 40, 200)).toBe(5000);
+  });
+
+  it("ne compte que le type présent dans un pack mono-type", () => {
+    expect(suggestedPackPriceCents(100, 0, 40, 200)).toBe(4000);
+    expect(suggestedPackPriceCents(0, 5, 40, 200)).toBe(1000);
+  });
+
+  it("vaut zéro sans crédit, pour que le champ reste vide", () => {
+    expect(suggestedPackPriceCents(0, 0, 40, 200)).toBe(0);
+  });
+
+  it("ignore les valeurs négatives ou non entières", () => {
+    expect(suggestedPackPriceCents(-5, 0, 40, 200)).toBe(0);
+    expect(suggestedPackPriceCents(10.9, 0, 40, 200)).toBe(400);
+    expect(suggestedPackPriceCents(10, 0, -40, 200)).toBe(0);
+  });
+
+  it("au prix conseillé, la marge du pack égale celle des crédits pris un à un", () => {
+    const unitAi = actionCreditMargin(40);
+    const unitProg = programCreditMargin(200);
+    const cents = suggestedPackPriceCents(100, 5, 40, 200);
+    const pack = creditPackMargin(100, 5, cents);
+    expect(pack.marginEur).toBeCloseTo(100 * unitAi.marginEur + 5 * unitProg.marginEur, 10);
   });
 });
