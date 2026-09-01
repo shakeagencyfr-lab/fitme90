@@ -14,6 +14,10 @@ import { coveredDays, blockPosition, nextBlockDue } from "@/lib/block-logic";
 import { subscriptionIsActive } from "@/lib/subscription";
 import { NextBlockPrompt } from "@/components/next-block";
 import { blockLabel } from "@/lib/templates";
+import { UpgradeCard } from "@/components/upgrade-card";
+import { upgradeEligible } from "@/lib/upgrade-logic";
+import { upgradeQuote, confirmUpgrade } from "@/lib/upgrade";
+import { DAYS_PER_MONTH } from "@/lib/config";
 
 export const metadata = { title: "Programme" };
 
@@ -45,9 +49,25 @@ async function loadPlanAndDays(
   };
 }
 
-export default async function ProgrammePage() {
-  const ctx = await getSessionContext();
+export default async function ProgrammePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ upgrade?: string; session_id?: string }>;
+}) {
+  let ctx = await getSessionContext();
   if (!ctx) return null; // le layout redirige déjà
+  const sp = await searchParams;
+
+  // Retour de la bascule 3 → 12 mois : on vérifie la session Stripe (clé du
+  // coach) et on applique. Idempotent : recharger la page ne refait rien. On
+  // relit ensuite le contexte pour que la durée affichée soit déjà la bonne.
+  let upgraded = false;
+  if (sp.upgrade === "1" && sp.session_id) {
+    upgraded = await confirmUpgrade(ctx.userId, sp.session_id);
+    if (upgraded) ctx = (await getSessionContext()) ?? ctx;
+  } else if (sp.upgrade === "1") {
+    upgraded = true; // bascule sans encaissement (rien à régler), déjà appliquée
+  }
 
   const { access } = ctx;
 
@@ -163,6 +183,23 @@ export default async function ProgrammePage() {
     nextBlockDue({ day: access.day, covered, programDays: access.programDays, subscribed, lead: 0 });
   const nextBlockName = blockLabel(Math.floor(covered / 90), position.totalBlocks);
 
+  // Bascule 3 → 12 mois (semaine 10) : uniquement un client 3 mois payé une
+  // fois, si son coach vend un 12 mois. On montre ses vrais chiffres.
+  const durationMonths = Math.round(access.programDays / DAYS_PER_MONTH);
+  const eligible = upgradeEligible({ day: access.day, phase: access.phase, durationMonths, subscribed });
+  const quote = eligible ? await upgradeQuote(ctx.userId) : null;
+  let weightDelta: number | null = null;
+  if (quote) {
+    const supabase = await createClient();
+    const { data: w } = await supabase
+      .from("weights")
+      .select("kg")
+      .eq("user_id", ctx.userId)
+      .order("measured_at", { ascending: true })
+      .returns<{ kg: number }[]>();
+    if (w && w.length >= 2) weightDelta = +(w[w.length - 1].kg - w[0].kg).toFixed(1);
+  }
+
   return (
     <div className="mx-auto flex max-w-[880px] flex-col gap-6">
       <header className="flex flex-col gap-2">
@@ -187,7 +224,28 @@ export default async function ProgrammePage() {
         </Alert>
       ) : null}
 
+      {upgraded ? (
+        <Alert tone="info">
+          Bienvenue sur 12 mois. Ton programme continue là où tu en es : le bloc 2 sera construit
+          sur tes résultats une semaine avant la fin du bloc 1.
+        </Alert>
+      ) : null}
+      {sp.upgrade === "0" ? <Alert>Bascule annulée. Rien n&apos;a changé sur ton programme.</Alert> : null}
+
       {blockMissing ? <NextBlockPrompt label={nextBlockName} /> : null}
+
+      {quote ? (
+        <UpgradeCard
+          done={adherence.done}
+          due={adherence.due}
+          weightDelta={weightDelta}
+          offerName={quote.target.name}
+          twelveMonthCents={quote.target.price_cents ?? 0}
+          alreadyPaidCents={quote.alreadyPaidCents}
+          dueCents={quote.dueCents}
+          daysLeft={access.daysUntilProgramEnd}
+        />
+      ) : null}
 
       {/* ─── Aujourd'hui : l'action du jour, en premier ─── */}
       {showToday ? (

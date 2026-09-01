@@ -7,7 +7,7 @@ import { S } from "@/components/landing-icons";
 import { SubscriptionPrice } from "@/components/subscription-price";
 import { Reveal } from "@/components/reveal";
 import {
-  durationText,
+  offerCardCopy,
   features,
   salleBullets,
   steps,
@@ -39,15 +39,25 @@ function Brand({ tenant, imgClass = "h-11", textClass = "text-[20px]" }: { tenan
   return <span className={`font-archivo ${textClass} font-extrabold tracking-[-0.02em] text-white`}>{tenant.name}</span>;
 }
 
-function OfferCard({ offer, slug, chargesEnabled }: { offer: Offer; slug: string; chargesEnabled: boolean }) {
+function OfferCard({ offer, offers, slug, chargesEnabled }: { offer: Offer; offers: Offer[]; slug: string; chargesEnabled: boolean }) {
   const isSub = offer.billing_type === "subscription";
+  const copy = offerCardCopy(offer, offers);
   return (
-    <article className="flex flex-col gap-5 rounded-card-lg border border-white/12 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-7 transition-all duration-300 hover:-translate-y-1 hover:border-brand/40">
-      <div className="flex flex-col gap-1.5">
-        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-brand">
-          {isSub ? "Abonnement" : durationText(offer.duration_months)}
+    <article
+      className={[
+        "relative flex flex-col gap-5 rounded-card-lg border bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-7 transition-all duration-300 hover:-translate-y-1 hover:border-brand/40",
+        copy.featured ? "border-brand/50 ring-1 ring-brand/30" : "border-white/12",
+      ].join(" ")}
+    >
+      {copy.featured ? (
+        <span className="absolute -top-3 left-6 rounded-pill bg-brand px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-white">
+          Le plus choisi
         </span>
+      ) : null}
+      <div className="flex flex-col gap-1.5">
+        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-brand">{copy.eyebrow}</span>
         <h3 className="font-archivo text-[22px] font-bold leading-tight tracking-[-0.02em] text-white">{offer.name}</h3>
+        {copy.pitch ? <p className="text-[14px] leading-[1.5] text-white/65">{copy.pitch}</p> : null}
       </div>
 
       {isSub ? (
@@ -59,24 +69,23 @@ function OfferCard({ offer, slug, chargesEnabled }: { offer: Offer; slug: string
           chargesEnabled={chargesEnabled}
         />
       ) : (
-        <>
+        <div className="flex flex-col gap-1">
           <div className="flex items-end gap-2">
             <span className="font-archivo text-[clamp(40px,7vw,56px)] font-extrabold leading-none tracking-[-0.03em] text-white">
               {formatEuros(offer.price_cents)}
             </span>
             <span className="pb-2 text-[13px] text-white/55">paiement unique</span>
           </div>
-        </>
+          {copy.perMonthCents > 0 ? (
+            <span className="text-[13px] text-white/55">
+              soit <span className="font-semibold text-white/85">{formatEuros(copy.perMonthCents)}/mois</span> sur {offer.duration_months} mois
+            </span>
+          ) : null}
+        </div>
       )}
 
       <ul className="flex flex-col gap-2 border-t border-white/10 pt-4">
-        {[
-          "Programme conçu par ton coach",
-          "Accompagnement nutritionnel",
-          "Assistant IA inclus",
-          ...(offer.vip_chat ? ["Chat VIP avec ton coach"] : []),
-          "Espace client & suivi",
-        ].map((it) => (
+        {copy.bullets.map((it) => (
           <li key={it} className="flex items-start gap-2.5 text-[14px] leading-[1.5] text-white/75">
             <S.check className="mt-0.5 h-4.5 w-4.5 shrink-0 text-brand" />
             {it}
@@ -401,7 +410,7 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
                 }`}
               >
                 {offers.map((o) => (
-                  <OfferCard key={o.id} offer={o} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} />
+                  <OfferCard key={o.id} offer={o} offers={offers} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} />
                 ))}
               </div>
             )}
