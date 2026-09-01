@@ -300,6 +300,12 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
   const vipChat = formData.get("vip_chat") === "on";
   // Le Coach IA est inclus par défaut ; la case l'exclut si décochée.
   const coachAi = formData.get("coach_ai") === "on";
+  // Quota journalier d'actions IA par client sur ce plan (vide = défaut du coach).
+  const quotaRaw = String(formData.get("coach_ai_daily_limit") ?? "").trim();
+  const coachAiDailyLimit = quotaRaw === "" ? null : Number(quotaRaw);
+  if (coachAiDailyLimit != null && (!Number.isFinite(coachAiDailyLimit) || coachAiDailyLimit < 0)) {
+    return { error: "Quota de messages invalide." };
+  }
 
   // Parse un montant en euros (« 190 » ou « 29,90 ») → centimes, ou null si vide.
   const toCents = (raw: unknown): { cents: number | null; bad: boolean } => {
@@ -321,6 +327,7 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
     durationMonths: months,
     vipChat,
     coachAi,
+    coachAiDailyLimit,
     billingType,
     priceCents: price.cents,
     priceMonthCents: month.cents,
@@ -907,19 +914,19 @@ export async function saveResellerCredits(_prev: ResellerAiState, formData: Form
   if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
   const tenantId = ctx.profile.tenant_id;
 
-  const action = Number(String(formData.get("ai_credit_price_cents") ?? "").trim());
-  if (!Number.isInteger(action) || action < 0 || action > 1000000) {
+  const price = Number(String(formData.get("ai_credit_price_cents") ?? "").trim());
+  if (!Number.isInteger(price) || price < 0 || price > 1000000) {
     return { error: "Prix du crédit IA invalide." };
   }
-  const program = Number(String(formData.get("ai_program_credit_price_cents") ?? "").trim());
-  if (!Number.isInteger(program) || program < 0 || program > 1000000) {
-    return { error: "Prix du crédit programme invalide." };
+  const programCredits = Number(String(formData.get("ai_program_credits") ?? "").trim());
+  if (!Number.isInteger(programCredits) || programCredits < 1 || programCredits > 500) {
+    return { error: "Nombre de crédits par génération invalide (1 à 500)." };
   }
 
   const admin = createAdminClient();
   const { error } = await admin
     .from("tenants")
-    .update({ ai_credit_price_cents: action, ai_program_credit_price_cents: program })
+    .update({ ai_credit_price_cents: price, ai_program_credits: programCredits })
     .eq("id", tenantId);
   if (error) return { error: "Enregistrement impossible." };
 
@@ -965,21 +972,12 @@ export async function addCreditPack(_prev: ResellerAiState, formData: FormData):
   const ctx = await getAdminOrNull();
   if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
   const name = String(formData.get("name") ?? "");
-  const count = (field: string) => {
-    const raw = String(formData.get(field) ?? "").trim();
-    if (!raw) return 0; // champ laissé vide = 0 crédit de ce type
-    const n = Number(raw);
-    return Number.isFinite(n) ? Math.trunc(n) : NaN;
-  };
-  const aiCredits = count("ai_credits");
-  const programCredits = count("program_credits");
-  if (!Number.isFinite(aiCredits) || !Number.isFinite(programCredits)) {
-    return { error: "Nombre de crédits invalide." };
-  }
+  const credits = Math.trunc(Number(String(formData.get("credits") ?? "").trim()));
+  if (!Number.isFinite(credits) || credits <= 0) return { error: "Nombre de crédits invalide." };
   const euros = String(formData.get("price_euros") ?? "").replace(",", ".").trim();
   const priceCents = Math.round(Number(euros) * 100);
   if (!Number.isFinite(priceCents) || priceCents <= 0) return { error: "Prix invalide." };
-  const res = await createCreditPack(ctx.profile.tenant_id, { name, aiCredits, programCredits, priceCents });
+  const res = await createCreditPack(ctx.profile.tenant_id, { name, credits, priceCents });
   if (!res.ok) return { error: res.error };
   revalidatePath("/admin/ia-revenu");
   return { ok: true };

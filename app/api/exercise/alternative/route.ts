@@ -4,9 +4,10 @@ import { getSessionContext } from "@/lib/guard";
 import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
 import { exerciseShape } from "@/lib/program";
-import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
+import { recordCall } from "@/lib/ratelimit";
+import { checkCoachAiBudget } from "@/lib/coach-ai-budget";
 import { clientUsesCredits, getWallet, debitWallet } from "@/lib/credits";
-import { LIMIT_COACH_PER_DAY, COACH_CREDENTIAL } from "@/lib/config";
+import { COACH_CREDENTIAL } from "@/lib/config";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -23,16 +24,16 @@ export async function POST(req: Request) {
 
   // Porte d'accès : crédits (Modèle crédits) ou plafond journalier.
   const coachTenant = ctx.profile?.tenant_id ?? null;
+  // Une alternative compte dans le quota journalier du plan, comme un message.
+  const budget = await checkCoachAiBudget(ctx.userId, coachTenant);
+  if (!budget.ok) {
+    return NextResponse.json({ error: "Quota IA du jour atteint, il se renouvelle à minuit." }, { status: 429 });
+  }
   const useCredits = await clientUsesCredits(coachTenant);
   if (useCredits) {
     const wallet = await getWallet(coachTenant);
-    if (wallet.aiCredits < 1) {
+    if (wallet.credits < 1) {
       return NextResponse.json({ error: "Crédits IA épuisés. Ton coach doit recharger." }, { status: 402 });
-    }
-  } else {
-    const limit = await checkLimit(ctx.userId, "coach", LIMIT_COACH_PER_DAY, DAY_MS);
-    if (!limit.ok) {
-      return NextResponse.json({ error: "Limite du jour atteinte, réessaie demain." }, { status: 429 });
     }
   }
 
@@ -84,7 +85,7 @@ export async function POST(req: Request) {
       input_tokens: message.usage.input_tokens,
       output_tokens: message.usage.output_tokens,
     });
-    if (useCredits && coachTenant) await debitWallet(coachTenant, "ai", 1, "action", ctx.userId);
+    if (useCredits && coachTenant) await debitWallet(coachTenant, 1, "alternative", ctx.userId);
     return NextResponse.json({ exercise });
   } catch {
     return NextResponse.json({ error: "Alternative indisponible, réessaie." }, { status: 502 });

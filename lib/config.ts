@@ -73,7 +73,6 @@ export const PRODUCTS: Record<OfferDurationMonths, ProductDef> = {
       "3 cycles de 4 semaines qui montent en intensité",
       "Programme et nutrition jour par jour",
       "Coach IA pendant 90 jours",
-      "Photo jour 1, photo jour 90",
     ],
     blocks: 1,
   },
@@ -217,12 +216,11 @@ export function estimateAiMonthlyCost(msgCap: number, recipeCap: number): AiCost
 
 /**
  * Barème de débit, tel qu'appliqué par les routes IA. Toute action courante
- * (message du chat, recette régénérée, exercice alternatif) coûte 1 crédit IA ;
- * une génération de programme coûte 1 crédit programme. Ces constantes sont la
- * source unique affichée au coach : si le barème change, l'affichage suit.
+ * (message du chat, recette régénérée, exercice alternatif, fiche) coûte 1
+ * crédit IA ; une génération de programme coûte `DEFAULT_PROGRAM_CREDITS`
+ * (réglable par le fournisseur).
  */
 export const CREDITS_PER_AI_ACTION = 1;
-export const CREDITS_PER_PROGRAM = 1;
 
 export interface CreditUsageEstimate {
   /** Crédits IA qu'un client actif consomme sur un mois, usage réaliste. */
@@ -251,19 +249,19 @@ export function estimateAiMonthlyCredits(msgCap: number, recipeCap: number): Cre
   return { realMonth, ceilingMonth };
 }
 
-// ── Revente de crédits IA (mode « revendeur d'IA »). DEUX types de crédits,
-// réglés chacun avec son propre prix de vente (le revendeur voit coût + marge) :
-//  - « crédit IA » = 1 action simple (chat / recette / exercice) — modèle Haiku ;
-//  - « crédit programme IA » = 1 génération de programme — modèle Opus (plus cher).
-export const DEFAULT_AI_CREDIT_PRICE_CENTS = 40; // 0,40 € / crédit IA
-export const DEFAULT_AI_PROGRAM_CREDIT_PRICE_CENTS = 200; // 2,00 € / crédit programme
+// ── Revente de crédits IA. UN SEUL crédit : toute action IA (message, recette,
+// alternative, fiche) coûte 1 crédit ; une génération de programme en coûte N,
+// réglé par le fournisseur (défaut ci-dessous). Le fournisseur (revendeur ou
+// plateforme) fixe son prix de revente du crédit et voit son coût et sa marge.
+export const DEFAULT_AI_CREDIT_PRICE_CENTS = 40; // 0,40 € / crédit
+export const DEFAULT_PROGRAM_CREDITS = 10; // une génération de programme = 10 crédits
 
 export interface CreditMargin {
   /** Coût Anthropic estimé (converti en €). */
   costEur: number;
-  /** Ce que paie le client (en €). */
+  /** Ce que paie l'acheteur (en €). */
   priceEur: number;
-  /** Marge du revendeur (en €). */
+  /** Marge du fournisseur (en €). */
   marginEur: number;
   /** Marge en % du prix de vente (0 si prix nul). */
   marginPct: number;
@@ -274,61 +272,64 @@ function margin(costEur: number, priceEur: number): CreditMargin {
   return { costEur, priceEur, marginEur, marginPct: priceEur > 0 ? (marginEur / priceEur) * 100 : 0 };
 }
 
-/** Coût / prix / marge d'UN crédit IA (1 action simple, Haiku). */
+/** Coût / prix / marge d'UN crédit consommé par une action simple (Haiku). */
 export function actionCreditMargin(creditPriceCents: number): CreditMargin {
   return margin(usdToEur(AI_COST_ACTION_USD), Math.max(0, creditPriceCents) / 100);
 }
 
-/** Coût / prix / marge d'UN crédit programme IA (1 génération, Opus). */
-export function programCreditMargin(programPriceCents: number): CreditMargin {
-  return margin(usdToEur(AI_COST_PROGRAM_USD), Math.max(0, programPriceCents) / 100);
+/**
+ * Coût réel d'une génération de programme (Opus) rapporté aux crédits qu'elle
+ * consomme : au prix unitaire donné, la génération rapporte-t-elle sa marge ?
+ * Le fournisseur règle le nombre de crédits d'une génération avec ce chiffre
+ * sous les yeux.
+ */
+export function programGenerationMargin(programCredits: number, creditPriceCents: number): CreditMargin {
+  const n = Math.max(0, Math.trunc(programCredits || 0));
+  return margin(usdToEur(AI_COST_PROGRAM_USD), (n * Math.max(0, creditPriceCents)) / 100);
 }
 
 /**
- * Coût / prix / marge d'un PACK, qui peut être hybride (crédits IA ET crédits
- * programme vendus en un seul paiement). Le coût est la somme des coûts unitaires
- * de chaque type ; le prix est celui du pack entier.
+ * Coût / prix / marge d'un pack de crédits. Le coût est celui d'une action par
+ * crédit : hypothèse prudente pour le fournisseur, puisqu'une génération de
+ * programme consomme N crédits pour un coût Opus qui reste inférieur à N actions.
  */
-export function creditPackMargin(
-  aiCredits: number,
-  programCredits: number,
-  priceCents: number,
-): CreditMargin {
-  const ai = Math.max(0, Math.trunc(aiCredits || 0));
-  const prog = Math.max(0, Math.trunc(programCredits || 0));
-  const cost = ai * actionCreditMargin(0).costEur + prog * programCreditMargin(0).costEur;
-  return margin(cost, Math.max(0, priceCents) / 100);
+export function creditPackMargin(credits: number, priceCents: number): CreditMargin {
+  const n = Math.max(0, Math.trunc(credits || 0));
+  return margin(n * actionCreditMargin(0).costEur, Math.max(0, priceCents) / 100);
+}
+
+/** Prix de vente CONSEILLÉ d'un pack : crédits × prix unitaire déjà réglé. */
+export function suggestedPackPriceCents(credits: number, unitCents: number): number {
+  const n = Math.max(0, Math.trunc(credits || 0));
+  return n * Math.max(0, Math.round(unitCents || 0));
+}
+
+/** « 100 crédits IA », avec l'accord du singulier. */
+export function creditPackContents(credits: number): string {
+  const n = Math.max(0, Math.trunc(credits || 0));
+  if (n <= 0) return "";
+  return `${n} crédit${n > 1 ? "s" : ""} IA`;
 }
 
 /**
- * Prix de vente CONSEILLÉ d'un pack, en centimes : ce que valent ses crédits aux
- * prix unitaires que le revendeur a déjà fixés dans « Tarification en crédits ».
- * Le formulaire de pack s'en sert pour remplir le prix tout seul, plutôt que de
- * redemander un tarif déjà réglé une fois pour toutes.
+ * Coût MAXIMUM d'un client sur un plan, en crédits : les générations de
+ * programme (une par bloc de 3 mois) plus le quota journalier d'actions IA
+ * saturé chaque jour. C'est ce que le coach lit en cochant « Coach IA » sur son
+ * offre : il sait ce que ce plan peut lui coûter, au pire.
  */
-export function suggestedPackPriceCents(
-  aiCredits: number,
-  programCredits: number,
-  aiUnitCents: number,
-  programUnitCents: number,
-): number {
-  const ai = Math.max(0, Math.trunc(aiCredits || 0));
-  const prog = Math.max(0, Math.trunc(programCredits || 0));
-  return ai * Math.max(0, Math.round(aiUnitCents || 0)) + prog * Math.max(0, Math.round(programUnitCents || 0));
-}
-
-/**
- * Libellé lisible du contenu d'un pack : « 100 crédits IA », « 5 crédits
- * programme », ou les deux réunis pour un pack hybride. Chaîne vide si le pack
- * ne contient rien (cas impossible côté base, mais on ne ment pas).
- */
-export function creditPackContents(aiCredits: number, programCredits: number): string {
-  const ai = Math.max(0, Math.trunc(aiCredits || 0));
-  const prog = Math.max(0, Math.trunc(programCredits || 0));
-  const parts: string[] = [];
-  if (ai > 0) parts.push(`${ai} crédit${ai > 1 ? "s" : ""} IA`);
-  if (prog > 0) parts.push(`${prog} crédit${prog > 1 ? "s" : ""} programme`);
-  return parts.join(" + ");
+export function planMaxCredits(input: { programDays: number; dailyQuota: number; programCredits: number }): {
+  generations: number;
+  generationCredits: number;
+  chatCredits: number;
+  total: number;
+} {
+  const days = Math.max(0, Math.trunc(input.programDays || 0));
+  const quota = Math.max(0, Math.trunc(input.dailyQuota || 0));
+  const perProgram = Math.max(0, Math.trunc(input.programCredits || 0));
+  const generations = Math.max(1, Math.round(days / (BLOCK_MONTHS * DAYS_PER_MONTH)));
+  const generationCredits = generations * perProgram;
+  const chatCredits = quota * days;
+  return { generations, generationCredits, chatCredits, total: generationCredits + chatCredits };
 }
 
 export const PRODUCT_NAME = "My Fitness App";

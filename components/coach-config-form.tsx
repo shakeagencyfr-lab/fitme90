@@ -7,7 +7,6 @@ import {
   estimateAiMonthlyCost,
   estimateAiMonthlyCredits,
   CREDITS_PER_AI_ACTION,
-  CREDITS_PER_PROGRAM,
 } from "@/lib/config";
 
 interface Props {
@@ -22,6 +21,8 @@ interface Props {
    * de crédits qui descend, pas une facture Anthropic en dollars.
    */
   creditMode: boolean;
+  /** Crédits consommés par une génération de programme (réglé par le fournisseur). */
+  programCredits: number;
 }
 
 export function CoachConfigForm({
@@ -31,6 +32,7 @@ export function CoachConfigForm({
   initialDailyLimit,
   initialRecipeLimit,
   creditMode,
+  programCredits,
 }: Props) {
   const [state, action, pending] = useActionState(saveCoachConfig, {} as ConfigState);
   const [mode, setMode] = useState<"auto" | "custom">(initialMode);
@@ -130,7 +132,7 @@ export function CoachConfigForm({
                 Deux plafonds <span className="text-body">par client et par jour</span> pour maîtriser ta
                 consommation de crédits : les messages du chat, et les régénérations de recettes. Chaque
                 action décompte {CREDITS_PER_AI_ACTION} crédit IA de ton solde ; une génération de
-                programme décompte {CREDITS_PER_PROGRAM} crédit programme.
+                programme en décompte {programCredits}.
               </>
             ) : (
               <>
@@ -178,8 +180,8 @@ export function CoachConfigForm({
                 <>
                   Un client actif consomme environ{" "}
                   <span className="font-semibold text-ink">{credits.realMonth} crédits IA/mois</span>
-                  {" "}(≈8 messages + 1 recette par jour), plus {CREDITS_PER_PROGRAM} crédit programme à
-                  chaque génération. La plupart consomment moins.
+                  {" "}(≈8 messages + 1 recette par jour), plus {programCredits} crédits à chaque
+                  génération de programme. La plupart consomment moins.
                 </>
               ) : (
                 <>

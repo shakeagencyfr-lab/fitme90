@@ -3,75 +3,111 @@
 import { useActionState, useState } from "react";
 import { saveResellerCredits, type ResellerAiState } from "@/app/admin/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
-import { actionCreditMargin, programCreditMargin, type CreditMargin } from "@/lib/config";
+import { actionCreditMargin, programGenerationMargin, formatEuros } from "@/lib/config";
 
 interface Props {
-  initialActionPriceCents: number;
-  initialProgramPriceCents: number;
+  initialPriceCents: number;
+  initialProgramCredits: number;
+  /** Prix auquel CE fournisseur achète lui-même le crédit (revendeur en crédits plateforme), sinon null. */
+  buyPriceCents?: number | null;
+  /** Libellé de l'acheteur : « tes coachs » (revendeur) ou « tes revendeurs » (plateforme). */
+  buyerLabel?: string;
 }
 
-// Tarification en crédits du revendeur d'IA. DEUX types de crédits, chacun avec
-// son prix de vente ; en dessous, le coût Anthropic et la marge, en direct.
-export function ResellerCreditPricingForm({ initialActionPriceCents, initialProgramPriceCents }: Props) {
+/**
+ * Tarification du crédit IA par un fournisseur. UN SEUL crédit : le prix de
+ * revente, et le nombre de crédits que coûte une génération de programme. Le
+ * coût réel et la marge se recalculent en direct, pour qu'un réglage à perte
+ * ne passe jamais inaperçu.
+ */
+export function ResellerCreditPricingForm({ initialPriceCents, initialProgramCredits, buyPriceCents = null, buyerLabel = "tes coachs" }: Props) {
   const [state, action, saving] = useActionState(saveResellerCredits, {} as ResellerAiState);
-  const [actionCents, setActionCents] = useState<number>(initialActionPriceCents);
-  const [programCents, setProgramCents] = useState<number>(initialProgramPriceCents);
+  const [cents, setCents] = useState<number>(initialPriceCents);
+  const [programCredits, setProgramCredits] = useState<number>(initialProgramCredits);
 
-  const actionM = actionCreditMargin(actionCents);
-  const programM = programCreditMargin(programCents);
+  // Coût du crédit : celui du fournisseur (prix d'achat) s'il en a un, sinon
+  // le coût Anthropic estimé d'une action.
+  const unit = actionCreditMargin(cents);
+  const costEur = buyPriceCents != null ? buyPriceCents / 100 : unit.costEur;
+  const marginEur = unit.priceEur - costEur;
+  const marginPct = unit.priceEur > 0 ? Math.round((marginEur / unit.priceEur) * 100) : 0;
+  const program = programGenerationMargin(programCredits, cents);
+  const programCost = buyPriceCents != null ? (programCredits * buyPriceCents) / 100 : program.costEur;
+  const programMargin = program.priceEur - programCost;
 
   return (
     <Card as="section" className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
-        <div className="font-archivo font-bold text-[17px] text-ink">Tarification en crédits</div>
+        <div className="font-archivo font-bold text-[17px] text-ink">Tarification du crédit IA</div>
         <p className="max-w-[72ch] text-[13px] leading-[1.6] text-muted">
-          Deux types de crédits, chacun avec son prix de revente. Le{" "}
-          <span className="text-body">crédit IA</span> couvre toutes les actions courantes (modèle
-          Haiku, peu coûteux) ; le <span className="text-body">crédit programme IA</span> couvre la
-          génération d&apos;un programme (modèle Opus, plus cher). Tu fixes les prix, la marge se
-          calcule toute seule.
+          Un seul crédit IA. Chaque action (message du chat, recette, alternative d&apos;exercice) en
+          consomme <span className="text-body">1</span> ; une génération de programme en consomme le
+          nombre que tu fixes ici. Tu choisis le prix de revente à {buyerLabel}, la marge se calcule
+          toute seule.
         </p>
       </div>
 
       <form action={action} className="flex flex-col gap-5">
         <div className="grid gap-3 sm:grid-cols-2">
-          <PriceInput
-            name="ai_credit_price_cents"
-            label="Prix d'1 crédit IA (€)"
-            hint="1 action = chat, recette ou régénération d'exercice."
-            cents={actionCents}
-            onCents={setActionCents}
-          />
-          <PriceInput
-            name="ai_program_credit_price_cents"
-            label="Prix d'1 crédit programme IA (€)"
-            hint="1 génération de programme complète (Opus)."
-            cents={programCents}
-            onCents={setProgramCents}
-          />
+          <label className="flex flex-col gap-1.5">
+            <MonoLabel>Prix de revente d&apos;1 crédit IA (€)</MonoLabel>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={(cents / 100).toString()}
+              onChange={(e) => setCents(Math.max(0, Math.round((Number(e.target.value) || 0) * 100)))}
+              className="w-full max-w-[200px] rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
+            />
+            <input type="hidden" name="ai_credit_price_cents" value={cents} />
+            <span className="text-[12px] text-muted-2">
+              {buyPriceCents != null
+                ? `Tu l'achètes ${formatEuros(buyPriceCents)} à ton fournisseur.`
+                : "1 action = chat, recette ou alternative d'exercice."}
+            </span>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <MonoLabel>Crédits consommés par génération de programme</MonoLabel>
+            <input
+              type="number"
+              min={1}
+              max={500}
+              value={programCredits}
+              onChange={(e) => setProgramCredits(Math.max(1, Math.min(500, Math.trunc(Number(e.target.value) || 1))))}
+              className="w-full max-w-[200px] rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
+            />
+            <input type="hidden" name="ai_program_credits" value={programCredits} />
+            <span className="text-[12px] text-muted-2">
+              Un programme de 12 mois compte 4 générations (une par bloc de 3 mois).
+            </span>
+          </label>
         </div>
 
-        {/* Aperçu coût / prix / marge des deux crédits */}
         <div className="overflow-x-auto rounded-control border border-line-4">
           <table className="w-full min-w-[460px] border-collapse text-[13.5px]">
             <thead>
               <tr className="border-b border-line bg-surface-2 text-left text-muted-2">
-                {["Type de crédit", "Ton coût (Anthropic)", "Le client paie", "Ta marge"].map((h) => (
-                  <th key={h} className="px-3.5 py-2.5 font-mono text-[10px] uppercase tracking-[0.08em]">
-                    {h}
-                  </th>
+                {["", "Ton coût", "L'acheteur paie", "Ta marge"].map((h, i) => (
+                  <th key={i} className="px-3.5 py-2.5 font-mono text-[10px] uppercase tracking-[0.08em]">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              <Row label="Crédit IA (1 action)" model="Haiku" m={actionM} />
-              <Row label="Crédit programme IA" model="Opus" m={programM} />
+              <Row label="1 crédit IA (1 action)" cost={costEur} price={unit.priceEur} margin={marginEur} pct={marginPct} />
+              <Row
+                label={`1 génération de programme (${programCredits} crédits)`}
+                cost={programCost}
+                price={program.priceEur}
+                margin={programMargin}
+                pct={program.priceEur > 0 ? Math.round((programMargin / program.priceEur) * 100) : 0}
+              />
             </tbody>
           </table>
         </div>
         <p className="text-[12px] leading-[1.6] text-muted-2">
-          Coût estimé d&apos;après les tarifs publics Anthropic, converti en euros à titre indicatif.
-          La marge réelle dépend du taux de change et de l&apos;usage.
+          {buyPriceCents != null
+            ? "Ton coût est ton prix d'achat du crédit. Sur une génération, ton fournisseur t'en débite le même nombre."
+            : "Coût estimé d'après les tarifs publics Anthropic, converti en euros à titre indicatif. Une génération de programme coûte plus cher qu'une action : vérifie qu'elle reste rentable au nombre de crédits choisi."}
         </p>
 
         {state.error ? <Alert>{state.error}</Alert> : null}
@@ -85,56 +121,19 @@ export function ResellerCreditPricingForm({ initialActionPriceCents, initialProg
   );
 }
 
-function PriceInput({
-  name,
-  label,
-  hint,
-  cents,
-  onCents,
-}: {
-  name: string;
-  label: string;
-  hint: string;
-  cents: number;
-  onCents: (c: number) => void;
-}) {
-  return (
-    <label className="flex flex-col gap-1.5">
-      <MonoLabel>{label}</MonoLabel>
-      <input
-        type="number"
-        min={0}
-        step="0.01"
-        value={(cents / 100).toString()}
-        onChange={(e) => onCents(Math.max(0, Math.round((Number(e.target.value) || 0) * 100)))}
-        className="w-full max-w-[200px] rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
-      />
-      <input type="hidden" name={name} value={cents} />
-      <span className="text-[12px] text-muted-2">{hint}</span>
-    </label>
-  );
-}
-
-function Row({ label, model, m }: { label: string; model: string; m: CreditMargin }) {
-  const positive = m.marginEur >= 0;
+function Row({ label, cost, price, margin, pct }: { label: string; cost: number; price: number; margin: number; pct: number }) {
+  const positive = margin >= 0;
   return (
     <tr className="border-b border-line-2 last:border-0">
-      <td className="px-3.5 py-3">
-        <span className="font-semibold text-ink">{label}</span>
-        <span className="ml-2 rounded-pill bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-2">
-          {model}
-        </span>
-      </td>
-      <td className="px-3.5 py-3 tabular-nums text-body">≈ {m.costEur.toFixed(2)} €</td>
-      <td className="px-3.5 py-3 tabular-nums text-body">{m.priceEur.toFixed(2)} €</td>
+      <td className="px-3.5 py-3 font-semibold text-ink">{label}</td>
+      <td className="px-3.5 py-3 tabular-nums text-body">≈ {cost.toFixed(2)} €</td>
+      <td className="px-3.5 py-3 tabular-nums text-body">{price.toFixed(2)} €</td>
       <td className="px-3.5 py-3 tabular-nums">
         <span className={positive ? "font-semibold text-brand" : "font-semibold text-[#C4471A]"}>
           {positive ? "+" : ""}
-          {m.marginEur.toFixed(2)} €
+          {margin.toFixed(2)} €
         </span>
-        {m.priceEur > 0 ? (
-          <span className="ml-1.5 text-[12px] text-muted-2">({Math.round(m.marginPct)} %)</span>
-        ) : null}
+        {price > 0 ? <span className="ml-1.5 text-[12px] text-muted-2">({pct} %)</span> : null}
       </td>
     </tr>
   );

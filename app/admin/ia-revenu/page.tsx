@@ -11,7 +11,7 @@ import { ResellerAiModeForm } from "@/components/reseller-ai-mode-form";
 import { ResellerCreditPricingForm } from "@/components/reseller-credit-pricing-form";
 import { ByokForm } from "@/components/byok-form";
 import { Alert, Card, MonoLabel } from "@/components/ui";
-import { DEFAULT_AI_CREDIT_PRICE_CENTS, DEFAULT_AI_PROGRAM_CREDIT_PRICE_CENTS } from "@/lib/config";
+import { DEFAULT_AI_CREDIT_PRICE_CENTS, DEFAULT_PROGRAM_CREDITS } from "@/lib/config";
 
 export const metadata = { title: "Revenu IA, Admin My Fitness App" };
 
@@ -28,22 +28,22 @@ export default async function AdminResellerAiPage() {
   const admin = createAdminClient();
   const { data: t } = await admin
     .from("tenants")
-    .select("ai_mode, reseller_model, ai_client_daily_limit, ai_credit_price_cents, ai_program_credit_price_cents, whitelabel_addon_price_cents")
+    .select("ai_mode, reseller_model, ai_client_daily_limit, ai_credit_price_cents, ai_program_credits, whitelabel_addon_price_cents")
     .eq("id", tenantId)
     .maybeSingle<{
       ai_mode: string | null;
       reseller_model: string | null;
       ai_client_daily_limit: number | null;
       ai_credit_price_cents: number | null;
-      ai_program_credit_price_cents: number | null;
+      ai_program_credits: number | null;
       whitelabel_addon_price_cents: number | null;
     }>();
   const mode = t?.ai_mode === "provider" ? "provider" : "byok";
   const resellerModel = t?.reseller_model === "credits" ? "credits" : "subscription";
   const limit = t?.ai_client_daily_limit == null ? 60 : Math.max(0, t.ai_client_daily_limit);
   const creditPrice = t?.ai_credit_price_cents == null ? DEFAULT_AI_CREDIT_PRICE_CENTS : Math.max(0, t.ai_credit_price_cents);
-  const programPrice =
-    t?.ai_program_credit_price_cents == null ? DEFAULT_AI_PROGRAM_CREDIT_PRICE_CENTS : Math.max(0, t.ai_program_credit_price_cents);
+  const programCredits =
+    t?.ai_program_credits == null || t.ai_program_credits < 1 ? DEFAULT_PROGRAM_CREDITS : t.ai_program_credits;
 
   const [key, usage, packs] = await Promise.all([
     tenantKeyStatus(tenantId!),
@@ -75,8 +75,7 @@ export default async function AdminResellerAiPage() {
         initialModel={resellerModel}
         keyConfigured={key.configured}
         packs={packs}
-        aiUnitCents={creditPrice}
-        programUnitCents={programPrice}
+        unitCents={creditPrice}
       />
 
       <WhitelabelPriceForm initialCents={t?.whitelabel_addon_price_cents ?? null} />
@@ -86,7 +85,7 @@ export default async function AdminResellerAiPage() {
       {/* Tarification en crédits : toujours visible (elle s'applique quand tu es
           en mode revendeur d'IA), pour qu'on puisse la régler sans avoir à
           d'abord enregistrer le mode. */}
-      <ResellerCreditPricingForm initialActionPriceCents={creditPrice} initialProgramPriceCents={programPrice} />
+      <ResellerCreditPricingForm initialPriceCents={creditPrice} initialProgramCredits={programCredits} />
 
       {/* Aperçu du coût réellement consommé ce mois-ci par le réseau (mode provider). */}
       <Card as="section" className="flex flex-col gap-4">

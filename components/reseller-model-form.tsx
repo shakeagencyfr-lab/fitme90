@@ -16,20 +16,40 @@ interface Props {
   initialModel: "subscription" | "credits";
   keyConfigured: boolean;
   packs: CreditPack[];
-  /** Prix de revente d'1 crédit IA, réglé plus bas dans « Tarification en crédits ». */
-  aiUnitCents: number;
-  /** Prix de revente d'1 crédit programme, même origine. */
-  programUnitCents: number;
+  /** Prix de revente d'1 crédit IA, réglé plus bas dans « Tarification du crédit IA ». */
+  unitCents: number;
+  /** Prix d'achat du crédit auprès du fournisseur (revendeur en crédits plateforme), sinon null. */
+  buyPriceCents?: number | null;
+  /** Qui achète les packs : « tes coachs » ou « tes revendeurs ». */
+  buyerLabel?: string;
+  /** Plateforme : pas de choix de modèle, seulement les packs. */
+  packsOnly?: boolean;
 }
 
 // Choix du modèle de revente + gestion des packs de crédits (Modèle B).
-export function ResellerModelForm({ initialModel, keyConfigured, packs, aiUnitCents, programUnitCents }: Props) {
+export function ResellerModelForm({
+  initialModel,
+  keyConfigured,
+  packs,
+  unitCents,
+  buyPriceCents = null,
+  buyerLabel = "tes coachs",
+  packsOnly = false,
+}: Props) {
   const [state, action, saving] = useActionState(saveResellerModelChoice, {} as ResellerAiState);
   const [model, setModel] = useState<"subscription" | "credits">(initialModel);
   // Modèle réellement en base. `state.ok` couvre l'instant entre l'enregistrement
   // et la revalidation de la page.
   const savedModel = state.ok ? model : initialModel;
   const unsaved = model !== savedModel;
+
+  if (packsOnly) {
+    return (
+      <Card as="section" className="flex flex-col gap-5">
+        <PacksManager packs={packs} unitCents={unitCents} buyPriceCents={buyPriceCents} buyerLabel={buyerLabel} />
+      </Card>
+    );
+  }
 
   return (
     <Card as="section" className="flex flex-col gap-5">
@@ -53,9 +73,9 @@ export function ResellerModelForm({ initialModel, keyConfigured, packs, aiUnitCe
             active={model === "credits"}
             onClick={() => keyConfigured && setModel("credits")}
             disabled={!keyConfigured}
-            lockNote={keyConfigured ? undefined : "Nécessite ta clé Anthropic (à brancher plus bas)."}
+            lockNote={keyConfigured ? undefined : "Nécessite une source d'IA (ta clé Anthropic, ou des crédits plateforme)."}
             title="Crédits IA"
-            desc="Tes coachs achètent des packs de crédits (IA + programme), clients illimités, pas d'abonnement de base. Tu fournis l'IA et prends ta marge sur chaque crédit."
+            desc="Tes coachs achètent des packs de crédits IA, clients illimités, pas d'abonnement de base. Tu fournis l'IA et prends ta marge sur chaque crédit."
           />
         </div>
         <input type="hidden" name="reseller_model" value={model} />
@@ -76,12 +96,10 @@ export function ResellerModelForm({ initialModel, keyConfigured, packs, aiUnitCe
       </form>
 
       {/* Les packs ne s'affichent QUE si le modèle « Crédits IA » est réellement
-          enregistré. Sinon on pouvait créer des packs sur une simple sélection
-          non sauvegardée : les coachs ne voyaient rien, sans que rien ne le dise.
-          Après un enregistrement réussi, on n'attend pas la revalidation pour
-          ouvrir la section. */}
+          enregistré : sinon les coachs ne les verraient pas, sans que rien ne
+          le dise. */}
       {savedModel === "credits" ? (
-        <PacksManager packs={packs} aiUnitCents={aiUnitCents} programUnitCents={programUnitCents} />
+        <PacksManager packs={packs} unitCents={unitCents} buyPriceCents={buyPriceCents} buyerLabel={buyerLabel} />
       ) : model === "credits" ? (
         <div className="border-t border-line pt-5">
           <Alert>
@@ -96,26 +114,27 @@ export function ResellerModelForm({ initialModel, keyConfigured, packs, aiUnitCe
 
 function PacksManager({
   packs,
-  aiUnitCents,
-  programUnitCents,
+  unitCents,
+  buyPriceCents,
+  buyerLabel,
 }: {
   packs: CreditPack[];
-  aiUnitCents: number;
-  programUnitCents: number;
+  unitCents: number;
+  buyPriceCents: number | null;
+  buyerLabel: string;
 }) {
   const [addState, addAction, adding] = useActionState(addCreditPack, {} as ResellerAiState);
+  // Prix de revient d'un crédit : prix d'achat s'il existe, sinon coût Anthropic estimé.
+  const costPerCredit = buyPriceCents != null ? buyPriceCents / 100 : creditPackMargin(1, 0).costEur;
 
   return (
     <div className="flex flex-col gap-4 border-t border-line pt-5">
       <div>
-        <div className="font-archivo font-bold text-[15.5px] text-ink">Packs de crédits</div>
+        <div className="font-archivo font-bold text-[15.5px] text-ink">Packs de crédits IA</div>
         <p className="text-[13px] text-muted">
-          Les bundles que tes coachs achètent. Le <span className="text-body">crédit IA</span> couvre
-          une action (chat, recette, exercice) ; le <span className="text-body">crédit programme</span>{" "}
-          couvre une génération. Un pack peut mélanger les deux : le coach règle tout en un seul
-          paiement. Laisse un champ à 0 pour un pack d&apos;un seul type. Le prix se calcule tout
-          seul à partir de tes prix de revente réglés plus bas ({(aiUnitCents / 100).toFixed(2)} €
-          le crédit IA, {(programUnitCents / 100).toFixed(2)} € le crédit programme) ; tu peux
+          Les packs que {buyerLabel} achètent. Un seul type de crédit : chaque action IA en consomme
+          1, une génération de programme le nombre réglé plus bas. Le prix se calcule tout seul à
+          partir de ton prix de revente ({(unitCents / 100).toFixed(2)} € le crédit) ; tu peux
           l&apos;ajuster pour offrir une remise de volume.
         </p>
       </div>
@@ -132,28 +151,18 @@ function PacksManager({
             </thead>
             <tbody>
               {packs.map((p) => {
-                const m = creditPackMargin(p.ai_credits, p.program_credits, p.price_cents);
-                const hybrid = p.ai_credits > 0 && p.program_credits > 0;
+                const price = p.price_cents / 100;
+                const cost = p.credits * costPerCredit;
+                const marginEur = price - cost;
                 return (
                   <tr key={p.id} className={`border-b border-line-2 last:border-0 ${p.is_active ? "" : "opacity-55"}`}>
-                    <td className="px-3 py-2.5 font-semibold text-ink">
-                      {p.name}
-                      {hybrid ? (
-                        <span className="ml-2 rounded-pill bg-brand/10 px-2 py-0.5 font-mono text-[10px] uppercase text-brand">
-                          Hybride
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-3 py-2.5 text-body">
-                      {creditPackContents(p.ai_credits, p.program_credits)}
-                    </td>
-                    <td className="px-3 py-2.5 tabular-nums text-ink">{m.priceEur.toFixed(2)} €</td>
-                    <td className="px-3 py-2.5 tabular-nums text-muted">≈ {m.costEur.toFixed(2)} €</td>
-                    <td
-                      className={`px-3 py-2.5 tabular-nums font-semibold ${m.marginEur < 0 ? "text-[#C4471A]" : "text-brand"}`}
-                    >
-                      {m.marginEur < 0 ? "" : "+"}
-                      {m.marginEur.toFixed(2)} €
+                    <td className="px-3 py-2.5 font-semibold text-ink">{p.name}</td>
+                    <td className="px-3 py-2.5 text-body">{creditPackContents(p.credits)}</td>
+                    <td className="px-3 py-2.5 tabular-nums text-ink">{price.toFixed(2)} €</td>
+                    <td className="px-3 py-2.5 tabular-nums text-muted">≈ {cost.toFixed(2)} €</td>
+                    <td className={`px-3 py-2.5 tabular-nums font-semibold ${marginEur < 0 ? "text-[#C4471A]" : "text-brand"}`}>
+                      {marginEur < 0 ? "" : "+"}
+                      {marginEur.toFixed(2)} €
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2">
@@ -180,13 +189,7 @@ function PacksManager({
         <p className="text-[13px] text-muted-2">Aucun pack pour l&apos;instant. Ajoutes-en un ci-dessous.</p>
       )}
 
-      <PackForm
-        addAction={addAction}
-        adding={adding}
-        error={addState.error}
-        aiUnitCents={aiUnitCents}
-        programUnitCents={programUnitCents}
-      />
+      <PackForm addAction={addAction} adding={adding} error={addState.error} unitCents={unitCents} costPerCredit={costPerCredit} />
     </div>
   );
 }
@@ -195,59 +198,48 @@ const FIELD =
   "h-10 rounded-control border border-line-4 bg-surface px-2.5 text-[14px] text-ink outline-none focus:border-ink";
 
 /**
- * Création d'un pack. Les deux compteurs sont indépendants : mettre les deux à
- * une valeur > 0 crée un pack HYBRIDE (IA + programme) payé en une seule fois.
- *
- * Le PRIX DE VENTE se calcule tout seul à partir des prix unitaires réglés dans
- * « Tarification en crédits » (plus bas sur la page) : le revendeur a déjà fixé
- * combien il vend un crédit, inutile de le lui redemander pack par pack. Il
- * reste libre de l'ajuster pour offrir une remise de volume, auquel cas on lui
- * rappelle le prix conseillé et on lui offre un retour en arrière.
- *
- * Le PRIX DE REVIENT (ce que l'IA lui coûte réellement) et la marge se
- * recalculent à chaque frappe, pour qu'un prix à perte ne passe jamais inaperçu.
+ * Création d'un pack. Le PRIX DE VENTE se calcule tout seul (crédits × prix
+ * unitaire déjà réglé) ; il reste modifiable pour une remise de volume, avec
+ * rappel du prix conseillé. Le PRIX DE REVIENT et la marge se recalculent à
+ * chaque frappe.
  */
 function PackForm({
   addAction,
   adding,
   error,
-  aiUnitCents,
-  programUnitCents,
+  unitCents,
+  costPerCredit,
 }: {
   addAction: (formData: FormData) => void;
   adding: boolean;
   error?: string;
-  aiUnitCents: number;
-  programUnitCents: number;
+  unitCents: number;
+  costPerCredit: number;
 }) {
-  const [ai, setAi] = useState("");
-  const [program, setProgram] = useState("");
+  const [credits, setCredits] = useState("");
   // Prix saisi à la main ; `null` = on suit le prix conseillé.
   const [customPrice, setCustomPrice] = useState<string | null>(null);
 
-  const aiN = Math.max(0, Math.trunc(Number(ai) || 0));
-  const progN = Math.max(0, Math.trunc(Number(program) || 0));
-
-  // Prix conseillé = ce que valent les crédits du pack à ton tarif unitaire.
-  const suggestedCents = suggestedPackPriceCents(aiN, progN, aiUnitCents, programUnitCents);
+  const n = Math.max(0, Math.trunc(Number(credits) || 0));
+  const suggestedCents = suggestedPackPriceCents(n, unitCents);
   const suggested = suggestedCents > 0 ? (suggestedCents / 100).toFixed(2) : "";
   const price = customPrice ?? suggested;
-
   const priceCents = Math.round((Number(price.replace(",", ".")) || 0) * 100);
-  const preview = aiN + progN > 0 ? creditPackMargin(aiN, progN, priceCents) : null;
   const edited = customPrice !== null && customPrice.trim() !== suggested;
+  const cost = n * costPerCredit;
+  const marginEur = priceCents / 100 - cost;
+  const marginPct = priceCents > 0 ? Math.round((marginEur / (priceCents / 100)) * 100) : 0;
 
-  // Changer un nombre de crédits doit recalculer le prix, sauf si le revendeur
-  // a délibérément mis un autre montant. Un prix saisi qui vaut exactement le
-  // prix conseillé n'est pas une décision : on repasse en automatique.
-  const changeCredits = (set: (v: string) => void) => (v: string) => {
+  const changeCredits = (v: string) => {
+    // Un prix saisi qui vaut exactement le prix conseillé n'est pas une décision :
+    // changer les crédits relance le calcul.
     if (customPrice !== null && customPrice.trim() === suggested) setCustomPrice(null);
-    set(v);
+    setCredits(v);
   };
 
   return (
     <form action={addAction} className="flex flex-col gap-3 rounded-control border border-line-4 bg-surface-2 p-4">
-      <div className="grid items-start gap-3 sm:grid-cols-4">
+      <div className="grid items-start gap-3 sm:grid-cols-3">
         <label className="flex flex-col gap-1.5">
           <MonoLabel>Nom</MonoLabel>
           <input name="name" placeholder="Pack Découverte" className={FIELD} />
@@ -255,30 +247,16 @@ function PackForm({
         <label className="flex flex-col gap-1.5">
           <MonoLabel>Crédits IA</MonoLabel>
           <input
-            name="ai_credits"
+            name="credits"
             type="number"
-            min={0}
+            min={1}
             inputMode="numeric"
             placeholder="100"
-            value={ai}
-            onChange={(e) => changeCredits(setAi)(e.target.value)}
+            value={credits}
+            onChange={(e) => changeCredits(e.target.value)}
             className={FIELD}
           />
-          <span className="text-[11.5px] text-muted-2">à {(aiUnitCents / 100).toFixed(2)} € pièce</span>
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <MonoLabel>Crédits programme</MonoLabel>
-          <input
-            name="program_credits"
-            type="number"
-            min={0}
-            inputMode="numeric"
-            placeholder="5"
-            value={program}
-            onChange={(e) => changeCredits(setProgram)(e.target.value)}
-            className={FIELD}
-          />
-          <span className="text-[11.5px] text-muted-2">à {(programUnitCents / 100).toFixed(2)} € pièce</span>
+          <span className="text-[11.5px] text-muted-2">à {(unitCents / 100).toFixed(2)} € pièce</span>
         </label>
         <label className="flex flex-col gap-1.5">
           <MonoLabel>Prix de vente (€)</MonoLabel>
@@ -304,25 +282,20 @@ function PackForm({
         </label>
       </div>
 
-      {preview ? (
+      {n > 0 ? (
         <div className="flex flex-col gap-1 rounded-control border border-line-4 bg-surface px-3.5 py-3 text-[13px]">
           <div className="text-body">
-            <span className="font-semibold text-ink">{creditPackContents(aiN, progN)}</span> vendus{" "}
-            {preview.priceEur.toFixed(2)} €
+            <span className="font-semibold text-ink">{creditPackContents(n)}</span> vendus{" "}
+            {(priceCents / 100).toFixed(2)} €
             {edited && suggestedCents > 0 ? (
-              <span className="text-muted-2">
-                {" "}
-                (remise de {((suggestedCents - priceCents) / 100).toFixed(2)} € sur le prix conseillé)
-              </span>
+              <span className="text-muted-2"> (remise de {((suggestedCents - priceCents) / 100).toFixed(2)} € sur le prix conseillé)</span>
             ) : null}
           </div>
           <div className="text-muted">
-            Prix de revient (ce que l&apos;IA te coûte) : ≈ {preview.costEur.toFixed(2)} €{" "}
-            <span aria-hidden>→</span>{" "}
-            <span className={preview.marginEur < 0 ? "font-semibold text-[#C4471A]" : "font-semibold text-brand"}>
-              {preview.marginEur < 0 ? "perte de " : "marge de "}
-              {Math.abs(preview.marginEur).toFixed(2)} €
-              {preview.marginEur > 0 ? ` (${Math.round(preview.marginPct)} %)` : ""}
+            Prix de revient : ≈ {cost.toFixed(2)} € <span aria-hidden>→</span>{" "}
+            <span className={marginEur < 0 ? "font-semibold text-[#C4471A]" : "font-semibold text-brand"}>
+              {marginEur < 0 ? "perte de " : "marge de "}
+              {Math.abs(marginEur).toFixed(2)} €{marginEur > 0 ? ` (${marginPct} %)` : ""}
             </span>
           </div>
         </div>
@@ -371,7 +344,7 @@ function ModelCard({
         <span className="font-archivo font-bold text-[15px] text-ink">{title}</span>
       </div>
       <p className="text-[12.5px] leading-[1.55] text-muted">{desc}</p>
-      {lockNote ? <p className="text-[12px] font-medium text-[#C4471A]">{lockNote}</p> : null}
+      {lockNote ? <span className="text-[12px] text-[#C4471A]">{lockNote}</span> : null}
     </button>
   );
 }

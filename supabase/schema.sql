@@ -53,8 +53,10 @@ create table if not exists public.tenants (
   ai_mode text not null default 'byok'::text,
   ai_client_daily_limit integer not null default 60,
   ai_credit_price_cents integer not null default 40,
-  ai_program_credits integer not null default 5,
-  ai_program_credit_price_cents integer not null default 200,
+  -- Coût d'une génération de programme, en crédits IA (réglé par le fournisseur).
+  ai_program_credits integer not null default 10,
+  -- Revendeur : sa propre clé (byok) ou des crédits achetés à la plateforme.
+  ai_supply text not null default 'byok'::text,
   reseller_model text not null default 'subscription'::text,
   whitelabel_addon_price_cents integer,
   whitelabel_enabled boolean not null default false,
@@ -63,6 +65,7 @@ create table if not exists public.tenants (
   constraint tenants_pkey primary key (id),
   constraint tenants_slug_key unique (slug),
   constraint tenants_kind_check check (kind = any (array['platform','reseller','coach'])),
+  constraint tenants_ai_supply_check check (ai_supply = any (array['byok','platform_credits'])),
   constraint tenants_commission_bps_check check (commission_bps is null or (commission_bps >= 0 and commission_bps <= 3000))
 );
 
@@ -128,6 +131,8 @@ create table if not exists public.offers (
   price_month_cents integer,
   price_year_cents integer,
   coach_ai boolean not null default true,
+  -- Quota journalier d'actions IA par client pour CETTE offre (null = défaut du coach).
+  coach_ai_daily_limit integer,
   constraint offers_pkey primary key (id),
   constraint offers_billing_type_check check (billing_type = any (array['one_time','subscription'])),
   constraint offers_duration_months_check check (duration_months = any (array[1,2,3,6,9,12])),
@@ -182,8 +187,7 @@ create table if not exists public.prospects (
 -- Portefeuille de crédits IA (Modèle B « revendeur en crédits »).
 create table if not exists public.credit_wallets (
   tenant_id uuid not null,
-  ai_credits integer not null default 0,
-  program_credits integer not null default 0,
+  credits integer not null default 0,
   updated_at timestamptz not null default now(),
   constraint credit_wallets_pkey primary key (tenant_id)
 );
@@ -191,10 +195,12 @@ create table if not exists public.credit_wallets (
 create table if not exists public.credit_ledger (
   id bigint generated always as identity,
   tenant_id uuid not null,
-  kind text not null,
   delta integer not null,
+  -- 'purchase', 'message', 'recipe', 'alternative', 'guide', 'generate', 'block', 'adjust'
   reason text not null,
   ref text,
+  -- Client à l'origine d'un débit (journal de consommation du coach).
+  client_id uuid,
   created_at timestamptz not null default now(),
   constraint credit_ledger_pkey primary key (id)
 );
@@ -203,17 +209,14 @@ create table if not exists public.credit_packs (
   id bigint generated always as identity,
   tenant_id uuid not null,
   name text not null,
-  ai_credits integer not null default 0,
-  program_credits integer not null default 0,
+  credits integer not null,
   price_cents integer not null,
   currency text not null default 'eur'::text,
   is_active boolean not null default true,
   "position" integer not null default 0,
   created_at timestamptz not null default now(),
   constraint credit_packs_pkey primary key (id),
-  -- Pack hybride : les deux types cohabitent, mais un pack vide n'a pas de sens.
-  constraint credit_packs_credits_positive
-    check (ai_credits >= 0 and program_credits >= 0 and (ai_credits + program_credits) > 0)
+  constraint credit_packs_credits_positive check (credits > 0)
 );
 
 create table if not exists public.questionnaires (
@@ -548,9 +551,9 @@ create index if not exists coach_messages_conversation_idx on public.coach_messa
 create index if not exists coach_notes_client_idx on public.coach_notes (client_id, created_at desc);
 create index if not exists coach_notifications_tenant_idx on public.coach_notifications (tenant_id, created_at desc);
 create index if not exists coach_notifications_unread_idx on public.coach_notifications (tenant_id) where (read_at is null);
--- Unicité par (ref, kind) : un paiement de pack hybride pose DEUX lignes d'achat
--- (une par type de crédit), chacune idempotente sur sa propre clé.
-create unique index if not exists credit_ledger_purchase_ref_uidx on public.credit_ledger (ref, kind) where (reason = 'purchase'::text and ref is not null);
+-- Un paiement (ref = session Stripe) ne crédite qu'une fois.
+create unique index if not exists credit_ledger_purchase_ref_uidx on public.credit_ledger (ref) where (reason = 'purchase'::text and ref is not null);
+create index if not exists credit_ledger_tenant_created_idx on public.credit_ledger (tenant_id, created_at desc);
 create index if not exists credit_ledger_tenant_idx on public.credit_ledger (tenant_id, created_at desc);
 create index if not exists credit_packs_tenant_idx on public.credit_packs (tenant_id, "position");
 create index if not exists exercise_media_tenant_idx on public.exercise_media (tenant_id);
@@ -596,24 +599,17 @@ create trigger on_auth_user_created
 -- Débit atomique d'un portefeuille de crédits (Modèle B). Renvoie le solde
 -- restant, ou NULL si insuffisant : la condition « >= p_amount » est dans
 -- l'UPDATE, donc deux débits simultanés ne peuvent pas passer sous zéro.
-create or replace function public.debit_credit(p_tenant uuid, p_kind text, p_amount integer)
+create or replace function public.debit_credit(p_tenant uuid, p_amount integer)
 returns integer
 language plpgsql
 set search_path = public, pg_temp
 as $$
 declare rem integer;
 begin
-  if p_kind = 'program' then
-    update credit_wallets
-      set program_credits = program_credits - p_amount, updated_at = now()
-      where tenant_id = p_tenant and program_credits >= p_amount
-      returning program_credits into rem;
-  else
-    update credit_wallets
-      set ai_credits = ai_credits - p_amount, updated_at = now()
-      where tenant_id = p_tenant and ai_credits >= p_amount
-      returning ai_credits into rem;
-  end if;
+  update credit_wallets
+    set credits = credits - p_amount, updated_at = now()
+    where tenant_id = p_tenant and credits >= p_amount
+    returning credits into rem;
   return rem;
 end;
 $$;

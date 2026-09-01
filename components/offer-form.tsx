@@ -3,7 +3,15 @@
 import { useActionState, useState } from "react";
 import { addOffer, type OfferState } from "@/app/admin/actions";
 import { Button, Alert, MonoLabel } from "@/components/ui";
-import { OFFER_DURATIONS_MONTHS, PRODUCTS, monthlyEquivalentCents, formatEuros, type OfferDurationMonths } from "@/lib/config";
+import {
+  OFFER_DURATIONS_MONTHS,
+  PRODUCTS,
+  monthlyEquivalentCents,
+  formatEuros,
+  planMaxCredits,
+  programDaysForMonths,
+  type OfferDurationMonths,
+} from "@/lib/config";
 
 /**
  * Formulaire de création d'un plan vendu au client. Le coach choisit d'abord
@@ -11,15 +19,34 @@ import { OFFER_DURATIONS_MONTHS, PRODUCTS, monthlyEquivalentCents, formatEuros, 
  * et l'IA spécialisée), puis le mode de paiement (unique ou mensuel), le prix
  * et les inclusions (Chat VIP, Coach IA).
  */
-export function OfferForm({ atLimit }: { atLimit: boolean }) {
+export function OfferForm({
+  atLimit,
+  programCredits,
+  creditMode,
+  defaultQuota,
+}: {
+  atLimit: boolean;
+  /** Crédits IA consommés par une génération de programme (réglé par le fournisseur). */
+  programCredits: number;
+  /** Le coach paie l'IA en crédits (sinon BYOK : le coût max est en actions, pas en crédits). */
+  creditMode: boolean;
+  /** Quota par défaut de la configuration IA du coach. */
+  defaultQuota: number;
+}) {
   const [state, action, pending] = useActionState(addOffer, {} as OfferState);
   const [months, setMonths] = useState<OfferDurationMonths>(12);
   const [billing, setBilling] = useState<"one_time" | "subscription">("one_time");
   const [price, setPrice] = useState("");
+  const [coachAi, setCoachAi] = useState(true);
+  const [quota, setQuota] = useState(String(defaultQuota));
   const isSub = billing === "subscription";
   const product = PRODUCTS[months];
   const priceCents = Math.round((Number(price.replace(",", ".")) || 0) * 100);
   const perMonth = monthlyEquivalentCents(priceCents, months);
+  const quotaN = Math.max(0, Math.trunc(Number(quota) || 0));
+  // Coût MAXIMUM du plan pour le coach : générations (une par bloc de 3 mois)
+  // + quota journalier saturé chaque jour. Il ne paie que l'usage réel.
+  const max = planMaxCredits({ programDays: programDaysForMonths(months), dailyQuota: quotaN, programCredits });
 
   if (atLimit) {
     return (
@@ -159,7 +186,13 @@ export function OfferForm({ atLimit }: { atLimit: boolean }) {
       <div className="flex flex-col gap-2">
         <MonoLabel>Inclusions</MonoLabel>
         <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
-          <input type="checkbox" name="coach_ai" defaultChecked className="mt-0.5 size-4 accent-brand" />
+          <input
+            type="checkbox"
+            name="coach_ai"
+            checked={coachAi}
+            onChange={(e) => setCoachAi(e.target.checked)}
+            className="mt-0.5 size-4 accent-brand"
+          />
           <span className="flex flex-col gap-0.5">
             <span className="font-semibold text-[14px] text-ink">Coach IA inclus</span>
             <span className="text-[12px] text-muted-2">
@@ -167,6 +200,51 @@ export function OfferForm({ atLimit }: { atLimit: boolean }) {
             </span>
           </span>
         </label>
+        {coachAi ? (
+          <div className="ml-3 flex flex-col gap-3 rounded-control border border-brand/30 bg-surface p-3.5">
+            <label className="flex flex-col gap-1.5">
+              <MonoLabel>Messages IA par jour et par client (0 = illimité)</MonoLabel>
+              <input
+                name="coach_ai_daily_limit"
+                type="number"
+                min={0}
+                max={1000}
+                inputMode="numeric"
+                value={quota}
+                onChange={(e) => setQuota(e.target.value)}
+                className="w-full max-w-[160px] rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
+              />
+              <span className="text-[12px] leading-relaxed text-muted-2">
+                Messages du chat et alternatives d&apos;exercice. Le compteur du client se remet à ce
+                quota chaque jour à minuit, rien ne s&apos;accumule. Tu n&apos;es débité que de ce qu&apos;il
+                utilise vraiment.
+              </span>
+            </label>
+            <div className="text-[13px] leading-[1.6] text-body">
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">Coût maximum de ce plan</span>
+              <div>
+                {creditMode ? (
+                  <>
+                    <span className="font-semibold text-ink">{max.total.toLocaleString("fr-FR")} crédits IA</span> au
+                    pire, si le client sature tout : {max.generations} génération{max.generations > 1 ? "s" : ""} de
+                    programme ({max.generationCredits} crédits)
+                    {quotaN > 0
+                      ? ` + ${quotaN} messages × ${programDaysForMonths(months)} jours (${max.chatCredits.toLocaleString("fr-FR")} crédits)`
+                      : " + un chat sans plafond"}
+                    .
+                  </>
+                ) : quotaN > 0 ? (
+                  <>
+                    Au pire {max.chatCredits.toLocaleString("fr-FR")} messages sur {programDaysForMonths(months)} jours, plus{" "}
+                    {max.generations} génération{max.generations > 1 ? "s" : ""} de programme, sur ta propre clé Anthropic.
+                  </>
+                ) : (
+                  <>Sans plafond, le coût de ce plan n&apos;est pas borné.</>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
         <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
           <input type="checkbox" name="vip_chat" className="mt-0.5 size-4 accent-brand" />
           <span className="flex flex-col gap-0.5">

@@ -6,6 +6,8 @@ import { MAX_OFFERS_PER_TENANT, programDaysForMonths, formatEuros } from "@/lib/
 import { OfferForm } from "@/components/offer-form";
 import { EmbedSnippet } from "@/components/embed-snippet";
 import { toggleOffer, removeOffer } from "@/app/admin/actions";
+import { clientUsesCredits, programCreditCost } from "@/lib/credits";
+import { readCoachConfig } from "@/lib/methodology";
 import { Alert, Card } from "@/components/ui";
 
 export const metadata = { title: "Plans, Admin My Fitness App" };
@@ -39,7 +41,9 @@ function Pill({ children, tone = "muted" }: { children: React.ReactNode; tone?: 
 export default async function AdminPlansPage() {
   const ctx = await getAdminOrNull();
   const tenantId = ctx?.profile?.tenant_id ?? null;
-  const offers = tenantId ? await listOffers(tenantId) : [];
+  const [offers, creditMode, programCredits, cfg] = tenantId
+    ? await Promise.all([listOffers(tenantId), clientUsesCredits(tenantId), programCreditCost(tenantId), readCoachConfig(tenantId)])
+    : [[], false, 10, null];
 
   let slug: string | null = null;
   if (tenantId) {
@@ -89,7 +93,11 @@ export default async function AdminPlansPage() {
                       <span className="font-archivo font-bold text-[16px] text-ink">{o.name}</span>
                       <Pill>{o.billing_type === "subscription" ? "Abonnement" : "Paiement unique"}</Pill>
                       {!o.is_active ? <Pill>Inactif</Pill> : null}
-                      {o.coach_ai ? <Pill tone="brand">Coach IA</Pill> : null}
+                      {o.coach_ai ? (
+                        <Pill tone="brand">
+                          Coach IA{o.coach_ai_daily_limit != null ? ` · ${o.coach_ai_daily_limit === 0 ? "illimité" : `${o.coach_ai_daily_limit}/jour`}` : ""}
+                        </Pill>
+                      ) : null}
                       {o.vip_chat ? <Pill tone="brand">Chat VIP</Pill> : null}
                     </div>
                     <span className="text-[13px] text-muted">
@@ -117,7 +125,12 @@ export default async function AdminPlansPage() {
                 </Card>
               ))
             )}
-            <OfferForm atLimit={offers.length >= MAX_OFFERS_PER_TENANT} />
+            <OfferForm
+              atLimit={offers.length >= MAX_OFFERS_PER_TENANT}
+              programCredits={programCredits}
+              creditMode={creditMode}
+              defaultQuota={cfg?.coach_ai_daily_limit ?? 60}
+            />
           </div>
 
           {slug ? <EmbedSnippet embedUrl={`${site}/c/${slug}/embed`} /> : null}

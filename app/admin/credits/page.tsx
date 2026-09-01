@@ -1,14 +1,41 @@
 import { redirect } from "next/navigation";
 import { getAdminOrNull } from "@/lib/admin";
-import { billingParentId } from "@/lib/hierarchy";
-import { getWallet, listCreditPacks, clientUsesCredits } from "@/lib/credits";
+import { billingParentId, tenantNode } from "@/lib/hierarchy";
+import { getWallet, listCreditPacks, clientUsesCredits, listLedger, programCreditCost, type LedgerEntry } from "@/lib/credits";
 import { verifyPackCheckout } from "@/lib/credit-billing";
 import { BuyPackButton } from "@/components/buy-pack-button";
 import { Alert, Card, MonoLabel } from "@/components/ui";
 import { creditPackContents } from "@/lib/config";
 import type { CreditPack } from "@/lib/credits";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata = { title: "Crédits IA" };
+
+/** Libellé lisible d'un mouvement du journal. */
+function reasonLabel(r: string): string {
+  switch (r) {
+    case "purchase": return "Achat de pack";
+    case "adjust": return "Ajustement";
+    case "message": return "Message coach IA";
+    case "recipe": return "Recette";
+    case "alternative": return "Alternative d'exercice";
+    case "guide": return "Fiche exercice";
+    case "generate": return "Génération de programme";
+    case "block": return "Bloc suivant du programme";
+    default: return r;
+  }
+}
+
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Paris",
+  });
+}
 
 export default async function AdminCreditsPage({
   searchParams,
@@ -20,20 +47,34 @@ export default async function AdminCreditsPage({
   if (!tenantId) redirect("/admin");
   const sp = await searchParams;
 
-  // Retour de paiement : on crédite le portefeuille (idempotent). Un pack
-  // hybride ajoute les deux types en une seule fois.
-  let justCredited: string | null = null;
+  // Retour de paiement : on crédite le portefeuille (idempotent).
+  let justCredited: number | null = null;
   if (sp.session_id) {
     const r = await verifyPackCheckout(tenantId, sp.session_id);
-    if (r.credited) justCredited = creditPackContents(r.aiCredits ?? 0, r.programCredits ?? 0);
+    if (r.credited && r.credits) justCredited = r.credits;
   }
 
-  const [wallet, credits, resellerId] = await Promise.all([
+  // Qui consomme des crédits ici ? Un coach dont le revendeur est en modèle
+  // crédits, ou un revendeur qui achète ses crédits à la plateforme.
+  const node = await tenantNode(tenantId);
+  const admin = createAdminClient();
+  const { data: t } = await admin
+    .from("tenants")
+    .select("ai_supply")
+    .eq("id", tenantId)
+    .maybeSingle<{ ai_supply: string | null }>();
+  const isReseller = node?.kind === "reseller";
+  const buysFromPlatform = isReseller && t?.ai_supply === "platform_credits";
+  const [wallet, coachUsesCredits, supplierId, programCredits, ledger] = await Promise.all([
     getWallet(tenantId),
-    clientUsesCredits(tenantId),
+    isReseller ? Promise.resolve(buysFromPlatform) : clientUsesCredits(tenantId),
     billingParentId(tenantId),
+    programCreditCost(tenantId),
+    listLedger(tenantId, 200),
   ]);
-  const packs = resellerId ? (await listCreditPacks(resellerId)).filter((p) => p.is_active) : [];
+  const usesCredits = coachUsesCredits;
+  const packs = supplierId ? (await listCreditPacks(supplierId)).filter((p) => p.is_active) : [];
+  const supplierLabel = isReseller ? "la plateforme" : "ton revendeur";
 
   return (
     <div className="flex flex-col gap-5">
@@ -42,65 +83,110 @@ export default async function AdminCreditsPage({
           Crédits IA
         </h1>
         <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
-          Recharge tes crédits pour faire tourner l&apos;IA de tes clients. 1 crédit IA = une action
-          (chat, recette, exercice) ; 1 crédit programme = une génération de programme.
+          Un seul type de crédit. Chaque action IA (message du coach, recette, alternative
+          d&apos;exercice) en consomme 1 ; une génération de programme en consomme {programCredits}.
+          {isReseller ? " Tes coachs te les achètent, tu les achètes à la plateforme." : " Tu n'es débité que de ce que tes clients utilisent réellement."}
         </p>
       </div>
 
       {justCredited ? (
-        <Alert tone="info">Paiement confirmé : {justCredited} ajoutés à ton solde.</Alert>
+        <Alert tone="info">Paiement confirmé : {creditPackContents(justCredited)} ajoutés à ton solde.</Alert>
       ) : null}
       {sp.annule ? <Alert>Paiement annulé. Ton solde n&apos;a pas changé.</Alert> : null}
 
-      {/* Solde */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card>
-          <MonoLabel>Crédits IA</MonoLabel>
-          <div className="mt-1 font-archivo text-[30px] font-extrabold leading-none tracking-[-0.02em] text-ink tabular-nums">
-            {wallet.aiCredits}
-          </div>
-        </Card>
-        <Card>
-          <MonoLabel>Crédits programme</MonoLabel>
-          <div className="mt-1 font-archivo text-[30px] font-extrabold leading-none tracking-[-0.02em] text-ink tabular-nums">
-            {wallet.programCredits}
-          </div>
-        </Card>
-      </div>
+      <Card>
+        <MonoLabel>Solde</MonoLabel>
+        <div className="mt-1 flex items-baseline gap-2">
+          <span className={`font-archivo text-[34px] font-extrabold leading-none tracking-[-0.02em] tabular-nums ${wallet.credits <= 0 ? "text-[#C4471A]" : "text-ink"}`}>
+            {wallet.credits}
+          </span>
+          <span className="text-[13px] text-muted">crédit{wallet.credits > 1 ? "s" : ""} IA</span>
+        </div>
+        {wallet.credits < programCredits ? (
+          <p className="mt-2 text-[13px] text-muted">
+            Il en faut {programCredits} pour une génération de programme.
+          </p>
+        ) : null}
+      </Card>
 
-      {!credits ? (
+      {!usesCredits ? (
         <Alert>
-          Ton offre actuelle n&apos;utilise pas de crédits (tu es en formule abonnement / clé
-          personnelle). Les crédits ne sont nécessaires que si ton revendeur fournit l&apos;IA.
+          {isReseller
+            ? "Tu fournis l'IA avec ta propre clé Anthropic : pas de crédits à acheter ici."
+            : "Ton offre actuelle n'utilise pas de crédits (formule abonnement / clé personnelle). Les crédits ne sont nécessaires que si ton revendeur fournit l'IA."}
         </Alert>
       ) : packs.length === 0 ? (
-        <Alert>Ton revendeur n&apos;a pas encore mis de packs en vente. Contacte-le pour recharger.</Alert>
+        <Alert>{supplierLabel === "la plateforme" ? "La plateforme" : "Ton revendeur"} n&apos;a pas encore mis de packs en vente. Contacte-le pour recharger.</Alert>
       ) : (
         <PackGroup packs={packs} />
       )}
+
+      <Journal entries={ledger} />
     </div>
   );
 }
 
 function PackGroup({ packs }: { packs: CreditPack[] }) {
-  if (packs.length === 0) return null;
   return (
     <Card as="section" className="flex flex-col gap-3">
-      <div className="font-archivo font-bold text-[16px] text-ink">Packs disponibles</div>
+      <div className="font-archivo font-bold text-[16px] text-ink">Recharger</div>
       <div className="flex flex-col gap-2">
         {packs.map((p) => (
           <div key={p.id} className="flex items-center justify-between gap-3 rounded-control border border-line-4 bg-surface-2 px-4 py-3">
             <div>
               <div className="font-semibold text-ink">{p.name}</div>
               <div className="text-[13px] text-muted">
-                {creditPackContents(p.ai_credits, p.program_credits)} ·{" "}
-                <span className="text-body">{(p.price_cents / 100).toFixed(2)} €</span>
+                {creditPackContents(p.credits)} · <span className="text-body">{(p.price_cents / 100).toFixed(2)} €</span>
+                <span className="text-muted-2"> · {(p.price_cents / 100 / p.credits).toFixed(2)} € le crédit</span>
               </div>
             </div>
             <BuyPackButton packId={p.id} label={`${(p.price_cents / 100).toFixed(0)} €`} />
           </div>
         ))}
       </div>
+    </Card>
+  );
+}
+
+/**
+ * Où passent les crédits : chaque mouvement avec sa date, son heure, son motif
+ * et le client concerné. C'est la pièce comptable du coach.
+ */
+function Journal({ entries }: { entries: LedgerEntry[] }) {
+  return (
+    <Card as="section" className="flex flex-col gap-3">
+      <div className="flex flex-col gap-0.5">
+        <div className="font-archivo font-bold text-[16px] text-ink">Détail de la consommation</div>
+        <p className="text-[13px] text-muted">Les 200 derniers mouvements, du plus récent au plus ancien.</p>
+      </div>
+      {entries.length === 0 ? (
+        <p className="text-[13px] text-muted-2">Aucun mouvement pour l&apos;instant.</p>
+      ) : (
+        <div className="overflow-x-auto rounded-control border border-line-4">
+          <table className="w-full min-w-[520px] border-collapse text-[13px]">
+            <thead>
+              <tr className="border-b border-line bg-surface-2 text-left text-muted-2">
+                {["Date", "Crédits", "Action", "Client"].map((h) => (
+                  <th key={h} className="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.07em]">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((e) => (
+                <tr key={e.id} className="border-b border-line-2 last:border-0">
+                  <td className="whitespace-nowrap px-3 py-2 tabular-nums text-muted">{fmtDate(e.createdAt)}</td>
+                  <td className={`px-3 py-2 tabular-nums font-semibold ${e.delta > 0 ? "text-brand" : "text-ink"}`}>
+                    {e.delta > 0 ? "+" : ""}
+                    {e.delta}
+                  </td>
+                  <td className="px-3 py-2 text-body">{reasonLabel(e.reason)}</td>
+                  <td className="px-3 py-2 text-body">{e.clientName ?? <span className="text-muted-2">·</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Card>
   );
 }

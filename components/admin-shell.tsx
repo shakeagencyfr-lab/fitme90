@@ -177,8 +177,8 @@ function UsageCard({ costUsd, calls }: { costUsd: number; calls: number }) {
  * n'aurait aucun sens pour lui, on montre donc ce qui lui reste. Le solde vire
  * au rouge à zéro : c'est le moment où l'IA de ses clients s'arrête.
  */
-function WalletCard({ ai, program }: { ai: number; program: number }) {
-  const empty = ai <= 0;
+function WalletCard({ credits }: { credits: number }) {
+  const empty = credits <= 0;
   return (
     <Link href="/admin/credits" className={CARD_CLASS}>
       <div className={CARD_LABEL}>
@@ -189,11 +189,9 @@ function WalletCard({ ai, program }: { ai: number; program: number }) {
         <span
           className={`font-archivo text-[20px] font-extrabold leading-none tracking-[-0.02em] tabular-nums ${empty ? "text-[#C4471A]" : "text-ink"}`}
         >
-          {ai}
+          {credits}
         </span>
-        <span className="text-[11px] text-muted-2">
-          IA · {program} programme
-        </span>
+        <span className="text-[11px] text-muted-2">crédit{credits > 1 ? "s" : ""} IA</span>
       </div>
     </Link>
   );
@@ -220,7 +218,7 @@ export function AdminShell({
   aiCostUsd?: number;
   aiCalls?: number;
   /** Solde de crédits, renseigné UNIQUEMENT quand le coach est en modèle crédits. */
-  wallet?: { ai: number; program: number } | null;
+  wallet?: { credits: number } | null;
   /** Marque du tenant PARENT (revendeur pour un coach, plateforme pour un
    *  revendeur). Le dashboard porte CETTE marque — jamais My Fitness App pour un coach. */
   brandName?: string | null;
@@ -232,7 +230,7 @@ export function AdminShell({
   // En modèle crédits, le solde remplace la conso en dollars : c'est le même
   // emplacement, mais le chiffre qui compte pour ce coach n'est pas le même.
   const usageCard = wallet ? (
-    <WalletCard ai={wallet.ai} program={wallet.program} />
+    <WalletCard credits={wallet.credits} />
   ) : (
     <UsageCard costUsd={aiCostUsd} calls={aiCalls} />
   );

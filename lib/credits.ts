@@ -1,108 +1,69 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { DEFAULT_PROGRAM_CREDITS } from "@/lib/config";
 
-// Portefeuille de crédits IA (Modèle B « revendeur en crédits »). Chaque COACH a
-// un solde de deux types de crédits, alimenté par l'achat de packs auprès de son
-// revendeur, et débité à chaque action (1 crédit IA) ou génération de programme
-// (N crédits programme). Tout est verrouillé au service_role (RLS deny-all).
-
-export type CreditKind = "ai" | "program";
+// UN SEUL crédit IA. Toute action IA (message du chat, recette, alternative
+// d'exercice, fiche exercice) coûte 1 crédit ; une génération de programme en
+// coûte N, réglé par le fournisseur de crédits (défaut 10). Le portefeuille est
+// celui du tenant qui ACHÈTE : un coach chez son revendeur, un revendeur chez la
+// plateforme. Tout est verrouillé au service_role (RLS deny-all).
 
 export interface Wallet {
-  aiCredits: number;
-  programCredits: number;
+  credits: number;
 }
 
-const ZERO: Wallet = { aiCredits: 0, programCredits: 0 };
+const ZERO: Wallet = { credits: 0 };
 
-/** Solde du coach. Crée la ligne (à 0) si elle n'existe pas encore. */
+/** Solde d'un tenant. Crée la ligne (à 0) si elle n'existe pas encore. */
 export async function getWallet(tenantId: string | null): Promise<Wallet> {
   if (!tenantId) return ZERO;
   const admin = createAdminClient();
   const { data } = await admin
     .from("credit_wallets")
-    .select("ai_credits, program_credits")
+    .select("credits")
     .eq("tenant_id", tenantId)
-    .maybeSingle<{ ai_credits: number; program_credits: number }>();
-  if (data) return { aiCredits: data.ai_credits, programCredits: data.program_credits };
-  // Pas encore de portefeuille : on l'initialise à zéro (idempotent).
+    .maybeSingle<{ credits: number }>();
+  if (data) return { credits: data.credits };
   await admin.from("credit_wallets").upsert({ tenant_id: tenantId }, { onConflict: "tenant_id" });
   return ZERO;
 }
 
-const COL: Record<CreditKind, "ai_credits" | "program_credits"> = {
-  ai: "ai_credits",
-  program: "program_credits",
-};
+/** Motifs de mouvement du journal. Les débits portent le client concerné. */
+export type LedgerReason = "purchase" | "adjust" | "message" | "recipe" | "alternative" | "guide" | "generate" | "block";
 
-/** Crédite le portefeuille (achat de pack, ajustement). Renvoie le nouveau solde. */
-export async function creditWallet(
-  tenantId: string,
-  kind: CreditKind,
-  amount: number,
-  reason: string,
-  ref?: string | null,
-): Promise<number> {
+/** Crédite le portefeuille (ajustement manuel, geste commercial). Renvoie le nouveau solde. */
+export async function creditWallet(tenantId: string, amount: number, reason: LedgerReason = "adjust", ref?: string | null): Promise<number> {
   const admin = createAdminClient();
-  const col = COL[kind];
+  const add = Math.max(0, Math.trunc(amount));
   await admin.from("credit_wallets").upsert({ tenant_id: tenantId }, { onConflict: "tenant_id" });
   const current = await getWallet(tenantId);
-  const next = (kind === "ai" ? current.aiCredits : current.programCredits) + Math.max(0, amount);
-  await admin.from("credit_wallets").update({ [col]: next, updated_at: new Date().toISOString() }).eq("tenant_id", tenantId);
-  await admin.from("credit_ledger").insert({ tenant_id: tenantId, kind, delta: Math.max(0, amount), reason, ref: ref ?? null });
+  const next = current.credits + add;
+  await admin.from("credit_wallets").update({ credits: next, updated_at: new Date().toISOString() }).eq("tenant_id", tenantId);
+  await admin.from("credit_ledger").insert({ tenant_id: tenantId, delta: add, reason, ref: ref ?? null });
   return next;
 }
 
 /**
- * Crédite un ACHAT de façon idempotente (une session Stripe ne peut créditer
- * qu'une fois). On « réserve » d'abord le mouvement (insert du ledger avec ref
- * unique) : si le ref existe déjà, l'achat a déjà été traité → on ne recrédite
- * pas. Sinon on incrémente le solde. Renvoie true si le crédit vient d'être posé.
+ * Crédite un ACHAT de façon idempotente : une session Stripe ne crédite qu'une
+ * fois. On réserve d'abord le mouvement (ligne de journal avec ref unique) ;
+ * si le ref existe déjà, l'achat a déjà été traité. Renvoie true si le crédit
+ * vient d'être posé.
  */
-export async function applyPurchaseCredit(
-  tenantId: string,
-  kind: CreditKind,
-  credits: number,
-  sessionRef: string,
-): Promise<boolean> {
+export async function applyPurchaseCredit(tenantId: string, credits: number, sessionRef: string): Promise<boolean> {
   if (!credits || credits <= 0 || !sessionRef) return false;
   const admin = createAdminClient();
-  // Claim-first : l'index unique partiel bloque un second crédit du même ref.
   const { error } = await admin
     .from("credit_ledger")
-    .insert({ tenant_id: tenantId, kind, delta: credits, reason: "purchase", ref: sessionRef });
+    .insert({ tenant_id: tenantId, delta: credits, reason: "purchase", ref: sessionRef });
   if (error) return false; // conflit d'unicité = déjà crédité
 
   await admin.from("credit_wallets").upsert({ tenant_id: tenantId }, { onConflict: "tenant_id" });
   const w = await getWallet(tenantId);
-  const col = COL[kind];
-  const next = (kind === "ai" ? w.aiCredits : w.programCredits) + credits;
-  await admin.from("credit_wallets").update({ [col]: next, updated_at: new Date().toISOString() }).eq("tenant_id", tenantId);
+  await admin
+    .from("credit_wallets")
+    .update({ credits: w.credits + credits, updated_at: new Date().toISOString() })
+    .eq("tenant_id", tenantId);
   return true;
-}
-
-export interface PackCredited {
-  ai: number;
-  program: number;
-}
-
-/**
- * Crédite l'achat d'un pack HYBRIDE : un seul paiement, jusqu'à deux types de
- * crédits. Chaque type est réservé séparément dans le ledger (index unique sur
- * (ref, kind)), donc recharger la page ne recrédite rien, et un type déjà posé
- * n'empêche pas l'autre d'être posé. Renvoie ce qui vient d'être ajouté.
- */
-export async function applyPackPurchase(
-  tenantId: string,
-  aiCredits: number,
-  programCredits: number,
-  sessionRef: string,
-): Promise<PackCredited> {
-  const ai = (await applyPurchaseCredit(tenantId, "ai", aiCredits, sessionRef)) ? aiCredits : 0;
-  const program = (await applyPurchaseCredit(tenantId, "program", programCredits, sessionRef))
-    ? programCredits
-    : 0;
-  return { ai, program };
 }
 
 export interface DebitResult {
@@ -111,38 +72,30 @@ export interface DebitResult {
 }
 
 /**
- * Débite ATOMIQUEMENT le portefeuille (une seule requête UPDATE conditionnelle,
- * donc pas de course entre deux actions simultanées). Renvoie ok=false sans rien
- * débiter si le solde est insuffisant.
+ * Débite ATOMIQUEMENT le portefeuille (UPDATE conditionnel côté Postgres :
+ * aucune course entre deux actions simultanées). Renvoie ok=false sans rien
+ * débiter si le solde est insuffisant. `clientId` = le client à l'origine de
+ * l'action, pour le journal de consommation du coach.
  */
 export async function debitWallet(
   tenantId: string,
-  kind: CreditKind,
   amount: number,
-  reason: string,
-  ref?: string | null,
+  reason: LedgerReason,
+  clientId?: string | null,
 ): Promise<DebitResult> {
-  const need = Math.max(1, amount);
+  const need = Math.max(1, Math.trunc(amount));
   const admin = createAdminClient();
-  // S'assure qu'un portefeuille existe (sinon rien à débiter → solde 0).
   await admin.from("credit_wallets").upsert({ tenant_id: tenantId }, { onConflict: "tenant_id" });
-
-  // Débit atomique côté Postgres : renvoie le solde restant, ou NULL si insuffisant.
-  const { data: remaining } = await admin.rpc("debit_credit", {
-    p_tenant: tenantId,
-    p_kind: kind,
-    p_amount: need,
-  });
-
+  const { data: remaining } = await admin.rpc("debit_credit", { p_tenant: tenantId, p_amount: need });
   if (typeof remaining !== "number") {
     const bal = await getWallet(tenantId);
-    return { ok: false, remaining: kind === "ai" ? bal.aiCredits : bal.programCredits };
+    return { ok: false, remaining: bal.credits };
   }
-  await admin.from("credit_ledger").insert({ tenant_id: tenantId, kind, delta: -need, reason, ref: ref ?? null });
+  await admin.from("credit_ledger").insert({ tenant_id: tenantId, delta: -need, reason, client_id: clientId ?? null });
   return { ok: true, remaining };
 }
 
-// ------------------------------------------------------------------ modèle revendeur
+// ------------------------------------------------------------------ fournisseur
 /** Modèle de monétisation d'un revendeur : 'subscription' (défaut) ou 'credits'. */
 export async function resellerModel(tenantId: string | null): Promise<"subscription" | "credits"> {
   if (!tenantId) return "subscription";
@@ -157,8 +110,8 @@ export async function resellerModel(tenantId: string | null): Promise<"subscript
 
 /**
  * Les clients de ce coach consomment-ils des CRÉDITS (revendeur parent en
- * Modèle crédits) plutôt que les plafonds journaliers ? Utilisé par les routes
- * IA pour choisir la porte d'accès : solde de crédits vs plafonds.
+ * modèle crédits) plutôt que les plafonds journaliers ? Porte d'accès des
+ * routes IA.
  */
 export async function clientUsesCredits(coachTenantId: string | null): Promise<boolean> {
   if (!coachTenantId) return false;
@@ -172,34 +125,49 @@ export async function clientUsesCredits(coachTenantId: string | null): Promise<b
   return (await resellerModel(data.parent_id)) === "credits";
 }
 
-// ------------------------------------------------------------------ packs de crédits
 /**
- * Un pack vendu par le revendeur. HYBRIDE : il peut contenir des crédits IA et
- * des crédits programme à la fois, réglés en un seul paiement. Un pack mono-type
- * n'est que le cas particulier où l'un des deux compteurs vaut 0.
+ * Coût d'une génération de programme, en crédits, pour un tenant ACHETEUR :
+ * celui fixé par son fournisseur (le parent). Défaut 10.
  */
+export async function programCreditCost(buyerTenantId: string | null): Promise<number> {
+  if (!buyerTenantId) return DEFAULT_PROGRAM_CREDITS;
+  const admin = createAdminClient();
+  const { data: t } = await admin
+    .from("tenants")
+    .select("parent_id")
+    .eq("id", buyerTenantId)
+    .maybeSingle<{ parent_id: string | null }>();
+  if (!t?.parent_id) return DEFAULT_PROGRAM_CREDITS;
+  const { data: p } = await admin
+    .from("tenants")
+    .select("ai_program_credits")
+    .eq("id", t.parent_id)
+    .maybeSingle<{ ai_program_credits: number | null }>();
+  const n = p?.ai_program_credits;
+  return n != null && n > 0 ? n : DEFAULT_PROGRAM_CREDITS;
+}
+
+// ------------------------------------------------------------------ packs
 export interface CreditPack {
   id: number;
   tenant_id: string;
   name: string;
-  ai_credits: number;
-  program_credits: number;
+  credits: number;
   price_cents: number;
   currency: string;
   is_active: boolean;
   position: number;
 }
 
-const PACK_COLS =
-  "id, tenant_id, name, ai_credits, program_credits, price_cents, currency, is_active, position";
+const PACK_COLS = "id, tenant_id, name, credits, price_cents, currency, is_active, position";
 
-/** Packs proposés par un revendeur (tous, pour son dashboard). */
-export async function listCreditPacks(resellerId: string): Promise<CreditPack[]> {
+/** Packs proposés par un fournisseur (revendeur ou plateforme). */
+export async function listCreditPacks(supplierId: string): Promise<CreditPack[]> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("credit_packs")
     .select(PACK_COLS)
-    .eq("tenant_id", resellerId)
+    .eq("tenant_id", supplierId)
     .order("position", { ascending: true })
     .order("created_at", { ascending: true })
     .returns<CreditPack[]>();
@@ -212,24 +180,18 @@ export interface PackResult {
 }
 
 export async function createCreditPack(
-  resellerId: string,
-  input: { name: string; aiCredits: number; programCredits: number; priceCents: number; currency?: string },
+  supplierId: string,
+  input: { name: string; credits: number; priceCents: number; currency?: string },
 ): Promise<PackResult> {
   const name = input.name.trim().slice(0, 80);
   if (!name) return { error: "Donne un nom au pack." };
-  const ai = Number.isInteger(input.aiCredits) ? input.aiCredits : NaN;
-  const prog = Number.isInteger(input.programCredits) ? input.programCredits : NaN;
-  if (!Number.isFinite(ai) || !Number.isFinite(prog) || ai < 0 || prog < 0) {
-    return { error: "Nombre de crédits invalide." };
-  }
-  if (ai + prog <= 0) return { error: "Mets au moins un crédit IA ou un crédit programme." };
+  if (!Number.isInteger(input.credits) || input.credits <= 0) return { error: "Nombre de crédits invalide." };
   if (!Number.isInteger(input.priceCents) || input.priceCents <= 0) return { error: "Prix invalide." };
   const admin = createAdminClient();
   const { error } = await admin.from("credit_packs").insert({
-    tenant_id: resellerId,
+    tenant_id: supplierId,
     name,
-    ai_credits: ai,
-    program_credits: prog,
+    credits: input.credits,
     price_cents: input.priceCents,
     currency: (input.currency ?? "eur").toLowerCase(),
   });
@@ -237,24 +199,69 @@ export async function createCreditPack(
   return { ok: true };
 }
 
-export async function setCreditPackActive(resellerId: string, id: number, active: boolean): Promise<void> {
+export async function setCreditPackActive(supplierId: string, id: number, active: boolean): Promise<void> {
   const admin = createAdminClient();
-  await admin.from("credit_packs").update({ is_active: active }).eq("id", id).eq("tenant_id", resellerId);
+  await admin.from("credit_packs").update({ is_active: active }).eq("id", id).eq("tenant_id", supplierId);
 }
 
-export async function deleteCreditPack(resellerId: string, id: number): Promise<void> {
+export async function deleteCreditPack(supplierId: string, id: number): Promise<void> {
   const admin = createAdminClient();
-  await admin.from("credit_packs").delete().eq("id", id).eq("tenant_id", resellerId);
+  await admin.from("credit_packs").delete().eq("id", id).eq("tenant_id", supplierId);
 }
 
-/** Un pack précis appartenant à ce revendeur (pour le paiement). */
-export async function creditPackById(resellerId: string, id: number): Promise<CreditPack | null> {
+/** Un pack précis appartenant à ce fournisseur (pour le paiement). */
+export async function creditPackById(supplierId: string, id: number): Promise<CreditPack | null> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("credit_packs")
     .select(PACK_COLS)
     .eq("id", id)
-    .eq("tenant_id", resellerId)
+    .eq("tenant_id", supplierId)
     .maybeSingle<CreditPack>();
   return data ?? null;
+}
+
+// ------------------------------------------------------------------ journal
+export interface LedgerEntry {
+  id: number;
+  delta: number;
+  reason: LedgerReason | string;
+  createdAt: string;
+  clientId: string | null;
+  clientName: string | null;
+}
+
+/**
+ * Journal de consommation d'un tenant, le plus récent en premier, avec le nom
+ * du client à l'origine de chaque débit. C'est l'écran « où passent mes
+ * crédits » du coach.
+ */
+export async function listLedger(tenantId: string, limit = 200): Promise<LedgerEntry[]> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("credit_ledger")
+    .select("id, delta, reason, created_at, client_id")
+    .eq("tenant_id", tenantId)
+    .order("created_at", { ascending: false })
+    .limit(limit)
+    .returns<{ id: number; delta: number; reason: string; created_at: string; client_id: string | null }[]>();
+  const rows = data ?? [];
+  const ids = Array.from(new Set(rows.map((r) => r.client_id).filter((x): x is string => !!x)));
+  const names = new Map<string, string>();
+  if (ids.length) {
+    const { data: profs } = await admin
+      .from("profiles")
+      .select("id, name, email")
+      .in("id", ids)
+      .returns<{ id: string; name: string | null; email: string | null }[]>();
+    for (const p of profs ?? []) names.set(p.id, p.name || p.email || "Client");
+  }
+  return rows.map((r) => ({
+    id: r.id,
+    delta: r.delta,
+    reason: r.reason,
+    createdAt: r.created_at,
+    clientId: r.client_id,
+    clientName: r.client_id ? (names.get(r.client_id) ?? "Client supprimé") : null,
+  }));
 }

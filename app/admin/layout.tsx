@@ -37,7 +37,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // En modèle crédits, la carte du bandeau montre le solde restant plutôt qu'une
   // conso en dollars : ce coach ne paie pas Anthropic, il dépense des crédits.
   const bal = useCredits && tenantId ? await getWallet(tenantId) : null;
-  const wallet = bal ? { ai: bal.aiCredits, program: bal.programCredits } : null;
+  const wallet = bal ? { credits: bal.credits } : null;
 
   return (
     <>
