@@ -5,6 +5,8 @@ import { getWallet, listCreditPacks, clientUsesCredits } from "@/lib/credits";
 import { verifyPackCheckout } from "@/lib/credit-billing";
 import { BuyPackButton } from "@/components/buy-pack-button";
 import { Alert, Card, MonoLabel } from "@/components/ui";
+import { creditPackContents } from "@/lib/config";
+import type { CreditPack } from "@/lib/credits";
 
 export const metadata = { title: "Crédits IA" };
 
@@ -18,11 +20,12 @@ export default async function AdminCreditsPage({
   if (!tenantId) redirect("/admin");
   const sp = await searchParams;
 
-  // Retour de paiement : on crédite le portefeuille (idempotent).
-  let justCredited: { credits: number; kind: "ai" | "program" } | null = null;
+  // Retour de paiement : on crédite le portefeuille (idempotent). Un pack
+  // hybride ajoute les deux types en une seule fois.
+  let justCredited: string | null = null;
   if (sp.session_id) {
     const r = await verifyPackCheckout(tenantId, sp.session_id);
-    if (r.credited && r.credits && r.kind) justCredited = { credits: r.credits, kind: r.kind };
+    if (r.credited) justCredited = creditPackContents(r.aiCredits ?? 0, r.programCredits ?? 0);
   }
 
   const [wallet, credits, resellerId] = await Promise.all([
@@ -31,8 +34,6 @@ export default async function AdminCreditsPage({
     billingParentId(tenantId),
   ]);
   const packs = resellerId ? (await listCreditPacks(resellerId)).filter((p) => p.is_active) : [];
-  const aiPacks = packs.filter((p) => p.kind === "ai");
-  const programPacks = packs.filter((p) => p.kind === "program");
 
   return (
     <div className="flex flex-col gap-5">
@@ -47,10 +48,7 @@ export default async function AdminCreditsPage({
       </div>
 
       {justCredited ? (
-        <Alert tone="info">
-          Paiement confirmé : {justCredited.credits} crédits {justCredited.kind === "program" ? "programme" : "IA"}{" "}
-          ajoutés à ton solde.
-        </Alert>
+        <Alert tone="info">Paiement confirmé : {justCredited} ajoutés à ton solde.</Alert>
       ) : null}
       {sp.annule ? <Alert>Paiement annulé. Ton solde n&apos;a pas changé.</Alert> : null}
 
@@ -78,33 +76,25 @@ export default async function AdminCreditsPage({
       ) : packs.length === 0 ? (
         <Alert>Ton revendeur n&apos;a pas encore mis de packs en vente. Contacte-le pour recharger.</Alert>
       ) : (
-        <div className="flex flex-col gap-4">
-          <PackGroup title="Packs de crédits IA" packs={aiPacks} />
-          <PackGroup title="Packs de crédits programme" packs={programPacks} />
-        </div>
+        <PackGroup packs={packs} />
       )}
     </div>
   );
 }
 
-function PackGroup({
-  title,
-  packs,
-}: {
-  title: string;
-  packs: { id: number; name: string; credits: number; price_cents: number; currency: string }[];
-}) {
+function PackGroup({ packs }: { packs: CreditPack[] }) {
   if (packs.length === 0) return null;
   return (
     <Card as="section" className="flex flex-col gap-3">
-      <div className="font-archivo font-bold text-[16px] text-ink">{title}</div>
+      <div className="font-archivo font-bold text-[16px] text-ink">Packs disponibles</div>
       <div className="flex flex-col gap-2">
         {packs.map((p) => (
           <div key={p.id} className="flex items-center justify-between gap-3 rounded-control border border-line-4 bg-surface-2 px-4 py-3">
             <div>
               <div className="font-semibold text-ink">{p.name}</div>
               <div className="text-[13px] text-muted">
-                {p.credits} crédits · <span className="text-body">{(p.price_cents / 100).toFixed(2)} €</span>
+                {creditPackContents(p.ai_credits, p.program_credits)} ·{" "}
+                <span className="text-body">{(p.price_cents / 100).toFixed(2)} €</span>
               </div>
             </div>
             <BuyPackButton packId={p.id} label={`${(p.price_cents / 100).toFixed(0)} €`} />

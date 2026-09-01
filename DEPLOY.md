@@ -1,4 +1,4 @@
-# Déploiement FitMe90
+# Déploiement My Fitness App
 
 Guide de mise en ligne. L'application est construite (Next.js 16 + Supabase +
 Stripe + SDK Anthropic). Il reste à **créer les comptes externes, renseigner les
@@ -77,12 +77,12 @@ SECRETS_ENC_KEY=
 # Web Push (rappels séance, notifications Chat VIP) — optionnel :
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
-VAPID_SUBJECT=mailto:contact@fitme90.app
+VAPID_SUBJECT=mailto:contact@myfitnessapp.fit
 
 # E-mails de notification Chat VIP (Resend) — optionnel :
 # sans clé, les e-mails ne sont simplement pas envoyés (le push reste actif).
 RESEND_API_KEY=
-RESEND_FROM=FitMe90 <notifications@fitme90.app>
+RESEND_FROM=My Fitness App <notifications@myfitnessapp.fit>
 ```
 
 `.env.local` n'est jamais commité (voir `.gitignore`). Aucune clé secrète ne doit

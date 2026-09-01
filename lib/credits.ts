@@ -81,6 +81,30 @@ export async function applyPurchaseCredit(
   return true;
 }
 
+export interface PackCredited {
+  ai: number;
+  program: number;
+}
+
+/**
+ * Crédite l'achat d'un pack HYBRIDE : un seul paiement, jusqu'à deux types de
+ * crédits. Chaque type est réservé séparément dans le ledger (index unique sur
+ * (ref, kind)), donc recharger la page ne recrédite rien, et un type déjà posé
+ * n'empêche pas l'autre d'être posé. Renvoie ce qui vient d'être ajouté.
+ */
+export async function applyPackPurchase(
+  tenantId: string,
+  aiCredits: number,
+  programCredits: number,
+  sessionRef: string,
+): Promise<PackCredited> {
+  const ai = (await applyPurchaseCredit(tenantId, "ai", aiCredits, sessionRef)) ? aiCredits : 0;
+  const program = (await applyPurchaseCredit(tenantId, "program", programCredits, sessionRef))
+    ? programCredits
+    : 0;
+  return { ai, program };
+}
+
 export interface DebitResult {
   ok: boolean;
   remaining: number;
@@ -149,19 +173,25 @@ export async function clientUsesCredits(coachTenantId: string | null): Promise<b
 }
 
 // ------------------------------------------------------------------ packs de crédits
+/**
+ * Un pack vendu par le revendeur. HYBRIDE : il peut contenir des crédits IA et
+ * des crédits programme à la fois, réglés en un seul paiement. Un pack mono-type
+ * n'est que le cas particulier où l'un des deux compteurs vaut 0.
+ */
 export interface CreditPack {
   id: number;
   tenant_id: string;
-  kind: CreditKind;
   name: string;
-  credits: number;
+  ai_credits: number;
+  program_credits: number;
   price_cents: number;
   currency: string;
   is_active: boolean;
   position: number;
 }
 
-const PACK_COLS = "id, tenant_id, kind, name, credits, price_cents, currency, is_active, position";
+const PACK_COLS =
+  "id, tenant_id, name, ai_credits, program_credits, price_cents, currency, is_active, position";
 
 /** Packs proposés par un revendeur (tous, pour son dashboard). */
 export async function listCreditPacks(resellerId: string): Promise<CreditPack[]> {
@@ -183,18 +213,23 @@ export interface PackResult {
 
 export async function createCreditPack(
   resellerId: string,
-  input: { kind: CreditKind; name: string; credits: number; priceCents: number; currency?: string },
+  input: { name: string; aiCredits: number; programCredits: number; priceCents: number; currency?: string },
 ): Promise<PackResult> {
   const name = input.name.trim().slice(0, 80);
   if (!name) return { error: "Donne un nom au pack." };
-  if (!Number.isInteger(input.credits) || input.credits <= 0) return { error: "Nombre de crédits invalide." };
+  const ai = Number.isInteger(input.aiCredits) ? input.aiCredits : NaN;
+  const prog = Number.isInteger(input.programCredits) ? input.programCredits : NaN;
+  if (!Number.isFinite(ai) || !Number.isFinite(prog) || ai < 0 || prog < 0) {
+    return { error: "Nombre de crédits invalide." };
+  }
+  if (ai + prog <= 0) return { error: "Mets au moins un crédit IA ou un crédit programme." };
   if (!Number.isInteger(input.priceCents) || input.priceCents <= 0) return { error: "Prix invalide." };
   const admin = createAdminClient();
   const { error } = await admin.from("credit_packs").insert({
     tenant_id: resellerId,
-    kind: input.kind === "program" ? "program" : "ai",
     name,
-    credits: input.credits,
+    ai_credits: ai,
+    program_credits: prog,
     price_cents: input.priceCents,
     currency: (input.currency ?? "eur").toLowerCase(),
   });
