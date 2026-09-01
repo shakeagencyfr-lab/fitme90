@@ -10,6 +10,10 @@ import { restPattern, startWeekday, isRestDay, dateOfProgramDay } from "@/lib/sc
 import { computeAdherence, missedDays } from "@/lib/streak";
 import { DAYS } from "@/lib/questionnaire";
 import { sessionForDay, type Plan } from "@/lib/program";
+import { coveredDays, blockPosition, nextBlockDue } from "@/lib/block-logic";
+import { subscriptionIsActive } from "@/lib/subscription";
+import { NextBlockPrompt } from "@/components/next-block";
+import { blockLabel } from "@/lib/templates";
 
 export const metadata = { title: "Programme" };
 
@@ -145,6 +149,20 @@ export default async function ProgrammePage() {
   const firstName = (ctx.profile?.name ?? "").trim().split(/\s+/)[0] || "";
   const showToday = access.phase === "active" || access.phase === "restricted";
 
+  // Blocs évolutifs : où en est le client, et le bloc suivant manque-t-il ?
+  // (Le cron le construit une semaine avant ; s'il est en retard, le client
+  // peut le demander lui-même.)
+  const covered = coveredDays(plan);
+  const position = blockPosition(Math.max(1, access.day), access.programDays);
+  const subscribed =
+    !!ctx.profile?.subscription_id &&
+    subscriptionIsActive(ctx.profile.subscription_status, ctx.profile.subscription_current_period_end);
+  const blockMissing =
+    access.phase === "active" &&
+    access.day > covered &&
+    nextBlockDue({ day: access.day, covered, programDays: access.programDays, subscribed, lead: 0 });
+  const nextBlockName = blockLabel(Math.floor(covered / 90), position.totalBlocks);
+
   return (
     <div className="mx-auto flex max-w-[880px] flex-col gap-6">
       <header className="flex flex-col gap-2">
@@ -168,6 +186,8 @@ export default async function ProgrammePage() {
           jour J.
         </Alert>
       ) : null}
+
+      {blockMissing ? <NextBlockPrompt label={nextBlockName} /> : null}
 
       {/* ─── Aujourd'hui : l'action du jour, en premier ─── */}
       {showToday ? (
@@ -241,7 +261,14 @@ export default async function ProgrammePage() {
       <CatchUp items={missedItems} />
 
       <section className="flex flex-col gap-2">
-        <MonoLabel>Ton programme</MonoLabel>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <MonoLabel>Ton programme</MonoLabel>
+          {access.day >= 1 ? (
+            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-brand">
+              {position.label} · Cycle {position.cycleIndex + 1}
+            </span>
+          ) : null}
+        </div>
         <p className="text-[14.5px] leading-[1.6] text-muted">{plan.summary}</p>
         <ButtonLink href="/plan-pdf" variant="ghost" className="mt-1 h-10 self-start">
           Exporter mon plan en PDF

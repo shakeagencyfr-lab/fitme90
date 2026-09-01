@@ -5,7 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // L'accès à ai_calls passe par le service role (le client n'y a aucun droit,
 // cf. schema.sql), donc impossible à contourner en supprimant ses lignes.
 
-export type AiRoute = "generate" | "coach" | "recipes" | "analyze-gym";
+/** `block` = génération d'un bloc suivant (même modèle que `generate`, compté à part pour ne pas consommer le plafond de premières générations). */
+export type AiRoute = "generate" | "block" | "coach" | "recipes" | "analyze-gym";
 
 /** Nombre d'appels de l'utilisateur sur `route` depuis `sinceMs` (ou au total). */
 async function countCalls(

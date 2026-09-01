@@ -26,6 +26,7 @@ const DEFAULT_PRICE: Price = { in: 5, out: 25 };
 function modelForRoute(route: string): string {
   switch (route) {
     case "generate":
+    case "block": // bloc suivant d'un programme : même modèle que la génération
       return MODELS.generate;
     case "recipes":
       return MODELS.recipes;

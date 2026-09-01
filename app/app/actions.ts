@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
-import { DAYS } from "@/lib/questionnaire";
+import { DAYS, trainDaysError } from "@/lib/questionnaire";
 import { patchPlanForTrainDays, type Plan } from "@/lib/program";
 
 export interface DaysState {
@@ -20,7 +20,8 @@ export async function updateTrainDays(days: string[]): Promise<DaysState> {
   const ctx = await getSessionContext();
   if (!ctx) return { error: "Non authentifié." };
   const clean = days.filter((d) => DAYS.includes(d));
-  if (clean.length === 0) return { error: "Choisis au moins un jour." };
+  const daysErr = trainDaysError(clean.length);
+  if (daysErr) return { error: daysErr };
 
   const supabase = await createClient();
   const { error } = await supabase

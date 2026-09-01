@@ -67,21 +67,13 @@ OBJECTIF SECONDAIRE = modulateur (sans écraser le principal) : Endurance → pl
 - Intermédiaire (1-3 ans) : split possible, volume médian, double progression, intensité plus élevée.
 - Avancé (> 3 ans) : split spécialisé, volume proche du MRV avant décharge, variation d'exercices, autorégulation fine.
 
-════════ 4. PÉRIODISATION SUR 90 JOURS (3 cycles de ~4 semaines) ════════
-Le sens des 3 cycles s'ADAPTE à l'objectif (ex. spécialisation = force pour un objectif force, densité/définition en perte de gras) :
-- Cycle 1 — Adaptation : technique, amplitude, charges maîtrisées (RPE 6-7), volume bas-médian, ancrer la régularité.
-- Cycle 2 — Intensification : montée du volume ET/OU des charges (RPE 7-8), densité accrue.
-- Cycle 3 — Spécialisation : pic vers l'objectif (RPE 8-9 maîtrisé) ; DERNIÈRE semaine en décharge (-30 à -50 % de volume) pour récupérer.
-- Surcharge progressive : augmenter la charge OU les reps OU les séries d'une semaine à l'autre — JAMAIS tout en même temps.
+════════ 4. PÉRIODISATION ════════
+La structure des cycles (nombre, nom, reps, repos, RPE, décharge) est IMPOSÉE par le gabarit reçu plus haut : tu ne la modifies pas. Ton travail : donner à chaque cycle le sens que demande l'objectif (ex. le cycle « Spécialisation » vise la force pour un objectif force, la densité et la définition en perte de gras) dans les fourchettes du gabarit.
+- Surcharge progressive : augmenter la charge OU les reps OU les séries d'une semaine à l'autre, JAMAIS tout en même temps.
 - Décharge/allègement dès que la fatigue s'accumule (sommeil, énergie en berne, performances qui baissent).
 
-════════ 5. CONSTRUCTION DE LA SEMAINE (selon la fréquence) ════════
-- 2 séances : full-body A/B.
-- 3 séances : full-body A/B/C, ou push / pull / legs léger.
-- 4 séances : upper / lower / upper / lower.
-- 5 séances : upper / lower / push / pull / legs, ou 4 splits + 1 rappel/points faibles.
-- 6 séances : push / pull / legs ×2.
-Chaque muscle travaillé idéalement 2×/semaine. Répartir intelligemment sur les jours d'entraînement réels du client.
+════════ 5. CONSTRUCTION DE LA SEMAINE ════════
+La répartition (titres des séances, lettres, patrons obligatoires) est celle du gabarit reçu plus haut. Chaque muscle est ainsi travaillé 2×/semaine ; à toi de choisir, pour chaque patron, l'exercice le plus pertinent pour CE client (matériel, niveau, blessures, goûts).
 
 ════════ 6. SÉLECTION ET ORDRE DES EXERCICES ════════
 - Prioriser les mouvements composés (squat/fente, charnière de hanche, poussée horizontale et verticale, tirage horizontal et vertical) avant l'isolation.

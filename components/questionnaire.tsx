@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { QUIZ, DAYS, type Field } from "@/lib/questionnaire";
+import { QUIZ, DAYS, MAX_TRAIN_DAYS, trainDaysError, type Field } from "@/lib/questionnaire";
 import { saveQuestionnaire } from "@/app/questionnaire/actions";
 import { MedicalWaiver } from "@/components/medical-waiver";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
@@ -30,20 +30,31 @@ export function Questionnaire() {
       const cur = Array.isArray(a[key]) ? [...(a[key] as string[])] : [];
       const i = cur.indexOf(opt);
       if (i >= 0) cur.splice(i, 1);
+      // Jours d'entraînement : au plus 5, chaque fréquence ayant son gabarit.
+      else if (key === "train_days" && cur.length >= MAX_TRAIN_DAYS) return a;
       else cur.push(opt);
       return { ...a, [key]: cur };
     });
   }
 
   async function next() {
+    const trainDays = Array.isArray(answers.train_days) ? (answers.train_days as string[]) : [];
+    // On bloque dès la section des jours, pas seulement à la fin du questionnaire.
+    if (section.fields.some((f) => f.type === "days")) {
+      const daysErr = trainDaysError(trainDays.length);
+      if (daysErr) {
+        setError(daysErr);
+        return;
+      }
+    }
     if (!last) {
+      setError("");
       setStep((s) => s + 1);
       window.scrollTo({ top: 0 });
       return;
     }
     setBusy(true);
     setError("");
-    const trainDays = Array.isArray(answers.train_days) ? (answers.train_days as string[]) : [];
     const res = await saveQuestionnaire({ answers, trainDays });
     setBusy(false);
     if (res.error) return setError(res.error);
