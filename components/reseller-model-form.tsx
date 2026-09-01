@@ -9,7 +9,7 @@ import {
   type ResellerAiState,
 } from "@/app/admin/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
-import { actionCreditMargin, programCreditMargin } from "@/lib/config";
+import { creditPackMargin, creditPackContents } from "@/lib/config";
 import type { CreditPack } from "@/lib/credits";
 
 interface Props {
@@ -67,7 +67,6 @@ export function ResellerModelForm({ initialModel, keyConfigured, packs }: Props)
 
 function PacksManager({ packs }: { packs: CreditPack[] }) {
   const [addState, addAction, adding] = useActionState(addCreditPack, {} as ResellerAiState);
-  const [kind, setKind] = useState<"ai" | "program">("ai");
 
   return (
     <div className="flex flex-col gap-4 border-t border-line pt-5">
@@ -76,7 +75,8 @@ function PacksManager({ packs }: { packs: CreditPack[] }) {
         <p className="text-[13px] text-muted">
           Les bundles que tes coachs achètent. Le <span className="text-body">crédit IA</span> couvre
           une action (chat, recette, exercice) ; le <span className="text-body">crédit programme</span>{" "}
-          couvre une génération.
+          couvre une génération. Un pack peut mélanger les deux : le coach règle tout en un seul
+          paiement. Laisse un champ à 0 pour un pack d&apos;un seul type.
         </p>
       </div>
 
@@ -85,29 +85,36 @@ function PacksManager({ packs }: { packs: CreditPack[] }) {
           <table className="w-full min-w-[480px] border-collapse text-[13.5px]">
             <thead>
               <tr className="border-b border-line bg-surface-2 text-left text-muted-2">
-                {["Pack", "Type", "Crédits", "Prix", "Ton coût", "Marge", ""].map((h) => (
+                {["Pack", "Contenu", "Prix", "Ton coût", "Marge", ""].map((h) => (
                   <th key={h} className="px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.07em]">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {packs.map((p) => {
-                const unit = p.kind === "program" ? programCreditMargin(0) : actionCreditMargin(0);
-                const cost = unit.costEur * p.credits;
-                const price = p.price_cents / 100;
-                const margin = price - cost;
+                const m = creditPackMargin(p.ai_credits, p.program_credits, p.price_cents);
+                const hybrid = p.ai_credits > 0 && p.program_credits > 0;
                 return (
                   <tr key={p.id} className={`border-b border-line-2 last:border-0 ${p.is_active ? "" : "opacity-55"}`}>
-                    <td className="px-3 py-2.5 font-semibold text-ink">{p.name}</td>
-                    <td className="px-3 py-2.5">
-                      <span className="rounded-pill bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase text-muted-2">
-                        {p.kind === "program" ? "Programme" : "IA"}
-                      </span>
+                    <td className="px-3 py-2.5 font-semibold text-ink">
+                      {p.name}
+                      {hybrid ? (
+                        <span className="ml-2 rounded-pill bg-brand/10 px-2 py-0.5 font-mono text-[10px] uppercase text-brand">
+                          Hybride
+                        </span>
+                      ) : null}
                     </td>
-                    <td className="px-3 py-2.5 tabular-nums text-body">{p.credits}</td>
-                    <td className="px-3 py-2.5 tabular-nums text-ink">{price.toFixed(2)} €</td>
-                    <td className="px-3 py-2.5 tabular-nums text-muted">≈ {cost.toFixed(2)} €</td>
-                    <td className="px-3 py-2.5 tabular-nums font-semibold text-brand">+{margin.toFixed(2)} €</td>
+                    <td className="px-3 py-2.5 text-body">
+                      {creditPackContents(p.ai_credits, p.program_credits)}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums text-ink">{m.priceEur.toFixed(2)} €</td>
+                    <td className="px-3 py-2.5 tabular-nums text-muted">≈ {m.costEur.toFixed(2)} €</td>
+                    <td
+                      className={`px-3 py-2.5 tabular-nums font-semibold ${m.marginEur < 0 ? "text-[#C4471A]" : "text-brand"}`}
+                    >
+                      {m.marginEur < 0 ? "" : "+"}
+                      {m.marginEur.toFixed(2)} €
+                    </td>
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2">
                         <form action={toggleCreditPack}>
@@ -133,37 +140,106 @@ function PacksManager({ packs }: { packs: CreditPack[] }) {
         <p className="text-[13px] text-muted-2">Aucun pack pour l&apos;instant. Ajoutes-en un ci-dessous.</p>
       )}
 
-      <form action={addAction} className="grid items-end gap-3 rounded-control border border-line-4 bg-surface-2 p-4 sm:grid-cols-4">
-        <label className="flex flex-col gap-1.5">
-          <MonoLabel>Type</MonoLabel>
-          <select
-            name="kind"
-            value={kind}
-            onChange={(e) => setKind(e.target.value === "program" ? "program" : "ai")}
-            className="h-10 rounded-control border border-line-4 bg-surface px-2.5 text-[14px] text-ink outline-none focus:border-ink"
-          >
-            <option value="ai">Crédit IA</option>
-            <option value="program">Crédit programme</option>
-          </select>
-        </label>
+      <PackForm addAction={addAction} adding={adding} error={addState.error} />
+    </div>
+  );
+}
+
+const FIELD =
+  "h-10 rounded-control border border-line-4 bg-surface px-2.5 text-[14px] text-ink outline-none focus:border-ink";
+
+/**
+ * Création d'un pack. Les deux compteurs sont indépendants : mettre les deux à
+ * une valeur > 0 crée un pack HYBRIDE (IA + programme) payé en une seule fois.
+ * Le coût et la marge se recalculent en direct pour que le revendeur ne fixe
+ * jamais un prix à perte sans le voir.
+ */
+function PackForm({
+  addAction,
+  adding,
+  error,
+}: {
+  addAction: (formData: FormData) => void;
+  adding: boolean;
+  error?: string;
+}) {
+  const [ai, setAi] = useState("");
+  const [program, setProgram] = useState("");
+  const [price, setPrice] = useState("");
+
+  const aiN = Math.max(0, Math.trunc(Number(ai) || 0));
+  const progN = Math.max(0, Math.trunc(Number(program) || 0));
+  const priceCents = Math.round((Number(price.replace(",", ".")) || 0) * 100);
+  const preview = aiN + progN > 0 && priceCents > 0 ? creditPackMargin(aiN, progN, priceCents) : null;
+
+  return (
+    <form action={addAction} className="flex flex-col gap-3 rounded-control border border-line-4 bg-surface-2 p-4">
+      <div className="grid items-end gap-3 sm:grid-cols-4">
         <label className="flex flex-col gap-1.5">
           <MonoLabel>Nom</MonoLabel>
-          <input name="name" placeholder="Pack 100 IA" className="h-10 rounded-control border border-line-4 bg-surface px-2.5 text-[14px] text-ink outline-none focus:border-ink" />
+          <input name="name" placeholder="Pack Découverte" className={FIELD} />
         </label>
         <label className="flex flex-col gap-1.5">
-          <MonoLabel>Crédits</MonoLabel>
-          <input name="credits" type="number" min={1} placeholder="100" className="h-10 rounded-control border border-line-4 bg-surface px-2.5 text-[14px] text-ink outline-none focus:border-ink" />
+          <MonoLabel>Crédits IA</MonoLabel>
+          <input
+            name="ai_credits"
+            type="number"
+            min={0}
+            inputMode="numeric"
+            placeholder="100"
+            value={ai}
+            onChange={(e) => setAi(e.target.value)}
+            className={FIELD}
+          />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <MonoLabel>Crédits programme</MonoLabel>
+          <input
+            name="program_credits"
+            type="number"
+            min={0}
+            inputMode="numeric"
+            placeholder="5"
+            value={program}
+            onChange={(e) => setProgram(e.target.value)}
+            className={FIELD}
+          />
         </label>
         <label className="flex flex-col gap-1.5">
           <MonoLabel>Prix (€)</MonoLabel>
-          <input name="price_euros" placeholder="29" className="h-10 rounded-control border border-line-4 bg-surface px-2.5 text-[14px] text-ink outline-none focus:border-ink" />
+          <input
+            name="price_euros"
+            inputMode="decimal"
+            placeholder="39"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            className={FIELD}
+          />
         </label>
-        {addState.error ? <div className="sm:col-span-4"><Alert>{addState.error}</Alert></div> : null}
-        <div className="sm:col-span-4">
-          <Button type="submit" loading={adding} className="h-10">Ajouter le pack</Button>
-        </div>
-      </form>
-    </div>
+      </div>
+
+      {preview ? (
+        <p className="text-[13px] text-muted">
+          <span className="text-body">{creditPackContents(aiN, progN)}</span> pour{" "}
+          {preview.priceEur.toFixed(2)} €. Ton coût IA estimé : ≈ {preview.costEur.toFixed(2)} € →{" "}
+          <span className={preview.marginEur < 0 ? "font-semibold text-[#C4471A]" : "font-semibold text-brand"}>
+            {preview.marginEur < 0 ? "perte de " : "marge de "}
+            {Math.abs(preview.marginEur).toFixed(2)} €
+            {preview.marginEur >= 0 ? ` (${Math.round(preview.marginPct)} %)` : ""}
+          </span>
+          .
+        </p>
+      ) : (
+        <p className="text-[13px] text-muted-2">
+          Renseigne au moins un type de crédit et un prix : coût et marge s&apos;affichent ici.
+        </p>
+      )}
+
+      {error ? <Alert>{error}</Alert> : null}
+      <div>
+        <Button type="submit" loading={adding} className="h-10">Ajouter le pack</Button>
+      </div>
+    </form>
   );
 }
 

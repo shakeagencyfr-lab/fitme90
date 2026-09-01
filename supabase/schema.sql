@@ -202,15 +202,18 @@ create table if not exists public.credit_ledger (
 create table if not exists public.credit_packs (
   id bigint generated always as identity,
   tenant_id uuid not null,
-  kind text not null,
   name text not null,
-  credits integer not null,
+  ai_credits integer not null default 0,
+  program_credits integer not null default 0,
   price_cents integer not null,
   currency text not null default 'eur'::text,
   is_active boolean not null default true,
   "position" integer not null default 0,
   created_at timestamptz not null default now(),
-  constraint credit_packs_pkey primary key (id)
+  constraint credit_packs_pkey primary key (id),
+  -- Pack hybride : les deux types cohabitent, mais un pack vide n'a pas de sens.
+  constraint credit_packs_credits_positive
+    check (ai_credits >= 0 and program_credits >= 0 and (ai_credits + program_credits) > 0)
 );
 
 create table if not exists public.questionnaires (
@@ -545,7 +548,9 @@ create index if not exists coach_messages_conversation_idx on public.coach_messa
 create index if not exists coach_notes_client_idx on public.coach_notes (client_id, created_at desc);
 create index if not exists coach_notifications_tenant_idx on public.coach_notifications (tenant_id, created_at desc);
 create index if not exists coach_notifications_unread_idx on public.coach_notifications (tenant_id) where (read_at is null);
-create unique index if not exists credit_ledger_purchase_ref_uidx on public.credit_ledger (ref) where (reason = 'purchase'::text and ref is not null);
+-- Unicité par (ref, kind) : un paiement de pack hybride pose DEUX lignes d'achat
+-- (une par type de crédit), chacune idempotente sur sa propre clé.
+create unique index if not exists credit_ledger_purchase_ref_uidx on public.credit_ledger (ref, kind) where (reason = 'purchase'::text and ref is not null);
 create index if not exists credit_ledger_tenant_idx on public.credit_ledger (tenant_id, created_at desc);
 create index if not exists credit_packs_tenant_idx on public.credit_packs (tenant_id, "position");
 create index if not exists exercise_media_tenant_idx on public.exercise_media (tenant_id);

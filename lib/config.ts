@@ -164,6 +164,36 @@ export function programCreditMargin(programPriceCents: number): CreditMargin {
   return margin(usdToEur(AI_COST_PROGRAM_USD), Math.max(0, programPriceCents) / 100);
 }
 
+/**
+ * Coût / prix / marge d'un PACK, qui peut être hybride (crédits IA ET crédits
+ * programme vendus en un seul paiement). Le coût est la somme des coûts unitaires
+ * de chaque type ; le prix est celui du pack entier.
+ */
+export function creditPackMargin(
+  aiCredits: number,
+  programCredits: number,
+  priceCents: number,
+): CreditMargin {
+  const ai = Math.max(0, Math.trunc(aiCredits || 0));
+  const prog = Math.max(0, Math.trunc(programCredits || 0));
+  const cost = ai * actionCreditMargin(0).costEur + prog * programCreditMargin(0).costEur;
+  return margin(cost, Math.max(0, priceCents) / 100);
+}
+
+/**
+ * Libellé lisible du contenu d'un pack : « 100 crédits IA », « 5 crédits
+ * programme », ou les deux réunis pour un pack hybride. Chaîne vide si le pack
+ * ne contient rien (cas impossible côté base, mais on ne ment pas).
+ */
+export function creditPackContents(aiCredits: number, programCredits: number): string {
+  const ai = Math.max(0, Math.trunc(aiCredits || 0));
+  const prog = Math.max(0, Math.trunc(programCredits || 0));
+  const parts: string[] = [];
+  if (ai > 0) parts.push(`${ai} crédit${ai > 1 ? "s" : ""} IA`);
+  if (prog > 0) parts.push(`${prog} crédit${prog > 1 ? "s" : ""} programme`);
+  return parts.join(" + ");
+}
+
 export const PRODUCT_NAME = "My Fitness App";
 
 /**

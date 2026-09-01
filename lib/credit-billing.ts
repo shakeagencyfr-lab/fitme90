@@ -1,7 +1,8 @@
 import "server-only";
 import { stripeForTenant } from "@/lib/coach-payments";
 import { billingParentId } from "@/lib/hierarchy";
-import { creditPackById, applyPurchaseCredit, type CreditKind } from "@/lib/credits";
+import { creditPackById, applyPackPurchase } from "@/lib/credits";
+import { creditPackContents } from "@/lib/config";
 
 // Achat d'un pack de crédits par un COACH auprès de son revendeur. Paiement
 // UNIQUE (mode "payment") sur le compte Stripe DU REVENDEUR (BYOK, pas de
@@ -28,7 +29,7 @@ export async function startPackCheckout(
   if (!stripe) return { error: "Ton revendeur n'a pas encore configuré ses paiements." };
 
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  const label = `${pack.name} — ${pack.credits} crédits ${pack.kind === "program" ? "programme" : "IA"}`;
+  const label = `${pack.name} : ${creditPackContents(pack.ai_credits, pack.program_credits)}`;
   try {
     const checkout = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -47,8 +48,8 @@ export async function startPackCheckout(
       metadata: {
         buyer_tenant_id: coachTenantId,
         pack_id: String(pack.id),
-        kind: pack.kind,
-        credits: String(pack.credits),
+        ai_credits: String(pack.ai_credits),
+        program_credits: String(pack.program_credits),
       },
       success_url: `${site}/admin/credits?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${site}/admin/credits?annule=1`,
@@ -61,8 +62,10 @@ export async function startPackCheckout(
 
 export interface PackVerifyResult {
   credited: boolean;
-  credits?: number;
-  kind?: CreditKind;
+  /** Crédits IA effectivement ajoutés lors de cet appel. */
+  aiCredits?: number;
+  /** Crédits programme effectivement ajoutés lors de cet appel. */
+  programCredits?: number;
 }
 
 /**
@@ -84,15 +87,23 @@ export async function verifyPackCheckout(coachTenantId: string, sessionId: strin
     if (!owns) return { credited: false };
     if (session.payment_status !== "paid") return { credited: false };
 
-    // On se fie au pack courant (kind + crédits) ; repli sur les métadonnées.
+    // On se fie aux métadonnées de la session (ce qui a VRAIMENT été payé) ;
+    // repli sur le pack courant si elles manquent. Le pack a pu être modifié
+    // entre le paiement et le retour : le client doit recevoir ce qu'il a payé.
     const packId = Number(session.metadata?.pack_id ?? 0);
     const pack = packId ? await creditPackById(resellerId, packId) : null;
-    const kind: CreditKind = pack?.kind ?? (session.metadata?.kind === "program" ? "program" : "ai");
-    const credits = pack?.credits ?? Number(session.metadata?.credits ?? 0);
-    if (!credits || credits <= 0) return { credited: false };
+    const metaAi = Number(session.metadata?.ai_credits ?? NaN);
+    const metaProg = Number(session.metadata?.program_credits ?? NaN);
+    const ai = Number.isFinite(metaAi) ? metaAi : (pack?.ai_credits ?? 0);
+    const program = Number.isFinite(metaProg) ? metaProg : (pack?.program_credits ?? 0);
+    if (ai + program <= 0) return { credited: false };
 
-    const credited = await applyPurchaseCredit(coachTenantId, kind, credits, sessionId);
-    return { credited, credits, kind };
+    const got = await applyPackPurchase(coachTenantId, ai, program, sessionId);
+    return {
+      credited: got.ai + got.program > 0,
+      aiCredits: got.ai,
+      programCredits: got.program,
+    };
   } catch {
     return { credited: false };
   }

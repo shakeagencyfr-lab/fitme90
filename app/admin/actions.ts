@@ -23,7 +23,7 @@ import { cancelTenantPlan, reactivateTenantPlan, syncTenantSubscription } from "
 import { deleteOwnCoachAccount } from "@/lib/account-deletion";
 import { setAffiliation } from "@/lib/affiliation";
 import { setProspectStatus, deleteProspect } from "@/lib/prospects";
-import { createCreditPack, setCreditPackActive, deleteCreditPack, type CreditKind } from "@/lib/credits";
+import { createCreditPack, setCreditPackActive, deleteCreditPack } from "@/lib/credits";
 import { setResellerWhitelabelPrice } from "@/lib/whitelabel";
 import { setTenantSmtp, clearTenantSmtp, testSmtp } from "@/lib/smtp";
 import { saveTenantBranding, uploadTenantAsset, clearTenantAsset, type AssetKind } from "@/lib/branding";
@@ -957,17 +957,29 @@ export async function saveResellerModelChoice(_prev: ResellerAiState, formData: 
   return { ok: true };
 }
 
-/** Crée un pack de crédits (revendeur). */
+/**
+ * Crée un pack de crédits (revendeur). Le pack peut être HYBRIDE : crédits IA et
+ * crédits programme dans le même pack, donc dans le même paiement.
+ */
 export async function addCreditPack(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
   const ctx = await getAdminOrNull();
   if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
-  const kind: CreditKind = formData.get("kind") === "program" ? "program" : "ai";
   const name = String(formData.get("name") ?? "");
-  const credits = Number(String(formData.get("credits") ?? "").trim());
+  const count = (field: string) => {
+    const raw = String(formData.get(field) ?? "").trim();
+    if (!raw) return 0; // champ laissé vide = 0 crédit de ce type
+    const n = Number(raw);
+    return Number.isFinite(n) ? Math.trunc(n) : NaN;
+  };
+  const aiCredits = count("ai_credits");
+  const programCredits = count("program_credits");
+  if (!Number.isFinite(aiCredits) || !Number.isFinite(programCredits)) {
+    return { error: "Nombre de crédits invalide." };
+  }
   const euros = String(formData.get("price_euros") ?? "").replace(",", ".").trim();
   const priceCents = Math.round(Number(euros) * 100);
   if (!Number.isFinite(priceCents) || priceCents <= 0) return { error: "Prix invalide." };
-  const res = await createCreditPack(ctx.profile.tenant_id, { kind, name, credits, priceCents });
+  const res = await createCreditPack(ctx.profile.tenant_id, { name, aiCredits, programCredits, priceCents });
   if (!res.ok) return { error: res.error };
   revalidatePath("/admin/ia-revenu");
   return { ok: true };
