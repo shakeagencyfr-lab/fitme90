@@ -264,3 +264,16 @@ export const COACH_CREDENTIAL = "Coach professionnel diplômé d'État";
 /** Phrase « créé par » pour la landing et les pages légales. */
 export const COACH_ORIGIN =
   "coach professionnel diplômé d'État et de l'université des sports";
+
+/**
+ * Version du jeu d'icônes de marque. Les fichiers d'icônes ont des URL fixes
+ * (/icons/…), or les navigateurs mettent les favicons en cache très longtemps,
+ * indépendamment des en-têtes. Suffixer les URL de `?v=…` force la reprise
+ * après un changement de logo : à incrémenter à chaque nouveau jeu d'icônes.
+ */
+export const ICON_VERSION = "3";
+
+/** URL d'une icône de marque, avec sa version (anti-cache navigateur). */
+export function iconUrl(path: string): string {
+  return `${path}?v=${ICON_VERSION}`;
+}

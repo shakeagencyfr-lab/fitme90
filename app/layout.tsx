@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Archivo, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
+import { iconUrl } from "@/lib/config";
 
 // Polices auto-hébergées par next/font (aucun appel à Google au runtime,
 // donc rien à autoriser dans la CSP côté font-src).
@@ -35,8 +36,8 @@ export const metadata: Metadata = {
   // pour servir un manifest en marque blanche selon le coach du client connecté.
   appleWebApp: { capable: true, title: "My Fitness App", statusBarStyle: "default" },
   icons: {
-    icon: [{ url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" }],
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+    icon: [{ url: iconUrl("/icons/favicon-32.png"), sizes: "32x32", type: "image/png" }],
+    apple: [{ url: iconUrl("/icons/apple-touch-icon.png"), sizes: "180x180" }],
   },
 };
 

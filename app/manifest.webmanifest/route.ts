@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionContext } from "@/lib/guard";
 import { isCoachAccount } from "@/lib/admin";
 import { brandForUser } from "@/lib/branding";
-import { PRODUCT_NAME } from "@/lib/config";
+import { PRODUCT_NAME, iconUrl } from "@/lib/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,10 +12,10 @@ type Icon = { src: string; sizes: string; type?: string; purpose?: string };
 // Jeu d'icônes My Fitness App par défaut (PNG valides, tailles réelles). Toujours
 // présent : c'est ce qui garantit une vraie icône à l'installation (jamais le
 // monogramme « lettre » généré par le navigateur faute d'icône exploitable).
-const FITME_ICONS: Icon[] = [
-  { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-  { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-  { src: "/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+const APP_ICONS: Icon[] = [
+  { src: iconUrl("/icons/icon-192.png"), sizes: "192x192", type: "image/png", purpose: "any" },
+  { src: iconUrl("/icons/icon-512.png"), sizes: "512x512", type: "image/png", purpose: "any" },
+  { src: iconUrl("/icons/icon-maskable-512.png"), sizes: "512x512", type: "image/png", purpose: "maskable" },
 ];
 
 // Manifest PWA DYNAMIQUE (marque blanche). Règles :
@@ -30,7 +30,7 @@ export async function GET() {
   let name = `${PRODUCT_NAME} — Sport & Nutrition`;
   let shortName = PRODUCT_NAME;
   let themeColor = "#F4F3F1";
-  let icons: Icon[] = FITME_ICONS;
+  let icons: Icon[] = APP_ICONS;
 
   try {
     const ctx = await getSessionContext();
@@ -46,7 +46,7 @@ export async function GET() {
         if (brand.faviconUrl) {
           icons = [
             { src: brand.faviconUrl, sizes: "any", purpose: "any" },
-            ...FITME_ICONS,
+            ...APP_ICONS,
           ];
         }
       }
