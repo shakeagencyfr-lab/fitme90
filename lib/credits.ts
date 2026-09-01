@@ -147,6 +147,119 @@ export async function programCreditCost(buyerTenantId: string | null): Promise<n
   return n != null && n > 0 ? n : DEFAULT_PROGRAM_CREDITS;
 }
 
+// ------------------------------------------------------------------ chaîne de fourniture
+/**
+ * Fourniture d'IA d'un revendeur : sa propre clé (byok) ou des crédits achetés
+ * à la plateforme (platform_credits), qu'il revend à ses coachs avec sa marge.
+ */
+export async function resellerSupply(tenantId: string | null): Promise<"byok" | "platform_credits"> {
+  if (!tenantId) return "byok";
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("tenants")
+    .select("ai_supply")
+    .eq("id", tenantId)
+    .maybeSingle<{ ai_supply: string | null }>();
+  return data?.ai_supply === "platform_credits" ? "platform_credits" : "byok";
+}
+
+/** Revendeur (parent) d'un coach, ou null. */
+async function parentOf(tenantId: string): Promise<string | null> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("tenants")
+    .select("parent_id")
+    .eq("id", tenantId)
+    .maybeSingle<{ parent_id: string | null }>();
+  return data?.parent_id ?? null;
+}
+
+export type AiUsageKind = "action" | "program";
+
+export interface AiAllowance {
+  ok: boolean;
+  /** Message à afficher au client si refus. */
+  error?: string;
+  /** Crédits que l'action coûtera au coach (0 si le coach n'est pas en crédits). */
+  coachCost: number;
+  /** Crédits que l'action coûtera au revendeur (0 s'il n'achète pas à la plateforme). */
+  resellerCost: number;
+  resellerId: string | null;
+}
+
+/**
+ * Une action IA peut-elle avoir lieu, et que coûtera-t-elle à chaque étage ?
+ * Deux portefeuilles peuvent être concernés : celui du coach (s'il achète ses
+ * crédits à son revendeur) et celui du revendeur (s'il achète les siens à la
+ * plateforme). On vérifie AVANT l'appel modèle, on débite APRÈS succès.
+ */
+export async function checkAiAllowance(coachTenantId: string | null, kind: AiUsageKind): Promise<AiAllowance> {
+  const none: AiAllowance = { ok: true, coachCost: 0, resellerCost: 0, resellerId: null };
+  if (!coachTenantId) return none;
+  const resellerId = await parentOf(coachTenantId);
+  if (!resellerId) return none;
+
+  const [model, supply] = await Promise.all([resellerModel(resellerId), resellerSupply(resellerId)]);
+  const coachCost = model === "credits" ? (kind === "program" ? await programCreditCost(coachTenantId) : 1) : 0;
+  const resellerCost =
+    supply === "platform_credits" ? (kind === "program" ? await programCreditCost(resellerId) : 1) : 0;
+  const base = { coachCost, resellerCost, resellerId };
+
+  if (coachCost > 0) {
+    const w = await getWallet(coachTenantId);
+    if (w.credits < coachCost) {
+      return {
+        ...base,
+        ok: false,
+        error:
+          kind === "program"
+            ? `Crédits IA insuffisants (une génération en demande ${coachCost}). Ton coach doit recharger.`
+            : "Crédits IA épuisés. Ton coach doit recharger des crédits pour réactiver l'assistant.",
+      };
+    }
+  }
+  if (resellerCost > 0) {
+    const w = await getWallet(resellerId);
+    if (w.credits < resellerCost) {
+      return {
+        ...base,
+        ok: false,
+        error: "L'IA est momentanément indisponible : le fournisseur de ton coach doit recharger ses crédits.",
+      };
+    }
+  }
+  return { ...base, ok: true };
+}
+
+/**
+ * Débite chaque étage concerné après une action réussie. Le coach paie son
+ * revendeur, le revendeur paie la plateforme : deux journaux, deux soldes, une
+ * seule action. `clientId` alimente le journal du coach ; le journal du
+ * revendeur porte le coach concerné.
+ */
+export async function chargeAiUsage(
+  coachTenantId: string | null,
+  kind: AiUsageKind,
+  reason: LedgerReason,
+  clientId?: string | null,
+): Promise<void> {
+  if (!coachTenantId) return;
+  const a = await checkAiAllowance(coachTenantId, kind);
+  if (a.coachCost > 0) await debitWallet(coachTenantId, a.coachCost, reason, clientId);
+  if (a.resellerCost > 0 && a.resellerId) {
+    // Journal du revendeur : le « client » est le coach (owner) concerné.
+    const admin = createAdminClient();
+    const { data: owner } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("tenant_id", coachTenantId)
+      .eq("role", "owner")
+      .limit(1)
+      .maybeSingle<{ id: string }>();
+    await debitWallet(a.resellerId, a.resellerCost, reason, owner?.id ?? null);
+  }
+}
+
 // ------------------------------------------------------------------ packs
 export interface CreditPack {
   id: number;

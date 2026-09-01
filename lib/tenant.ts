@@ -136,10 +136,16 @@ export async function tenantAnthropicKey(userId: string): Promise<string | null>
   if (!t?.parent_id) return null;
   const { data: parent } = await admin
     .from("tenants")
-    .select("ai_mode")
+    .select("ai_mode, ai_supply, parent_id")
     .eq("id", t.parent_id)
-    .maybeSingle<{ ai_mode: string | null }>();
+    .maybeSingle<{ ai_mode: string | null; ai_supply: string | null; parent_id: string | null }>();
   if (parent?.ai_mode !== "provider") return null;
+  // Revendeur en crédits plateforme : l'IA tourne sur la clé de la plateforme,
+  // et chaque action débite son portefeuille (chargeAiUsage).
+  if (parent.ai_supply === "platform_credits") {
+    const platformId = parent.parent_id;
+    return platformId ? tenantOwnKey(platformId) : null;
+  }
   return tenantOwnKey(t.parent_id);
 }
 

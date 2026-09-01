@@ -21,6 +21,8 @@ export async function createChildTenantAccount(opts: {
   name: string;
   email: string;
   contactName?: string;
+  /** Revendeur : fournit l'IA avec sa clé (byok) ou achète des crédits à la plateforme. */
+  aiSupply?: "byok" | "platform_credits";
 }): Promise<CreatedAccount> {
   const name = opts.name.trim().slice(0, 60);
   const email = opts.email.trim().toLowerCase();
@@ -48,7 +50,17 @@ export async function createChildTenantAccount(opts: {
   const slug = await freeSlug(admin, name);
   const { data: tenant, error: tErr } = await admin
     .from("tenants")
-    .insert({ slug, name, kind: opts.kind, parent_id: opts.parentTenantId })
+    .insert({
+      slug,
+      name,
+      kind: opts.kind,
+      parent_id: opts.parentTenantId,
+      // Un revendeur en crédits plateforme fournit l'IA à ses coachs (mode
+      // provider) sans clé à lui : c'est la clé de la plateforme qui tourne.
+      ...(opts.kind === "reseller" && opts.aiSupply === "platform_credits"
+        ? { ai_supply: "platform_credits", ai_mode: "provider" }
+        : {}),
+    })
     .select("id")
     .maybeSingle<{ id: string }>();
   if (tErr || !tenant) {

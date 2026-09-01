@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { recordCall } from "@/lib/ratelimit";
 import { checkRecipeAiBudget } from "@/lib/coach-ai-budget";
-import { clientUsesCredits, getWallet, debitWallet } from "@/lib/credits";
+import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
 import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
 import { COACH_CREDENTIAL } from "@/lib/config";
@@ -47,16 +47,9 @@ export async function POST() {
 
   // Porte d'accès : portefeuille de crédits (Modèle crédits) ou plafond journalier.
   const coachTenant = ctx.profile?.tenant_id ?? null;
-  const useCredits = await clientUsesCredits(coachTenant);
-  if (useCredits) {
-    const wallet = await getWallet(coachTenant);
-    if (wallet.credits < 1) {
-      return NextResponse.json(
-        { error: "Crédits IA épuisés. Ton coach doit recharger des crédits." },
-        { status: 402 },
-      );
-    }
-  } else {
+  const allowance = await checkAiAllowance(coachTenant, "action");
+  if (!allowance.ok) return NextResponse.json({ error: allowance.error }, { status: 402 });
+  {
     const budget = await checkRecipeAiBudget(ctx.userId, coachTenant);
     if (!budget.ok) {
       const n = budget.limit;
@@ -129,7 +122,7 @@ Consignes : 4 à 7 étapes numérotées, chaque étape est une instruction concr
       input_tokens: message.usage.input_tokens,
       output_tokens: message.usage.output_tokens,
     });
-    if (useCredits && coachTenant) await debitWallet(coachTenant, 1, "recipe", ctx.userId);
+    await chargeAiUsage(coachTenant, "action", "recipe", ctx.userId);
     return NextResponse.json({ recipes: parsed.recipes });
   } catch {
     return NextResponse.json({ error: "Génération des recettes indisponible." }, { status: 502 });

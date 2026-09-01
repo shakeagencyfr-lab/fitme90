@@ -6,7 +6,7 @@ import { listCoachNotifications, unreadCoachNotifCount } from "@/lib/notificatio
 import { tenantNode } from "@/lib/hierarchy";
 import { tenantFreezeState } from "@/lib/freeze";
 import { tenantMonthlyAiUsage } from "@/lib/ai-cost";
-import { clientUsesCredits, getWallet } from "@/lib/credits";
+import { clientUsesCredits, getWallet, resellerSupply } from "@/lib/credits";
 import { parentDashboardBrand, platformBrand } from "@/lib/branding";
 import type { Metadata } from "next";
 import { CoachFreezeBanner } from "@/components/coach-freeze-banner";
@@ -45,7 +45,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   // En modèle crédits, la carte du bandeau montre le solde restant plutôt qu'une
   // conso en dollars : ce coach ne paie pas Anthropic, il dépense des crédits.
-  const bal = useCredits && tenantId ? await getWallet(tenantId) : null;
+  const buysFromPlatform = kind === "reseller" && tenantId ? (await resellerSupply(tenantId)) === "platform_credits" : false;
+  const bal = (useCredits || buysFromPlatform) && tenantId ? await getWallet(tenantId) : null;
   const wallet = bal ? { credits: bal.credits } : null;
 
   return (
