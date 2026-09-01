@@ -66,22 +66,42 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET" || req.mode !== "navigate") return;
   event.respondWith(
     (async () => {
+      let fresh;
       try {
-        const fresh = await fetch(req);
-        const cache = await caches.open(CACHE);
-        cache.put(req, fresh.clone());
-        return fresh;
+        fresh = await fetch(req);
       } catch {
-        // Repli hors-ligne : UNIQUEMENT la page demandée. On ne sert JAMAIS une
-        // autre page : afficher l'accueil sous l'URL de /inscription-coach
-        // donnait l'impression que le bouton d'inscription était cassé.
-        const cache = await caches.open(CACHE);
-        const cached = await cache.match(req);
+        // RÉSEAU indisponible (et uniquement ce cas) : repli sur CETTE page si
+        // on l'a en cache. On ne sert JAMAIS une autre page : afficher
+        // l'accueil sous l'URL de /inscription-coach donnait l'impression que
+        // le bouton d'inscription était cassé.
+        const cached = await matchCache(req);
         return cached || offlinePage();
       }
+
+      // Mise en cache BEST-EFFORT, après coup : un échec de stockage (quota
+      // saturé, stockage désactivé, navigation privée) ne doit jamais faire
+      // jeter une réponse fraîche au profit d'une vieille version en cache.
+      // C'est ce qui bloquait des navigateurs sur l'ancienne version du site.
+      try {
+        const cache = await caches.open(CACHE);
+        await cache.put(req, fresh.clone());
+      } catch {
+        /* le cache est un bonus, jamais une condition */
+      }
+      return fresh;
     })(),
   );
 });
+
+/** Lit une page en cache. Renvoie null si le stockage est indisponible. */
+async function matchCache(req) {
+  try {
+    const cache = await caches.open(CACHE);
+    return (await cache.match(req)) || null;
+  } catch {
+    return null;
+  }
+}
 
 // Page affichée quand une navigation échoue et qu'aucune version de CETTE page
 // n'est en cache. Elle dit la vérité (pas de réseau) au lieu d'afficher une
