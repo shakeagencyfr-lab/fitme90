@@ -17,7 +17,6 @@ import { missedDays } from "@/lib/streak";
 import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan } from "@/lib/program";
 import { revalidatePath } from "next/cache";
 import { pnum, grp } from "@/lib/nutrition";
-import { PROGRAM_DAYS } from "@/lib/config";
 
 const DIETS = ["Omnivore", "Flexitarien", "Végétarien", "Végétalien", "Sans porc", "Sans bœuf"];
 

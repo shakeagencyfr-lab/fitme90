@@ -594,6 +594,7 @@ create trigger on_auth_user_created
 create or replace function public.debit_credit(p_tenant uuid, p_kind text, p_amount integer)
 returns integer
 language plpgsql
+set search_path = public, pg_temp
 as $$
 declare rem integer;
 begin

@@ -81,6 +81,12 @@ const selfFrameHeaders = securityHeaders.map((h) =>
 );
 
 const nextConfig: NextConfig = {
+  // Les uploads (logos, images d'offres, médias d'exercices) passent par des
+  // server actions : la limite par défaut (1 Mo) faisait échouer les photos de
+  // téléphone (« Body exceeded 1 MB limit » vu en production sur /admin/offres).
+  experimental: {
+    serverActions: { bodySizeLimit: "8mb" },
+  },
   async headers() {
     return [
       // La route embed d'abord, avec ses en-têtes permissifs (framable partout).
