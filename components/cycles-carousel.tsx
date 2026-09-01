@@ -23,6 +23,22 @@ const EXPL = [
   },
 ];
 
+// Cycle unique (offre 1 mois) : une explication autonome.
+const EXPL_SINGLE = {
+  why: "Un bloc complet de 4 semaines : on installe la technique et la régularité, on monte progressivement en intensité, et la dernière semaine s'allège pour récupérer et voir les progrès.",
+  aims: ["Technique et régularité", "Progrès visibles", "Récupérer en fin"],
+  how: ["RPE 6-8", "Surcharge progressive", "Semaine 4 allégée"],
+};
+
+// Pour un nombre de cycles variable : 1er = fondations, dernier = pic,
+// intermédiaires = progression.
+function explFor(i: number, total: number) {
+  if (total === 1) return EXPL_SINGLE;
+  if (i === 0) return EXPL[0];
+  if (i === total - 1) return EXPL[2];
+  return EXPL[1];
+}
+
 const DOT = ["bg-brand", "bg-ink", "bg-cardio"];
 
 function Chips({ title, items }: { title: string; items: string[] }) {
@@ -64,7 +80,7 @@ export function CyclesCarousel({ cycles }: { cycles: Cycle[] }) {
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">
-          Les 3 cycles · {active + 1}/{cycles.length}
+          {cycles.length > 1 ? `Les ${cycles.length} cycles` : "Ton cycle"} · {active + 1}/{cycles.length}
         </div>
         <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2 nav:hidden">glisse →</span>
       </div>
@@ -80,7 +96,7 @@ export function CyclesCarousel({ cycles }: { cycles: Cycle[] }) {
             className="flex w-[86%] shrink-0 snap-center flex-col gap-3 rounded-card border border-line bg-surface p-5 nav:w-auto"
           >
             <div className="flex items-center gap-2">
-              <span className={`inline-block size-2.5 rounded-full ${DOT[i] ?? "bg-brand"}`} />
+              <span className={`inline-block size-2.5 rounded-full ${DOT[i % DOT.length]}`} />
               <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-brand">
                 {c.label} · {c.weeks}
               </span>
@@ -89,11 +105,11 @@ export function CyclesCarousel({ cycles }: { cycles: Cycle[] }) {
               {c.name}
             </h3>
 
-            <p className="text-[13.5px] leading-[1.6] text-muted">{EXPL[i]?.why}</p>
+            <p className="text-[13.5px] leading-[1.6] text-muted">{explFor(i, cycles.length).why}</p>
 
             <div className="mt-auto flex flex-col gap-3 border-t border-line-2 pt-3">
-              <Chips title="On vise" items={EXPL[i]?.aims ?? []} />
-              <Chips title="Comment" items={EXPL[i]?.how ?? []} />
+              <Chips title="On vise" items={explFor(i, cycles.length).aims} />
+              <Chips title="Comment" items={explFor(i, cycles.length).how} />
             </div>
           </article>
         ))}

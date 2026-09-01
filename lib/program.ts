@@ -102,6 +102,17 @@ export type Plan = z.infer<typeof planSchema>;
 /** Nombre de jours par cycle (bloc de 4 semaines ≈ 30 jours de programme). */
 export const CYCLE_DAYS = 30;
 
+/**
+ * Nombre de cycles à générer pour une durée de programme donnée (en jours).
+ * 30 j = 1 cycle, 90 j = 3 cycles, 180 j = 6 cycles. Plafonné à 6 cycles pour
+ * tenir dans le budget de sortie du modèle : au-delà (offres 12 mois), le
+ * dernier cycle sert de base et la progression continue par les charges notées.
+ */
+export function cycleCountForDays(programDays: number): number {
+  const n = Math.round(Math.max(1, programDays) / CYCLE_DAYS);
+  return Math.min(6, Math.max(1, n));
+}
+
 /** Index de cycle (0, 1, 2) du jour de programme donné (1..90). */
 export function cycleIndexForDay(day: number, cycleCount = 3): number {
   const idx = Math.floor((Math.max(1, day) - 1) / CYCLE_DAYS);
@@ -243,12 +254,21 @@ const SCHEMA_HINT =
 
 // Positionnement coach (pas « diététicien ») : accompagnement de forme, pas
 // de visée thérapeutique. Le public à risque médical est déjà écarté en amont
-// (lib/screening.ts).
-const SYSTEM = `Tu es ${COACH_CREDENTIAL}, tu accompagnes des personnes en bonne santé vers un objectif de forme. Tu réponds UNIQUEMENT par un objet JSON valide en français, sans texte autour. Exactement 3 cycles, 7 jours dans weekPlan (repos les jours non travaillés indiqués), 4 à 6 repas.
+// (lib/screening.ts). Le nombre de cycles suit la durée de l'offre achetée.
+function systemPrompt(cycleCount: number): string {
+  const weeks = cycleCount * 4;
+  const progression =
+    cycleCount === 1
+      ? `Le cycle unique est périodisé à l'intérieur de ses 4 semaines : montée en volume des semaines 1 à 3, semaine 4 en décharge (volume réduit). Reps plutôt 8 à 15, repos 60 à 120 s.`
+      : `Les séances CHANGENT et PROGRESSENT d'un cycle au suivant (c'est un programme périodisé) : Cycle 1 accumulation (volume, reps plutôt 10 à 15, repos 60 à 90 s) ; les cycles intermédiaires alternent intensification (charge, reps plutôt 6 à 10, repos 90 à 150 s) et accumulation plus exigeante (nouveaux mouvements, volume) ; le DERNIER cycle est la réalisation/pic (force, reps plutôt 4 à 8, repos 120 à 180 s, avec une décharge la dernière semaine). D'un cycle à l'autre, fais évoluer les exercices (variantes ou nouveaux mouvements) ET les paramètres reps/repos/séries.`;
+  return `Tu es ${COACH_CREDENTIAL}, tu accompagnes des personnes en bonne santé vers un objectif de forme. Tu réponds UNIQUEMENT par un objet JSON valide en français, sans texte autour. Exactement ${cycleCount} cycle(s), 7 jours dans weekPlan (repos les jours non travaillés indiqués), 4 à 6 repas.
 
-STRUCTURE EN CYCLES (RÈGLE LA PLUS IMPORTANTE) : le programme dure 90 jours découpés en 3 CYCLES de 4 semaines. CHAQUE cycle (objet de "cycles") porte SON PROPRE tableau "sessions" contenant EXACTEMENT une séance DISTINCTE par jour d'entraînement de la semaine (2 jours = 2 séances par cycle, 3 jours = 3 séances, 4 jours = 4 séances, etc.). NE mets PAS de "sessions" au niveau racine : elles vont DANS chaque cycle. Ne renvoie JAMAIS une seule séance quand le client s'entraîne plusieurs jours.
+STRUCTURE EN CYCLES (RÈGLE LA PLUS IMPORTANTE) : le programme dure ${weeks} semaines découpées en ${cycleCount} CYCLE(S) de 4 semaines (champ "weeks" de chaque cycle : Cycle 1 "SEMAINES 1 → 4", Cycle 2 "SEMAINES 5 → 8", et ainsi de suite). CHAQUE cycle (objet de "cycles") porte SON PROPRE tableau "sessions" contenant EXACTEMENT une séance DISTINCTE par jour d'entraînement de la semaine (2 jours = 2 séances par cycle, 3 jours = 3 séances, 4 jours = 4 séances, etc.). NE mets PAS de "sessions" au niveau racine : elles vont DANS chaque cycle. Ne renvoie JAMAIS une seule séance quand le client s'entraîne plusieurs jours.
 
-Les séances CHANGENT et PROGRESSENT d'un cycle au suivant (c'est un programme périodisé) : Cycle 1 accumulation (volume, reps plutôt 10 à 15, repos 60 à 90 s), Cycle 2 intensification (charge, reps plutôt 6 à 10, repos 90 à 150 s), Cycle 3 réalisation/pic (force, reps plutôt 4 à 8, repos 120 à 180 s, avec une décharge la dernière semaine). D'un cycle à l'autre, fais évoluer les exercices (variantes ou nouveaux mouvements) ET les paramètres reps/repos/séries. Le client fera lui-même évoluer ses charges en les notant, ne fige donc pas de charge (laisse "load":"").
+${progression} Le client fera lui-même évoluer ses charges en les notant, ne fige donc pas de charge (laisse "load":"").`;
+}
+
+const SYSTEM_RULES = `
 
 Dans chaque cycle, chaque séance vise des groupes musculaires DIFFÉRENTS et complémentaires sur la semaine (ex. 3 jours : A haut du corps, B bas du corps, C full body ; 4 jours : haut/bas ou push/pull/legs/full). Chaque séance a un "title" court et parlant, un "cycleLabel" du type "Cycle 2 · Séance A · haut du corps", et 5 à 7 exercices avec sets entier. Le "name" de chaque jour travaillé dans weekPlan reprend le titre de la séance correspondante du CYCLE 1, en tournant A, B, C sur la semaine.
 
@@ -273,6 +293,11 @@ export interface Brief {
    * nouveau cycle (assiduité, évolution du poids). Injectée dans le brief.
    */
   priorCycleNote?: string;
+  /**
+   * Durée totale du programme en jours (offre achetée). Détermine le nombre de
+   * cycles générés (30 j = 1 cycle, 90 j = 3, 180 j = 6). Défaut : 90 jours.
+   */
+  programDays?: number;
 }
 
 /** Adaptations en cours (blessures/contraintes ajoutées après coup). */
@@ -292,16 +317,17 @@ export function isFatLossGoal(answers: Record<string, unknown>): boolean {
 }
 
 /** Construit le texte de brief envoyé au modèle (réponses en clair). */
-export function buildBrief({ answers, trainDays, equipment, priorCycleNote }: Brief): string {
+export function buildBrief({ answers, trainDays, equipment, priorCycleNote, programDays }: Brief): string {
   const lines = describeAnswers(answers);
   const adaptations = readAdaptations(answers);
+  const cycleCount = cycleCountForDays(programDays ?? 90);
   const parts = [
     "Profil client My Fitness App — transformation sur toute la durée du programme.",
     lines.length
       ? lines.join("\n")
       : "Profil par défaut : femme 34 ans, 68 kg, 170 cm, 3 séances/semaine.",
     `Jours d'entraînement : ${trainDays.length ? trainDays.join(", ") : "à répartir"}.`,
-    `Nombre de séances DISTINCTES par cycle : ${trainDays.length || 3} (une par jour d'entraînement). Produis donc 3 cycles, chacun avec ${trainDays.length || 3} séances distinctes qui évoluent d'un cycle au suivant.`,
+    `Nombre de séances DISTINCTES par cycle : ${trainDays.length || 3} (une par jour d'entraînement). Produis donc ${cycleCount} cycle(s), chacun avec ${trainDays.length || 3} séances distinctes${cycleCount > 1 ? " qui évoluent d'un cycle au suivant" : ""}.`,
     `Durée cible par séance : ${(answers?.dur as string) || "45 min"}, échauffement compris. Chaque séance DOIT tenir dans cette durée : ne dépasse pas, et ajoute au plus un bloc cardio court (10 à 20 min) uniquement s'il reste du temps.`,
     `Matériel disponible : ${equipment.length ? equipment.join(", ") : "poids du corps uniquement"}. Aucun exercice hors de cette liste.`,
   ];
@@ -349,14 +375,16 @@ export async function generateProgram(
   const methodology = await effectiveMethodology(tenantId);
   // Nombre de séances distinctes attendu (une par jour d'entraînement).
   const wantSessions = Math.max(1, brief.trainDays.length || 3);
+  // Nombre de cycles attendu (durée de l'offre : 30 j = 1 cycle, 90 j = 3…).
+  const wantCycles = cycleCountForDays(brief.programDays ?? 90);
 
   const runOnce = async (extra: string) => {
     const stream = client.messages.stream({
       model: MODELS.generate,
-      // Sortie volumineuse : 3 cycles × séances distinctes + nutrition.
+      // Sortie volumineuse : jusqu'à 6 cycles × séances distinctes + nutrition.
       max_tokens: 32000,
       ...effortConfig(MODELS.generate, effort),
-      system: `${SYSTEM}\n\n${methodology}`,
+      system: `${systemPrompt(wantCycles)}${SYSTEM_RULES}\n\n${methodology}`,
       messages: [
         {
           role: "user",
@@ -373,18 +401,19 @@ export async function generateProgram(
     };
   };
 
-  // Chaque cycle doit contenir le bon nombre de séances distinctes.
+  // Le bon nombre de cycles, chacun avec le bon nombre de séances distinctes.
   const cyclesOk = (p: Plan) =>
+    (p.cycles?.length ?? 0) >= wantCycles &&
     (p.cycles ?? []).every((c) => (c.sessions?.length ?? 0) >= wantSessions);
 
   let { plan, inTok, outTok } = await runOnce("");
   // Garde-fou périodisation : si un cycle manque de séances distinctes (bug
   // « même séance partout »), on relance une fois avec une consigne explicite
   // (1re génération uniquement, où le budget temps le permet).
-  if (effort === "high" && wantSessions >= 2 && !cyclesOk(plan)) {
+  if (effort === "high" && (wantSessions >= 2 || wantCycles >= 2) && !cyclesOk(plan)) {
     try {
       const retry = await runOnce(
-        `\n\nATTENTION : CHAQUE cycle doit contenir EXACTEMENT ${wantSessions} séances DISTINCTES dans "cycles[i].sessions" (une par jour d'entraînement), et les séances doivent CHANGER d'un cycle au suivant. Ne renvoie pas une seule séance ni des cycles sans séances.`,
+        `\n\nATTENTION : le plan doit contenir EXACTEMENT ${wantCycles} cycle(s), et CHAQUE cycle doit contenir EXACTEMENT ${wantSessions} séances DISTINCTES dans "cycles[i].sessions" (une par jour d'entraînement), et les séances doivent CHANGER d'un cycle au suivant. Ne renvoie pas une seule séance ni des cycles sans séances.`,
       );
       if (cyclesOk(retry.plan)) {
         plan = retry.plan;

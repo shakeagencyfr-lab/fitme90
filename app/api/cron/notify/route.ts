@@ -5,7 +5,7 @@ import { resolveAudience } from "@/lib/audience";
 import { programDay } from "@/lib/access";
 import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
 import { missedDays } from "@/lib/streak";
-import { PROGRAM_DAYS } from "@/lib/config";
+import { PROGRAM_DAYS, programDaysForMonths } from "@/lib/config";
 import type { Plan } from "@/lib/program";
 
 // Seuil de relance : nombre de séances en retard à partir duquel on envoie un
@@ -112,17 +112,17 @@ export async function GET(req: Request) {
     if (Number.isNaN(start.getTime())) continue;
 
     const day = programDay(start, now);
-    if (day < 1 || day > PROGRAM_DAYS) continue; // hors programme actif
+    if (day < 1) continue; // pas encore démarré
 
     // Programme + jours choisis + toutes les séances validées (pour les retards).
     const [{ data: prog }, { data: quiz }, { data: doneRows }] = await Promise.all([
       db
         .from("programs")
-        .select("plan")
+        .select("plan, duration_months")
         .eq("user_id", prof.id)
         .order("created_at", { ascending: false })
         .limit(1)
-        .maybeSingle<{ plan: Plan }>(),
+        .maybeSingle<{ plan: Plan; duration_months: number | null }>(),
       db
         .from("questionnaires")
         .select("train_days")
@@ -133,6 +133,9 @@ export async function GET(req: Request) {
       db.from("session_logs").select("day").eq("user_id", prof.id).returns<{ day: number }[]>(),
     ]);
     if (!prog?.plan) continue;
+    // Durée réelle du programme de CE client (offre achetée, défaut 90 j).
+    const programDays = prog.duration_months ? programDaysForMonths(prog.duration_months) : PROGRAM_DAYS;
+    if (day > programDays) continue; // hors programme actif
 
     const planRest = prog.plan.weekPlan.slice(0, 7).map((d) => d.rest);
     const pattern = restPattern(quiz?.train_days ?? [], planRest);
@@ -149,7 +152,7 @@ export async function GET(req: Request) {
     if (!todayRest && !todayDone) {
       payload = {
         title: "Ta séance du jour t'attend",
-        body: `Jour ${day} sur ${PROGRAM_DAYS}. Ouvre My Fitness App et valide ta séance.`,
+        body: `Jour ${day} sur ${programDays}. Ouvre My Fitness App et valide ta séance.`,
         url: "/app/seance",
         tag: "seance-du-jour",
       };
@@ -159,7 +162,7 @@ export async function GET(req: Request) {
         startWd,
         currentDay: day,
         completedDays: doneDays,
-        programDays: PROGRAM_DAYS,
+        programDays,
       }).length;
       if (late >= MISSED_RELANCE_THRESHOLD) {
         payload = {

@@ -28,7 +28,7 @@ export function CustomDomainCard({ domain }: { domain: string | null }) {
         <p className="text-[13.5px] leading-[1.6] text-muted">
           Bientôt : branche ton <span className="font-medium text-body">propre nom de domaine</span> (ex{" "}
           <span className="font-mono text-body">coaching-tonnom.com</span>) pour une marque blanche totale,
-          sans <span className="font-mono text-body">fitme90.com</span> dans l&apos;adresse. Réservé aux
+          sans <span className="font-mono text-body">myfitnessapp.fit</span> dans l&apos;adresse. Réservé aux
           abonnements premium ; disponible prochainement.
         </p>
       )}

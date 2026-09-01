@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Wordmark } from "@/components/brand";
 
 // Icônes line (stroke), cohérentes, lisibles à petite taille.
 const I = {
@@ -132,6 +133,7 @@ function Dot() {
 export function AppNav({
   day,
   dayPct,
+  programDays = 90,
   cycleName,
   shopEnabled = false,
   vipEnabled = false,
@@ -142,6 +144,8 @@ export function AppNav({
 }: {
   day: number;
   dayPct: number;
+  /** Durée totale du programme (jours), selon l'offre du client. */
+  programDays?: number;
   cycleName?: string;
   shopEnabled?: boolean;
   vipEnabled?: boolean;
@@ -174,12 +178,10 @@ export function AppNav({
           ) : brandName ? (
             <div className="font-archivo font-extrabold text-[20px] leading-tight tracking-[-0.02em] text-ink">{brandName}</div>
           ) : (
-            <div className="font-archivo font-extrabold text-[22px] tracking-[-0.02em] text-ink">
-              FitMe<span className="text-brand">90</span>
-            </div>
+            <Wordmark size={19} />
           )}
           <div className="font-mono uppercase tracking-[0.14em] text-[10px] text-muted-2">
-            Jour {day} sur 90
+            {day >= 1 ? `Jour ${day} sur ${programDays}` : `Départ dans ${1 - day} jour(s)`}
           </div>
         </div>
 
@@ -213,8 +215,8 @@ export function AppNav({
         <div className="flex flex-col gap-2 rounded-card bg-paper p-4">
           <div className="font-mono uppercase tracking-[0.12em] text-[10px] text-muted-2">Progression</div>
           <div className="font-archivo font-extrabold text-[34px] leading-[0.9] tracking-[-0.03em] text-ink">
-            {day}
-            <span className="text-[16px] text-muted-2">/90</span>
+            {Math.max(0, day)}
+            <span className="text-[16px] text-muted-2">/{programDays}</span>
           </div>
           <div className="h-[5px] overflow-hidden rounded-[3px] bg-line">
             <div className="h-full bg-brand transition-[width] duration-500" style={{ width: `${dayPct}%` }} />

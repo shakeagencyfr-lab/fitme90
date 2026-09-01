@@ -144,11 +144,11 @@ export async function POST(req: NextRequest) {
   // Contexte : dernier programme + historique récent DE CETTE conversation.
   const { data: program } = await supabase
     .from("programs")
-    .select("plan")
+    .select("plan, duration_months")
     .eq("user_id", ctx.userId)
     .order("created_at", { ascending: false })
     .limit(1)
-    .maybeSingle<{ plan: unknown }>();
+    .maybeSingle<{ plan: unknown; duration_months: number | null }>();
 
   const { data: history } = await supabase
     .from("coach_messages")
@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
         startWd: coachStartWd,
         currentDay: ctx.access.day,
         completedDays: (doneRows ?? []).map((r) => r.day as number),
-        programDays: PROGRAM_DAYS,
+        programDays: ctx.access.programDays,
       })
     : [];
 
@@ -211,7 +211,7 @@ CALENDRIER (suis la progression avec ces repères réels) :
       ? new Date(`${ctx.profile.start_date}T00:00:00Z`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
       : "non défini"
   }.
-- Aujourd'hui : ${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" })} — jour ${ctx.access.day} sur ${PROGRAM_DAYS}.
+- Aujourd'hui : ${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" })} — jour ${ctx.access.day} sur ${ctx.access.programDays}.
 - STATUT DU JOUR : aujourd'hui est un jour ${todayIsTraining ? "D'ENTRAÎNEMENT, une séance est prévue" : "DE REPOS, aucune séance n'est prévue"}. Fie-toi à CETTE information (jours d'entraînement à jour : ${quiz?.train_days?.join(", ") || "non précisés"}), pas au texte du programme qui peut dater d'avant un changement de jours.
 - Les séances tombent aux vrais jours de la semaine choisis. Parle en dates concrètes et repère les séances validées vs prévues pour suivre les retards éventuels.
 - Séances en retard (passées, non validées) : ${missedList.length ? `${missedList.length} (jours ${missedList.slice(0, 8).join(", ")}${missedList.length > 8 ? "…" : ""}). Le calendrier ne bouge pas : encourage à les RATTRAPER quand le client peut, sur un ton bienveillant et sans culpabiliser. Rappelle qu'il peut ouvrir une séance passée depuis l'agenda pour la rattraper. N'en parle QUE si c'est pertinent (le client en parle, demande un bilan, ou s'inquiète de son retard).` : "aucune, félicite la régularité si le sujet vient."}
@@ -441,17 +441,25 @@ ${JSON.stringify(logs ?? [])}`;
     const equipment = (equipRows ?? []).map((e) => e.name as string);
 
     const result = await generateProgram(
-      { answers: mergedAnswers, trainDays: quiz.train_days ?? [], equipment },
+      {
+        answers: mergedAnswers,
+        trainDays: quiz.train_days ?? [],
+        equipment,
+        programDays: ctx!.access.programDays,
+      },
       "low", // rapide : tenir sous ~60 s dans la requête coach (Vercel Hobby)
       billing.key,
       ctx!.profile?.tenant_id ?? null,
     );
     totalUsage.input_tokens += result.usage.input_tokens;
     totalUsage.output_tokens += result.usage.output_tokens;
+    // duration_months conservée : sinon le prochain calcul d'accès retomberait
+    // sur la durée par défaut (90 j) après une adaptation.
     await supabase.from("programs").insert({
       user_id: ctx!.userId,
       plan: result.plan,
       model: result.model,
+      duration_months: program?.duration_months ?? null,
     });
     adapted = true;
     return `Programme régénéré en tenant compte de : « ${contrainte} ». Les exercices contre-indiqués ont été remplacés par des alternatives sûres. Confirme-le au client et invite-le à consulter si la douleur persiste.`;

@@ -9,8 +9,7 @@ import { CatchUp } from "@/components/catch-up";
 import { restPattern, startWeekday, isRestDay, dateOfProgramDay } from "@/lib/schedule";
 import { computeAdherence, missedDays } from "@/lib/streak";
 import { DAYS } from "@/lib/questionnaire";
-import type { Plan } from "@/lib/program";
-import { PROGRAM_DAYS } from "@/lib/config";
+import { sessionForDay, type Plan } from "@/lib/program";
 
 export const metadata = { title: "Programme" };
 
@@ -53,7 +52,7 @@ export default async function ProgrammePage() {
     return (
       <Empty
         title="Crée ton programme"
-        body="Réponds au questionnaire et photographie ta salle. Le paiement unique de 190 € intervient juste après, puis ton programme est généré."
+        body="Réponds au questionnaire et photographie ta salle. Le paiement de ton offre intervient juste après, puis ton programme est généré."
         cta={{ href: "/questionnaire", label: "Commencer le questionnaire" }}
       />
     );
@@ -100,14 +99,14 @@ export default async function ProgrammePage() {
     startWd,
     currentDay: access.day,
     completedDays: doneDays,
-    programDays: PROGRAM_DAYS,
+    programDays: access.programDays,
   });
   const todayTraining = access.day >= 1 && !isRestDay(access.day, pattern, startWd);
 
   // Séances manquées à rattraper (calendrier fixe) : jours d'entraînement passés
   // non validés, avec leur vraie date.
   const missed = showAdherence
-    ? missedDays({ pattern, startWd, currentDay: access.day, completedDays: doneDays, programDays: PROGRAM_DAYS })
+    ? missedDays({ pattern, startWd, currentDay: access.day, completedDays: doneDays, programDays: access.programDays })
     : [];
   const missedItems = ctx.profile?.start_date
     ? missed.map((day) => ({
@@ -128,19 +127,31 @@ export default async function ProgrammePage() {
         timeZone: "UTC",
       })
     : "";
-  const dayStat = access.phase === "scheduled" ? "J−" + (1 - access.day) : `${access.day}/${PROGRAM_DAYS}`;
+  const dayStat = access.phase === "scheduled" ? "J−" + (1 - access.day) : `${access.day}/${access.programDays}`;
+
+  // Carte « Aujourd'hui » : la 1re chose vue en ouvrant l'app. Séance du jour
+  // (ou repos), état validé, et l'action à faire maintenant.
+  const todaySession =
+    access.day >= 1 && access.day <= access.programDays
+      ? sessionForDay(plan, access.day, pattern, startWd)
+      : undefined;
+  const todayDone = doneDays.includes(access.day);
+  const todayFmt = new Date().toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "Europe/Paris",
+  });
+  const firstName = (ctx.profile?.name ?? "").trim().split(/\s+/)[0] || "";
+  const showToday = access.phase === "active" || access.phase === "restricted";
 
   return (
     <div className="mx-auto flex max-w-[880px] flex-col gap-6">
       <header className="flex flex-col gap-2">
         <MonoLabel className="text-brand">{accessLabel(access)}</MonoLabel>
         <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          Ton programme
+          {firstName ? `Salut ${firstName} !` : "Ton programme"}
         </h1>
-        <p className="text-[15px] leading-[1.6] text-muted">{plan.summary}</p>
-        <ButtonLink href="/plan-pdf" variant="ghost" className="mt-1 h-10 self-start">
-          Exporter mon plan en PDF
-        </ButtonLink>
       </header>
 
       {access.phase === "grace" ? (
@@ -158,8 +169,87 @@ export default async function ProgrammePage() {
         </Alert>
       ) : null}
 
+      {/* ─── Aujourd'hui : l'action du jour, en premier ─── */}
+      {showToday ? (
+        <Card className="relative flex flex-col gap-3 overflow-hidden border-brand/30">
+          <span className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-brand" />
+          <div className="flex items-baseline justify-between gap-3">
+            <MonoLabel className="text-brand">Aujourd&apos;hui</MonoLabel>
+            <span className="text-[12.5px] capitalize text-muted-2">{todayFmt}</span>
+          </div>
+          {todayTraining && todaySession ? (
+            <>
+              <div className="flex flex-col gap-1">
+                <h2 className="font-archivo font-extrabold text-[24px] leading-[1.1] tracking-[-0.02em] text-ink">
+                  {todaySession.title}
+                </h2>
+                <p className="text-[13.5px] text-muted">
+                  {todaySession.cycleLabel}
+                  {todaySession.exercises?.length ? ` · ${todaySession.exercises.length} exercices` : ""}
+                </p>
+              </div>
+              {todayDone ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="inline-flex items-center gap-2 rounded-pill bg-brand/10 px-3 py-1.5 text-[13.5px] font-semibold text-brand">
+                    ✓ Séance validée, bien joué !
+                  </span>
+                  <ButtonLink href="/app/evolution" variant="outline" className="h-10">
+                    Noter mon poids
+                  </ButtonLink>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-3">
+                  <ButtonLink href="/app/seance" variant="primary" className="h-[50px] px-6 text-[15.5px]">
+                    Démarrer ma séance
+                  </ButtonLink>
+                  <ButtonLink href="/app/nutrition" variant="ghost" className="h-[50px]">
+                    Mes repas du jour
+                  </ButtonLink>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col gap-1">
+                <h2 className="font-archivo font-extrabold text-[24px] leading-[1.1] tracking-[-0.02em] text-ink">
+                  Jour de repos
+                </h2>
+                <p className="text-[13.5px] leading-[1.6] text-muted">
+                  C&apos;est là que le muscle se construit : marche, hydratation, sommeil.
+                  Et l&apos;assiette fait le reste.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <ButtonLink href="/app/nutrition" variant="primary" className="h-[50px] px-6 text-[15.5px]">
+                  Mes repas du jour
+                </ButtonLink>
+                <ButtonLink href="/app/evolution" variant="ghost" className="h-[50px]">
+                  Noter mon poids
+                </ButtonLink>
+              </div>
+            </>
+          )}
+        </Card>
+      ) : null}
+
+      {/* Score de régularité : une fois le programme démarré (jour ≥ 1) */}
+      {showAdherence ? (
+        <RegularityScore stats={adherence} todayTraining={todayTraining} />
+      ) : null}
+
+      {/* Séances à rattraper (calendrier fixe) */}
+      <CatchUp items={missedItems} />
+
+      <section className="flex flex-col gap-2">
+        <MonoLabel>Ton programme</MonoLabel>
+        <p className="text-[14.5px] leading-[1.6] text-muted">{plan.summary}</p>
+        <ButtonLink href="/plan-pdf" variant="ghost" className="mt-1 h-10 self-start">
+          Exporter mon plan en PDF
+        </ButtonLink>
+      </section>
+
       {/* Cycles, en carrousel horizontal avec explications approfondies */}
-      <CyclesCarousel cycles={plan.cycles.slice(0, 3)} />
+      <CyclesCarousel cycles={plan.cycles} />
 
       {/* Semaine type, reflète les jours choisis. Défilement horizontal sur
           mobile : cartes larges lisibles, on glisse pour voir la suite. */}
@@ -209,14 +299,6 @@ export default async function ProgrammePage() {
         <Card><Stat label="Jour" value={dayStat} sub={access.phase === "scheduled" ? "Avant le départ" : "Programme en cours"} /></Card>
         <Card><Stat label="Calories / jour" value={`${plan.nutrition.kcal}`} sub="Jour d'entraînement" /></Card>
       </section>
-
-      {/* Score de régularité : une fois le programme démarré (jour ≥ 1) */}
-      {showAdherence ? (
-        <RegularityScore stats={adherence} todayTraining={todayTraining} />
-      ) : null}
-
-      {/* Séances à rattraper (calendrier fixe) */}
-      <CatchUp items={missedItems} />
 
       <div className="flex flex-wrap gap-3">
         <ButtonLink href="/app/seance" variant="primary">Aller à ma séance</ButtonLink>

@@ -2,13 +2,12 @@ import Link from "next/link";
 import { loadEspaceOrRedirect } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import { restPattern, isRestDay, startWeekday, dateOfProgramDay } from "@/lib/schedule";
-import { sessionForDay, warmupSteps } from "@/lib/program";
+import { sessionForDay, warmupSteps, cycleIndexForDay } from "@/lib/program";
 import { Card, MonoLabel } from "@/components/ui";
 import { SessionRunner, type Exercise } from "@/components/session-runner";
 import { CoachLoadSuggestion } from "@/components/coach-loads";
 import { DepannageButton } from "@/components/depannage-button";
 import { RPE, RPE_INTRO, targetRpe, karvonen, resolveRestSeconds } from "@/lib/fitness";
-import { PROGRAM_DAYS } from "@/lib/config";
 
 export const metadata = { title: "Séance" };
 
@@ -30,13 +29,13 @@ export default async function SeancePage({
   const today = Math.max(1, ctx.access.day);
 
   const jourParam = Number(Array.isArray(sp.jour) ? sp.jour[0] : sp.jour);
-  const day = jourParam >= 1 && jourParam <= PROGRAM_DAYS ? jourParam : today;
+  const day = jourParam >= 1 && jourParam <= ctx.access.programDays ? jourParam : today;
   const isToday = day === today;
 
   const startWd = startWeekday(ctx.profile?.start_date);
   const pattern = restPattern(trainDays, plan.weekPlan.slice(0, 7).map((d) => d.rest));
   const todayRest = isRestDay(day, pattern, startWd);
-  const cycle = day <= 30 ? 1 : day <= 60 ? 2 : 3;
+  const cycle = cycleIndexForDay(day, plan.cycles?.length || 3) + 1;
   const rpeGoal = targetRpe(day);
 
   // Séance du jour : programme PÉRIODISÉ en 3 cycles de 4 semaines. On prend les

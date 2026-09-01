@@ -16,7 +16,6 @@ import { brandMetadataForUser } from "@/lib/brand-metadata";
 import { readCoachName } from "@/lib/methodology";
 import { tenantFreezeState } from "@/lib/freeze";
 import { FrozenScreen } from "@/components/frozen-screen";
-import { PROGRAM_DAYS } from "@/lib/config";
 
 // Onglet + favicon en marque blanche (coach du client connecté).
 export async function generateMetadata() {
@@ -51,7 +50,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const vipUnread = vip.enabled ? await clientUnreadVipCount(ctx.userId) : 0;
 
   const day = ctx.access.day;
-  const dayPct = Math.max(1, Math.round((Math.min(day, PROGRAM_DAYS) / PROGRAM_DAYS) * 100));
+  const programDays = ctx.access.programDays;
+  const dayPct = Math.max(1, Math.round((Math.min(day, programDays) / programDays) * 100));
 
   const accentStyle = brand?.brandColor
     ? ({
@@ -65,6 +65,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       <AppNav
         day={day}
         dayPct={dayPct}
+        programDays={programDays}
         shopEnabled={shopEnabled}
         vipEnabled={vip.enabled}
         affiliationEnabled={aff.enabled}

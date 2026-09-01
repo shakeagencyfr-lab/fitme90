@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
-import { PROGRAM_DAYS } from "@/lib/config";
 
 export interface SaveSessionResult {
   ok?: boolean;
@@ -31,7 +30,7 @@ export async function saveSession(payload: {
     return { error: "La validation des séances est possible pendant ton programme." };
   }
   const day = Math.round(payload.day);
-  if (!(day >= 1 && day <= PROGRAM_DAYS)) return { error: "Jour invalide." };
+  if (!(day >= 1 && day <= ctx.access.programDays)) return { error: "Jour invalide." };
 
   const entries = Array.isArray(payload.entries) ? payload.entries : [];
   const muscu = entries.filter((e) => e.reps && e.reps > 0);
