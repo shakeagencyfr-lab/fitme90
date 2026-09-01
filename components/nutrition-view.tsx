@@ -39,9 +39,9 @@ interface Props {
   canGenerate: boolean;
   initialChecks?: string[]; // clés d'articles déjà cochées (persistées)
   startDate?: string; // date de début du programme (pour les vraies dates)
+  /** Durée du programme en jours (offre du client). Défaut 90 j ≈ 13 semaines. */
+  programDays?: number;
 }
-
-const WEEKS = 13; // 90 jours ≈ 13 semaines
 
 export function NutritionView({
   currentDay,
@@ -55,7 +55,10 @@ export function NutritionView({
   canGenerate,
   initialChecks = [],
   startDate = "",
+  programDays = 90,
 }: Props) {
+  // Nombre de semaines couvertes par le programme (dernière semaine incluse).
+  const WEEKS = Math.max(1, Math.ceil(programDays / 7));
   // Vraie date d'un jour de programme (numéro + mois court), si connue.
   const dateOf = (d: number) =>
     startDate

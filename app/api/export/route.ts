@@ -38,7 +38,7 @@ export async function GET() {
   return new NextResponse(JSON.stringify(dump, null, 2), {
     headers: {
       "content-type": "application/json",
-      "content-disposition": 'attachment; filename="fitme90-mes-donnees.json"',
+      "content-disposition": 'attachment; filename="my-fitness-app-mes-donnees.json"',
     },
   });
 }

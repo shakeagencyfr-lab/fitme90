@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 const PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 const PRIVATE = process.env.VAPID_PRIVATE_KEY;
-const SUBJECT = process.env.VAPID_SUBJECT || "mailto:contact@fitme90.app";
+const SUBJECT = process.env.VAPID_SUBJECT || "mailto:contact@myfitnessapp.fit";
 
 let configured = false;
 

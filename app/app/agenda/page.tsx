@@ -9,21 +9,25 @@ import {
 } from "@/lib/schedule";
 import { DAYS } from "@/lib/questionnaire";
 import { MonoLabel } from "@/components/ui";
+import { cycleIndexForDay } from "@/lib/program";
 
 export const metadata = { title: "Agenda" };
 
 const DAY_MS = 86_400_000;
-const cycleOf = (d: number) => (d <= 30 ? 0 : d <= 60 ? 1 : 2);
 const CYCLE_DOT = ["bg-brand", "bg-ink", "bg-cardio"];
 
 export default async function AgendaPage() {
   const { ctx, plan, trainDays } = await loadEspaceOrRedirect();
   const today = ctx.access.day; // numéro de jour de programme (peut être ≤ 0 si à venir)
+  const programDays = ctx.access.programDays;
+  const cycleCount = plan.cycles?.length || 3;
+  // Couleur du point de cycle (tourne sur 3 couleurs si plus de 3 cycles).
+  const cycleOf = (d: number) => cycleIndexForDay(d, cycleCount) % CYCLE_DOT.length;
   const pattern = restPattern(trainDays, plan.weekPlan.slice(0, 7).map((d) => d.rest));
 
   const start = parseStartDate(ctx.profile?.start_date) ?? new Date();
   const startUTC = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
-  const end = dateOfProgramDay(start, 90);
+  const end = dateOfProgramDay(start, programDays);
   const endUTC = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
   // Premier jour du calendrier = lundi de la semaine du départ.
   const firstCal = startUTC - weekdayIndexUTC(start) * DAY_MS;
@@ -54,9 +58,9 @@ export default async function AgendaPage() {
       </h1>
 
       <div className="flex flex-wrap gap-4">
-        {plan.cycles.slice(0, 3).map((c, i) => (
+        {plan.cycles.map((c, i) => (
           <div key={i} className="flex items-center gap-2">
-            <span className={`inline-block size-2.5 rounded-full ${CYCLE_DOT[i]}`} />
+            <span className={`inline-block size-2.5 rounded-full ${CYCLE_DOT[i % CYCLE_DOT.length]}`} />
             <span className="text-[13px] text-muted">{c.name}</span>
           </div>
         ))}
@@ -85,7 +89,7 @@ export default async function AgendaPage() {
                 {week.map((dUTC) => {
                   const date = new Date(dUTC);
                   const pd = programDayOf(dUTC);
-                  const inWindow = pd >= 1 && pd <= 90;
+                  const inWindow = pd >= 1 && pd <= programDays;
                   const rest = pattern[weekdayIndexUTC(date)];
                   const isDone = done.has(pd);
                   const isToday = inWindow && pd === today;

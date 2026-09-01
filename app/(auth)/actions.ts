@@ -12,6 +12,29 @@ function siteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 }
 
+// Lit le résultat d'un signUp Supabase et le traduit en message actionnable.
+// Cas piège : e-mail déjà inscrit -> Supabase renvoie un « faux succès » sans
+// envoyer d'e-mail (identities vide). Sans ce test, l'utilisateur attend un
+// e-mail de confirmation qui n'arrivera jamais.
+function signUpOutcome(res: {
+  data: { user: { identities?: unknown[] | null } | null };
+  error: { status?: number; code?: string } | null;
+}): AuthState | null {
+  if (res.error) {
+    if (res.error.status === 429 || res.error.code === "over_email_send_rate_limit") {
+      return { error: "L'envoi d'e-mails est temporairement limité. Réessaie dans quelques minutes." };
+    }
+    return { error: "Impossible de créer le compte. Vérifie l'adresse e-mail." };
+  }
+  if (res.data.user && (res.data.user.identities?.length ?? 0) === 0) {
+    return {
+      error:
+        "Un compte existe déjà avec cette adresse. Connecte-toi, ou utilise « Mot de passe oublié » si besoin.",
+    };
+  }
+  return null;
+}
+
 export interface AuthState {
   error?: string;
   notice?: string;
@@ -123,17 +146,15 @@ export async function signUpAction(
   if (/^[A-Z0-9]{4,16}$/.test(ref)) data.ref = ref;
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const res = await supabase.auth.signUp({
     ...parsed.data,
     options: {
       emailRedirectTo: `${siteUrl()}/auth/confirm?next=/questionnaire`,
       data,
     },
   });
-  if (error) {
-    // Message neutre : ne pas révéler si l'e-mail existe déjà.
-    return { error: "Impossible de créer le compte. Vérifie l'adresse e-mail." };
-  }
+  const bad = signUpOutcome(res);
+  if (bad) return bad;
 
   redirect("/verifie-tes-mails");
 }
@@ -168,16 +189,15 @@ export async function signUpCoachAction(
   if (resellerSlug) data.reseller_slug = resellerSlug;
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const res = await supabase.auth.signUp({
     ...parsed.data,
     options: {
       emailRedirectTo: `${siteUrl()}/auth/confirm?next=/admin`,
       data,
     },
   });
-  if (error) {
-    return { error: "Impossible de créer le compte. Vérifie l'adresse e-mail." };
-  }
+  const bad = signUpOutcome(res);
+  if (bad) return bad;
 
   redirect("/verifie-tes-mails");
 }
@@ -207,16 +227,15 @@ export async function signUpResellerAction(
   if (!tenantName) return { error: "Indique le nom de ton réseau / enseigne." };
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const res = await supabase.auth.signUp({
     ...parsed.data,
     options: {
       emailRedirectTo: `${siteUrl()}/auth/confirm?next=/admin`,
       data: { reseller_signup: "1", tenant_name: tenantName, contact_name: contactName },
     },
   });
-  if (error) {
-    return { error: "Impossible de créer le compte. Vérifie l'adresse e-mail." };
-  }
+  const bad = signUpOutcome(res);
+  if (bad) return bad;
 
   redirect("/verifie-tes-mails");
 }
@@ -229,10 +248,15 @@ export async function requestResetAction(
   if (!email.success) return { error: "Adresse e-mail invalide." };
 
   const supabase = await createClient();
-  await supabase.auth.resetPasswordForEmail(email.data, {
+  const { error } = await supabase.auth.resetPasswordForEmail(email.data, {
     redirectTo: `${siteUrl()}/auth/confirm?next=/reinitialiser`,
   });
-  // Toujours le même message, que l'e-mail existe ou non (anti-énumération).
+  // Le rate-limit d'envoi (quelques e-mails/heure) mérite un vrai message :
+  // sinon l'utilisateur attend un e-mail jamais parti et réessaie en boucle.
+  if (error && (error.status === 429 || error.code === "over_email_send_rate_limit")) {
+    return { error: "Trop de demandes d'e-mail d'affilée. Patiente quelques minutes puis réessaie." };
+  }
+  // Sinon, toujours le même message, que l'e-mail existe ou non (anti-énumération).
   return {
     notice:
       "Si un compte existe pour cette adresse, un e-mail de réinitialisation vient d'être envoyé.",

@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 // Accès d'assistance (« master admin ») et liens de connexion à usage unique.
 //
@@ -56,6 +57,30 @@ export async function loginLinkForUser(userId: string, next: string, origin: str
   const safeNext = next.startsWith("/") ? next : "/admin";
   const q = new URLSearchParams({ token_hash: hashed, type: "magiclink", next: safeNext });
   return `${origin.replace(/\/+$/, "")}/auth/confirm?${q.toString()}`;
+}
+
+/**
+ * Établit DIRECTEMENT une session dans le compte cible, depuis une server
+ * action (le jeton est vérifié côté serveur et les cookies de session écrits
+ * dans la réponse de l'action). Plus fiable que rediriger vers /auth/confirm :
+ * les cookies posés par une route handler atteinte via la redirection d'une
+ * server action ne retombent pas toujours dans le navigateur.
+ * À n'appeler qu'APRÈS la vérification d'autorisation (isDescendantTenant).
+ */
+export async function establishSupportSession(userId: string): Promise<boolean> {
+  const admin = createAdminClient();
+  const { data: got } = await admin.auth.admin.getUserById(userId);
+  const email = got?.user?.email;
+  if (!email) return false;
+
+  const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email });
+  const hashed = data?.properties?.hashed_token;
+  if (error || !hashed) return false;
+
+  // Le client SSR remplace la session de l'opérateur par celle de la cible.
+  const supabase = await createClient();
+  const { error: vErr } = await supabase.auth.verifyOtp({ type: "magiclink", token_hash: hashed });
+  return !vErr;
 }
 
 /** Trace un accès d'assistance (best-effort, ne bloque jamais l'action). */

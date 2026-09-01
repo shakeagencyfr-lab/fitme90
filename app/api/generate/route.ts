@@ -8,7 +8,7 @@ import { generateProgram } from "@/lib/program";
 import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { clientOffer } from "@/lib/offers";
 import { clientUsesCredits, getWallet, debitWallet } from "@/lib/credits";
-import { LIMIT_GENERATE_TOTAL } from "@/lib/config";
+import { LIMIT_GENERATE_TOTAL, programDaysForMonths } from "@/lib/config";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // génération longue : jusqu'à 5 min
@@ -113,7 +113,12 @@ export async function POST() {
     }
   }
 
-  // 5-6. Appel modèle + validation JSON
+  // 5-6. Appel modèle + validation JSON. La durée de l'offre achetée détermine
+  // le nombre de cycles générés (1 mois = 1 cycle, 3 mois = 3, 6 mois = 6).
+  const offer = await clientOffer(ctx.userId);
+  const programDays = offer?.duration_months
+    ? programDaysForMonths(offer.duration_months)
+    : undefined;
   let result;
   try {
     result = await generateProgram(
@@ -121,6 +126,7 @@ export async function POST() {
         answers: quiz.answers,
         trainDays: quiz.train_days ?? [],
         equipment,
+        programDays,
       },
       "high",
       billing.key,
@@ -136,7 +142,6 @@ export async function POST() {
   // 7. Écriture : programme + start_date (posée UNE fois, à la 1re génération).
   // Durée : celle de l'offre achetée (sinon défaut 3 mois via NULL).
   const admin = createAdminClient();
-  const offer = await clientOffer(ctx.userId);
   const { error: insErr } = await supabase.from("programs").insert({
     user_id: ctx.userId,
     plan: result.plan,

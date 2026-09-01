@@ -43,6 +43,7 @@ export default async function NutritionPage() {
         canGenerate={ctx.access.coachEnabled}
         initialChecks={initialChecks}
         startDate={ctx.profile?.start_date ?? ""}
+        programDays={ctx.access.programDays}
       />
     </div>
   );

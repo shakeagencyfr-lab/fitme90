@@ -45,6 +45,31 @@ describe("matchLibraryExercise", () => {
     expect(matchLibraryExercise("Kettlebell swing")?.key).toBe("kettlebell-swing");
   });
 
+  it("reconnaît le lot 2 (enrichissement visuels)", () => {
+    expect(matchLibraryExercise("Squat avant")?.key).toBe("front-squat");
+    expect(matchLibraryExercise("Écarté couché haltères")?.key).toBe("ecarte-halteres");
+    expect(matchLibraryExercise("Écarté à la poulie vis-à-vis")?.key).toBe("ecarte-poulie");
+    expect(matchLibraryExercise("Pull-over haltère")?.key).toBe("pull-over");
+    expect(matchLibraryExercise("Tractions supination")?.key).toBe("traction-supination");
+    expect(matchLibraryExercise("Développé Arnold")?.key).toBe("developpe-arnold");
+    expect(matchLibraryExercise("Curl concentration")?.key).toBe("curl-concentration");
+    expect(matchLibraryExercise("Extension triceps au-dessus de la tête (corde)")?.key).toBe(
+      "extension-triceps-verticale",
+    );
+    expect(matchLibraryExercise("Dead bug")?.key).toBe("dead-bug");
+    expect(matchLibraryExercise("Soulevé de terre sumo")?.key).toBe("souleve-de-terre-sumo");
+    expect(matchLibraryExercise("Course sur tapis")?.key).toBe("tapis-course");
+    expect(matchLibraryExercise("Box jump")?.key).toBe("box-jump");
+  });
+
+  it("ne régresse pas sur les mouvements proches du lot 2", () => {
+    // « développé couché » ne doit pas basculer sur l'écarté ou le décliné.
+    expect(matchLibraryExercise("Développé couché")?.key).toBe("developpe-couche");
+    expect(matchLibraryExercise("Tractions pronation")?.key).toBe("tractions");
+    expect(matchLibraryExercise("Extension triceps à la poulie")?.key).toBe("extension-triceps-poulie");
+    expect(matchLibraryExercise("Squat barre")?.key).toBe("squat");
+  });
+
   it("renvoie null pour un exercice inconnu", () => {
     expect(matchLibraryExercise("Yoga du matin")).toBeNull();
     expect(matchLibraryExercise("")).toBeNull();

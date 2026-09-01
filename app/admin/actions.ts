@@ -7,7 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminOrNull } from "@/lib/admin";
 import { tenantNode } from "@/lib/hierarchy";
 import { createChildTenantAccount } from "@/lib/admin-provision";
-import { isDescendantTenant, loginLinkForUser, logSupportAccess } from "@/lib/support-access";
+import { isDescendantTenant, loginLinkForUser, establishSupportSession, logSupportAccess } from "@/lib/support-access";
 import { broadcastPushToUsers } from "@/lib/push";
 import { resolveAudience, type AudienceFilter } from "@/lib/audience";
 import {
@@ -1380,10 +1380,10 @@ export async function supportLoginAs(formData: FormData): Promise<void> {
     redirect("/admin/reseau?assistance=refus");
   }
 
-  const origin = await requestOrigin();
-  const link = origin ? await loginLinkForUser(targetUserId, "/admin", origin) : null;
-  if (!link) redirect("/admin/reseau?assistance=echec");
-
+  // Session établie directement dans l'action (les cookies partent avec la
+  // réponse) : le détour par /auth/confirm perdait la session en route.
   await logSupportAccess({ actorUserId: ctx.userId, actorTenantId, targetUserId, targetTenantId });
-  redirect(link);
+  const ok = await establishSupportSession(targetUserId);
+  if (!ok) redirect("/admin/reseau?assistance=echec");
+  redirect("/admin");
 }

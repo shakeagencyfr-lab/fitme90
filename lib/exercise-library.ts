@@ -651,7 +651,6 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     name: "Rameur",
     muscle: "Dos et cardio",
     aliases: ["rameur", "rowing machine", "ergometre", "cardio rameur", "aviron"],
-    noPhoto: true,
     guide: {
       steps: [
         "Attrape la poignée, jambes fléchies, bras tendus, dos droit.",
@@ -667,7 +666,6 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     name: "Corde à sauter",
     muscle: "Cardio et mollets",
     aliases: ["corde a sauter", "saut a la corde", "jump rope", "skipping"],
-    noPhoto: true,
     guide: {
       steps: [
         "Coudes près du corps, la corde tourne par les poignets.",
@@ -699,7 +697,6 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     name: "Grimpeur (mountain climber)",
     muscle: "Abdominaux et cardio",
     aliases: ["mountain climber", "grimpeur", "climber"],
-    noPhoto: true,
     guide: {
       steps: [
         "En position de planche, mains sous les épaules, corps gainé.",
@@ -747,7 +744,6 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     name: "Thruster",
     muscle: "Cuisses et épaules",
     aliases: ["thruster", "squat developpe", "squat press"],
-    noPhoto: true,
     guide: {
       steps: [
         "Charge (haltères ou barre) au niveau des épaules, pieds largeur d'épaules.",
@@ -763,7 +759,6 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     name: "Haussements d'épaules (shrugs)",
     muscle: "Trapèzes",
     aliases: ["haussements epaules", "shrug", "shrugs", "trapezes halteres", "haussement epaules"],
-    noPhoto: true,
     guide: {
       steps: [
         "Debout, un haltère dans chaque main, bras le long du corps.",
@@ -779,7 +774,6 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     name: "Oiseau (reverse fly)",
     muscle: "Épaules (arrière)",
     aliases: ["oiseau", "reverse fly", "elevations buste penche", "deltoide posterieur", "rear delt fly"],
-    noPhoto: true,
     guide: {
       steps: [
         "Buste penché en avant, dos droit, un haltère léger dans chaque main.",
@@ -795,7 +789,6 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     name: "Good morning",
     muscle: "Ischios et lombaires",
     aliases: ["good morning", "bonjour barre", "flexion buste barre"],
-    noPhoto: true,
     guide: {
       steps: [
         "Barre légère sur le haut du dos, pieds largeur de hanches.",
@@ -811,7 +804,6 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     name: "Fente bulgare",
     muscle: "Cuisses et fessiers",
     aliases: ["fente bulgare", "squat bulgare", "bulgarian split squat", "fente pied surelevé"],
-    noPhoto: true,
     guide: {
       steps: [
         "Un pied en arrière posé sur un banc, l'autre devant.",
@@ -827,7 +819,6 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     name: "Montée sur banc (step-up)",
     muscle: "Cuisses et fessiers",
     aliases: ["step up", "montee sur banc", "montees banc", "step ups"],
-    noPhoto: true,
     guide: {
       steps: [
         "Face à un banc stable, pose un pied entier dessus.",
@@ -859,7 +850,6 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     name: "Superman (extensions lombaires)",
     muscle: "Lombaires",
     aliases: ["superman", "extensions lombaires", "extension lombaire", "gainage dorsal"],
-    noPhoto: true,
     guide: {
       steps: [
         "Allongé sur le ventre, bras tendus devant toi.",
@@ -891,7 +881,6 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     name: "Marche du fermier",
     muscle: "Avant-bras et corps entier",
     aliases: ["marche du fermier", "farmer walk", "farmers walk", "port de charge", "marche fermier"],
-    noPhoto: true,
     guide: {
       steps: [
         "Une charge lourde dans chaque main, bras le long du corps.",
@@ -900,6 +889,443 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
       ],
       cues: ["Grand et gainé", "Épaules en arrière", "Petits pas réguliers"],
       mistakes: ["Se pencher en avant", "Épaules qui s'affaissent"],
+    },
+  },
+  // ───── Enrichissement (lot 2) : jambes, pecs, dos, épaules, bras, gainage, cardio ─────
+  {
+    key: "front-squat",
+    name: "Squat avant",
+    muscle: "Cuisses et fessiers",
+    aliases: ["squat avant", "front squat", "squat barre devant", "squat clavicules"],
+    guide: {
+      steps: [
+        "Barre posée sur l'avant des épaules, coudes hauts pointés devant toi.",
+        "Pieds largeur d'épaules, descends droit entre tes jambes, buste très vertical.",
+        "Cuisses au moins parallèles au sol, puis remonte en poussant dans tout le pied.",
+      ],
+      cues: ["Coudes hauts en permanence", "Buste plus droit qu'au squat classique", "Gaine fort le ventre"],
+      mistakes: ["Laisser tomber les coudes (la barre roule)", "Se pencher en avant", "Talons qui décollent"],
+    },
+  },
+  {
+    key: "hack-squat",
+    name: "Hack squat (machine)",
+    muscle: "Quadriceps",
+    aliases: ["hack squat", "squat machine", "hack squat machine"],
+    guide: {
+      steps: [
+        "Dos et épaules calés contre le dossier, pieds largeur d'épaules sur la plateforme.",
+        "Déverrouille et descends en pliant les genoux, dos plaqué.",
+        "Genoux à environ 90° (ou un peu plus bas si confortable), puis remonte sans verrouiller.",
+      ],
+      cues: ["Dos toujours plaqué", "Pousse dans toute la surface du pied", "Descente contrôlée"],
+      mistakes: ["Décoller le bas du dos en descendant trop bas", "Petits rebonds en bas"],
+    },
+  },
+  {
+    key: "souleve-de-terre-sumo",
+    name: "Soulevé de terre sumo",
+    muscle: "Fessiers et ischio-jambiers",
+    aliases: ["souleve de terre sumo", "sumo deadlift", "deadlift sumo"],
+    guide: {
+      steps: [
+        "Pieds très écartés, pointes ouvertes, tibias proches de la barre.",
+        "Saisis la barre bras à l'intérieur des genoux, dos plat, poitrine haute.",
+        "Pousse le sol avec les jambes et redresse-toi, la barre glisse le long des jambes.",
+        "Redescends en contrôlant, hanches vers l'arrière.",
+      ],
+      cues: ["Genoux ouverts dans l'axe des pointes", "Dos plat du début à la fin", "Barre collée au corps"],
+      mistakes: ["Genoux qui rentrent", "Tirer avec le dos avant les jambes"],
+    },
+  },
+  {
+    key: "mollets-assis",
+    name: "Mollets assis (machine)",
+    muscle: "Mollets",
+    aliases: ["mollets assis", "seated calf raise", "extension mollets assis", "machine a mollets assis"],
+    guide: {
+      steps: [
+        "Assis, coussins sur les cuisses, avant-pieds sur la cale, talons dans le vide.",
+        "Monte sur la pointe des pieds le plus haut possible.",
+        "Redescends lentement, talons sous le niveau de la cale pour étirer.",
+      ],
+      cues: ["Grande amplitude, haut et bas", "Un temps d'arrêt en haut", "Descente lente"],
+      mistakes: ["Rebondir en bas", "Amplitude écourtée"],
+    },
+  },
+  {
+    key: "adducteurs-machine",
+    name: "Adducteurs à la machine",
+    muscle: "Adducteurs (intérieur des cuisses)",
+    aliases: ["adducteurs machine", "machine adducteurs", "adduction hanches", "thigh adductor"],
+    guide: {
+      steps: [
+        "Assis, jambes écartées contre les coussins, dos au dossier.",
+        "Serre les jambes l'une vers l'autre en contractant l'intérieur des cuisses.",
+        "Reviens lentement à la position de départ sans laisser les poids claquer.",
+      ],
+      cues: ["Mouvement lent et contrôlé", "Amplitude confortable", "Expire en serrant"],
+      mistakes: ["Charge trop lourde et à-coups", "Laisser la machine te ré-écarter d'un coup"],
+    },
+  },
+  {
+    key: "extension-fessier-poulie",
+    name: "Extension fessier (kickback)",
+    muscle: "Fessiers",
+    aliases: ["kickback fessier", "extension fessier poulie", "glute kickback", "extension hanche poulie", "donkey kick"],
+    guide: {
+      steps: [
+        "Sangle à la cheville (ou à quatre pattes au poids du corps), appuis stables.",
+        "Pousse la jambe vers l'arrière et le haut en serrant la fesse.",
+        "Marque un temps en fin de mouvement, puis reviens lentement.",
+      ],
+      cues: ["Bassin stable, pas de rotation", "Serre la fesse en haut", "Ne cambre pas pour monter plus haut"],
+      mistakes: ["Compenser avec le bas du dos", "Balancer la jambe sans contrôle"],
+    },
+  },
+  {
+    key: "extension-lombaire",
+    name: "Extension lombaire (banc)",
+    muscle: "Bas du dos et fessiers",
+    aliases: ["extension lombaire", "hyperextension", "banc a lombaires", "extensions dos", "back extension"],
+    guide: {
+      steps: [
+        "Cuisses sur le coussin du banc à 45°, chevilles calées, bras croisés sur la poitrine.",
+        "Descends le buste en gardant le dos neutre.",
+        "Remonte jusqu'à l'alignement jambes-buste en serrant fessiers et lombaires.",
+      ],
+      cues: ["Dos neutre, pas cambré", "Monte avec les fessiers autant que le dos", "Rythme lent"],
+      mistakes: ["Hyper-étendre le dos en haut", "Donner des à-coups"],
+    },
+  },
+  {
+    key: "ecarte-halteres",
+    name: "Écarté couché haltères",
+    muscle: "Pectoraux",
+    aliases: ["ecarte couche", "ecarte halteres", "ecartes couches", "dumbbell fly", "ecarte couche halteres"],
+    guide: {
+      steps: [
+        "Allongé sur le banc, haltères au-dessus de la poitrine, coudes légèrement fléchis.",
+        "Ouvre les bras en arc de cercle jusqu'à sentir l'étirement des pectoraux.",
+        "Referme en serrant les pectoraux, comme pour enlacer un tronc d'arbre.",
+      ],
+      cues: ["Coudes toujours un peu fléchis", "Descente lente, étirement contrôlé", "Omoplates serrées"],
+      mistakes: ["Tendre complètement les bras", "Descendre trop bas et forcer l'épaule", "Transformer en développé"],
+    },
+  },
+  {
+    key: "ecarte-poulie",
+    name: "Écarté à la poulie (vis-à-vis)",
+    muscle: "Pectoraux",
+    aliases: ["ecarte poulie", "cable crossover", "vis a vis", "poulie vis a vis", "ecarte cables"],
+    guide: {
+      steps: [
+        "Debout entre les deux poulies hautes, une poignée dans chaque main, un pied devant.",
+        "Buste légèrement penché, ramène les mains devant toi en arc de cercle, vers le bas et l'avant.",
+        "Serre les pectoraux quand les mains se rejoignent, puis reviens en contrôlant.",
+      ],
+      cues: ["Coudes légèrement fléchis et fixes", "Serre 1 seconde au milieu", "Buste stable"],
+      mistakes: ["Plier puis tendre les coudes (ça devient un développé)", "S'aider du dos en reculant"],
+    },
+  },
+  {
+    key: "pec-deck",
+    name: "Pec deck (butterfly)",
+    muscle: "Pectoraux",
+    aliases: ["pec deck", "butterfly", "papillon machine", "machine ecarte"],
+    guide: {
+      steps: [
+        "Assis, dos plaqué, avant-bras ou mains sur les coussins à hauteur de poitrine.",
+        "Ramène les bras l'un vers l'autre en serrant les pectoraux.",
+        "Marque un temps quand les coussins se rejoignent, puis reviens lentement.",
+      ],
+      cues: ["Dos plaqué en permanence", "Serre fort au milieu", "Retour lent"],
+      mistakes: ["Décoller le dos pour pousser", "Amplitude excessive en arrière"],
+    },
+  },
+  {
+    key: "developpe-decline",
+    name: "Développé décliné",
+    muscle: "Pectoraux (bas)",
+    aliases: ["developpe decline", "decline bench press", "developpe couche decline"],
+    guide: {
+      steps: [
+        "Allongé sur un banc décliné, pieds calés, barre saisie un peu plus large que les épaules.",
+        "Descends la barre vers le bas des pectoraux en contrôlant.",
+        "Pousse jusqu'à l'extension des bras sans verrouiller brutalement.",
+      ],
+      cues: ["Omoplates serrées", "Trajectoire courte et stable", "Poignets droits"],
+      mistakes: ["Rebond sur la poitrine", "Fesses qui décollent du banc"],
+    },
+  },
+  {
+    key: "pull-over",
+    name: "Pull-over haltère",
+    muscle: "Pectoraux et grand dorsal",
+    aliases: ["pull over", "pullover", "pull over haltere", "pull over couche"],
+    guide: {
+      steps: [
+        "Allongé en travers ou le long d'un banc, un haltère tenu à deux mains au-dessus de la poitrine.",
+        "Descends l'haltère derrière la tête, bras légèrement fléchis, jusqu'à un bon étirement.",
+        "Ramène l'haltère au-dessus de la poitrine en contractant pectoraux et dorsaux.",
+      ],
+      cues: ["Bras presque tendus, coudes fixes", "Étirement progressif, jamais douloureux", "Gaine le ventre"],
+      mistakes: ["Plier les coudes (ça devient un triceps)", "Cambrer excessivement le dos"],
+    },
+  },
+  {
+    key: "rowing-t-bar",
+    name: "Rowing T-bar",
+    muscle: "Dos (épaisseur)",
+    aliases: ["rowing t bar", "t bar row", "rowing barre en t", "rowing landmine"],
+    guide: {
+      steps: [
+        "Barre calée au sol, à cheval au-dessus, buste penché dos plat, poignée sous la barre.",
+        "Tire la barre vers le bas du torse en serrant les omoplates.",
+        "Redescends lentement jusqu'à l'extension des bras.",
+      ],
+      cues: ["Dos plat, buste stable", "Coudes près du corps", "Tire avec le dos, pas les bras"],
+      mistakes: ["Se redresser à chaque répétition", "Arrondir le bas du dos"],
+    },
+  },
+  {
+    key: "tirage-bras-tendus",
+    name: "Tirage bras tendus",
+    muscle: "Grand dorsal",
+    aliases: ["tirage bras tendus", "straight arm pulldown", "pull down bras tendus", "tirage poulie bras tendus"],
+    guide: {
+      steps: [
+        "Debout face à la poulie haute, barre ou corde saisie bras tendus à hauteur des épaules.",
+        "Bras quasi tendus, amène la barre vers tes cuisses en contractant les dorsaux.",
+        "Remonte lentement jusqu'à l'étirement, sans hausser les épaules.",
+      ],
+      cues: ["Coudes verrouillés légèrement fléchis", "Imagine pousser le sol avec la barre", "Buste stable"],
+      mistakes: ["Plier les coudes (ça devient un triceps)", "S'aider du buste en se balançant"],
+    },
+  },
+  {
+    key: "traction-supination",
+    name: "Tractions supination (chin-up)",
+    muscle: "Dos et biceps",
+    aliases: ["tractions supination", "chin up", "chin-up", "traction supination", "tractions prise inversee"],
+    guide: {
+      steps: [
+        "Suspendu à la barre, paumes vers toi, mains largeur d'épaules.",
+        "Tire-toi vers le haut jusqu'à passer le menton au-dessus de la barre.",
+        "Redescends lentement jusqu'aux bras tendus.",
+      ],
+      cues: ["Poitrine vers la barre", "Descente complète et contrôlée", "Gaine le ventre (pas de balancement)"],
+      mistakes: ["Demi-répétitions", "S'élancer avec les jambes"],
+    },
+  },
+  {
+    key: "developpe-arnold",
+    name: "Développé Arnold",
+    muscle: "Épaules",
+    aliases: ["developpe arnold", "arnold press", "arnold"],
+    guide: {
+      steps: [
+        "Assis, haltères devant les épaules, paumes vers toi.",
+        "Pousse vers le haut en tournant les paumes vers l'avant pendant la montée.",
+        "Redescends en tournant les paumes vers toi, en contrôlant.",
+      ],
+      cues: ["Rotation fluide et continue", "Ne cambre pas le dos", "Trajectoire proche du corps"],
+      mistakes: ["Charge trop lourde (rotation brouillonne)", "Cambrer pour finir la pousse"],
+    },
+  },
+  {
+    key: "push-press",
+    name: "Push press",
+    muscle: "Épaules et jambes",
+    aliases: ["push press", "developpe avec impulsion", "push press barre"],
+    guide: {
+      steps: [
+        "Barre sur l'avant des épaules, pieds largeur de hanches.",
+        "Petite flexion rapide des genoux, puis pousse fort avec les jambes ET les bras.",
+        "Verrouille la barre au-dessus de la tête, redescends en contrôlant sur les épaules.",
+      ],
+      cues: ["Impulsion des jambes courte et verticale", "Gaine fort au verrouillage", "Tête qui passe sous la barre en fin de pousse"],
+      mistakes: ["Trop plier les genoux (ça devient un thruster)", "Cambrer en fin de montée"],
+    },
+  },
+  {
+    key: "curl-concentration",
+    name: "Curl concentration",
+    muscle: "Biceps",
+    aliases: ["curl concentration", "concentration curl", "curl assis coude sur cuisse"],
+    guide: {
+      steps: [
+        "Assis, coude calé contre l'intérieur de la cuisse, haltère en bas bras tendu.",
+        "Monte l'haltère vers l'épaule en contractant le biceps, sans bouger le coude.",
+        "Redescends lentement jusqu'au bras presque tendu.",
+      ],
+      cues: ["Coude vissé contre la cuisse", "Serre fort en haut", "Descente en 2-3 secondes"],
+      mistakes: ["Balancer le buste", "Écourter la descente"],
+    },
+  },
+  {
+    key: "curl-pupitre",
+    name: "Curl au pupitre (larry)",
+    muscle: "Biceps",
+    aliases: ["curl pupitre", "preacher curl", "curl larry", "larry scott", "curl au banc larry scott"],
+    guide: {
+      steps: [
+        "Bras posés sur le pupitre, aisselles calées en haut du coussin, barre ou haltères en mains.",
+        "Monte la charge en contractant les biceps, sans décoller les bras du coussin.",
+        "Redescends lentement jusqu'aux bras presque tendus.",
+      ],
+      cues: ["Triceps collés au coussin", "Descente très contrôlée", "Poignets neutres"],
+      mistakes: ["Tendre complètement les coudes d'un coup en bas", "Se lever du siège pour tricher"],
+    },
+  },
+  {
+    key: "extension-triceps-verticale",
+    name: "Extension triceps au-dessus de la tête",
+    muscle: "Triceps",
+    aliases: ["extension triceps verticale", "extension triceps au dessus de la tete", "overhead triceps extension", "extension nuque", "extension triceps corde au dessus de la tete"],
+    guide: {
+      steps: [
+        "Debout dos à la poulie basse (corde) ou haltère à deux mains au-dessus de la tête.",
+        "Coudes vers le ciel et serrés, descends la charge derrière la tête.",
+        "Tends les bras en contractant les triceps, sans écarter les coudes.",
+      ],
+      cues: ["Coudes fixes et serrés", "Gaine pour ne pas cambrer", "Grande amplitude derrière la tête"],
+      mistakes: ["Coudes qui partent sur les côtés", "Cambrer le bas du dos"],
+    },
+  },
+  {
+    key: "kickback-triceps",
+    name: "Kickback triceps",
+    muscle: "Triceps",
+    aliases: ["kickback triceps", "extension triceps buste penche", "triceps kickback"],
+    guide: {
+      steps: [
+        "Buste penché, dos plat, coude collé au corps plié à 90°, haltère en main.",
+        "Tends le bras vers l'arrière jusqu'à l'alignement avec le buste.",
+        "Marque un temps bras tendu, puis reviens lentement à 90°.",
+      ],
+      cues: ["Le coude ne bouge pas, seul l'avant-bras travaille", "Serre le triceps bras tendu", "Dos plat"],
+      mistakes: ["Balancer l'haltère", "Laisser tomber le coude"],
+    },
+  },
+  {
+    key: "dead-bug",
+    name: "Dead bug",
+    muscle: "Abdominaux profonds",
+    aliases: ["dead bug", "deadbug", "insecte mort"],
+    guide: {
+      steps: [
+        "Allongé sur le dos, bras tendus vers le plafond, hanches et genoux à 90°.",
+        "Plaque le bas du dos au sol, puis tends lentement une jambe et le bras opposé.",
+        "Reviens et alterne, sans jamais décoller le bas du dos.",
+      ],
+      cues: ["Bas du dos collé au sol en permanence", "Souffle en tendant", "Lent et contrôlé"],
+      mistakes: ["Cambrer quand la jambe descend", "Aller trop vite"],
+    },
+  },
+  {
+    key: "pallof-press",
+    name: "Pallof press",
+    muscle: "Gainage anti-rotation",
+    aliases: ["pallof press", "pallof", "presse pallof", "anti rotation poulie"],
+    guide: {
+      steps: [
+        "De profil par rapport à la poulie (hauteur poitrine), poignée tenue à deux mains contre le sternum.",
+        "Tends les bras devant toi sans laisser le buste tourner vers la machine.",
+        "Tiens 2 secondes bras tendus, puis reviens. Change de côté à la fin de la série.",
+      ],
+      cues: ["Bassin et épaules face à l'avant", "Gaine ventre et fessiers", "Respire normalement"],
+      mistakes: ["Tourner les épaules vers la poulie", "Se pencher pour compenser"],
+    },
+  },
+  {
+    key: "releve-jambes-allonge",
+    name: "Relevé de jambes allongé",
+    muscle: "Abdominaux (bas)",
+    aliases: ["releve de jambes allonge", "leg raise allonge", "lying leg raise", "releve jambes au sol", "releve de jambes banc"],
+    guide: {
+      steps: [
+        "Allongé sur le dos (ou un banc), mains sous les fesses ou agrippées derrière la tête.",
+        "Jambes tendues, monte-les jusqu'à la verticale.",
+        "Redescends lentement sans poser les talons, bas du dos plaqué.",
+      ],
+      cues: ["Bas du dos collé au sol", "Descente lente", "Plie légèrement les genoux si besoin"],
+      mistakes: ["Cambrer en bas du mouvement", "Balancer les jambes"],
+    },
+  },
+  {
+    key: "ab-roller",
+    name: "Roulette abdominale (ab wheel)",
+    muscle: "Abdominaux et gainage",
+    aliases: ["roulette abdominale", "ab roller", "ab wheel", "roue abdos", "roulette abdos"],
+    guide: {
+      steps: [
+        "À genoux, mains sur la roulette sous les épaules, ventre gainé.",
+        "Roule lentement vers l'avant en gardant le dos neutre, aussi loin que tu contrôles.",
+        "Reviens en tirant avec les abdos, hanches verrouillées.",
+      ],
+      cues: ["Bassin légèrement rétroversé (pas de cambrure)", "Amplitude progressive au fil des semaines", "Souffle au retour"],
+      mistakes: ["Creuser le bas du dos en avançant", "Aller trop loin trop tôt"],
+    },
+  },
+  {
+    key: "box-jump",
+    name: "Box jump",
+    muscle: "Jambes (explosivité)",
+    aliases: ["box jump", "saut sur box", "saut sur caisse", "sauts sur box"],
+    guide: {
+      steps: [
+        "Face à la box, pieds largeur de hanches, à une petite longueur de pas.",
+        "Flexion rapide bras en arrière, puis saute en montant les genoux.",
+        "Atterris en douceur pieds à plat au centre de la box, genoux fléchis. Redescends en marchant.",
+      ],
+      cues: ["Atterrissage silencieux", "Genoux dans l'axe", "Redescends EN MARCHANT (pas en sautant)"],
+      mistakes: ["Box trop haute (atterrissage accroupi complet)", "Sauter en arrière pour redescendre"],
+    },
+  },
+  {
+    key: "air-bike",
+    name: "Air bike (assault bike)",
+    muscle: "Cardio corps entier",
+    aliases: ["air bike", "assault bike", "velo air", "velo a air", "airbike"],
+    guide: {
+      steps: [
+        "Règle la selle pour une jambe presque tendue en bas de pédale.",
+        "Pousse avec les jambes ET tire-pousse avec les bras, dos long.",
+        "Gère l'allure selon la zone demandée (Z2 régulier, intervalles pour le HIIT).",
+      ],
+      cues: ["Rythme régulier, souffle contrôlé", "Gaine le ventre", "Jambes ET bras ensemble"],
+      mistakes: ["Partir trop vite et exploser", "S'affaisser sur le guidon"],
+    },
+  },
+  {
+    key: "elliptique",
+    name: "Vélo elliptique",
+    muscle: "Cardio corps entier",
+    aliases: ["elliptique", "velo elliptique", "elliptical"],
+    guide: {
+      steps: [
+        "Pieds au centre des pédales, mains sur les poignées mobiles.",
+        "Pousse avec les jambes en accompagnant avec les bras, buste droit.",
+        "Règle la résistance pour rester dans la zone cardiaque demandée.",
+      ],
+      cues: ["Regard loin devant, buste haut", "Appuie dans les talons", "Cadence régulière"],
+      mistakes: ["S'appuyer de tout son poids sur les poignées", "Pédaler sur les pointes"],
+    },
+  },
+  {
+    key: "tapis-course",
+    name: "Course sur tapis",
+    muscle: "Cardio",
+    aliases: ["tapis de course", "course tapis", "running tapis", "treadmill", "course sur tapis", "jogging tapis"],
+    guide: {
+      steps: [
+        "Commence en marchant, puis augmente la vitesse progressivement.",
+        "Cours au centre du tapis, regard devant, épaules relâchées.",
+        "Pour finir, réduis la vitesse par paliers avant de descendre.",
+      ],
+      cues: ["Foulée légère et fréquente", "1 à 2 % de pente pour simuler l'extérieur", "Bras relâchés"],
+      mistakes: ["S'accrocher aux poignées en courant", "S'arrêter net sans retour au calme"],
     },
   },
 ];
