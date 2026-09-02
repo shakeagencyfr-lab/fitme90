@@ -1,4 +1,5 @@
 import "server-only";
+import { isLocale } from "@/lib/i18n";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Personnalisation de la page publique du coach : couleur, textes, logo,
@@ -14,6 +15,8 @@ export interface Branding {
   aboutTitle: string | null;
   aboutText: string | null;
   aboutPhotoUrl: string | null;
+  /** Langue par défaut des clients (fr | en). */
+  language: "fr" | "en";
 }
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -92,7 +95,7 @@ export async function brandForUser(userId: string): Promise<PublicBrand | null> 
 }
 
 const COLS =
-  "brand_color, tagline, headline, logo_url, favicon_url, about_enabled, about_title, about_text, about_photo_url";
+  "brand_color, tagline, headline, logo_url, favicon_url, about_enabled, about_title, about_text, about_photo_url, language";
 
 interface Row {
   brand_color: string | null;
@@ -104,10 +107,12 @@ interface Row {
   about_title: string | null;
   about_text: string | null;
   about_photo_url: string | null;
+  language?: string | null;
 }
 
 function toBranding(d: Row | null): Branding {
   return {
+    language: d?.language === "en" ? "en" : "fr",
     brandColor: d?.brand_color ?? null,
     tagline: d?.tagline ?? null,
     headline: d?.headline ?? null,
@@ -192,6 +197,8 @@ export async function saveTenantBranding(
     aboutEnabled: boolean;
     aboutTitle: string;
     aboutText: string;
+    /** Langue par défaut des clients de ce tenant (fr | en). */
+    language?: string;
   },
 ): Promise<SaveBrandingResult> {
   const colorRaw = input.brandColor.trim();
@@ -209,6 +216,7 @@ export async function saveTenantBranding(
       about_enabled: input.aboutEnabled,
       about_title: input.aboutTitle.trim().slice(0, 90) || null,
       about_text: input.aboutText.trim().slice(0, 1200) || null,
+      ...(isLocale(input.language) ? { language: input.language } : {}),
     })
     .eq("id", tenantId);
   if (error) return { ok: false, error: "Enregistrement impossible." };

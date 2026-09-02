@@ -7,7 +7,10 @@ import { Card, MonoLabel } from "@/components/ui";
 import { SessionRunner, type Exercise } from "@/components/session-runner";
 import { CoachLoadSuggestion } from "@/components/coach-loads";
 import { DepannageButton } from "@/components/depannage-button";
-import { RPE, RPE_INTRO, targetRpe, karvonen, resolveRestSeconds } from "@/lib/fitness";
+import { targetRpe, karvonen, resolveRestSeconds } from "@/lib/fitness";
+import { getT, userLocale } from "@/lib/i18n/server";
+import { dateLocale } from "@/lib/i18n";
+import { rpeScale } from "@/lib/i18n/fitness";
 
 export const metadata = { title: "Séance" };
 
@@ -26,6 +29,8 @@ export default async function SeancePage({
 }) {
   const { ctx, plan, answers, trainDays } = await loadEspaceOrRedirect();
   const sp = await searchParams;
+  const { locale, t } = await getT(await userLocale(ctx.userId));
+  const { RPE, RPE_INTRO } = rpeScale(locale);
   const today = Math.max(1, ctx.access.day);
 
   const jourParam = Number(Array.isArray(sp.jour) ? sp.jour[0] : sp.jour);
@@ -76,7 +81,7 @@ export default async function SeancePage({
   // Vraie date du jour de séance : on n'affiche jamais le jour figé du modèle,
   // mais la vraie date calculée du jour choisi.
   const realDate = ctx.profile?.start_date
-    ? dateOfProgramDay(ctx.profile.start_date, day).toLocaleDateString("fr-FR", {
+    ? dateOfProgramDay(ctx.profile.start_date, day).toLocaleDateString(dateLocale(locale), {
         weekday: "long",
         day: "numeric",
         month: "long",
@@ -112,12 +117,12 @@ export default async function SeancePage({
   const DayNav = (
     <div className="flex items-center justify-between gap-2">
       <MonoLabel className="text-brand">
-        Jour {day} · cycle {cycle}
-        {!isToday ? " · autre jour" : ""}
+        {t("common.day")} {day} · {t("dashboard.cycle").toLowerCase()} {cycle}
+        {!isToday ? ` · ${t("session.otherDay")}` : ""}
       </MonoLabel>
       {!isToday ? (
         <Link href="/app/seance" className="text-[13px] font-medium text-brand hover:underline">
-          Revenir à aujourd'hui
+          {t("session.backToToday")}
         </Link>
       ) : null}
     </div>
@@ -128,14 +133,10 @@ export default async function SeancePage({
       <div className="mx-auto flex max-w-[640px] flex-col gap-4">
         {DayNav}
         <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          Jour de repos
+          {t("session.restDay")}
         </h1>
         <Card>
-          <p className="text-[15px] leading-[1.6] text-body">
-            Rien à soulever ce jour-là. Marche 30 à 40 minutes si tu peux, dix minutes
-            de mobilité hanches et épaules, et soigne le sommeil : c'est là que
-            l'adaptation se fait. La nutrition passe en jour sans entraînement.
-          </p>
+          <p className="text-[15px] leading-[1.6] text-body">{t("session.restDayBody")}</p>
         </Card>
       </div>
     );
@@ -146,7 +147,7 @@ export default async function SeancePage({
       {DayNav}
       <header className="flex flex-col gap-1.5">
         <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          {s?.title || "Séance du jour"}
+          {s?.title || t("session.ofDay")}
         </h1>
         <p className="text-[14px] text-muted">
           {[dateLabel, dur].filter(Boolean).join(" · ")}
@@ -163,9 +164,9 @@ export default async function SeancePage({
         <details className="group rounded-card border border-line bg-surface p-4" open>
           <summary className="flex cursor-pointer items-center justify-between gap-2 list-none">
             <span className="flex items-center gap-2">
-              <span className="font-archivo font-bold text-[16px] text-ink">Échauffement</span>
+              <span className="font-archivo font-bold text-[16px] text-ink">{t("session.warmup")}</span>
               <span className="rounded-full bg-alert px-2 py-0.5 text-[11px] font-semibold text-brand border border-alert-line">
-                avant de commencer
+                {t("session.beforeStart")}
               </span>
             </span>
             <span className="text-muted-2 transition-transform group-open:rotate-180">⌄</span>
@@ -189,13 +190,13 @@ export default async function SeancePage({
       {/* Charges au ressenti (RPE) */}
       <details className="group rounded-card border border-line bg-surface p-4">
         <summary className="flex cursor-pointer items-center justify-between gap-2 list-none">
-          <span className="font-archivo font-bold text-[16px] text-ink">Charges au ressenti (RPE)</span>
+          <span className="font-archivo font-bold text-[16px] text-ink">{t("session.rpe")}</span>
           <span className="text-muted-2 transition-transform group-open:rotate-180">⌄</span>
         </summary>
         <div className="mt-3 flex flex-col gap-3">
           <p className="text-[13.5px] leading-[1.6] text-muted">{RPE_INTRO}</p>
           <p className="text-[13.5px] text-body">
-            Objectif de ce cycle : <span className="font-semibold text-brand">RPE {rpeGoal}</span>.
+            {t("session.cycleGoal")} <span className="font-semibold text-brand">RPE {rpeGoal}</span>.
           </p>
           <div className="flex flex-col gap-1.5">
             {RPE.map((r) => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/components/locale-provider";
 import { MuscleIllustration } from "@/components/muscle-illustration";
 
 // Fiche exercice en modale : image(s) + groupe musculaire + étapes + conseils +
@@ -17,14 +18,10 @@ interface Guide {
   source: "coach" | "library" | "ai" | "none";
 }
 
-const SOURCE_LABEL: Record<Guide["source"], string> = {
-  coach: "Fiche de ton coach",
-  library: "Bibliothèque My Fitness App",
-  ai: "Fiche générée pour toi",
-  none: "",
-};
+const SOURCE_KEY = { coach: "exo.sourceCoach", library: "exo.sourceLibrary", ai: "exo.sourceAi", none: null } as const;
 
 export function ExerciseModal({ name, onClose }: { name: string | null; onClose: () => void }) {
+  const t = useT();
   const [guide, setGuide] = useState<Guide | null>(null);
   const [loading, setLoading] = useState(false);
   const [frame, setFrame] = useState(0);
@@ -75,7 +72,7 @@ export function ExerciseModal({ name, onClose }: { name: string | null; onClose:
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center" role="dialog" aria-label={name}>
-      <button aria-label="Fermer" onClick={onClose} className="absolute inset-0 bg-ink/40 backdrop-blur-[2px]" />
+      <button aria-label={t("common.close")} onClick={onClose} className="absolute inset-0 bg-ink/40 backdrop-blur-[2px]" />
       <div className="relative z-10 flex max-h-[88dvh] w-full max-w-[520px] flex-col overflow-hidden rounded-t-[16px] border border-line bg-surface shadow-xl sm:rounded-card">
         {/* En-tête */}
         <div className="flex items-start justify-between gap-3 border-b border-line-2 px-5 py-4">
@@ -91,7 +88,7 @@ export function ExerciseModal({ name, onClose }: { name: string | null; onClose:
           </div>
           <button
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={t("common.close")}
             className="tap -mr-1 flex size-9 shrink-0 items-center justify-center rounded-btn text-muted-2 hover:bg-surface-2 hover:text-ink"
           >
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden>
@@ -124,7 +121,7 @@ export function ExerciseModal({ name, onClose }: { name: string | null; onClose:
 
           <div className="flex flex-col gap-5 px-5 py-5">
             {loading ? (
-              <p className="text-[14px] text-muted-2">Chargement de la fiche…</p>
+              <p className="text-[14px] text-muted-2">{t("exo.loading")}</p>
             ) : (
               <>
                 {/* Consignes libres du coach */}
@@ -133,7 +130,7 @@ export function ExerciseModal({ name, onClose }: { name: string | null; onClose:
                 ) : null}
 
                 {guide && guide.steps.length > 0 ? (
-                  <Section title="Comment faire">
+                  <Section title={t("exo.steps")}>
                     <ol className="flex flex-col gap-2">
                       {guide.steps.map((s, i) => (
                         <li key={i} className="flex gap-2.5 text-[14px] leading-snug text-body">
@@ -148,7 +145,7 @@ export function ExerciseModal({ name, onClose }: { name: string | null; onClose:
                 ) : null}
 
                 {guide && guide.cues.length > 0 ? (
-                  <Section title="Conseils clés">
+                  <Section title={t("exo.cues")}>
                     <ul className="flex flex-col gap-1.5">
                       {guide.cues.map((c, i) => (
                         <li key={i} className="flex items-start gap-2 text-[13.5px] leading-snug text-body">
@@ -161,7 +158,7 @@ export function ExerciseModal({ name, onClose }: { name: string | null; onClose:
                 ) : null}
 
                 {guide && guide.mistakes.length > 0 ? (
-                  <Section title="Erreurs à éviter">
+                  <Section title={t("exo.mistakes")}>
                     <ul className="flex flex-col gap-1.5">
                       {guide.mistakes.map((m, i) => (
                         <li key={i} className="flex items-start gap-2 text-[13.5px] leading-snug text-body">
@@ -177,13 +174,13 @@ export function ExerciseModal({ name, onClose }: { name: string | null; onClose:
 
                 {guide && guide.source === "none" ? (
                   <p className="text-[13.5px] leading-relaxed text-muted">
-                    Fiche détaillée bientôt disponible pour cet exercice. Demande à ton coach en cas de doute sur l&apos;exécution.
+                    {t("exo.none")}
                   </p>
                 ) : null}
 
-                {guide && SOURCE_LABEL[guide.source] ? (
+                {guide && SOURCE_KEY[guide.source] ? (
                   <p className="border-t border-line-2 pt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">
-                    {SOURCE_LABEL[guide.source]}
+                    {t(SOURCE_KEY[guide.source]!)}
                   </p>
                 ) : null}
               </>

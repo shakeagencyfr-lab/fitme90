@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { makeT } from "@/lib/i18n";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -19,6 +20,8 @@ import { blockPosition } from "@/lib/block-logic";
 import { CYCLES_PER_BLOCK } from "@/lib/config";
 import { revalidatePath } from "next/cache";
 import { pnum, grp } from "@/lib/nutrition";
+import { resolveLocale, userLocale } from "@/lib/i18n/server";
+import { aiLanguageInstruction } from "@/lib/i18n";
 
 const DIETS = ["Omnivore", "Flexitarien", "Végétarien", "Végétalien", "Sans porc", "Sans bœuf"];
 
@@ -69,11 +72,12 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const ctx = await getSessionContext();
   if (!ctx) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  const t = makeT(await resolveLocale(await userLocale(ctx.userId)));
 
   // Le Coach IA doit être inclus dans l'offre du client (upsell par plan).
   if (!(await clientCoachAiIncluded(ctx.userId))) {
     return NextResponse.json(
-      { error: "Le Coach IA n'est pas inclus dans ta formule." },
+      { error: t("srv.aiNotIncluded") },
       { status: 403 },
     );
   }
@@ -100,7 +104,7 @@ export async function POST(req: NextRequest) {
   if (!budget.ok) {
     const at = new Date(budget.resetsAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
     return NextResponse.json(
-      { error: `Tu as utilisé tes ${budget.limit} messages du jour. Ton quota se renouvelle à ${at}.`, quota: budget },
+      { error: t("srv.quotaUsed", { n: budget.limit, time: at }), quota: budget },
       { status: 429 },
     );
   }
@@ -111,7 +115,7 @@ export async function POST(req: NextRequest) {
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: "Message invalide." }, { status: 400 });
+    return NextResponse.json({ error: t("srv.invalidMessage") }, { status: 400 });
   }
 
   const supabase = await createClient();
@@ -196,7 +200,12 @@ export async function POST(req: NextRequest) {
   const past = (history ?? []).reverse() as { role: "user" | "assistant"; content: string }[];
 
   const coachName = await readCoachName(ctx.profile?.tenant_id ?? null);
+  // Langue du client : le coach répond dedans (cookie > profil > tenant).
+  const locale = await resolveLocale(await userLocale(ctx.userId));
+  const dateLoc = locale === "en" ? "en-GB" : "fr-FR";
   const system = `${buildPersona(quiz?.answers ?? {}, { ...DEFAULT_BRAND, coachName })}
+
+${aiLanguageInstruction(locale)}
 
 PROFIL DU CLIENT :
 ${profileLines.length ? profileLines.join("\n") : "Non renseigné."}
@@ -205,10 +214,10 @@ Jours d'entraînement : ${quiz?.train_days?.join(", ") || "non précisés"}.
 CALENDRIER (suis la progression avec ces repères réels) :
 - Programme démarré le ${
     ctx.profile?.start_date
-      ? new Date(`${ctx.profile.start_date}T00:00:00Z`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
+      ? new Date(`${ctx.profile.start_date}T00:00:00Z`).toLocaleDateString(dateLoc, { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
       : "non défini"
   }.
-- Aujourd'hui : ${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" })} — jour ${ctx.access.day} sur ${ctx.access.programDays}.
+- Aujourd'hui : ${new Date().toLocaleDateString(dateLoc, { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" })} — jour ${ctx.access.day} sur ${ctx.access.programDays}.
 - STATUT DU JOUR : aujourd'hui est un jour ${todayIsTraining ? "D'ENTRAÎNEMENT, une séance est prévue" : "DE REPOS, aucune séance n'est prévue"}. Fie-toi à CETTE information (jours d'entraînement à jour : ${quiz?.train_days?.join(", ") || "non précisés"}), pas au texte du programme qui peut dater d'avant un changement de jours.
 - Les séances tombent aux vrais jours de la semaine choisis. Parle en dates concrètes et repère les séances validées vs prévues pour suivre les retards éventuels.
 - Séances en retard (passées, non validées) : ${missedList.length ? `${missedList.length} (jours ${missedList.slice(0, 8).join(", ")}${missedList.length > 8 ? "…" : ""}). Le calendrier ne bouge pas : encourage à les RATTRAPER quand le client peut, sur un ton bienveillant et sans culpabiliser. Rappelle qu'il peut ouvrir une séance passée depuis l'agenda pour la rattraper. N'en parle QUE si c'est pertinent (le client en parle, demande un bilan, ou s'inquiète de son retard).` : "aucune, félicite la régularité si le sujet vient."}
@@ -448,6 +457,7 @@ ${JSON.stringify(logs ?? [])}`;
         equipment,
         programDays: ctx!.access.programDays,
         blockIndex: pos.blockIndex,
+        locale,
       },
       "low", // rapide : tenir sous ~60 s dans la requête coach (Vercel Hobby)
       billing.key,
@@ -533,7 +543,7 @@ ${JSON.stringify(logs ?? [])}`;
     }
   } catch {
     return NextResponse.json(
-      { error: "Le coach est momentanément indisponible." },
+      { error: t("srv.coachDown") },
       { status: 502 },
     );
   }
@@ -560,7 +570,7 @@ ${JSON.stringify(logs ?? [])}`;
   }
   await recordCall(ctx.userId, "coach", totalUsage);
   // Modèle crédits : on débite APRÈS la réponse réussie (jamais de surdébit).
-  // Une adaptation régénère aussi un programme → 1 crédit programme en plus.
+  // Une adaptation régénère aussi un programme → le coût d'une génération en plus.
   {
     await chargeAiUsage(coachTenant, "action", "message", ctx.userId);
     if (adapted) await chargeAiUsage(coachTenant, "program", "generate", ctx.userId);

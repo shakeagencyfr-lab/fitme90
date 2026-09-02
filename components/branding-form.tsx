@@ -59,6 +59,21 @@ export function BrandingForm({ branding, namePlaceholder }: { branding: Branding
         </label>
 
         <label className="flex flex-col gap-1.5">
+          <MonoLabel>Langue de tes clients</MonoLabel>
+          <select
+            name="language"
+            defaultValue={branding.language}
+            className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink sm:max-w-[280px]"
+          >
+            <option value="fr">Français</option>
+            <option value="en">English</option>
+          </select>
+          <span className="text-[12px] text-muted-2">
+            Langue par défaut de ta page publique, de l&apos;espace client et du coach IA. Chaque client peut ensuite basculer lui-même (FR / EN) ; l&apos;IA lui répond dans sa langue.
+          </span>
+        </label>
+
+        <label className="flex flex-col gap-1.5">
           <MonoLabel>Couleur d&apos;accent</MonoLabel>
           <div className="flex items-center gap-3">
             <input

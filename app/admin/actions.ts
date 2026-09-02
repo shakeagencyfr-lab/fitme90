@@ -1,6 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { LANDING_TEMPLATES } from "@/lib/offers";
+import { whitelabelEnabled } from "@/lib/whitelabel";
+import { sendEmail } from "@/lib/email";
+import { setTenantCustomDomain } from "@/lib/custom-domain";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -220,6 +224,7 @@ export async function saveBranding(_prev: BrandingState, formData: FormData): Pr
     aboutEnabled: formData.get("about_enabled") === "on",
     aboutTitle: String(formData.get("about_title") ?? ""),
     aboutText: String(formData.get("about_text") ?? ""),
+    language: String(formData.get("language") ?? ""),
   });
   if (!res.ok) return { error: res.error };
   revalidatePath("/admin/marque-blanche");
@@ -236,7 +241,7 @@ export async function saveLandingTemplate(_prev: TemplateState, formData: FormDa
   const ctx = await getAdminOrNull();
   if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
   const raw = String(formData.get("template") ?? "");
-  const template = raw === "lumen" ? "lumen" : raw === "onyx" ? "onyx" : null;
+  const template = (LANDING_TEMPLATES as readonly string[]).includes(raw) ? raw : null;
   if (!template) return { error: "Template inconnu." };
   const admin = createAdminClient();
   const { error } = await admin
@@ -907,7 +912,7 @@ export async function saveResellerAiMode(_prev: ResellerAiState, formData: FormD
  * Tarification en crédits du revendeur d'IA. DEUX types de crédits, chacun avec
  * son prix de vente (en centimes) :
  *  - crédit IA = 1 action simple (chat / recette / exercice), modèle Haiku ;
- *  - crédit programme IA = 1 génération de programme, modèle Opus (plus cher).
+ *  - une génération de programme consomme N crédits IA (réglable), modèle Opus.
  */
 export async function saveResellerCredits(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
   const ctx = await getAdminOrNull();
@@ -966,7 +971,7 @@ export async function saveResellerModelChoice(_prev: ResellerAiState, formData: 
 
 /**
  * Crée un pack de crédits (revendeur). Le pack peut être HYBRIDE : crédits IA et
- * crédits programme dans le même pack, donc dans le même paiement.
+ * Un seul type de crédit IA par pack.
  */
 export async function addCreditPack(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
   const ctx = await getAdminOrNull();
@@ -1314,6 +1319,52 @@ export async function saveSubdomain(_prev: SubdomainState, formData: FormData): 
 
   revalidatePath("/admin/marque-blanche");
   return { ok: true, value: sub };
+}
+
+// ───────────────────────── Domaine personnalisé (marque blanche totale) ─────────────────────────
+export interface DomainState {
+  ok?: boolean;
+  error?: string;
+  value?: string;
+}
+
+/** Enregistre / retire le domaine perso du coach, puis le rattache à Vercel si possible. */
+export async function saveCustomDomain(_prev: DomainState, formData: FormData): Promise<DomainState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+  const node = await tenantNode(tenantId);
+  if (node?.kind === "coach" && !(await whitelabelEnabled(tenantId))) {
+    return { error: "Débloque d'abord l'option marque blanche auprès de ton revendeur." };
+  }
+  const raw = String(formData.get("domain") ?? "");
+  const res = await setTenantCustomDomain(tenantId, raw);
+  revalidatePath("/admin/marque-blanche");
+  if (!res.ok) return { error: res.error, value: raw.trim() };
+  return { ok: true, value: res.domain ?? "", error: res.error };
+}
+
+/** Relance la vérification (DNS + Vercel) : la page se recharge avec l'état frais. */
+export async function recheckCustomDomain(): Promise<void> {
+  revalidatePath("/admin/marque-blanche");
+}
+
+/** Envoie un e-mail de test au coach depuis son SMTP (ou le service par défaut). */
+export async function sendTestEmail(): Promise<{ ok: boolean; error?: string }> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.email) return { ok: false, error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id ?? null;
+  const ok = await sendEmail(
+    {
+      to: [ctx.email],
+      subject: "Test d'envoi d'e-mail",
+      text: "Cet e-mail confirme que l'envoi depuis ta configuration fonctionne. Tes clients recevront leurs notifications de cette adresse.",
+      html: "<p>Cet e-mail confirme que l'envoi depuis ta configuration fonctionne.</p><p>Tes clients recevront leurs notifications de cette adresse.</p>",
+    },
+    tenantId,
+  );
+  return ok ? { ok: true } : { ok: false, error: "Envoi impossible. Vérifie le SMTP (ou la clé du service par défaut)." };
 }
 
 // ───────────────────────── Réseau : création & assistance ─────────────────────────

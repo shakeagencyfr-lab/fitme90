@@ -4,6 +4,8 @@ import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
 import { iconUrl } from "@/lib/config";
 import { platformBrand } from "@/lib/branding";
+import { resolveLocale } from "@/lib/i18n/server";
+import { LocaleProvider } from "@/components/locale-provider";
 
 // Polices auto-hébergées par next/font (aucun appel à Google au runtime,
 // donc rien à autoriser dans la CSP côté font-src).
@@ -66,10 +68,13 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Langue : cookie (choix explicite) > navigateur > français. Les layouts
+  // imbriqués (espace client, pages d'un coach) affinent avec celle du tenant.
+  const locale = await resolveLocale(null);
   return (
     <html
-      lang="fr"
+      lang={locale}
       suppressHydrationWarning
       className={`${archivo.variable} ${plex.variable} ${plexMono.variable} h-full antialiased`}
     >
@@ -83,7 +88,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               "(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;if(d)document.documentElement.classList.add('dark');}catch(e){}})();",
           }}
         />
-        {children}
+        <LocaleProvider locale={locale}>{children}</LocaleProvider>
         <PwaRegister />
       </body>
     </html>

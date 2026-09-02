@@ -8,6 +8,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { AdherenceStats } from "@/lib/streak";
 import { Card, MonoLabel } from "@/components/ui";
+import { useT } from "@/components/locale-provider";
+import type { TFn } from "@/lib/i18n";
 
 // Bloc « Score de régularité » : un chiffre unique, clair, plutôt qu'un tableau
 // de zéros incompréhensibles avant la première séance. Le score EST le
@@ -16,11 +18,11 @@ import { Card, MonoLabel } from "@/components/ui";
 
 const CELEBRATE_KEY = "fitme90:lastMilestone";
 
-function scoreLabel(score: number): { text: string; cls: string } {
-  if (score >= 90) return { text: "Excellent", cls: "text-[#2F6B3C] bg-[#2F6B3C]/12" };
-  if (score >= 75) return { text: "Très bon", cls: "text-brand bg-brand/12" };
-  if (score >= 50) return { text: "En progression", cls: "text-[#8A6A17] bg-[#8A6A17]/12" };
-  return { text: "À relancer", cls: "text-[#C4471A] bg-[#C4471A]/12" };
+function scoreLabel(score: number, t: TFn): { text: string; cls: string } {
+  if (score >= 90) return { text: t("regularity.excellent"), cls: "text-[#2F6B3C] bg-[#2F6B3C]/12" };
+  if (score >= 75) return { text: t("regularity.veryGood"), cls: "text-brand bg-brand/12" };
+  if (score >= 50) return { text: t("regularity.progressing"), cls: "text-[#8A6A17] bg-[#8A6A17]/12" };
+  return { text: t("regularity.restart"), cls: "text-[#C4471A] bg-[#C4471A]/12" };
 }
 
 export function RegularityScore({
@@ -31,6 +33,7 @@ export function RegularityScore({
   todayTraining: boolean;
 }) {
   const { streak, adherence, completedTotal, missed, todayPending, due } = stats;
+  const t = useT();
   const [celebrate, setCelebrate] = useState<number | null>(null);
 
   const reached = [50, 40, 30, 20, 15, 10, 5, 1].find((m) => completedTotal >= m) ?? 0;
@@ -59,11 +62,11 @@ export function RegularityScore({
         href="/app/seance"
         className="tap flex items-center justify-center rounded-btn bg-fill px-5 py-3 font-plex font-semibold text-[15px] text-fillfg transition-transform active:scale-[0.98]"
       >
-        Faire ma séance du jour
+        {t("regularity.doToday")}
       </Link>
     ) : todayTraining && !todayPending ? (
       <div className="rounded-control bg-brand/10 px-3.5 py-2.5 text-center text-[13.5px] font-medium text-ink">
-        Séance du jour validée. Beau travail.
+        {t("regularity.todayDone")}
       </div>
     ) : null;
 
@@ -74,17 +77,17 @@ export function RegularityScore({
           <span className="text-[22px]">🎉</span>
           <div className="min-w-0 flex-1">
             <div className="font-archivo font-bold text-[14px] text-ink">
-              {celebrate} séance{celebrate > 1 ? "s" : ""} validée{celebrate > 1 ? "s" : ""} !
+              {t("regularity.milestone", { n: celebrate })}
             </div>
-            <div className="text-[12.5px] text-muted">La régularité fait tout le résultat.</div>
+            <div className="text-[12.5px] text-muted">{t("regularity.regularityWins")}</div>
           </div>
-          <button onClick={() => setCelebrate(null)} className="shrink-0 text-muted-2 hover:text-ink" aria-label="Fermer">
+          <button onClick={() => setCelebrate(null)} className="shrink-0 text-muted-2 hover:text-ink" aria-label={t("common.close")}>
             ✕
           </button>
         </div>
       ) : null}
 
-      <MonoLabel>Score de régularité</MonoLabel>
+      <MonoLabel>{t("regularity.title")}</MonoLabel>
 
       {started ? (
         <>
@@ -96,9 +99,9 @@ export function RegularityScore({
               <span className="font-archivo font-bold text-[18px] text-muted-2">/100</span>
             </div>
             <span
-              className={`mb-1.5 rounded-pill px-3 py-1 text-[12.5px] font-semibold ${scoreLabel(adherence!).cls}`}
+              className={`mb-1.5 rounded-pill px-3 py-1 text-[12.5px] font-semibold ${scoreLabel(adherence!, t).cls}`}
             >
-              {scoreLabel(adherence!).text}
+              {scoreLabel(adherence!, t).text}
             </span>
           </div>
 
@@ -112,25 +115,22 @@ export function RegularityScore({
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted">
             <span className="inline-flex items-center gap-1.5">
               <span className="text-brand">🔥</span>
-              <span className="font-semibold text-ink">{streak}</span> d&apos;affilée
+              <span className="font-semibold text-ink">{streak}</span> {t("regularity.inARow")}
             </span>
             <span>
-              <span className="font-semibold text-ink">{completedTotal}</span> séance{completedTotal > 1 ? "s" : ""} au total
+              <span className="font-semibold text-ink">{completedTotal}</span> {t("regularity.sessionsTotal")}
             </span>
             {missed > 0 ? (
               <span>
-                <span className="font-semibold text-ink">{missed}</span> manquée{missed > 1 ? "s" : ""}
+                <span className="font-semibold text-ink">{missed}</span> {t("regularity.missed")}
               </span>
             ) : null}
           </div>
         </>
       ) : (
         <div className="flex flex-col gap-1.5">
-          <div className="font-archivo font-bold text-[19px] text-ink">Ton score démarre bientôt</div>
-          <p className="text-[13.5px] leading-[1.6] text-muted">
-            Valide ta première séance pour lancer ton score de régularité. Il mesure la
-            part de tes séances prévues que tu réalises, séance après séance.
-          </p>
+          <div className="font-archivo font-bold text-[19px] text-ink">{t("regularity.startsSoon")}</div>
+          <p className="text-[13.5px] leading-[1.6] text-muted">{t("regularity.startsSoonBody")}</p>
         </div>
       )}
 

@@ -1,33 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/components/locale-provider";
 
 // « Séance de dépannage » : quand le client n'a pas son matériel habituel
 // (voyage, hôtel, salle limitée), il choisit sa contrainte et le coach lui
 // propose une version alternative de la séance du jour, sans toucher au
 // programme. On passe par un événement écouté par le widget coach.
-const OPTIONS: { label: string; hint: string; message: string }[] = [
-  {
-    label: "Aucun matériel",
-    hint: "Poids du corps, en voyage / chambre",
-    message:
-      "Je voyage et je n'ai aucun matériel aujourd'hui. Propose-moi une version de ma séance du jour au poids du corps, réalisable dans une chambre, en gardant le même objectif et les mêmes groupes musculaires que prévu.",
-  },
-  {
-    label: "Salle d'hôtel / basique",
-    hint: "Haltères légers, tapis",
-    message:
-      "Je n'ai accès qu'à une petite salle d'hôtel aujourd'hui (haltères légers, tapis, éventuellement une machine ou deux). Adapte ma séance du jour à ce matériel limité, même objectif et mêmes groupes musculaires que prévu.",
-  },
-  {
-    label: "Haltères seulement",
-    hint: "À la maison, sans barre ni machines",
-    message:
-      "Je n'ai que des haltères aujourd'hui, pas de barre ni de machines. Adapte ma séance du jour avec seulement des haltères, en gardant le même objectif et les mêmes groupes musculaires.",
-  },
-];
-
+const OPTION_KEYS = ["none", "hotel", "dumbbells"] as const;
 export function DepannageButton() {
+  const t = useT();
+  const OPTIONS = OPTION_KEYS.map((k) => ({ key: k, label: t(`rescue.${k}.label`), hint: t(`rescue.${k}.hint`), message: t(`rescue.${k}.message`) }));
   const [open, setOpen] = useState(false);
 
   function ask(message: string) {
@@ -46,7 +29,7 @@ export function DepannageButton() {
           <path d="M4 7h16M4 12h16M4 17h10" />
           <circle cx="18" cy="17" r="3" />
         </svg>
-        Je n&apos;ai pas mon matériel
+        {t("rescue.button")}
       </button>
 
       {open ? (
@@ -54,7 +37,7 @@ export function DepannageButton() {
           <button className="fixed inset-0 z-10 cursor-default" aria-hidden onClick={() => setOpen(false)} />
           <div className="absolute left-0 top-[calc(100%+6px)] z-20 w-[280px] max-w-[80vw] overflow-hidden rounded-card border border-line bg-surface shadow-[0_10px_30px_rgba(23,25,27,0.18)] animate-[popin_.18s_ease-out]">
             <div className="border-b border-line-2 px-3.5 py-2.5 text-[12px] text-muted">
-              Le coach adapte ta séance du jour. Ton programme ne change pas.
+              {t("rescue.hint")}
             </div>
             {OPTIONS.map((o) => (
               <button

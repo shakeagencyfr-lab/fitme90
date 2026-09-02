@@ -9,6 +9,7 @@
 //   - Jour 121+      : accès TERMINÉ (verrouillé).
 
 import { PROGRAM_DAYS, GRACE_DAYS } from "./config";
+import { makeT, type Locale } from "./i18n";
 
 export type AccessPhase = "not_paid" | "not_started" | "scheduled" | "active" | "grace" | "ended" | "restricted";
 
@@ -131,21 +132,22 @@ export function computeAccess(
 }
 
 /** Message court d'état, en français, pour l'interface. */
-export function accessLabel(a: AccessState): string {
+export function accessLabel(a: AccessState, locale: Locale = "fr"): string {
+  const t = makeT(locale);
   switch (a.phase) {
     case "not_paid":
-      return "Programme non débloqué";
+      return t("access.notPaid");
     case "not_started":
-      return "Programme prêt à générer";
+      return t("access.notStarted");
     case "scheduled":
-      return `Démarre dans ${1 - a.day} jour(s)`;
+      return t("access.scheduled", { days: 1 - a.day });
     case "active":
-      return `Jour ${a.day} sur ${a.programDays}`;
+      return t("access.active", { day: a.day, total: a.programDays });
     case "grace":
-      return `Programme terminé — consultation encore ${a.daysUntilAccessEnd} j`;
+      return t("access.grace", { days: a.daysUntilAccessEnd });
     case "ended":
-      return "Accès terminé";
+      return t("access.ended");
     case "restricted":
-      return "Paiement en attente — accès en lecture seule";
+      return t("access.restricted");
   }
 }

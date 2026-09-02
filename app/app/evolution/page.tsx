@@ -1,4 +1,6 @@
 import { loadEspaceOrRedirect } from "@/lib/queries";
+import { getT, userLocale } from "@/lib/i18n/server";
+import { dateLocale, type Locale } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/server";
 import { Card, MonoLabel } from "@/components/ui";
 import { WeightTracker } from "@/components/weight-tracker";
@@ -17,16 +19,10 @@ type Measure = {
   measured_at: string;
 };
 
-const MEAS_COLS: [keyof Measure, string][] = [
-  ["waist", "Taille"],
-  ["hips", "Hanches"],
-  ["chest", "Poitrine"],
-  ["thigh", "Cuisse"],
-  ["arm", "Bras"],
-];
+const MEAS_KEYS = ["waist", "hips", "chest", "thigh", "arm"] as const;
 
-function fmtDate(d: string) {
-  return new Date(`${d}T00:00:00Z`).toLocaleDateString("fr-FR", {
+function fmtDate(d: string, locale: Locale) {
+  return new Date(`${d}T00:00:00Z`).toLocaleDateString(dateLocale(locale), {
     day: "numeric",
     month: "short",
     timeZone: "UTC",
@@ -35,6 +31,8 @@ function fmtDate(d: string) {
 
 export default async function EvolutionPage() {
   const { ctx, answers } = await loadEspaceOrRedirect();
+  const { locale, t } = await getT(await userLocale(ctx.userId));
+  const MEAS_COLS: [keyof Measure, string][] = MEAS_KEYS.map((k) => [k, t(`evolution.meas.${k}`)]);
   const supabase = await createClient();
   const [{ data: weights }, { data: measures }, { data: logs }] = await Promise.all([
     supabase
@@ -89,7 +87,7 @@ export default async function EvolutionPage() {
   return (
     <div className="mx-auto flex max-w-[680px] flex-col gap-5">
       <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-        Mon évolution
+        {t("evolution.title")}
       </h1>
 
       <WeightTracker weights={weightRows} />
@@ -100,7 +98,7 @@ export default async function EvolutionPage() {
         <MeasurementForm />
       ) : (
         <Card>
-          <p className="text-[14px] text-muted">Le suivi est en lecture seule : ton programme est terminé.</p>
+          <p className="text-[14px] text-muted">{t("evolution.readOnly")}</p>
         </Card>
       )}
 
@@ -108,8 +106,8 @@ export default async function EvolutionPage() {
       {rows.length ? (
         <Card as="section" className="flex flex-col gap-4">
           <div className="flex items-center justify-between gap-3">
-            <MonoLabel>Mensurations (cm)</MonoLabel>
-            <span className="font-mono text-[11px] text-muted-2">{rows.length} relevé(s)</span>
+            <MonoLabel>{t("evolution.measures")}</MonoLabel>
+            <span className="font-mono text-[11px] text-muted-2">{t("evolution.entries", { n: rows.length })}</span>
           </div>
 
           {/* Dernières valeurs + variation depuis la 1re prise */}
@@ -147,7 +145,7 @@ export default async function EvolutionPage() {
             <table className="w-full min-w-[380px] border-collapse text-[13px]">
               <thead>
                 <tr className="text-left text-muted-2">
-                  <th className="py-1.5 pr-3 font-mono text-[10px] uppercase tracking-[0.08em]">Date</th>
+                  <th className="py-1.5 pr-3 font-mono text-[10px] uppercase tracking-[0.08em]">{t("evolution.date")}</th>
                   {MEAS_COLS.map(([k, label]) => (
                     <th key={k} className="py-1.5 pr-3 font-mono text-[10px] uppercase tracking-[0.08em]">
                       {label}
@@ -158,7 +156,7 @@ export default async function EvolutionPage() {
               <tbody>
                 {rows.map((r, i) => (
                   <tr key={i} className="border-t border-line-2">
-                    <td className="py-2 pr-3 text-muted">{fmtDate(r.measured_at)}</td>
+                    <td className="py-2 pr-3 text-muted">{fmtDate(r.measured_at, locale)}</td>
                     {MEAS_COLS.map(([k]) => (
                       <td key={k} className="py-2 pr-3 tabular-nums text-body">
                         {r[k] != null ? String(r[k]).replace(".", ",") : "·"}

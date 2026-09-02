@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useT } from "@/components/locale-provider";
 import { useRouter } from "next/navigation";
 import { saveSession, type SetEntry } from "@/app/app/seance/actions";
 import { Button, Alert, MonoLabel } from "@/components/ui";
@@ -60,6 +61,7 @@ export interface Exercise {
 
 // Petit bouton « alternative » (remplacement d'exercice à la demande).
 function AlternativeButton({ onClick, busy }: { onClick: () => void; busy: boolean }) {
+  const t = useT();
   return (
     <button
       onClick={onClick}
@@ -70,7 +72,7 @@ function AlternativeButton({ onClick, busy }: { onClick: () => void; busy: boole
         <path d="M3 2v6h6M21 22v-6h-6" />
         <path d="M21 12a9 9 0 0 0-15-6.7L3 8M3 12a9 9 0 0 0 15 6.7l3-2.7" />
       </svg>
-      {busy ? "Recherche…" : "Autre exercice"}
+      {busy ? t("session.searching") : t("session.otherExercise")}
     </button>
   );
 }
@@ -191,7 +193,7 @@ export function SessionRunner({
       });
       setSaved(false);
     } catch (e) {
-      setAltErr(e instanceof Error ? e.message : "Alternative indisponible.");
+      setAltErr(e instanceof Error ? e.message : t("session.altUnavailable"));
     } finally {
       setAltBusy(null);
     }
@@ -221,7 +223,8 @@ export function SessionRunner({
   // Minuteur intégré : sert au repos entre séries ET au chrono cardio.
   const [rest, setRest] = useState(0);
   const [restRun, setRestRun] = useState(false);
-  const [timerLabel, setTimerLabel] = useState("Repos");
+  const t = useT();
+  const [timerLabel, setTimerLabel] = useState(t("session.rest"));
   const restRef = useRef(0);
   const audioRef = useRef<AudioContext | null>(null);
 
@@ -271,7 +274,7 @@ export function SessionRunner({
     return () => clearInterval(id);
   }, [restRun]);
 
-  function startTimer(seconds: number, label = "Repos") {
+  function startTimer(seconds: number, label = t("session.rest")) {
     // L'AudioContext doit être créé/repris sur un geste utilisateur.
     try {
       if (!audioRef.current) {
@@ -286,7 +289,7 @@ export function SessionRunner({
     setRest(seconds);
     setRestRun(true);
   }
-  const startRest = (seconds: number = restSec) => startTimer(seconds, "Repos");
+  const startRest = (seconds: number = restSec) => startTimer(seconds, t("session.rest"));
 
   function setField(key: string, field: "kg" | "reps", value: string) {
     // Chiffres uniquement : reps = entier ; kg = décimal avec un seul séparateur.
@@ -368,7 +371,7 @@ export function SessionRunner({
       {/* Progression flottante : reste visible en haut pendant qu'on scrolle. */}
       {canLog ? (
         <div className="sticky top-0 z-30 -mx-4 flex items-center gap-3 border-b border-line bg-surface/95 px-4 py-2.5 backdrop-blur nav:-mx-8 nav:px-8">
-          <MonoLabel>Progression</MonoLabel>
+          <MonoLabel>{t("nav.progress")}</MonoLabel>
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-line">
             <div className="h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${pct}%` }} />
           </div>
@@ -376,16 +379,13 @@ export function SessionRunner({
         </div>
       ) : null}
 
-      <p className="text-[13.5px] text-muted leading-relaxed">
-        Note tes séries, le poids (kg) et les répétitions. Touche <strong>Repos</strong> après
-        une série pour lancer le minuteur ({formatRest(restSec)} par défaut, ajustable). Tu peux
-        refaire cette séance quand tu veux. Ta saisie est sauvegardée automatiquement.
-      </p>
+      <p className="text-[13.5px] text-muted leading-relaxed">{t("session.intro", { rest: formatRest(restSec) })}</p>
 
       {canAlternate ? (
         <p className="-mt-2 text-[12.5px] text-muted-2">
-          Un exercice impossible aujourd&apos;hui (machine occupée, matériel manquant) ? Touche
-          <span className="font-semibold text-body"> « Autre exercice » </span> pour une alternative.
+          {t("session.altHintBefore")}
+          <span className="font-semibold text-body"> « {t("session.otherExercise")} » </span>
+          {t("session.altHintAfter")}
         </p>
       ) : null}
       {altErr ? <Alert>{altErr}</Alert> : null}
@@ -421,7 +421,7 @@ export function SessionRunner({
                     <circle cx="12" cy="13" r="8" />
                     <path d="M12 9v4l2 2M9 2h6" />
                   </svg>
-                  Lancer le chrono ({formatRest(durSec)})
+                  {t("session.startTimer", { duration: formatRest(durSec) })}
                 </button>
               ) : null}
               {zone ? (
@@ -429,7 +429,7 @@ export function SessionRunner({
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="font-archivo font-extrabold text-[13px]" style={{ color: zone.fg }}>{zone.id}</span>
                     <div className="min-w-0">
-                      <div className="font-archivo font-semibold text-[15px] leading-tight text-[#1b1d1f]">Zone {zone.name}</div>
+                      <div className="font-archivo font-semibold text-[15px] leading-tight text-[#1b1d1f]">{t("session.zone")} {zone.name}</div>
                       <div className="truncate text-[12.5px] text-[#5c5a54]">{zone.use}</div>
                     </div>
                   </div>
@@ -439,10 +439,10 @@ export function SessionRunner({
                 </div>
               ) : (
                 <div className="rounded-control bg-surface-2 px-3.5 py-3 text-[13px] text-muted">
-                  Reste en zone cardiaque cible. Renseigne ton âge et ta FC de repos dans le profil pour l&apos;afficher en battements par minute.
+                  {t("session.zoneHint")}
                 </div>
               )}
-              <div className="text-[12px] text-muted-2">Garde cette intensité pendant l&apos;effort. Rien à noter ici : ni charge, ni répétitions.</div>
+              <div className="text-[12px] text-muted-2">{t("session.cardioHint")}</div>
               {canLog ? (
                 <button
                   onClick={() => toggleCardio(ex.name)}
@@ -460,7 +460,7 @@ export function SessionRunner({
                     {cardioDone[ex.name] ? "✓" : ""}
                   </span>
                   <span className="text-[14px] font-medium text-ink">
-                    {cardioDone[ex.name] ? "Cardio fait" : "Marquer ce cardio comme fait"}
+                    {cardioDone[ex.name] ? t("session.cardioDone") : t("session.markCardio")}
                   </span>
                 </button>
               ) : null}
@@ -484,7 +484,7 @@ export function SessionRunner({
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <ExerciseName name={ex.name} onOpen={() => setGuideName(ex.name)} />
                 <div className="font-mono text-[11px] text-brand">
-                  {ex.sets} × {ex.reps} · RPE {rpeGoal} · récup {formatRest(ex.rest ?? restSec)}
+                  {ex.sets} × {ex.reps} · RPE {rpeGoal} · {t("session.recovery")} {formatRest(ex.rest ?? restSec)}
                 </div>
               </div>
             </div>
@@ -530,7 +530,7 @@ export function SessionRunner({
                         data-tour={tourRow ? "repos" : undefined}
                         className="tap shrink-0 rounded-[7px] border border-line-4 bg-surface px-3 text-[12px] font-semibold text-body active:bg-paper"
                       >
-                        Repos
+                        {t("session.rest")}
                       </button>
                     </div>
                   );
@@ -545,22 +545,22 @@ export function SessionRunner({
       {canLog ? (
         <div className="flex flex-col gap-3 rounded-card border border-line bg-surface p-4">
           <div className="flex items-center justify-between">
-            <MonoLabel>Progression</MonoLabel>
+            <MonoLabel>{t("nav.progress")}</MonoLabel>
             <span className="text-[13px] text-muted">
-              {done}/{totalSets} séries · {Math.round(volume)} kg de volume
+              {t("session.totals", { done, total: totalSets, volume: Math.round(volume) })}
             </span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-line">
             <div className="h-full bg-brand transition-[width]" style={{ width: `${totalSets ? (done / totalSets) * 100 : 0}%` }} />
           </div>
           {error ? <Alert>{error}</Alert> : null}
-          {saved ? <Alert tone="info">Séance enregistrée. Tu peux la refaire quand tu veux.</Alert> : null}
+          {saved ? <Alert tone="info">{t("session.saved")}</Alert> : null}
           <Button onClick={validate} loading={saving} full className="h-[52px]" data-tour="valider">
-            {saved ? "Mettre à jour ma séance" : "Valider ma séance"}
+            {saved ? t("session.update") : t("session.validate")}
           </Button>
         </div>
       ) : (
-        <Alert tone="info">Séance en lecture seule.</Alert>
+        <Alert tone="info">{t("session.readOnly")}</Alert>
       )}
 
       {/* Minuteur de repos flottant */}
@@ -574,7 +574,7 @@ export function SessionRunner({
               {restRun ? "❚❚" : "▶"}
             </button>
             <button onClick={() => { setRest(0); setRestRun(false); }} className="tap rounded-pill bg-brand px-3 text-[13px] font-semibold">
-              Stop
+              {t("session.stop")}
             </button>
           </div>
         </div>

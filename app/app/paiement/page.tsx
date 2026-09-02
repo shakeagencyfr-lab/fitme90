@@ -6,7 +6,9 @@ import { CoachCheckoutButton } from "@/components/coach-checkout-button";
 import { RedeemForm } from "@/components/redeem-form";
 import { clientOffer, subscriptionPrice } from "@/lib/offers";
 import { createClient } from "@/lib/supabase/server";
-import { PRICE_EUR, COACH_CREDENTIAL, GRACE_DAYS, formatEuros, programDaysForMonths, productFor, monthlyEquivalentCents } from "@/lib/config";
+import { PRICE_EUR, COACH_CREDENTIAL, GRACE_DAYS, formatEuros, programDaysForMonths, monthlyEquivalentCents } from "@/lib/config";
+import { getT, userLocale } from "@/lib/i18n/server";
+import { productCopy, durationLabel as durLabel } from "@/lib/i18n/products";
 
 export const metadata = { title: "Débloquer mon programme" };
 
@@ -18,6 +20,7 @@ export default async function PaiementPage() {
 
   // Achat via une offre coach : prix et durée de l'offre, paiement chez le coach.
   const offer = await clientOffer(ctx.userId);
+  const { t } = await getT(await userLocale(ctx.userId));
 
   // Offre en ABONNEMENT (mensuel / annuel).
   if (offer && offer.billing_type === "subscription") {
@@ -35,7 +38,7 @@ export default async function PaiementPage() {
           : "year";
     const cents = subscriptionPrice(offer, interval);
     if (cents != null && cents > 0) {
-      const suffix = interval === "year" ? "/an" : "/mois";
+      const suffix = interval === "year" ? t("payment.perYear") : t("payment.perMonth");
       return (
         <div className="mx-auto flex max-w-[520px] flex-col gap-6 py-4">
           <header className="flex flex-col gap-2">
@@ -44,16 +47,11 @@ export default async function PaiementPage() {
               {formatEuros(cents)}{suffix}
             </h1>
             <p className="text-[15px] leading-[1.6] text-muted">
-              Abonnement {interval === "year" ? "annuel" : "mensuel"} : programme et accompagnement nutritionnel
-              renouvelés automatiquement, avec coach IA. Sans engagement, résiliable à tout moment.
+              {interval === "year" ? t("payment.subYearly") : t("payment.subMonthly")}
             </p>
           </header>
           <CoachCheckoutButton priceLabel={`${formatEuros(cents)}${suffix}`} />
-          <p className="text-[12px] text-muted-2 leading-relaxed">
-            En cas de défaut de paiement, l&apos;accès passe en lecture seule : tu gardes
-            l&apos;accès à ce qui a déjà été généré, l&apos;IA est mise en pause jusqu&apos;à
-            régularisation. Accompagnement sans visée médicale.
-          </p>
+          <p className="text-[12px] text-muted-2 leading-relaxed">{t("payment.subNote")}</p>
         </div>
       );
     }
@@ -61,25 +59,25 @@ export default async function PaiementPage() {
 
   // Offre à PAIEMENT UNIQUE.
   if (offer && offer.price_cents != null && offer.price_cents > 0) {
-    const durationLabel = offer.duration_months === 12 ? "1 an" : `${offer.duration_months} mois`;
-    const product = productFor(offer.duration_months);
+    const durationLabel = durLabel(offer.duration_months, t);
+    const product = productCopy(offer.duration_months, t);
     const perMonth = monthlyEquivalentCents(offer.price_cents, offer.duration_months);
     return (
       <div className="mx-auto flex max-w-[520px] flex-col gap-6 py-4">
         <header className="flex flex-col gap-2">
           <MonoLabel className="text-brand">{product ? `${offer.name} · ${product.promise}` : offer.name}</MonoLabel>
           <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-            {formatEuros(offer.price_cents)}, une fois
+            {t("payment.once", { price: formatEuros(offer.price_cents) })}
           </h1>
           {perMonth > 0 && offer.duration_months > 1 ? (
             <p className="text-[14px] text-muted-2">
-              soit <span className="font-semibold text-body">{formatEuros(perMonth)}/mois</span> sur {durationLabel}.
+              {t("payment.perMonthEq", { amount: formatEuros(perMonth), duration: durationLabel })}
             </p>
           ) : null}
           <p className="text-[15px] leading-[1.6] text-muted">
             {product
               ? product.pitch
-              : `Programme d'entraînement et accompagnement nutritionnel sur ${durationLabel} (${programDaysForMonths(offer.duration_months)} jours), avec coach IA.`}
+              : t("payment.genericPitch", { duration: durationLabel, days: programDaysForMonths(offer.duration_months) })}
           </p>
         </header>
         {product ? (
@@ -93,11 +91,7 @@ export default async function PaiementPage() {
           </Card>
         ) : null}
         <CoachCheckoutButton priceLabel={formatEuros(offer.price_cents)} allowPromo />
-        <p className="text-[12px] text-muted-2 leading-relaxed">
-          Accompagnement sportif et de bien-être, sans visée médicale. En cas de
-          pathologie, de grossesse ou de blessure, l&apos;accès peut être suspendu et un
-          avis médical demandé.
-        </p>
+        <p className="text-[12px] text-muted-2 leading-relaxed">{t("payment.legalNote")}</p>
       </div>
     );
   }
@@ -105,27 +99,26 @@ export default async function PaiementPage() {
   return (
     <div className="mx-auto flex max-w-[520px] flex-col gap-6 py-4">
       <header className="flex flex-col gap-2">
-        <MonoLabel className="text-brand">Programme complet</MonoLabel>
+        <MonoLabel className="text-brand">{t("payment.fullProgram")}</MonoLabel>
         <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          {PRICE_EUR} €, une fois
+          {t("payment.once", { price: `${PRICE_EUR} €` })}
         </h1>
         <p className="text-[15px] leading-[1.6] text-muted">
-          Sans abonnement. Programme d'entraînement et accompagnement nutritionnel
-          sur toute la durée du programme, conçus par un {COACH_CREDENTIAL.toLowerCase()}.
+          {t("payment.fullProgramBody", { credential: COACH_CREDENTIAL.toLowerCase() })}
         </p>
       </header>
 
       <Card className="flex flex-col gap-3">
         {[
-          "Programme d'entraînement périodisé, adapté à ta salle",
-          "Nutrition jour par jour, allergènes et régime respectés",
-          "Coach IA disponible pendant ton programme",
-          `Plan consultable ${GRACE_DAYS} jours de plus après la fin`,
-          "Export PDF complet",
-        ].map((t) => (
-          <div key={t} className="flex items-start gap-2.5 text-[14.5px] text-body">
+          t("payment.bullets.periodized"),
+          t("payment.bullets.nutrition"),
+          t("payment.bullets.ai"),
+          t("payment.bullets.grace", { days: GRACE_DAYS }),
+          t("payment.bullets.pdf"),
+        ].map((line) => (
+          <div key={line} className="flex items-start gap-2.5 text-[14.5px] text-body">
             <span className="text-brand mt-0.5" aria-hidden>✓</span>
-            <span>{t}</span>
+            <span>{line}</span>
           </div>
         ))}
       </Card>
@@ -135,17 +128,13 @@ export default async function PaiementPage() {
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <div className="h-px flex-1 bg-line" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">ou</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">{t("common.or")}</span>
           <div className="h-px flex-1 bg-line" />
         </div>
         <RedeemForm />
       </div>
 
-      <p className="text-[12px] text-muted-2 leading-relaxed">
-        Accompagnement sportif et de bien-être, sans visée médicale. En cas de
-        pathologie, de grossesse ou de blessure, l'accès peut être suspendu et un
-        avis médical demandé.
-      </p>
+      <p className="text-[12px] text-muted-2 leading-relaxed">{t("payment.legalNote")}</p>
     </div>
   );
 }

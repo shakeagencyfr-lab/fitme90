@@ -13,6 +13,8 @@ import { RestartOnboarding } from "@/components/onboarding-tour";
 import { SubscriptionCard } from "@/components/subscription-card";
 import { isAdminEmail } from "@/lib/admin";
 import { COACH_CREDENTIAL } from "@/lib/config";
+import { LangSwitch } from "@/components/lang-switch";
+import { getT, userLocale } from "@/lib/i18n/server";
 
 export const metadata = { title: "Profil" };
 
@@ -47,14 +49,15 @@ export default async function ProfilPage() {
       .maybeSingle<{ kg: number }>(),
   ]);
   const str = (v: number | null | undefined) => (v != null ? String(v) : "");
+  const { locale, t } = await getT(await userLocale(ctx.userId));
 
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-5">
       <div className="flex flex-col gap-1">
         <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          {prof?.name?.trim() || "Profil"}
+          {prof?.name?.trim() || t("nav.profile")}
         </h1>
-        {prof?.name?.trim() ? <MonoLabel>Ton profil</MonoLabel> : null}
+        {prof?.name?.trim() ? <MonoLabel>{t("profile.title")}</MonoLabel> : null}
       </div>
 
       <ProfileMeasures
@@ -80,20 +83,21 @@ export default async function ProfilPage() {
       <NotificationSetting />
 
       <Card className="flex flex-col gap-3">
-        <MonoLabel>Compte</MonoLabel>
+        <MonoLabel>{t("profile.account")}</MonoLabel>
         <div className="text-[15px] text-ink">{ctx.email}</div>
-        <Stat label="Accès" value={accessLabel(ctx.access)} />
-        <p className="text-[12.5px] text-muted-2">
-          Programme conçu par un {COACH_CREDENTIAL.toLowerCase()}. Accompagnement
-          sportif et de bien-être, sans visée médicale.
-        </p>
+        <Stat label={t("profile.access")} value={accessLabel(ctx.access, locale)} />
+        <p className="text-[12.5px] text-muted-2">{t("profile.designedBy", { credential: COACH_CREDENTIAL.toLowerCase() })}</p>
       </Card>
 
       <Card className="flex flex-col gap-3">
-        <MonoLabel>Apparence</MonoLabel>
+        <MonoLabel>{t("common.language")}</MonoLabel>
+        <LangSwitch className="self-start" />
+        <p className="text-[12.5px] text-muted-2">{t("profile.languageHint")}</p>
+        <div className="h-px bg-line-2" />
+        <MonoLabel>{t("profile.appearance")}</MonoLabel>
         <ThemeToggle className="self-start" />
         <div className="h-px bg-line-2" />
-        <MonoLabel>Prise en main</MonoLabel>
+        <MonoLabel>{t("profile.onboarding")}</MonoLabel>
         <RestartOnboarding className="self-start" />
       </Card>
 
@@ -111,8 +115,8 @@ export default async function ProfilPage() {
       <AccountActions />
 
       <nav className="flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-muted-2">
-        <Link href="/mentions-legales" className="hover:text-ink">Mentions légales</Link>
-        <Link href="/confidentialite" className="hover:text-ink">Confidentialité</Link>
+        <Link href="/mentions-legales" className="hover:text-ink">{t("profile.legal")}</Link>
+        <Link href="/confidentialite" className="hover:text-ink">{t("profile.privacy")}</Link>
         <Link href="/cgv" className="hover:text-ink">CGV</Link>
       </nav>
     </div>

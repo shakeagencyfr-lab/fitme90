@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/components/locale-provider";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
 
 // Bouton « Suggère-moi mes charges » : demande au coach des charges pour la
 // prochaine séance à partir des séances déjà validées. Réponse affichée en place.
 export function CoachLoadSuggestion() {
+  const t = useT();
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -20,15 +22,15 @@ export function CoachLoadSuggestion() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           message:
-            "À partir de mes séances déjà validées, propose-moi les charges (ou le RPE visé si je débute) pour chaque exercice de ma prochaine séance. Sois concret et prudent.",
+            t("loads.prompt"),
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Indisponible.");
+      if (!res.ok) throw new Error(data.error || t("common.unavailable"));
       const text = Array.isArray(data.messages) ? data.messages.join("\n\n") : data.answer;
       setAnswer(text);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Indisponible.");
+      setError(e instanceof Error ? e.message : t("common.unavailable"));
     } finally {
       setBusy(false);
     }
@@ -37,13 +39,10 @@ export function CoachLoadSuggestion() {
   return (
     <Card className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <MonoLabel className="text-brand">Charges</MonoLabel>
-        <div className="font-archivo font-semibold text-[15px] text-ink">
-          Le coach cale tes charges
-        </div>
+        <MonoLabel className="text-brand">{t("loads.title")}</MonoLabel>
+        <div className="font-archivo font-semibold text-[15px] text-ink">{t("loads.headline")}</div>
         <p className="text-[13px] text-muted leading-relaxed">
-          À partir de ce que tu as noté dans tes séances validées, le coach te
-          propose les charges (ou le RPE visé si tu débutes).
+          {t("loads.body")}
         </p>
       </div>
       {error ? <Alert>{error}</Alert> : null}
@@ -53,7 +52,7 @@ export function CoachLoadSuggestion() {
         </div>
       ) : null}
       <Button variant="outline" onClick={ask} loading={busy} className="self-start h-11">
-        {answer ? "Refaire une suggestion" : "Suggère-moi mes charges"}
+        {answer ? t("loads.again") : t("loads.cta")}
       </Button>
     </Card>
   );

@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { resolveLocale, userLocale } from "@/lib/i18n/server";
+import { makeT } from "@/lib/i18n";
 import { getSessionContext } from "@/lib/guard";
 
 export interface EquipItem {
@@ -13,6 +15,7 @@ export interface EquipItem {
 // précédente). Ce matériel filtre ensuite les exercices du programme.
 export async function saveEquipment(items: EquipItem[]): Promise<{ ok?: boolean; error?: string }> {
   const ctx = await getSessionContext();
+  const t = makeT(await resolveLocale(await userLocale(ctx?.userId)));
   if (!ctx) return { error: "Non authentifié." };
 
   const supabase = await createClient();
@@ -30,7 +33,7 @@ export async function saveEquipment(items: EquipItem[]): Promise<{ ok?: boolean;
 
   if (rows.length) {
     const { error } = await supabase.from("equipment").insert(rows);
-    if (error) return { error: "Enregistrement du matériel impossible." };
+    if (error) return { error: t("srv.saveFailed") };
   }
   return { ok: true };
 }

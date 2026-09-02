@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/components/locale-provider";
 
 // Invite à installer la PWA depuis le dashboard.
 //  - Android / Chrome / Edge : vraie invite système via `beforeinstallprompt`
@@ -36,6 +37,7 @@ function dismissed(): boolean {
 // `requireOnboarded` : côté client, on attend que le tutoriel d'accueil soit
 // terminé pour ne pas superposer l'invite au tour guidé.
 export function PwaInstall({ requireOnboarded = false }: { requireOnboarded?: boolean }) {
+  const t = useT();
   // "hidden" | "android" (invite native dispo) | "ios" (instructions manuelles)
   const [mode, setMode] = useState<"hidden" | "android" | "ios">("hidden");
   const [deferred, setDeferred] = useState<BIPEvent | null>(null);
@@ -113,13 +115,13 @@ export function PwaInstall({ requireOnboarded = false }: { requireOnboarded?: bo
   return (
     <>
       <button
-        aria-label="Fermer"
+        aria-label={t("common.close")}
         onClick={close}
         className="fixed inset-0 z-50 bg-ink/30 backdrop-blur-[1px]"
       />
       <div
         role="dialog"
-        aria-label="Installer l'application"
+        aria-label={t("pwa.title")}
         className="fixed inset-x-3 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-50 mx-auto flex max-w-[440px] flex-col gap-3 rounded-card border border-line bg-surface p-5 shadow-xl sm:inset-x-auto sm:right-6"
       >
         <div className="flex items-start gap-3">
@@ -127,15 +129,15 @@ export function PwaInstall({ requireOnboarded = false }: { requireOnboarded?: bo
           <img src="/icons/icon-192.png" alt="" className="size-11 shrink-0 rounded-[12px]" />
           <div className="flex min-w-0 flex-col gap-0.5">
             <span className="font-archivo font-extrabold text-[16px] leading-tight tracking-[-0.02em] text-ink">
-              Installer l&apos;application
+              {t("pwa.title")}
             </span>
             <span className="text-[13px] leading-snug text-muted">
-              Accès direct depuis ton écran d&apos;accueil, en plein écran, avec les notifications.
+              {t("pwa.body")}
             </span>
           </div>
           <button
             onClick={close}
-            aria-label="Fermer"
+            aria-label={t("common.close")}
             className="tap -mr-1 -mt-1 ml-auto flex size-8 shrink-0 items-center justify-center rounded-btn text-muted-2 hover:bg-surface-2 hover:text-ink"
           >
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden>
@@ -150,13 +152,13 @@ export function PwaInstall({ requireOnboarded = false }: { requireOnboarded?: bo
               onClick={install}
               className="tap h-11 flex-1 rounded-btn bg-brand px-5 font-plex font-semibold text-[14px] text-white hover:bg-brand-hover"
             >
-              Installer
+              {t("pwa.install")}
             </button>
             <button
               onClick={close}
               className="tap h-11 rounded-btn border border-line-4 px-4 font-plex font-semibold text-[14px] text-body hover:border-ink"
             >
-              Plus tard
+              {t("pwa.later")}
             </button>
           </div>
         ) : (
@@ -164,20 +166,20 @@ export function PwaInstall({ requireOnboarded = false }: { requireOnboarded?: bo
             <li className="flex items-center gap-2.5">
               <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand/10 font-mono text-[11px] font-bold text-brand">1</span>
               <span className="flex items-center gap-1.5">
-                Touche
+                {t("pwa.tap")}
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className="text-brand" aria-hidden>
                   <path d="M12 15V4m0 0 4 4m-4-4-4 4M6 12v6a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-6" />
                 </svg>
-                Partager, en bas de Safari
+                {t("pwa.share")}
               </span>
             </li>
             <li className="flex items-center gap-2.5">
               <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand/10 font-mono text-[11px] font-bold text-brand">2</span>
-              <span>Choisis « Sur l&apos;écran d&apos;accueil »</span>
+              <span>{t("pwa.addHome")}</span>
             </li>
             <li className="flex items-center gap-2.5">
               <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand/10 font-mono text-[11px] font-bold text-brand">3</span>
-              <span>Valide avec « Ajouter »</span>
+              <span>{t("pwa.confirm")}</span>
             </li>
           </ol>
         )}

@@ -5,16 +5,8 @@ import { formatEuros, DEFAULT_BRAND_COLOR } from "@/lib/config";
 import { S } from "@/components/landing-icons";
 import { SubscriptionPrice } from "@/components/subscription-price";
 import { Reveal } from "@/components/reveal";
-import {
-  offerCardCopy,
-  features,
-  salleBullets,
-  steps,
-  espaceBullets,
-  nutritionBullets,
-  forWho,
-  faqs,
-} from "@/components/landing-templates/coach-content";
+import { offerCardCopy, landingCopy, type LandingCopy } from "@/components/landing-templates/coach-copy";
+import { makeT, type Locale } from "@/lib/i18n";
 
 // Template « Lumen » : design clair, éditorial et aéré. Même contenu que Onyx,
 // habillage lumineux (fond papier chaud, encre sombre, accent de marque).
@@ -40,7 +32,7 @@ function Brand({ tenant, imgClass = "h-11", textClass = "text-[20px]" }: { tenan
 }
 
 // Maquette « produit » claire pour le hero (aperçu de l'espace client).
-function LumenAppCard({ name }: { name: string }) {
+function LumenAppCard({ name, L }: { name: string; L: LandingCopy }) {
   return (
     <div className="relative mx-auto w-full max-w-[380px]">
       <div className="rounded-[28px] border border-black/8 bg-white p-4 shadow-[0_40px_90px_-30px_rgba(30,20,10,.35)]">
@@ -51,7 +43,7 @@ function LumenAppCard({ name }: { name: string }) {
           </div>
           <div className="mt-4 rounded-2xl border border-black/8 bg-white p-3.5">
             <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.12em] text-ink/45">
-              <span>Séance du jour</span><span className="text-brand">Jour 24</span>
+              <span>{L.mockSession}</span><span className="text-brand">{L.mockDay}</span>
             </div>
             <ul className="mt-2.5 flex flex-col gap-2">
               {[["Développé couché", "4 × 8"], ["Tirage vertical", "4 × 10"], ["Élévations latérales", "3 × 15"]].map(([ex, sr], i) => (
@@ -77,8 +69,8 @@ function LumenAppCard({ name }: { name: string }) {
         <div className="flex items-center gap-2.5">
           <span className="flex size-9 items-center justify-center rounded-full bg-brand/12 text-brand"><S.chat className="h-5 w-5" /></span>
           <div>
-            <div className="font-archivo text-[14px] font-extrabold leading-none text-ink">Coach IA</div>
-            <div className="mt-0.5 text-[11px] text-ink/50">répond en direct</div>
+            <div className="font-archivo text-[14px] font-extrabold leading-none text-ink">{L.mockCoach}</div>
+            <div className="mt-0.5 text-[11px] text-ink/50">{L.mockCoachSub}</div>
           </div>
         </div>
       </div>
@@ -86,15 +78,16 @@ function LumenAppCard({ name }: { name: string }) {
   );
 }
 
-function OfferCard({ offer, offers, slug, chargesEnabled }: { offer: Offer; offers: Offer[]; slug: string; chargesEnabled: boolean }) {
+function OfferCard({ offer, offers, slug, chargesEnabled, locale }: { offer: Offer; offers: Offer[]; slug: string; chargesEnabled: boolean; locale: Locale }) {
   const isSub = offer.billing_type === "subscription";
-  const copy = offerCardCopy(offer, offers);
+  const copy = offerCardCopy(offer, offers, makeT(locale));
+  const L = landingCopy(locale);
   const featured = copy.featured;
   return (
     <article className={`relative flex flex-col gap-5 rounded-[24px] border p-7 transition-all duration-300 hover:-translate-y-1 ${featured ? "border-brand/40 bg-white shadow-[0_30px_70px_-32px_rgba(30,20,10,.45)]" : "border-black/8 bg-white hover:border-brand/30"}`}>
       {featured ? (
         <span className="absolute -top-3 left-6 rounded-pill bg-brand px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-white">
-          Le plus choisi
+          {L.mostChosen}
         </span>
       ) : null}
       <div className="flex flex-col gap-1.5">
@@ -118,11 +111,11 @@ function OfferCard({ offer, offers, slug, chargesEnabled }: { offer: Offer; offe
             <span className="font-archivo text-[clamp(40px,7vw,56px)] font-extrabold leading-none tracking-[-0.03em] text-ink">
               {formatEuros(offer.price_cents)}
             </span>
-            <span className="pb-2 text-[13px] text-ink/50">paiement unique</span>
+            <span className="pb-2 text-[13px] text-ink/50">{L.oneTime}</span>
           </div>
           {copy.perMonthCents > 0 ? (
             <span className="text-[13px] text-ink/55">
-              soit <span className="font-semibold text-ink">{formatEuros(copy.perMonthCents)}/mois</span> sur {offer.duration_months} mois
+              {L.perMonthOn(formatEuros(copy.perMonthCents), offer.duration_months)}
             </span>
           ) : null}
         </div>
@@ -143,12 +136,12 @@ function OfferCard({ offer, offers, slug, chargesEnabled }: { offer: Offer; offe
             href={`/inscription?c=${slug}&offer=${offer.id}`}
             className="tap inline-flex h-[52px] w-full items-center justify-center gap-2 whitespace-nowrap rounded-btn bg-brand px-5 text-[15px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]"
           >
-            Choisir ce programme
+            {L.choose}
             <S.arrow className="h-4.5 w-4.5 shrink-0" />
           </Link>
         ) : (
           <span className="inline-flex h-[52px] items-center justify-center rounded-btn border border-black/10 px-6 text-[14px] text-ink/40">
-            Bientôt disponible
+            {L.soon}
           </span>
         ))}
     </article>
@@ -165,12 +158,13 @@ function ShotFrame({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: PublicTenant; offers: Offer[]; leadMagnet?: boolean }) {
+export function CoachLumen({ tenant, offers, leadMagnet = false, locale = "fr" }: { tenant: PublicTenant; offers: Offer[]; leadMagnet?: boolean; locale?: Locale }) {
+  const L = landingCopy(locale);
   const accent = tenant.brandColor || DEFAULT_BRAND_COLOR;
   const title = tenant.headline || tenant.name;
   const tagline =
     tenant.tagline ||
-    "Un programme conçu selon la méthode de ton coach, adapté à ta salle et à tes contraintes, et suivi au quotidien. Amplifié par une IA qu'il a entraînée sur sa façon de travailler.";
+    L.defaultTagline;
 
   return (
     <div
@@ -200,11 +194,11 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
           <Link href="#top" className="flex items-center"><Brand tenant={tenant} imgClass="h-11 sm:h-14" /></Link>
           <div className="flex items-center gap-3">
             <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-ink/70 transition-colors hover:text-ink sm:inline">
-              Se connecter
+              {L.login}
             </Link>
             {offers.length > 0 ? (
               <a href="#offres" className="tap inline-flex h-10 items-center rounded-btn bg-brand px-4 text-[14px] font-semibold text-white hover:bg-brand-hover">
-                Voir les programmes
+                {L.seePrograms}
               </a>
             ) : null}
           </div>
@@ -217,7 +211,7 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
           <div className="pointer-events-none absolute -right-32 -top-40 h-[460px] w-[460px] rounded-full blur-[120px]" style={{ background: `color-mix(in srgb, ${accent} 22%, transparent)` }} />
           <div className="mx-auto grid w-full max-w-[1120px] items-center gap-12 px-5 pb-16 pt-[clamp(40px,7vw,84px)] sm:px-8 lg:grid-cols-[1.05fr_0.95fr]">
             <div>
-              <span className="lm-up inline-block"><Eyebrow><S.spark className="h-3.5 w-3.5" /> Coaching personnalisé</Eyebrow></span>
+              <span className="lm-up inline-block"><Eyebrow><S.spark className="h-3.5 w-3.5" /> {L.heroChip}</Eyebrow></span>
               <h1 className="lm-up mt-5 max-w-[16ch] font-archivo text-[clamp(40px,8vw,80px)] font-extrabold leading-[0.96] tracking-[-0.04em] text-balance text-ink" style={{ animationDelay: "70ms" }}>
                 {title}
               </h1>
@@ -225,34 +219,29 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
               <div className="lm-up mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap" style={{ animationDelay: "210ms" }}>
                 {offers.length > 0 ? (
                   <a href="#offres" className="tap inline-flex h-[54px] items-center justify-center gap-2 rounded-btn bg-brand px-8 text-[16px] font-semibold text-white shadow-[0_14px_40px_-12px_var(--color-brand)] transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]">
-                    Voir les programmes <S.arrow className="h-4.5 w-4.5" />
+                    {L.seePrograms} <S.arrow className="h-4.5 w-4.5" />
                   </a>
                 ) : null}
                 <a href="#methode" className="tap inline-flex h-[54px] items-center justify-center rounded-btn border border-black/12 bg-white px-8 text-[16px] font-semibold text-ink transition-colors duration-150 hover:border-ink/40">
-                  Comment ça marche
+                  {L.howItWorks}
                 </a>
               </div>
               <div className="mt-7 flex flex-wrap gap-x-7 gap-y-3">
-                {["Santé prise en compte", "Allergies & régimes", "Coach IA inclus"].map((t) => (
+                {L.heroChecks.map((t) => (
                   <span key={t} className="inline-flex items-center gap-2 text-[13.5px] text-ink/60">
                     <S.check className="h-4 w-4 text-brand" /> {t}
                   </span>
                 ))}
               </div>
             </div>
-            <div className="lm-up" style={{ animationDelay: "180ms" }}><LumenAppCard name={tenant.name} /></div>
+            <div className="lm-up" style={{ animationDelay: "180ms" }}><LumenAppCard name={tenant.name} L={L} /></div>
           </div>
         </section>
 
         {/* Bandeau repères */}
         <section className="border-y border-black/8 bg-white">
           <div className="mx-auto grid w-full max-w-[1120px] grid-cols-2 gap-y-6 px-5 py-8 sm:px-8 lg:grid-cols-4">
-            {[
-              { v: "Ton coach", l: "conçoit ta méthode" },
-              { v: "100 %", l: "adapté à ta salle & ta santé" },
-              { v: "Assistant IA", l: "formé par ton coach, inclus" },
-              { v: "Sur mesure", l: "à l'unité ou en abonnement" },
-            ].map((s) => (
+            {L.stats.map((s) => (
               <div key={s.l} className="flex flex-col gap-1 px-2">
                 <div className="font-archivo text-[clamp(24px,4vw,34px)] font-extrabold leading-none tracking-[-0.03em] text-ink">{s.v}</div>
                 <div className="text-[13px] leading-[1.4] text-ink/55">{s.l}</div>
@@ -265,11 +254,11 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
         <section className="scroll-mt-24">
           <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(56px,8vw,100px)] sm:px-8">
             <Reveal className="flex flex-col items-center gap-4 text-center">
-              <Eyebrow>Fonctionnalités</Eyebrow>
-              <h2 className={sectionTitle}>Tout ce qu&apos;il faut pour réussir</h2>
+              <Eyebrow>{L.featuresChip}</Eyebrow>
+              <h2 className={sectionTitle}>{L.featuresTitle}</h2>
             </Reveal>
             <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {features.map((f, i) => (
+              {L.features.map((f, i) => (
                 <div key={f.title} className={`flex flex-col gap-4 rounded-[20px] border p-6 transition-all duration-300 hover:-translate-y-1 ${i === 2 ? "border-brand/40 bg-brand/[0.05]" : "border-black/8 bg-white hover:border-brand/25"}`}>
                   <span className="inline-flex h-12 w-12 items-center justify-center rounded-[12px] bg-brand/10 text-brand">
                     <f.icon className="h-6 w-6" />
@@ -286,15 +275,15 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
         <section className="border-t border-black/8 bg-white">
           <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(52px,7vw,90px)] sm:px-8 lg:grid-cols-2">
             <div className="flex flex-col gap-5">
-              <Eyebrow><S.camera className="h-3.5 w-3.5" /> Analyse IA de ta salle</Eyebrow>
+              <Eyebrow><S.camera className="h-3.5 w-3.5" /> {L.gymChip}</Eyebrow>
               <h2 className="font-archivo text-[clamp(26px,4vw,42px)] font-extrabold leading-[1.06] tracking-[-0.03em] text-ink">
-                Ta salle analysée. Ton programme adapté.
+                {L.gymTitle}
               </h2>
               <p className="max-w-[52ch] text-[16px] leading-[1.65] text-ink/65">
-                Photographie ta salle : l&apos;IA identifie le matériel disponible et s&apos;assure que chaque exercice de ton programme est réalisable avec ce que tu as.
+                {L.gymBody}
               </p>
               <ul className="flex flex-col gap-2.5 pt-1">
-                {salleBullets.map((b) => (
+                {L.gymBullets.map((b) => (
                   <li key={b} className="flex items-center gap-3 text-[15px] text-ink/75">
                     <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand" /> {b}
                   </li>
@@ -321,19 +310,19 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
           <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(52px,7vw,90px)] sm:px-8 lg:grid-cols-2">
             <div className="order-2 lg:order-1">
               <ShotFrame>
-                <LumenAppCard name={tenant.name} />
+                <LumenAppCard name={tenant.name} L={L} />
               </ShotFrame>
             </div>
             <div className="order-1 flex flex-col gap-5 lg:order-2">
-              <Eyebrow><S.grid className="h-3.5 w-3.5" /> Espace client</Eyebrow>
+              <Eyebrow><S.grid className="h-3.5 w-3.5" /> {L.spaceChip}</Eyebrow>
               <h2 className="font-archivo text-[clamp(26px,4vw,42px)] font-extrabold leading-[1.06] tracking-[-0.03em] text-ink">
-                Ton programme, vivant au quotidien.
+                {L.spaceTitle}
               </h2>
               <p className="max-w-[52ch] text-[16px] leading-[1.65] text-ink/65">
-                Plus qu&apos;un document, ton programme est interactif. Coche tes exercices, lance ton chronomètre, consulte ta nutrition et dialogue avec ton coach IA.
+                {L.spaceBody}
               </p>
               <ul className="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-2">
-                {espaceBullets.map((b) => (
+                {L.spaceBullets.map((b) => (
                   <li key={b} className="flex items-center gap-2.5 text-[14.5px] text-ink/75">
                     <S.check className="h-4.5 w-4.5 shrink-0 text-brand" /> {b}
                   </li>
@@ -347,15 +336,15 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
         <section className="border-t border-black/8 bg-white">
           <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(52px,7vw,90px)] sm:px-8 lg:grid-cols-2">
             <div className="flex flex-col gap-5">
-              <Eyebrow>Nutrition</Eyebrow>
+              <Eyebrow>{L.nutritionChip}</Eyebrow>
               <h2 className="font-archivo text-[clamp(26px,4vw,42px)] font-extrabold leading-[1.06] tracking-[-0.03em] text-ink">
-                Une nutrition aussi précise que ton entraînement.
+                {L.nutritionTitle}
               </h2>
               <p className="max-w-[52ch] text-[16px] leading-[1.65] text-ink/65">
-                Calories, macros, timing des repas et recettes adaptées. Tes allergies, intolérances et ton cadre religieux (halal, casher, végétarien…) pris en compte.
+                {L.nutritionBody}
               </p>
               <ul className="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-2">
-                {nutritionBullets.map((b) => (
+                {L.nutritionBullets.map((b) => (
                   <li key={b} className="flex items-center gap-2.5 text-[14.5px] text-ink/75">
                     <S.check className="h-4.5 w-4.5 shrink-0 text-brand" /> {b}
                   </li>
@@ -384,10 +373,10 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
           <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(56px,8vw,100px)] sm:px-8">
             <Reveal className="flex flex-col items-center gap-4 text-center">
               <Eyebrow>Comment ça marche</Eyebrow>
-              <h2 className={sectionTitle}>3 étapes vers ta transformation</h2>
+              <h2 className={sectionTitle}>{L.stepsTitle}</h2>
             </Reveal>
             <div className="mt-12 grid gap-4 md:grid-cols-3">
-              {steps.map((s) => (
+              {L.steps.map((s) => (
                 <div key={s.k} className="flex flex-col gap-3 rounded-[20px] border border-black/8 bg-white p-7">
                   <div className="font-archivo text-[44px] font-extrabold leading-none tracking-[-0.04em] text-brand/25">{s.k}</div>
                   <h3 className="font-archivo text-[19px] font-bold tracking-[-0.02em] text-ink">{s.title}</h3>
@@ -401,9 +390,9 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
         {/* Est-ce pour toi */}
         <section className="scroll-mt-24 border-t border-black/8 bg-white">
           <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(56px,8vw,100px)] sm:px-8">
-            <h2 className={`${sectionTitle} max-w-[16ch]`}>Est-ce pour toi ?</h2>
+            <h2 className={`${sectionTitle} max-w-[16ch]`}>{L.forWhoTitle}</h2>
             <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {forWho.map((w) => (
+              {L.forWho.map((w) => (
                 <div key={w.title} className="flex items-start gap-3 rounded-[18px] border border-black/8 bg-[#faf8f5] p-5">
                   <S.check className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
                   <div className="flex flex-col gap-1">
@@ -431,7 +420,7 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
                 </div>
               ) : null}
               <div className="flex flex-col gap-5">
-                <Eyebrow>À propos</Eyebrow>
+                <Eyebrow>{L.aboutChip}</Eyebrow>
                 <h2 className="font-archivo text-[clamp(26px,4vw,42px)] font-extrabold leading-[1.06] tracking-[-0.03em] text-ink">
                   {tenant.aboutTitle || tenant.name}
                 </h2>
@@ -454,16 +443,16 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
               <div className="relative overflow-hidden rounded-[24px] border border-brand/30 bg-gradient-to-br from-brand/[0.08] to-transparent p-8 sm:p-10">
                 <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-col gap-2">
-                    <Eyebrow><S.spark className="h-3.5 w-3.5" /> Offert</Eyebrow>
+                    <Eyebrow><S.spark className="h-3.5 w-3.5" /> {L.leadChip}</Eyebrow>
                     <h3 className="font-archivo text-[clamp(22px,3.5vw,30px)] font-extrabold leading-tight tracking-[-0.02em] text-ink">
-                      Pas encore décidé ? Reçois ton mini-programme gratuit
+                      {L.leadTitle}
                     </h3>
                     <p className="max-w-[52ch] text-[15px] leading-[1.6] text-ink/65">
-                      Une semaine d&apos;entraînement calibrée pour toi, à télécharger en PDF. Sans engagement.
+                      {L.leadBody}
                     </p>
                   </div>
                   <Link href={`/c/${tenant.slug}/decouverte`} className="tap inline-flex h-[52px] shrink-0 items-center justify-center gap-2 rounded-btn bg-brand px-7 text-[15px] font-semibold text-white shadow-[0_14px_40px_-12px_var(--color-brand)] transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">
-                    Recevoir mon programme <S.arrow className="h-4.5 w-4.5" />
+                    {L.leadCta} <S.arrow className="h-4.5 w-4.5" />
                   </Link>
                 </div>
               </div>
@@ -475,12 +464,12 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
         <section id="offres" className="scroll-mt-20 border-t border-black/8 bg-white">
           <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(56px,8vw,100px)] sm:px-8">
             <Reveal className="flex flex-col items-center gap-4 text-center">
-              <Eyebrow>Programmes</Eyebrow>
-              <h2 className={sectionTitle}>Choisis ton programme</h2>
+              <Eyebrow>{L.programsChip}</Eyebrow>
+              <h2 className={sectionTitle}>{L.programsTitle}</h2>
             </Reveal>
             {offers.length === 0 ? (
               <div className="mx-auto mt-10 max-w-[520px] rounded-[20px] border border-black/8 bg-[#faf8f5] p-6 text-center text-[15px] text-ink/60">
-                Aucune offre disponible pour le moment. Reviens bientôt.
+                {L.noOffer}
               </div>
             ) : (
               <div
@@ -493,7 +482,7 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
                 }`}
               >
                 {offers.map((o) => (
-                  <OfferCard key={o.id} offer={o} offers={offers} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} />
+                  <OfferCard key={o.id} offer={o} offers={offers} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} locale={locale} />
                 ))}
               </div>
             )}
@@ -501,16 +490,16 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
             {tenant.chargesEnabled && offers.some((o) => o.billing_type !== "subscription") ? (
               <div className="mx-auto mt-10 flex max-w-[560px] flex-col items-center gap-3 rounded-[24px] border border-black/8 bg-[#faf8f5] p-7 text-center">
                 <div className="font-archivo text-[20px] font-bold tracking-[-0.02em] text-ink">
-                  Envie de faire plaisir ?
+                  {L.giftTitle}
                 </div>
                 <p className="text-[14px] leading-[1.55] text-ink/60">
-                  Offre un programme à quelqu&apos;un : tu paies, la personne reçoit un code à utiliser librement.
+                  {L.giftBody}
                 </p>
                 <Link
                   href={`/c/${tenant.slug}/offrir`}
                   className="tap mt-1 inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-btn border border-brand bg-brand/10 px-6 text-[15px] font-semibold text-brand transition-colors hover:bg-brand/20"
                 >
-                  <S.spark className="h-4 w-4 text-brand" /> Je veux offrir un programme
+                  <S.spark className="h-4 w-4 text-brand" /> {L.giftCta}
                 </Link>
               </div>
             ) : null}
@@ -521,11 +510,11 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
         <section className="border-t border-black/8">
           <div className="mx-auto w-full max-w-[820px] px-5 py-[clamp(56px,8vw,100px)] sm:px-8">
             <Reveal className="flex flex-col items-center gap-4 text-center">
-              <Eyebrow>FAQ</Eyebrow>
-              <h2 className={sectionTitle}>Questions fréquentes</h2>
+              <Eyebrow>{L.faqChip}</Eyebrow>
+              <h2 className={sectionTitle}>{L.faqTitle}</h2>
             </Reveal>
             <div className="mt-10 flex flex-col gap-3">
-              {faqs.map((f) => (
+              {L.faqs.map((f) => (
                 <details key={f.q} className="group rounded-[18px] border border-black/8 bg-white px-5 py-4 open:border-brand/30">
                   <summary className="tap flex cursor-pointer list-none items-center justify-between gap-4 font-archivo text-[15.5px] font-semibold leading-snug text-ink [&::-webkit-details-marker]:hidden">
                     {f.q}
@@ -543,11 +532,11 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
           <div className="pointer-events-none absolute left-1/2 top-0 h-[320px] w-[720px] -translate-x-1/2 rounded-full blur-[130px]" style={{ background: `color-mix(in srgb, ${accent} 16%, transparent)` }} />
           <div className="relative mx-auto flex w-full max-w-[1120px] flex-col items-center gap-7 px-5 py-[clamp(64px,10vw,120px)] text-center sm:px-8">
             <h2 className="max-w-[18ch] font-archivo text-[clamp(30px,5.5vw,56px)] font-extrabold leading-[1.02] tracking-[-0.035em] text-balance text-ink">
-              Ta transformation commence aujourd&apos;hui.
+              {L.finalTitle}
             </h2>
             {offers.length > 0 ? (
               <a href="#offres" className="tap inline-flex h-[56px] items-center justify-center gap-2 rounded-btn bg-brand px-9 text-[16px] font-semibold text-white shadow-[0_14px_40px_-12px_var(--color-brand)] transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]">
-                Voir les programmes <S.arrow className="h-5 w-5" />
+                {L.seePrograms} <S.arrow className="h-5 w-5" />
               </a>
             ) : null}
           </div>
@@ -559,17 +548,16 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
         <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 px-5 py-12 sm:px-8">
           <Brand tenant={tenant} imgClass="h-10" textClass="text-[18px]" />
           <p className="max-w-[70ch] text-[13px] leading-[1.6] text-ink/50">
-            Accompagnement sportif et de bien-être, sans visée thérapeutique. L&apos;accompagnement nutritionnel est une aide au choix des repas, pas une prescription diététique. Ne remplace pas un avis médical.
+            {L.legalNote}
           </p>
           <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-1 text-[13px] text-ink/50">
-            <Link href="/connexion" className="transition-colors hover:text-ink">Connexion</Link>
-            <Link href="/mentions-legales" className="transition-colors hover:text-ink">Mentions légales</Link>
-            <Link href="/confidentialite" className="transition-colors hover:text-ink">Confidentialité</Link>
-            <Link href="/cgv" className="transition-colors hover:text-ink">CGV</Link>
+            <Link href="/connexion" className="transition-colors hover:text-ink">{L.footerLogin}</Link>
+            <Link href="/mentions-legales" className="transition-colors hover:text-ink">{L.footerLegal}</Link>
+            <Link href="/confidentialite" className="transition-colors hover:text-ink">{L.footerPrivacy}</Link>
+            <Link href="/cgv" className="transition-colors hover:text-ink">{L.footerTerms}</Link>
           </nav>
           <p className="pt-1 text-[12px] text-ink/35">
-            Propulsé par <span className="font-archivo font-bold text-ink/60">FitMe</span>
-            <span className="font-archivo font-bold text-brand">90</span>.
+            {L.poweredBy} <span className="font-archivo font-bold text-ink/60">My Fitness <span className="text-brand">App</span></span>.
           </p>
         </div>
       </footer>
@@ -578,7 +566,7 @@ export function CoachLumen({ tenant, offers, leadMagnet = false }: { tenant: Pub
       {offers.length > 0 ? (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-black/8 bg-[#f6f4ef]/92 px-4 py-3 backdrop-blur-xl sm:hidden">
           <a href="#offres" className="tap flex w-full items-center justify-center gap-2 rounded-btn bg-brand py-3.5 text-[15px] font-semibold text-white active:scale-[0.98]">
-            Voir les programmes <S.arrow className="h-4 w-4" />
+            {L.seePrograms} <S.arrow className="h-4 w-4" />
           </a>
         </div>
       ) : null}

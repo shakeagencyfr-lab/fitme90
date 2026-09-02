@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { makeT } from "@/lib/i18n";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
@@ -8,6 +9,8 @@ import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
 import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
 import { COACH_CREDENTIAL } from "@/lib/config";
+import { resolveLocale, userLocale } from "@/lib/i18n/server";
+import { aiLanguageInstruction } from "@/lib/i18n";
 
 export const runtime = "nodejs";
 
@@ -37,10 +40,11 @@ const recipesSchema = z.object({
 
 export async function POST() {
   const ctx = await getSessionContext();
+  const t = makeT(await resolveLocale(await userLocale(ctx?.userId)));
   if (!ctx) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   if (!ctx.access.coachEnabled) {
     return NextResponse.json(
-      { error: "Le générateur de recettes est disponible pendant ton programme." },
+      { error: t("srv.duringProgram") },
       { status: 403 },
     );
   }
@@ -95,7 +99,8 @@ export async function POST() {
           ? "Recettes plus élaborées et gourmandes, techniques un peu plus poussées, davantage d'étapes."
           : "Recettes simples et efficaces.";
 
-  const system = `Tu es ${COACH_CREDENTIAL}. Réponds UNIQUEMENT par un objet JSON valide en français, sans texte autour. Exactement 3 recettes, chacune DÉTAILLÉE et facile à suivre. Schéma EXACT :
+  const locale = await resolveLocale(await userLocale(ctx.userId));
+  const system = `Tu es ${COACH_CREDENTIAL}. Réponds UNIQUEMENT par un objet JSON valide, sans texte autour. ${aiLanguageInstruction(locale)} Exactement 3 recettes, chacune DÉTAILLÉE et facile à suivre. Schéma EXACT :
 {"recipes":[{"name":"","level":"Simple","time":"20 min","servings":"1 portion","kcal":"620","protein":"42 g","carbs":"55 g","fat":"18 g","ingredients":[{"food":"","qty":"120 g"}],"steps":["Étape 1 claire et précise","Étape 2","Étape 3","Étape 4"],"tip":"une astuce courte"}]}
 Consignes : 4 à 7 étapes numérotées, chaque étape est une instruction concrète (température, temps de cuisson, ustensile, indice de cuisson). Donne des quantités précises pour chaque ingrédient, les macros complètes (kcal, protéines, glucides, lipides) et le nombre de portions. Ajoute une astuce ("tip") utile (variante, conservation, gain de temps). Conseils culinaires uniquement, aucune allégation médicale. N'utilise jamais de tiret cadratin (—) ni demi-cadratin (–).`;
   const user =
@@ -116,7 +121,7 @@ Consignes : 4 à 7 étapes numérotées, chaque étape est une instruction concr
     });
     const parsed = recipesSchema.parse(parseJsonLoose(textOf(message)));
     if (!parsed.recipes.length) {
-      return NextResponse.json({ error: "Aucune recette renvoyée." }, { status: 502 });
+      return NextResponse.json({ error: t("srv.noRecipes") }, { status: 502 });
     }
     await recordCall(ctx.userId, "recipes", {
       input_tokens: message.usage.input_tokens,
@@ -125,6 +130,6 @@ Consignes : 4 à 7 étapes numérotées, chaque étape est une instruction concr
     await chargeAiUsage(coachTenant, "action", "recipe", ctx.userId);
     return NextResponse.json({ recipes: parsed.recipes });
   } catch {
-    return NextResponse.json({ error: "Génération des recettes indisponible." }, { status: 502 });
+    return NextResponse.json({ error: t("srv.recipesDown") }, { status: 502 });
   }
 }

@@ -5,6 +5,8 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useState, useRef, useEffect } from "react";
+import { useLocale, useT } from "@/components/locale-provider";
+import { dateLocale, type Locale, type TFn } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
 import { COACH_NAME } from "@/lib/config";
@@ -23,11 +25,8 @@ interface Conv {
 
 type Attached = { data: string; media_type: "image/jpeg"; preview: string };
 
-function greetingFor(name: string): Msg {
-  return {
-    role: "assistant",
-    content: `Salut, moi c'est ${name}, ton coach. Pose-moi une question sur ta séance, un exercice, une substitution ou un repas. Tu peux aussi m'envoyer une photo (repas, machine) ou dicter à la voix.`,
-  };
+function greetingFor(name: string, t: TFn): Msg {
+  return { role: "assistant", content: t("widget.greeting", { name }) };
 }
 
 function mapMsgs(raw: unknown): Msg[] {
@@ -70,13 +69,13 @@ function splitIntoBubbles(text: string): string[] {
   return out;
 }
 
-function relDate(iso: string): string {
+function relDate(iso: string, t: TFn, locale: Locale): string {
   const d = new Date(iso);
   const diff = Math.floor((Date.now() - d.getTime()) / 86_400_000);
-  if (diff <= 0) return "aujourd'hui";
-  if (diff === 1) return "hier";
-  if (diff < 7) return `il y a ${diff} j`;
-  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  if (diff <= 0) return t("widget.today");
+  if (diff === 1) return t("widget.yesterday");
+  if (diff < 7) return t("widget.daysAgo", { n: diff });
+  return d.toLocaleDateString(dateLocale(locale), { day: "numeric", month: "short" });
 }
 
 //, Web Speech API (dictée vocale) : typage minimal, sans `any`. -----------
@@ -129,7 +128,9 @@ function loadImage(file: File): Promise<HTMLImageElement> {
 // activé (avant J90), le layout ne le rend pas au-delà.
 export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) {
   const router = useRouter();
-  const GREETING = greetingFor(coachName);
+  const t = useT();
+  const locale = useLocale();
+  const GREETING = greetingFor(coachName, t);
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([GREETING]);
   const [input, setInput] = useState("");
@@ -233,7 +234,7 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
   }
 
   async function renameConversation(id: string, current: string) {
-    const title = window.prompt("Renommer la conversation", current)?.trim();
+    const title = window.prompt(t("widget.rename"), current)?.trim();
     if (!title || title === current) return;
     setConversations((cs) => cs.map((c) => (c.id === id ? { ...c, title } : c)));
     try {
@@ -248,7 +249,7 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
   }
 
   async function deleteConversation(id: string) {
-    if (!window.confirm("Supprimer cette conversation ? Cette action est définitive.")) return;
+    if (!window.confirm(t("widget.deleteConfirm"))) return;
     setConversations((cs) => cs.filter((c) => c.id !== id));
     if (id === convId) newConversation();
     try {
@@ -302,7 +303,7 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
       const b64 = dataUrl.split(",")[1] ?? "";
       setImage({ data: b64, media_type: "image/jpeg", preview: dataUrl });
     } catch {
-      setError("Image illisible. Essaie une autre photo.");
+      setError(t("widget.imageUnreadable"));
     }
   }
 
@@ -313,7 +314,7 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
     }
     const rec = newRecognition();
     if (!rec) {
-      setError("La dictée vocale n'est pas supportée par ce navigateur.");
+      setError(t("widget.noVoice"));
       return;
     }
     rec.lang = "fr-FR";
@@ -376,7 +377,7 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
       refreshConversations(); // titre + ordre à jour
       if (data.adapted) router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Le coach est indisponible.");
+      setError(e instanceof Error ? e.message : t("widget.unavailable"));
     } finally {
       setTyping(false);
       setBusy(false);
@@ -385,7 +386,7 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
   }
 
   const resetLabel = quota
-    ? new Date(quota.resetsAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })
+    ? new Date(quota.resetsAt).toLocaleTimeString(dateLocale(locale), { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })
     : "";
 
   function send() {
@@ -405,13 +406,13 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
         onClick={() => setOpen(true)}
         data-tour="coach"
         className="tap fixed right-4 bottom-[calc(84px+env(safe-area-inset-bottom))] z-50 flex items-center gap-2.5 rounded-pill bg-fill px-5 py-3.5 text-fillfg shadow-[0_6px_20px_rgba(23,25,27,0.22)] transition-transform hover:scale-[1.03] active:scale-95 nav:bottom-6"
-        aria-label="Ouvrir le coach"
+        aria-label={t("widget.open")}
       >
         <span className="relative flex size-2.5">
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#4FBF6A] opacity-60" />
           <span className="relative inline-flex size-2.5 rounded-full bg-[#4FBF6A]" />
         </span>
-        <span className="font-plex font-semibold text-[15px]">Coach IA</span>
+        <span className="font-plex font-semibold text-[15px]">{t("widget.coachAi")}</span>
       </button>
     );
   }
@@ -435,13 +436,13 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
         <button
           onClick={newConversation}
           className="tap flex size-9 shrink-0 items-center justify-center rounded-control border border-line-4 text-muted transition-colors hover:border-ink hover:text-ink"
-          aria-label="Nouvelle conversation"
+          aria-label={t("widget.newConversation")}
         >
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden>
             <path d="M12 5v14M5 12h14" />
           </svg>
         </button>
-        <button onClick={() => setOpen(false)} className="tap shrink-0 pl-1 text-muted-2" aria-label="Fermer">
+        <button onClick={() => setOpen(false)} className="tap shrink-0 pl-1 text-muted-2" aria-label={t("common.close")}>
           ✕
         </button>
       </div>
@@ -451,7 +452,7 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
         <div className="absolute inset-0 z-10 flex flex-col bg-surface animate-[fadein_0.15s_ease-out]">
           <div className="flex items-center justify-between border-b border-line px-4 pb-3 pt-[calc(env(safe-area-inset-top)+18px)] nav:pt-4">
             <div className="font-archivo font-semibold text-[15px] text-ink">Mes conversations</div>
-            <button onClick={() => setShowList(false)} className="tap text-muted-2" aria-label="Fermer la liste">
+            <button onClick={() => setShowList(false)} className="tap text-muted-2" aria-label={t("common.close")}>
               ✕
             </button>
           </div>
@@ -463,10 +464,10 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
               <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              Nouvelle conversation
+              {t("widget.newConversation")}
             </button>
             {conversations.length === 0 ? (
-              <p className="px-1 py-3 text-[13px] text-muted-2">Aucune conversation pour l&apos;instant.</p>
+              <p className="px-1 py-3 text-[13px] text-muted-2">{t("widget.noConversation")}</p>
             ) : (
               conversations.map((c) => {
                 const active = c.id === convId;
@@ -483,12 +484,12 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
                       className="tap flex min-w-0 flex-1 items-center justify-between gap-3 px-3.5 py-3 text-left"
                     >
                       <span className="min-w-0 flex-1 truncate text-[14px] text-ink">{c.title}</span>
-                      <span className="shrink-0 font-mono text-[11px] text-muted-2">{relDate(c.updated_at)}</span>
+                      <span className="shrink-0 font-mono text-[11px] text-muted-2">{relDate(c.updated_at, t, locale)}</span>
                     </button>
                     <button
                       onClick={() => renameConversation(c.id, c.title)}
                       className="tap flex size-8 shrink-0 items-center justify-center rounded-control text-muted-2 hover:text-ink"
-                      aria-label="Renommer"
+                      aria-label={t("widget.renameShort")}
                     >
                       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                         <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
@@ -497,7 +498,7 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
                     <button
                       onClick={() => deleteConversation(c.id)}
                       className="tap flex size-8 shrink-0 items-center justify-center rounded-control text-muted-2 hover:text-[#C4471A]"
-                      aria-label="Supprimer"
+                      aria-label={t("widget.delete")}
                     >
                       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                         <path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13" />
@@ -528,7 +529,7 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={m.image}
-                alt="Photo envoyée"
+                alt={t("widget.photoSent")}
                 className="mb-2 max-h-40 w-full rounded-control object-cover"
               />
             ) : null}
@@ -542,7 +543,7 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
               <span className="size-[7px] animate-bounce rounded-full bg-muted-2/70 [animation-delay:-0.12s]" />
               <span className="size-[7px] animate-bounce rounded-full bg-muted-2/70" />
             </div>
-            <span className="pl-1 text-[11px] text-muted-2">{coachName} écrit…</span>
+            <span className="pl-1 text-[11px] text-muted-2">{coachName} {t("widget.typing")}</span>
           </div>
         ) : null}
         {error ? (
@@ -556,8 +557,8 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
       {image ? (
         <div className="flex items-center gap-3 border-t border-line px-3 pt-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={image.preview} alt="Aperçu" className="h-12 w-12 rounded-control object-cover" />
-          <span className="text-[13px] text-muted">Photo prête à envoyer</span>
+          <img src={image.preview} alt={t("widget.preview")} className="h-12 w-12 rounded-control object-cover" />
+          <span className="text-[13px] text-muted">{t("widget.photoReady")}</span>
           <button
             onClick={() => setImage(null)}
             className="tap ml-auto text-[13px] font-medium text-muted-2 hover:text-ink"
@@ -602,7 +603,7 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
               ? "border-brand bg-brand/10 text-brand"
               : "border-line-4 text-muted hover:border-ink hover:text-ink"
           }`}
-          aria-label={listening ? "Arrêter la dictée" : "Dicter à la voix"}
+          aria-label={listening ? t("widget.stopVoice") : t("widget.voice")}
           type="button"
         >
           {listening ? (
@@ -626,19 +627,19 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
               send();
             }
           }}
-          placeholder={listening ? "Parle, je t'écoute…" : "Ta question…"}
+          placeholder={listening ? t("widget.listening") : t("widget.placeholder")}
           rows={1}
           className="max-h-24 flex-1 resize-none rounded-control border border-line-4 bg-surface px-3 py-2.5 text-ink outline-none focus:border-ink"
         />
         <Button onClick={send} loading={busy} className="h-11 px-4">
-          Envoyer
+          {t("common.send")}
         </Button>
       </div>
       {quota && quota.limit > 0 ? (
         <div className={`px-3 pb-2 text-[11.5px] ${quota.remaining === 0 ? "text-[#C4471A]" : "text-muted-2"}`}>
           {quota.remaining === 0
-            ? `Quota du jour utilisé. Il se renouvelle à ${resetLabel}.`
-            : `${quota.remaining} message${(quota.remaining ?? 0) > 1 ? "s" : ""} restant${(quota.remaining ?? 0) > 1 ? "s" : ""} aujourd'hui · renouvelé à ${resetLabel}`}
+            ? t("widget.quotaUsed", { time: resetLabel })
+            : t("widget.quotaLeft", { n: quota.remaining ?? 0, time: resetLabel })}
         </div>
       ) : null}
     </div>

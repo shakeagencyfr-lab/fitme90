@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Wordmark } from "@/components/brand";
+import { useT } from "@/components/locale-provider";
+import type { TFn } from "@/lib/i18n";
 
 // Icônes line (stroke), cohérentes, lisibles à petite taille.
 const I = {
@@ -83,17 +85,17 @@ const IN_MORE = ["/app/evolution", "/app/shop", "/app/chat", "/app/parrainage"];
 
 // Construit la liste des onglets selon les options activées (boutique, chat VIP,
 // parrainage).
-function buildItems(shopEnabled: boolean, vipEnabled: boolean, affiliationEnabled: boolean): Item[] {
+function buildItems(t: TFn, shopEnabled: boolean, vipEnabled: boolean, affiliationEnabled: boolean): Item[] {
   return [
-    { href: "/app", label: "Programme", icon: "programme" },
-    { href: "/app/agenda", label: "Agenda", icon: "agenda" },
-    { href: "/app/seance", label: "Séance", icon: "seance" },
-    { href: "/app/nutrition", label: "Nutrition", icon: "nutrition" },
-    { href: "/app/evolution", label: "Évolution", icon: "evolution" },
-    ...(vipEnabled ? [{ href: "/app/chat", label: "Chat VIP", icon: "chat" } as Item] : []),
-    ...(shopEnabled ? [{ href: "/app/shop", label: "Boutique", icon: "shop" } as Item] : []),
-    ...(affiliationEnabled ? [{ href: "/app/parrainage", label: "Parrainage", icon: "parrainage" } as Item] : []),
-    { href: "/app/profil", label: "Profil", icon: "profil" },
+    { href: "/app", label: t("nav.program"), icon: "programme" },
+    { href: "/app/agenda", label: t("nav.agenda"), icon: "agenda" },
+    { href: "/app/seance", label: t("nav.session"), icon: "seance" },
+    { href: "/app/nutrition", label: t("nav.nutrition"), icon: "nutrition" },
+    { href: "/app/evolution", label: t("nav.evolution"), icon: "evolution" },
+    ...(vipEnabled ? [{ href: "/app/chat", label: t("nav.vipChat"), icon: "chat" } as Item] : []),
+    ...(shopEnabled ? [{ href: "/app/shop", label: t("nav.shop"), icon: "shop" } as Item] : []),
+    ...(affiliationEnabled ? [{ href: "/app/parrainage", label: t("nav.referral"), icon: "parrainage" } as Item] : []),
+    { href: "/app/profil", label: t("nav.profile"), icon: "profil" },
   ];
 }
 
@@ -156,7 +158,8 @@ export function AppNav({
 }) {
   const pathname = usePathname();
   const [more, setMore] = useState(false);
-  const ALL = buildItems(shopEnabled, vipEnabled, affiliationEnabled);
+  const t = useT();
+  const ALL = buildItems(t, shopEnabled, vipEnabled, affiliationEnabled);
   const PRIMARY = ALL.filter((i) => !IN_MORE.includes(i.href));
   const SECONDARY = ALL.filter((i) => IN_MORE.includes(i.href));
   const isActive = (href: string) =>
@@ -181,7 +184,7 @@ export function AppNav({
             <Wordmark size={19} />
           )}
           <div className="font-mono uppercase tracking-[0.14em] text-[10px] text-muted-2">
-            {day >= 1 ? `Jour ${day} sur ${programDays}` : `Départ dans ${1 - day} jour(s)`}
+            {day >= 1 ? t("access.active", { day, total: programDays }) : t("access.scheduled", { days: 1 - day })}
           </div>
         </div>
 
@@ -213,7 +216,7 @@ export function AppNav({
         </div>
 
         <div className="flex flex-col gap-2 rounded-card bg-paper p-4">
-          <div className="font-mono uppercase tracking-[0.12em] text-[10px] text-muted-2">Progression</div>
+          <div className="font-mono uppercase tracking-[0.12em] text-[10px] text-muted-2">{t("nav.progress")}</div>
           <div className="font-archivo font-extrabold text-[34px] leading-[0.9] tracking-[-0.03em] text-ink">
             {Math.max(0, day)}
             <span className="text-[16px] text-muted-2">/{programDays}</span>
@@ -229,7 +232,7 @@ export function AppNav({
       {more ? (
         <>
           <button
-            aria-label="Fermer"
+            aria-label={t("common.close")}
             onClick={() => setMore(false)}
             className="fixed inset-0 z-40 bg-ink/20 backdrop-blur-[1px] nav:hidden"
           />
@@ -283,7 +286,7 @@ export function AppNav({
         <button
           type="button"
           onClick={() => setMore((v) => !v)}
-          aria-label="Plus d'onglets"
+          aria-label={t("nav.more")}
           aria-expanded={more}
           className={[
             "tap group flex min-w-0 flex-1 flex-col items-center justify-center gap-[3px] rounded-control px-0.5 py-[7px] transition-colors",
@@ -294,7 +297,7 @@ export function AppNav({
             <Icon>{I.plus}</Icon>
             {secondaryUnread > 0 && !more ? <Dot /> : null}
           </span>
-          <span className="text-[9.5px] font-semibold tracking-[-0.01em]">Plus</span>
+          <span className="text-[9.5px] font-semibold tracking-[-0.01em]">{t("nav.more")}</span>
         </button>
       </nav>
     </>

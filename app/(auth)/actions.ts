@@ -1,6 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
+import type { TFn } from "@/lib/i18n";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminEmail } from "@/lib/admin";
@@ -19,18 +21,15 @@ function siteUrl() {
 function signUpOutcome(res: {
   data: { user: { identities?: unknown[] | null } | null };
   error: { status?: number; code?: string } | null;
-}): AuthState | null {
+}, t: TFn): AuthState | null {
   if (res.error) {
     if (res.error.status === 429 || res.error.code === "over_email_send_rate_limit") {
-      return { error: "L'envoi d'e-mails est temporairement limité. Réessaie dans quelques minutes." };
+      return { error: t("authErr.rateLimited") };
     }
-    return { error: "Impossible de créer le compte. Vérifie l'adresse e-mail." };
+    return { error: t("authErr.signupFailed") };
   }
   if (res.data.user && (res.data.user.identities?.length ?? 0) === 0) {
-    return {
-      error:
-        "Un compte existe déjà avec cette adresse. Connecte-toi, ou utilise « Mot de passe oublié » si besoin.",
-    };
+    return { error: t("authErr.exists") };
   }
   return null;
 }
@@ -40,16 +39,18 @@ export interface AuthState {
   notice?: string;
 }
 
-const credentials = z.object({
-  email: z.string().email("Adresse e-mail invalide."),
-  password: z.string().min(8, "Mot de passe : 8 caractères minimum."),
-});
+const credentials = (t: TFn) =>
+  z.object({
+    email: z.string().email(t("authErr.invalidEmail")),
+    password: z.string().min(8, t("authErr.passwordMin")),
+  });
 
 export async function signInAction(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
-  const parsed = credentials.safeParse({
+  const { t } = await getT();
+  const parsed = credentials(t).safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
   });
@@ -60,7 +61,7 @@ export async function signInAction(
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) {
-    return { error: "E-mail ou mot de passe incorrect." };
+    return { error: t("authErr.badCredentials") };
   }
 
   // Espaces distincts : un compte coach/salle va au dashboard admin, un client
@@ -102,7 +103,8 @@ export async function signUpAction(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
-  const parsed = credentials.safeParse({
+  const { t } = await getT();
+  const parsed = credentials(t).safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
   });
@@ -110,10 +112,10 @@ export async function signUpAction(
     return { error: parsed.error.issues[0].message };
   }
   if (formData.get("password") !== formData.get("confirm")) {
-    return { error: "Les deux mots de passe ne correspondent pas." };
+    return { error: t("authErr.mismatch") };
   }
   if (formData.get("cgv") !== "on") {
-    return { error: "Tu dois accepter les CGV et la politique de confidentialité." };
+    return { error: t("authErr.terms") };
   }
 
   // Achat via la landing d'un coach : on transporte le coach + l'offre dans les
@@ -153,7 +155,7 @@ export async function signUpAction(
       data,
     },
   });
-  const bad = signUpOutcome(res);
+  const bad = signUpOutcome(res, t);
   if (bad) return bad;
 
   redirect("/verifie-tes-mails");
@@ -166,7 +168,8 @@ export async function signUpCoachAction(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
-  const parsed = credentials.safeParse({
+  const { t } = await getT();
+  const parsed = credentials(t).safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
   });
@@ -174,14 +177,14 @@ export async function signUpCoachAction(
     return { error: parsed.error.issues[0].message };
   }
   if (formData.get("password") !== formData.get("confirm")) {
-    return { error: "Les deux mots de passe ne correspondent pas." };
+    return { error: t("authErr.mismatch") };
   }
   if (formData.get("cgv") !== "on") {
-    return { error: "Tu dois accepter les CGV et la politique de confidentialité." };
+    return { error: t("authErr.terms") };
   }
   const tenantName = String(formData.get("tenant_name") ?? "").trim().slice(0, 60);
   const coachName = String(formData.get("coach_name") ?? "").trim().slice(0, 40);
-  if (!tenantName) return { error: "Indique le nom de ta marque / salle." };
+  if (!tenantName) return { error: t("authErr.brandName") };
   // Rattachement éventuel à un revendeur (lien /inscription-coach?r=<slug>).
   const resellerSlug = String(formData.get("reseller_slug") ?? "").trim().slice(0, 80);
 
@@ -196,7 +199,7 @@ export async function signUpCoachAction(
       data,
     },
   });
-  const bad = signUpOutcome(res);
+  const bad = signUpOutcome(res, t);
   if (bad) return bad;
 
   redirect("/verifie-tes-mails");
@@ -209,7 +212,8 @@ export async function signUpResellerAction(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
-  const parsed = credentials.safeParse({
+  const { t } = await getT();
+  const parsed = credentials(t).safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
   });
@@ -217,14 +221,14 @@ export async function signUpResellerAction(
     return { error: parsed.error.issues[0].message };
   }
   if (formData.get("password") !== formData.get("confirm")) {
-    return { error: "Les deux mots de passe ne correspondent pas." };
+    return { error: t("authErr.mismatch") };
   }
   if (formData.get("cgv") !== "on") {
-    return { error: "Tu dois accepter les CGV et la politique de confidentialité." };
+    return { error: t("authErr.terms") };
   }
   const tenantName = String(formData.get("tenant_name") ?? "").trim().slice(0, 60);
   const contactName = String(formData.get("contact_name") ?? "").trim().slice(0, 40);
-  if (!tenantName) return { error: "Indique le nom de ton réseau / enseigne." };
+  if (!tenantName) return { error: t("authErr.networkName") };
 
   const supabase = await createClient();
   const res = await supabase.auth.signUp({
@@ -234,7 +238,7 @@ export async function signUpResellerAction(
       data: { reseller_signup: "1", tenant_name: tenantName, contact_name: contactName },
     },
   });
-  const bad = signUpOutcome(res);
+  const bad = signUpOutcome(res, t);
   if (bad) return bad;
 
   redirect("/verifie-tes-mails");
@@ -244,8 +248,9 @@ export async function requestResetAction(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  const { t } = await getT();
   const email = z.string().email().safeParse(formData.get("email"));
-  if (!email.success) return { error: "Adresse e-mail invalide." };
+  if (!email.success) return { error: t("authErr.invalidEmail") };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email.data, {
@@ -254,12 +259,12 @@ export async function requestResetAction(
   // Le rate-limit d'envoi (quelques e-mails/heure) mérite un vrai message :
   // sinon l'utilisateur attend un e-mail jamais parti et réessaie en boucle.
   if (error && (error.status === 429 || error.code === "over_email_send_rate_limit")) {
-    return { error: "Trop de demandes d'e-mail d'affilée. Patiente quelques minutes puis réessaie." };
+    return { error: t("authErr.tooMany") };
   }
   // Sinon, toujours le même message, que l'e-mail existe ou non (anti-énumération).
   return {
     notice:
-      "Si un compte existe pour cette adresse, un e-mail de réinitialisation vient d'être envoyé.",
+      t("authErr.resetSent"),
   };
 }
 
@@ -267,13 +272,14 @@ export async function updatePasswordAction(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  const { t } = await getT();
   const password = z
     .string()
-    .min(8, "Mot de passe : 8 caractères minimum.")
+    .min(8, t("authErr.passwordMin"))
     .safeParse(formData.get("password"));
   if (!password.success) return { error: password.error.issues[0].message };
   if (formData.get("password") !== formData.get("confirm")) {
-    return { error: "Les deux mots de passe ne correspondent pas." };
+    return { error: t("authErr.mismatch") };
   }
 
   const supabase = await createClient();
@@ -281,11 +287,11 @@ export async function updatePasswordAction(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return { error: "Lien expiré. Recommence la procédure de réinitialisation." };
+    return { error: t("authErr.linkExpired") };
   }
 
   const { error } = await supabase.auth.updateUser({ password: password.data });
-  if (error) return { error: "Impossible de mettre à jour le mot de passe." };
+  if (error) return { error: t("authErr.updateFailed") };
 
   redirect("/app");
 }

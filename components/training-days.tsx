@@ -4,9 +4,13 @@ import { useState, useTransition } from "react";
 import { updateTrainDays } from "@/app/app/actions";
 import { DAYS } from "@/lib/questionnaire";
 import { Card, MonoLabel, Button, Alert } from "@/components/ui";
+import { useLocale, useT } from "@/components/locale-provider";
+import { dayLabel } from "@/lib/i18n/quiz";
 
 // Édition des jours d'entraînement depuis le Programme (emploi du temps qui change).
 export function TrainingDaysEditor({ initial }: { initial: string[] }) {
+  const t = useT();
+  const locale = useLocale();
   const [days, setDays] = useState<string[]>(initial);
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok?: boolean; error?: string }>({});
@@ -28,11 +32,8 @@ export function TrainingDaysEditor({ initial }: { initial: string[] }) {
   return (
     <Card className="flex flex-col gap-3">
       <div className="flex flex-col gap-0.5">
-        <MonoLabel>Mes jours d'entraînement</MonoLabel>
-        <p className="text-[13px] text-muted">
-          Ton emploi du temps change ? Ajuste tes jours : le calendrier, les
-          séances, la nutrition et la présentation du programme se recalent aussitôt.
-        </p>
+        <MonoLabel>{t("regularity.myDays")}</MonoLabel>
+        <p className="text-[13px] text-muted">{t("regularity.myDaysBody")}</p>
       </div>
       <div className="grid grid-cols-7 gap-1.5">
         {DAYS.map((d) => {
@@ -46,16 +47,16 @@ export function TrainingDaysEditor({ initial }: { initial: string[] }) {
                 on ? "bg-brand text-white border-brand" : "bg-surface text-muted-2 border-line-4 hover:border-ink",
               ].join(" ")}
             >
-              {d.slice(0, 3)}
+              {dayLabel(d, locale)}
             </button>
           );
         })}
       </div>
       {msg.error ? <Alert>{msg.error}</Alert> : null}
-      {msg.ok ? <Alert tone="info">Jours mis à jour, tout est recalé.</Alert> : null}
+      {msg.ok ? <Alert tone="info">{t("regularity.daysUpdated")}</Alert> : null}
       {dirty ? (
         <Button onClick={save} loading={pending} className="self-start h-11">
-          Enregistrer mes jours
+          {t("regularity.saveDays")}
         </Button>
       ) : null}
     </Card>

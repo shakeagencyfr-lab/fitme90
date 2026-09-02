@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { resolveLocale, userLocale } from "@/lib/i18n/server";
+import { makeT } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { DAYS, trainDaysError } from "@/lib/questionnaire";
@@ -18,6 +20,7 @@ export interface DaysState {
 // les jours d'origine.
 export async function updateTrainDays(days: string[]): Promise<DaysState> {
   const ctx = await getSessionContext();
+  const t = makeT(await resolveLocale(await userLocale(ctx?.userId)));
   if (!ctx) return { error: "Non authentifié." };
   const clean = days.filter((d) => DAYS.includes(d));
   const daysErr = trainDaysError(clean.length);
@@ -28,7 +31,7 @@ export async function updateTrainDays(days: string[]): Promise<DaysState> {
     .from("questionnaires")
     .update({ train_days: clean })
     .eq("user_id", ctx.userId);
-  if (error) return { error: "Enregistrement impossible." };
+  if (error) return { error: t("srv.saveFailed") };
 
   // Synchronise fréquence + jours dans les réponses (utilisés par la génération
   // et le coach), puis recale le plan de façon DÉTERMINISTE (sans IA, instantané

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { makeT } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSessionContext } from "@/lib/guard";
@@ -9,6 +10,7 @@ import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant"
 import { clientOffer } from "@/lib/offers";
 import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
 import { LIMIT_GENERATE_TOTAL, programDaysForMonths } from "@/lib/config";
+import { resolveLocale, userLocale } from "@/lib/i18n/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // génération longue : jusqu'à 5 min
@@ -18,6 +20,7 @@ export const maxDuration = 300; // génération longue : jusqu'à 5 min
 export async function POST() {
   // 1. Session
   const ctx = await getSessionContext();
+  const t = makeT(await resolveLocale(await userLocale(ctx?.userId)));
   if (!ctx) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
@@ -25,19 +28,19 @@ export async function POST() {
   // 2. Paiement (côté serveur, jamais un bouton masqué)
   if (ctx.access.phase === "not_paid") {
     return NextResponse.json(
-      { error: "Programme non débloqué. Le paiement est requis." },
+      { error: t("srv.notPaid") },
       { status: 402 },
     );
   }
   if (ctx.access.phase === "ended") {
     return NextResponse.json(
-      { error: "Ton accès au programme est terminé." },
+      { error: t("srv.accessEnded") },
       { status: 403 },
     );
   }
   if (ctx.access.restricted) {
     return NextResponse.json(
-      { error: "Abonnement en attente de paiement. Régularise pour réactiver la génération." },
+      { error: t("srv.subPending") },
       { status: 402 },
     );
   }
@@ -47,7 +50,7 @@ export async function POST() {
   if (!limit.ok) {
     return NextResponse.json(
       {
-        error: `Limite de générations atteinte (${limit.max}). Contacte le support si c'est une erreur technique.`,
+        error: t("srv.genLimit", { n: limit.max }),
       },
       { status: 429 },
     );
@@ -65,7 +68,7 @@ export async function POST() {
 
   if (!quiz) {
     return NextResponse.json(
-      { error: "Réponds d'abord au questionnaire." },
+      { error: t("srv.quizFirst") },
       { status: 400 },
     );
   }
@@ -120,6 +123,7 @@ export async function POST() {
         trainDays: quiz.train_days ?? [],
         equipment,
         programDays,
+        locale: await resolveLocale(await userLocale(ctx.userId)),
       },
       "high",
       billing.key,
@@ -127,7 +131,7 @@ export async function POST() {
     );
   } catch {
     return NextResponse.json(
-      { error: "La génération a échoué. Réessaie dans un instant." },
+      { error: t("srv.genFailed") },
       { status: 502 },
     );
   }
@@ -143,7 +147,7 @@ export async function POST() {
   });
   if (insErr) {
     return NextResponse.json(
-      { error: "Impossible d'enregistrer le programme." },
+      { error: t("srv.saveFailed") },
       { status: 500 },
     );
   }

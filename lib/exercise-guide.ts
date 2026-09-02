@@ -1,4 +1,5 @@
 import "server-only";
+import { aiLanguageInstruction, type Locale } from "@/lib/i18n";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { anthropic, MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
@@ -67,8 +68,14 @@ function libraryGuide(name: string): ResolvedGuide | null {
   };
 }
 
+/** Clé de cache : les fiches anglaises sont rangées à part. */
+function cacheKey(key: string, locale: Locale): string {
+  return locale === "en" ? `${key}|en` : key;
+}
+
 /** Fiche depuis le cache IA, ou null. */
-async function cachedAiGuide(key: string): Promise<ResolvedGuide | null> {
+export async function cachedAiGuide(key: string, locale: Locale = "fr"): Promise<ResolvedGuide | null> {
+  key = cacheKey(key, locale);
   const admin = createAdminClient();
   const { data } = await admin
     .from("exercise_guides")
@@ -105,7 +112,7 @@ const aiSchema = z.object({
   mistakes: z.array(z.string()).default([]),
 });
 
-const GUIDE_SYSTEM = `Tu es un coach sportif. On te donne le NOM d'un exercice de musculation ou de cardio en français. Tu réponds UNIQUEMENT par un objet JSON valide, en français, sans texte autour, avec ces clés :
+const GUIDE_SYSTEM = `Tu es un coach sportif. On te donne le NOM d'un exercice de musculation ou de cardio en français. Tu réponds UNIQUEMENT par un objet JSON valide, sans texte autour, avec ces clés :
 - "muscle" : groupe(s) musculaire(s) principal(aux) travaillé(s) (court, ex "Pectoraux").
 - "steps" : 3 à 5 étapes d'exécution claires pour un DÉBUTANT (phrases courtes).
 - "cues" : 2 à 3 conseils clés (posture, sécurité).
@@ -116,7 +123,7 @@ N'utilise JAMAIS de tiret cadratin (—) ni demi-cadratin (–). Si le nom est a
  * Génère la fiche via l'IA (clé BYOK du coach du client), la met en cache global,
  * et la renvoie. Retourne null si aucune clé n'est disponible ou en cas d'échec.
  */
-export async function generateGuide(name: string, userId: string): Promise<ResolvedGuide | null> {
+export async function generateGuide(name: string, userId: string, locale: Locale = "fr"): Promise<ResolvedGuide | null> {
   const key = normalizeExerciseName(name);
   if (!key) return null;
 
@@ -129,7 +136,7 @@ export async function generateGuide(name: string, userId: string): Promise<Resol
       model: MODELS.assist,
       max_tokens: 1024,
       ...effortConfig(MODELS.assist, "low"),
-      system: GUIDE_SYSTEM,
+      system: `${GUIDE_SYSTEM}\n${aiLanguageInstruction(locale)}`,
       messages: [{ role: "user", content: `Exercice : ${name}\n\nRends le JSON.` }],
     });
     const parsed = aiSchema.parse(parseJsonLoose(textOf(message)));
@@ -141,7 +148,7 @@ export async function generateGuide(name: string, userId: string): Promise<Resol
     const admin = createAdminClient();
     await admin.from("exercise_guides").upsert(
       {
-        exercise_key: key,
+        exercise_key: cacheKey(key, locale),
         name,
         muscle: parsed.muscle || null,
         steps: parsed.steps,

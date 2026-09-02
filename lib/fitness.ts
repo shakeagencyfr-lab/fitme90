@@ -141,7 +141,7 @@ export const RPE: RpeStep[] = [
   { id: "7", label: "Modéré", body: "3 répétitions en réserve, respiration qui monte" },
   { id: "8", label: "Difficile", body: "2 répétitions en réserve, la technique tient encore" },
   { id: "9", label: "Très difficile", body: "1 répétition en réserve, dernière rep lente" },
-  { id: "10", label: "Maximal", body: "Aucune répétition en réserve — à éviter en cycle 1" },
+  { id: "10", label: "Maximal", body: "Aucune répétition en réserve, à éviter en cycle 1" },
 ];
 
 export const RPE_INTRO =

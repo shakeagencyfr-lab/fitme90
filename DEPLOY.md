@@ -153,3 +153,28 @@ npm run build      # build de production
 npm run lint       # ESLint
 npm test           # tests nutrition + exclusion médicale (Vitest)
 ```
+
+## Domaine personnalisé d'un coach (marque blanche totale)
+
+Un coach qui a débloqué l'option marque blanche saisit son domaine dans
+« Marque blanche ». La page lui donne l'enregistrement DNS à créer chez son
+registrar (CNAME `cname.vercel-dns.com` pour un sous-domaine, A `76.76.21.21`
+pour un apex) et vérifie en direct que le DNS pointe bien vers la plateforme.
+
+Pour que le rattachement au projet Vercel et le certificat HTTPS soient
+automatiques, ajoute sur Vercel :
+
+- `VERCEL_TOKEN` : jeton d'accès (Account settings → Tokens), portée équipe.
+- `VERCEL_PROJECT_ID` : id du projet (Settings → General).
+- `VERCEL_TEAM_ID` : id de l'équipe (Team settings → General), si le projet est dans une équipe.
+
+Sans ces variables, le mode manuel s'applique : le coach crée son DNS, puis la
+plateforme ajoute le domaine dans Vercel (Project → Domains) une seule fois.
+
+## Langue
+
+Chaque coach choisit la langue par défaut de ses clients (FR / EN) dans
+« Marque blanche ». Chaque visiteur peut basculer lui-même (cookie `lang`,
+mémorisé sur son profil s'il est connecté). Le coach IA, la génération de
+programme, les recettes et les fiches d'exercices répondent dans la langue du
+client.

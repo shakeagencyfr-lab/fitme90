@@ -1,4 +1,5 @@
 import { getAdminOrNull } from "@/lib/admin";
+import { customDomainInfo } from "@/lib/custom-domain";
 import { tenantBranding } from "@/lib/branding";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tenantNode } from "@/lib/hierarchy";
@@ -76,6 +77,7 @@ export default async function WhiteLabelPage({
   const wl = kind === "coach" ? await coachWhitelabelState(tenantId) : { enabled: true, priceCents: null, subStatus: null };
   const smtp = kind === "coach" ? await tenantSmtpStatus(tenantId) : { configured: false, host: null, from: null };
   const domainLocked = kind === "coach" && !wl.enabled && wl.priceCents != null;
+  const domainInfo = await customDomainInfo(t?.custom_domain ?? null);
 
   return (
     <div className="flex flex-col gap-5">
@@ -96,7 +98,7 @@ export default async function WhiteLabelPage({
         accent={accent}
         slug={slug}
         subdomain={t?.subdomain ?? null}
-        customDomain={t?.custom_domain ?? null}
+        customDomainInfo={domainInfo}
         siteHost={SITE_HOST}
         rootDomain={ROOT_DOMAIN}
         previewUrl={previewUrl}

@@ -6,16 +6,8 @@ import { GridScan, AppPreview, MacroOrbit } from "@/components/landing-visuals";
 import { S } from "@/components/landing-icons";
 import { SubscriptionPrice } from "@/components/subscription-price";
 import { Reveal } from "@/components/reveal";
-import {
-  offerCardCopy,
-  features,
-  salleBullets,
-  steps,
-  espaceBullets,
-  nutritionBullets,
-  forWho,
-  faqs,
-} from "@/components/landing-templates/coach-content";
+import { offerCardCopy, landingCopy } from "@/components/landing-templates/coach-copy";
+import { makeT, type Locale } from "@/lib/i18n";
 
 // Template « Onyx » : design sombre premium (design historique de la landing
 // coach->client). Rendu par app/c/[slug] quand tenant.landingTemplate === "onyx".
@@ -39,9 +31,10 @@ function Brand({ tenant, imgClass = "h-11", textClass = "text-[20px]" }: { tenan
   return <span className={`font-archivo ${textClass} font-extrabold tracking-[-0.02em] text-white`}>{tenant.name}</span>;
 }
 
-function OfferCard({ offer, offers, slug, chargesEnabled }: { offer: Offer; offers: Offer[]; slug: string; chargesEnabled: boolean }) {
+function OfferCard({ offer, offers, slug, chargesEnabled, locale }: { offer: Offer; offers: Offer[]; slug: string; chargesEnabled: boolean; locale: Locale }) {
   const isSub = offer.billing_type === "subscription";
-  const copy = offerCardCopy(offer, offers);
+  const copy = offerCardCopy(offer, offers, makeT(locale));
+  const L = landingCopy(locale);
   return (
     <article
       className={[
@@ -51,7 +44,7 @@ function OfferCard({ offer, offers, slug, chargesEnabled }: { offer: Offer; offe
     >
       {copy.featured ? (
         <span className="absolute -top-3 left-6 rounded-pill bg-brand px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-white">
-          Le plus choisi
+          {L.mostChosen}
         </span>
       ) : null}
       <div className="flex flex-col gap-1.5">
@@ -74,11 +67,11 @@ function OfferCard({ offer, offers, slug, chargesEnabled }: { offer: Offer; offe
             <span className="font-archivo text-[clamp(40px,7vw,56px)] font-extrabold leading-none tracking-[-0.03em] text-white">
               {formatEuros(offer.price_cents)}
             </span>
-            <span className="pb-2 text-[13px] text-white/55">paiement unique</span>
+            <span className="pb-2 text-[13px] text-white/55">{L.oneTime}</span>
           </div>
           {copy.perMonthCents > 0 ? (
             <span className="text-[13px] text-white/55">
-              soit <span className="font-semibold text-white/85">{formatEuros(copy.perMonthCents)}/mois</span> sur {offer.duration_months} mois
+              {L.perMonthOn(formatEuros(copy.perMonthCents), offer.duration_months)}
             </span>
           ) : null}
         </div>
@@ -99,24 +92,25 @@ function OfferCard({ offer, offers, slug, chargesEnabled }: { offer: Offer; offe
             href={`/inscription?c=${slug}&offer=${offer.id}`}
             className="tap inline-flex h-[52px] w-full items-center justify-center gap-2 whitespace-nowrap rounded-btn bg-brand px-5 text-[15px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]"
           >
-            Choisir ce programme
+            {L.choose}
             <S.arrow className="h-4.5 w-4.5 shrink-0" />
           </Link>
         ) : (
           <span className="inline-flex h-[52px] items-center justify-center rounded-btn border border-white/15 px-6 text-[14px] text-white/50">
-            Bientôt disponible
+            {L.soon}
           </span>
         ))}
     </article>
   );
 }
 
-export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: PublicTenant; offers: Offer[]; leadMagnet?: boolean }) {
+export function CoachOnyx({ tenant, offers, leadMagnet = false, locale = "fr" }: { tenant: PublicTenant; offers: Offer[]; leadMagnet?: boolean; locale?: Locale }) {
+  const L = landingCopy(locale);
   const accent = tenant.brandColor || DEFAULT_BRAND_COLOR;
   const title = tenant.headline || tenant.name;
   const tagline =
     tenant.tagline ||
-    "Un programme conçu selon la méthode de ton coach, adapté à ta salle et à tes contraintes, et suivi au quotidien. Amplifié par une IA qu'il a entraînée sur sa façon de travailler.";
+    L.defaultTagline;
 
   return (
     <div
@@ -144,11 +138,11 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
           <Link href="#top" className="flex items-center"><Brand tenant={tenant} imgClass="h-11 sm:h-14" /></Link>
           <div className="flex items-center gap-3">
             <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-white/70 transition-colors hover:text-white sm:inline">
-              Se connecter
+              {L.login}
             </Link>
             {offers.length > 0 ? (
               <a href="#offres" className="tap inline-flex h-10 items-center rounded-btn bg-brand px-4 text-[14px] font-semibold text-white hover:bg-brand-hover">
-                Voir les programmes
+                {L.seePrograms}
               </a>
             ) : null}
           </div>
@@ -164,7 +158,7 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
           <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-r from-[#0a0b0c] via-[#0a0b0c]/85 to-transparent" />
           <div className="pointer-events-none absolute -right-40 -top-40 -z-10 h-[520px] w-[520px] rounded-full bg-brand/25 blur-[130px]" />
           <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-7 px-5 pb-24 pt-[clamp(48px,9vw,96px)] sm:px-8">
-            <span className="cl-up inline-block"><Chip><S.spark className="h-3.5 w-3.5" /> Coaching personnalisé</Chip></span>
+            <span className="cl-up inline-block"><Chip><S.spark className="h-3.5 w-3.5" /> {L.heroChip}</Chip></span>
             <h1 className="cl-up max-w-[16ch] font-archivo text-[clamp(42px,9vw,92px)] font-extrabold leading-[0.94] tracking-[-0.045em] text-balance text-white" style={{ animationDelay: "70ms" }}>
               {title}
             </h1>
@@ -172,15 +166,15 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
             <div className="cl-up flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap" style={{ animationDelay: "210ms" }}>
               {offers.length > 0 ? (
                 <a href="#offres" className="tap inline-flex h-[54px] items-center justify-center gap-2 rounded-btn bg-brand px-8 text-[16px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]">
-                  Voir les programmes <S.arrow className="h-4.5 w-4.5" />
+                  {L.seePrograms} <S.arrow className="h-4.5 w-4.5" />
                 </a>
               ) : null}
               <a href="#methode" className="tap inline-flex h-[54px] items-center justify-center rounded-btn border border-white/20 bg-white/5 px-8 text-[16px] font-semibold text-white transition-colors duration-150 hover:border-white/40 hover:bg-white/10">
-                Comment ça marche
+                {L.howItWorks}
               </a>
             </div>
             <div className="flex flex-wrap gap-x-7 gap-y-3 pt-3">
-              {["Santé prise en compte", "Allergies & régimes", "Coach IA inclus"].map((t) => (
+              {L.heroChecks.map((t) => (
                 <span key={t} className="inline-flex items-center gap-2 text-[13.5px] text-white/65">
                   <S.check className="h-4 w-4 text-brand" /> {t}
                 </span>
@@ -192,12 +186,7 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
         {/* Bandeau repères */}
         <section className="border-y border-white/10 bg-white/[0.02]">
           <div className="mx-auto grid w-full max-w-[1120px] grid-cols-2 gap-y-6 px-5 py-8 sm:px-8 lg:grid-cols-4">
-            {[
-              { v: "Ton coach", l: "conçoit ta méthode" },
-              { v: "100 %", l: "adapté à ta salle & ta santé" },
-              { v: "Assistant IA", l: "formé par ton coach, inclus" },
-              { v: "Sur mesure", l: "à l'unité ou en abonnement" },
-            ].map((s) => (
+            {L.stats.map((s) => (
               <div key={s.l} className="flex flex-col gap-1 px-2">
                 <div className="font-archivo text-[clamp(24px,4vw,34px)] font-extrabold leading-none tracking-[-0.03em] text-white">{s.v}</div>
                 <div className="text-[13px] leading-[1.4] text-white/55">{s.l}</div>
@@ -210,11 +199,11 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
         <section className="scroll-mt-24">
           <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(64px,9vw,110px)] sm:px-8">
             <Reveal className="flex flex-col items-center gap-4 text-center">
-              <Chip>Fonctionnalités</Chip>
-              <h2 className={sectionTitle}>Tout ce qu&apos;il faut pour réussir</h2>
+              <Chip>{L.featuresChip}</Chip>
+              <h2 className={sectionTitle}>{L.featuresTitle}</h2>
             </Reveal>
             <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {features.map((f, i) => (
+              {L.features.map((f, i) => (
                 <div key={f.title} className={`flex flex-col gap-4 rounded-card border p-6 transition-all duration-300 hover:-translate-y-1 ${i === 2 ? "border-brand/50 bg-brand/[0.06]" : "border-white/10 bg-white/[0.03] hover:border-white/25"}`}>
                   <span className="inline-flex h-12 w-12 items-center justify-center rounded-[12px] border border-brand/30 bg-brand/10 text-brand">
                     <f.icon className="h-6 w-6" />
@@ -231,22 +220,22 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
         <section className="border-t border-white/10 bg-white/[0.015]">
           <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(56px,8vw,96px)] sm:px-8 lg:grid-cols-2">
             <div className="flex flex-col gap-5">
-              <Chip><S.camera className="h-3.5 w-3.5" /> Analyse IA de ta salle</Chip>
+              <Chip><S.camera className="h-3.5 w-3.5" /> {L.gymChip}</Chip>
               <h2 className="font-archivo text-[clamp(28px,4.5vw,44px)] font-extrabold leading-[1.05] tracking-[-0.03em] text-white">
-                Ta salle analysée. Ton programme adapté.
+                {L.gymTitle}
               </h2>
               <p className="max-w-[52ch] text-[16px] leading-[1.65] text-white/65">
-                Photographie ta salle : l&apos;IA identifie le matériel disponible et s&apos;assure que chaque exercice de ton programme est réalisable avec ce que tu as.
+                {L.gymBody}
               </p>
               <ul className="flex flex-col gap-2.5 pt-1">
-                {salleBullets.map((b) => (
+                {L.gymBullets.map((b) => (
                   <li key={b} className="flex items-center gap-3 text-[15px] text-white/75">
                     <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand" /> {b}
                   </li>
                 ))}
               </ul>
             </div>
-            <GridScan label="IA en cours d'analyse, matériel détecté" />
+            <GridScan label={L.gymScanLabel} />
           </div>
         </section>
 
@@ -255,15 +244,15 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
           <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(56px,8vw,96px)] sm:px-8 lg:grid-cols-2">
             <div className="order-2 lg:order-1"><AppPreview /></div>
             <div className="order-1 flex flex-col gap-5 lg:order-2">
-              <Chip><S.grid className="h-3.5 w-3.5" /> Espace client</Chip>
+              <Chip><S.grid className="h-3.5 w-3.5" /> {L.spaceChip}</Chip>
               <h2 className="font-archivo text-[clamp(28px,4.5vw,44px)] font-extrabold leading-[1.05] tracking-[-0.03em] text-white">
-                Ton programme, vivant au quotidien.
+                {L.spaceTitle}
               </h2>
               <p className="max-w-[52ch] text-[16px] leading-[1.65] text-white/65">
-                Plus qu&apos;un document, ton programme est interactif. Coche tes exercices, lance ton chronomètre, consulte ta nutrition et dialogue avec ton coach IA.
+                {L.spaceBody}
               </p>
               <ul className="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-2">
-                {espaceBullets.map((b) => (
+                {L.spaceBullets.map((b) => (
                   <li key={b} className="flex items-center gap-2.5 text-[14.5px] text-white/75">
                     <S.check className="h-4.5 w-4.5 shrink-0 text-brand" /> {b}
                   </li>
@@ -277,15 +266,15 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
         <section className="border-t border-white/10 bg-white/[0.015]">
           <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(56px,8vw,96px)] sm:px-8 lg:grid-cols-2">
             <div className="flex flex-col gap-5">
-              <Chip>Nutrition</Chip>
+              <Chip>{L.nutritionChip}</Chip>
               <h2 className="font-archivo text-[clamp(28px,4.5vw,44px)] font-extrabold leading-[1.05] tracking-[-0.03em] text-white">
-                Une nutrition aussi précise que ton entraînement.
+                {L.nutritionTitle}
               </h2>
               <p className="max-w-[52ch] text-[16px] leading-[1.65] text-white/65">
-                Calories, macros, timing des repas et recettes adaptées. Tes allergies, intolérances et ton cadre religieux (halal, casher, végétarien…) pris en compte.
+                {L.nutritionBody}
               </p>
               <ul className="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-2">
-                {nutritionBullets.map((b) => (
+                {L.nutritionBullets.map((b) => (
                   <li key={b} className="flex items-center gap-2.5 text-[14.5px] text-white/75">
                     <S.check className="h-4.5 w-4.5 shrink-0 text-brand" /> {b}
                   </li>
@@ -301,10 +290,10 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
           <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(64px,9vw,110px)] sm:px-8">
             <Reveal className="flex flex-col items-center gap-4 text-center">
               <Chip>Comment ça marche</Chip>
-              <h2 className={sectionTitle}>3 étapes vers ta transformation</h2>
+              <h2 className={sectionTitle}>{L.stepsTitle}</h2>
             </Reveal>
             <div className="mt-12 grid gap-8 md:grid-cols-3">
-              {steps.map((s) => (
+              {L.steps.map((s) => (
                 <div key={s.k} className="flex flex-col gap-3">
                   <div className="font-archivo text-[64px] font-extrabold leading-none tracking-[-0.04em] text-white/10">{s.k}</div>
                   <h3 className="font-archivo text-[20px] font-bold tracking-[-0.02em] text-white">{s.title}</h3>
@@ -318,9 +307,9 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
         {/* Est-ce pour toi */}
         <section className="scroll-mt-24 border-t border-white/10 bg-white/[0.015]">
           <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(64px,9vw,110px)] sm:px-8">
-            <h2 className={`${sectionTitle} max-w-[16ch]`}>Est-ce pour toi ?</h2>
+            <h2 className={`${sectionTitle} max-w-[16ch]`}>{L.forWhoTitle}</h2>
             <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {forWho.map((w) => (
+              {L.forWho.map((w) => (
                 <div key={w.title} className="flex items-start gap-3 rounded-card border border-white/10 bg-white/[0.03] p-5">
                   <S.check className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
                   <div className="flex flex-col gap-1">
@@ -348,7 +337,7 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
                 </div>
               ) : null}
               <div className="flex flex-col gap-5">
-                <Chip>À propos</Chip>
+                <Chip>{L.aboutChip}</Chip>
                 <h2 className="font-archivo text-[clamp(28px,4.5vw,44px)] font-extrabold leading-[1.05] tracking-[-0.03em] text-white">
                   {tenant.aboutTitle || tenant.name}
                 </h2>
@@ -371,16 +360,16 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
               <div className="relative overflow-hidden rounded-card-lg border border-brand/30 bg-gradient-to-br from-brand/[0.12] to-transparent p-8 sm:p-10">
                 <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-col gap-2">
-                    <Chip><S.spark className="h-3.5 w-3.5" /> Offert</Chip>
+                    <Chip><S.spark className="h-3.5 w-3.5" /> {L.leadChip}</Chip>
                     <h3 className="font-archivo text-[clamp(22px,3.5vw,30px)] font-extrabold leading-tight tracking-[-0.02em] text-white">
-                      Pas encore décidé ? Reçois ton mini-programme gratuit
+                      {L.leadTitle}
                     </h3>
                     <p className="max-w-[52ch] text-[15px] leading-[1.6] text-white/65">
-                      Une semaine d&apos;entraînement calibrée pour toi, à télécharger en PDF. Sans engagement.
+                      {L.leadBody}
                     </p>
                   </div>
                   <Link href={`/c/${tenant.slug}/decouverte`} className="tap inline-flex h-[52px] shrink-0 items-center justify-center gap-2 rounded-btn bg-brand px-7 text-[15px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">
-                    Recevoir mon programme <S.arrow className="h-4.5 w-4.5" />
+                    {L.leadCta} <S.arrow className="h-4.5 w-4.5" />
                   </Link>
                 </div>
               </div>
@@ -392,12 +381,12 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
         <section id="offres" className="scroll-mt-20 border-t border-white/10 bg-white/[0.015]">
           <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(64px,9vw,110px)] sm:px-8">
             <Reveal className="flex flex-col items-center gap-4 text-center">
-              <Chip>Programmes</Chip>
-              <h2 className={sectionTitle}>Choisis ton programme</h2>
+              <Chip>{L.programsChip}</Chip>
+              <h2 className={sectionTitle}>{L.programsTitle}</h2>
             </Reveal>
             {offers.length === 0 ? (
               <div className="mx-auto mt-10 max-w-[520px] rounded-card border border-white/10 bg-white/[0.03] p-6 text-center text-[15px] text-white/60">
-                Aucune offre disponible pour le moment. Reviens bientôt.
+                {L.noOffer}
               </div>
             ) : (
               <div
@@ -410,7 +399,7 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
                 }`}
               >
                 {offers.map((o) => (
-                  <OfferCard key={o.id} offer={o} offers={offers} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} />
+                  <OfferCard key={o.id} offer={o} offers={offers} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} locale={locale} />
                 ))}
               </div>
             )}
@@ -419,16 +408,16 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
             {tenant.chargesEnabled && offers.some((o) => o.billing_type !== "subscription") ? (
               <div className="mx-auto mt-10 flex max-w-[560px] flex-col items-center gap-3 rounded-card-lg border border-white/12 bg-white/[0.03] p-7 text-center">
                 <div className="font-archivo text-[20px] font-bold tracking-[-0.02em] text-white">
-                  Envie de faire plaisir ?
+                  {L.giftTitle}
                 </div>
                 <p className="text-[14px] leading-[1.55] text-white/60">
-                  Offre un programme à quelqu&apos;un : tu paies, la personne reçoit un code à utiliser librement.
+                  {L.giftBody}
                 </p>
                 <Link
                   href={`/c/${tenant.slug}/offrir`}
                   className="tap mt-1 inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-btn border border-brand bg-brand/10 px-6 text-[15px] font-semibold text-white transition-colors hover:bg-brand/20"
                 >
-                  <S.spark className="h-4 w-4 text-brand" /> Je veux offrir un programme
+                  <S.spark className="h-4 w-4 text-brand" /> {L.giftCta}
                 </Link>
               </div>
             ) : null}
@@ -439,11 +428,11 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
         <section className="border-t border-white/10">
           <div className="mx-auto w-full max-w-[820px] px-5 py-[clamp(64px,9vw,110px)] sm:px-8">
             <Reveal className="flex flex-col items-center gap-4 text-center">
-              <Chip>FAQ</Chip>
-              <h2 className={sectionTitle}>Questions fréquentes</h2>
+              <Chip>{L.faqChip}</Chip>
+              <h2 className={sectionTitle}>{L.faqTitle}</h2>
             </Reveal>
             <div className="mt-10 overflow-hidden rounded-card border border-white/10 bg-white/[0.03]">
-              {faqs.map((f, i) => (
+              {L.faqs.map((f, i) => (
                 <details key={f.q} className={`group ${i > 0 ? "border-t border-white/10" : ""}`}>
                   <summary className="tap flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-[18px] font-archivo text-[15.5px] font-semibold leading-snug text-white [&::-webkit-details-marker]:hidden">
                     {f.q}
@@ -461,11 +450,11 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
           <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[360px] w-[720px] -translate-x-1/2 rounded-full bg-brand/20 blur-[140px]" />
           <div className="mx-auto flex w-full max-w-[1120px] flex-col items-center gap-7 px-5 py-[clamp(72px,11vw,130px)] text-center sm:px-8">
             <h2 className="max-w-[18ch] font-archivo text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.0] tracking-[-0.035em] text-balance text-white">
-              Ta transformation commence aujourd&apos;hui.
+              {L.finalTitle}
             </h2>
             {offers.length > 0 ? (
               <a href="#offres" className="tap inline-flex h-[56px] items-center justify-center gap-2 rounded-btn bg-brand px-9 text-[16px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]">
-                Voir les programmes <S.arrow className="h-5 w-5" />
+                {L.seePrograms} <S.arrow className="h-5 w-5" />
               </a>
             ) : null}
           </div>
@@ -477,17 +466,16 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
         <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 px-5 py-12 sm:px-8">
           <Brand tenant={tenant} imgClass="h-10" textClass="text-[18px]" />
           <p className="max-w-[70ch] text-[13px] leading-[1.6] text-white/50">
-            Accompagnement sportif et de bien-être, sans visée thérapeutique. L&apos;accompagnement nutritionnel est une aide au choix des repas, pas une prescription diététique. Ne remplace pas un avis médical.
+            {L.legalNote}
           </p>
           <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-1 text-[13px] text-white/50">
-            <Link href="/connexion" className="transition-colors hover:text-white">Connexion</Link>
-            <Link href="/mentions-legales" className="transition-colors hover:text-white">Mentions légales</Link>
-            <Link href="/confidentialite" className="transition-colors hover:text-white">Confidentialité</Link>
-            <Link href="/cgv" className="transition-colors hover:text-white">CGV</Link>
+            <Link href="/connexion" className="transition-colors hover:text-white">{L.footerLogin}</Link>
+            <Link href="/mentions-legales" className="transition-colors hover:text-white">{L.footerLegal}</Link>
+            <Link href="/confidentialite" className="transition-colors hover:text-white">{L.footerPrivacy}</Link>
+            <Link href="/cgv" className="transition-colors hover:text-white">{L.footerTerms}</Link>
           </nav>
           <p className="pt-1 text-[12px] text-white/35">
-            Propulsé par <span className="font-archivo font-bold text-white/60">FitMe</span>
-            <span className="font-archivo font-bold text-brand">90</span>.
+            {L.poweredBy} <span className="font-archivo font-bold text-white/60">My Fitness <span className="text-brand">App</span></span>.
           </p>
         </div>
       </footer>
@@ -496,7 +484,7 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false }: { tenant: Publ
       {offers.length > 0 ? (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#0a0b0c]/92 px-4 py-3 backdrop-blur-xl sm:hidden">
           <a href="#offres" className="tap flex w-full items-center justify-center gap-2 rounded-btn bg-brand py-3.5 text-[15px] font-semibold text-white active:scale-[0.98]">
-            Voir les programmes <S.arrow className="h-4 w-4" />
+            {L.seePrograms} <S.arrow className="h-4 w-4" />
           </a>
         </div>
       ) : null}

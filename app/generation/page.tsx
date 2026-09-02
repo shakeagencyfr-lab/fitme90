@@ -6,6 +6,7 @@ import { GenerateStep } from "@/components/generate-step";
 import { CoachMark } from "@/components/brand";
 import { brandForUser } from "@/lib/branding";
 import { brandMetadataForUser } from "@/lib/brand-metadata";
+import { TenantLocale } from "@/components/tenant-locale";
 
 export async function generateMetadata() {
   const ctx = await getSessionContext();
@@ -44,6 +45,7 @@ export default async function GenerationPage({
   // cette attente (retente si le paiement n'est pas encore confirmé).
 
   return (
+    <TenantLocale userId={ctx.userId}>
     <div className="min-h-dvh bg-paper">
       <header className="px-5 sm:px-8 pt-6 safe-top">
         <CoachMark brand={await brandForUser(ctx.userId)} imgClass="h-9" />
@@ -54,5 +56,6 @@ export default async function GenerationPage({
         </div>
       </div>
     </div>
+    </TenantLocale>
   );
 }

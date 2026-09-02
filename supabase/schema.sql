@@ -57,6 +57,8 @@ create table if not exists public.tenants (
   ai_program_credits integer not null default 10,
   -- Revendeur : sa propre clé (byok) ou des crédits achetés à la plateforme.
   ai_supply text not null default 'byok'::text,
+  -- Langue de la page publique, des pages auth et de l'app des clients (fr | en).
+  language text not null default 'fr'::text,
   reseller_model text not null default 'subscription'::text,
   whitelabel_addon_price_cents integer,
   whitelabel_enabled boolean not null default false,
@@ -66,6 +68,7 @@ create table if not exists public.tenants (
   constraint tenants_slug_key unique (slug),
   constraint tenants_kind_check check (kind = any (array['platform','reseller','coach'])),
   constraint tenants_ai_supply_check check (ai_supply = any (array['byok','platform_credits'])),
+  constraint tenants_language_check check (language = any (array['fr','en'])),
   constraint tenants_commission_bps_check check (commission_bps is null or (commission_bps >= 0 and commission_bps <= 3000))
 );
 
@@ -86,6 +89,7 @@ create table if not exists public.profiles (
   medical_ack_name text,
   medical_ack_reasons text[],
   tenant_id uuid,
+  language text,
   role text not null default 'client'::text,
   selected_offer_id uuid,
   selected_interval text,
@@ -99,6 +103,7 @@ create table if not exists public.profiles (
   referral_code text,
   referred_by uuid,
   constraint profiles_pkey primary key (id),
+  constraint profiles_language_check check (language is null or language = any (array['fr','en'])),
   constraint profiles_selected_interval_check check (selected_interval = any (array['month','year']))
 );
 

@@ -1,4 +1,5 @@
 import "server-only";
+import { aiLanguageInstruction, type Locale } from "./i18n";
 import { z } from "zod";
 import { anthropic, MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
@@ -330,6 +331,8 @@ export interface Brief {
    * précédent, et leurs cycles numérotés à la suite (Cycle 4, 5, 6…).
    */
   blockIndex?: number;
+  /** Langue du client : le programme (titres, notes, repas) est écrit dedans. */
+  locale?: Locale;
 }
 
 /** Adaptations en cours (blessures/contraintes ajoutées après coup). */
@@ -428,7 +431,7 @@ export async function generateProgram(
       // Sortie volumineuse : jusqu'à 6 cycles × séances distinctes + nutrition.
       max_tokens: 32000,
       ...effortConfig(MODELS.generate, effort),
-      system: `${systemPrompt(wantCycles, template)}${SYSTEM_RULES}\n\n${methodology}`,
+      system: `${systemPrompt(wantCycles, template)}${SYSTEM_RULES}\n\n${methodology}\n\n${aiLanguageInstruction(brief.locale ?? "fr")}`,
       messages: [
         {
           role: "user",

@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { getT, userLocale } from "@/lib/i18n/server";
+import { dateLocale } from "@/lib/i18n";
+import { dayLabel } from "@/lib/i18n/quiz";
 import { loadEspaceOrRedirect } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -18,6 +21,7 @@ const CYCLE_DOT = ["bg-brand", "bg-ink", "bg-cardio"];
 
 export default async function AgendaPage() {
   const { ctx, plan, trainDays } = await loadEspaceOrRedirect();
+  const { locale, t } = await getT(await userLocale(ctx.userId));
   const today = ctx.access.day; // numéro de jour de programme (peut être ≤ 0 si à venir)
   const programDays = ctx.access.programDays;
   const cycleCount = plan.cycles?.length || 3;
@@ -42,7 +46,7 @@ export default async function AgendaPage() {
   const done = new Set((logs ?? []).map((l) => l.day as number));
 
   const fmtMonth = (dUTC: number) =>
-    new Date(dUTC).toLocaleDateString("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" });
+    new Date(dUTC).toLocaleDateString(dateLocale(locale), { month: "long", year: "numeric", timeZone: "UTC" });
 
   // Construit les semaines (chaque semaine = 7 dates réelles LUN→DIM).
   const weeks = Array.from({ length: weeksCount }, (_, w) =>
@@ -54,7 +58,7 @@ export default async function AgendaPage() {
   return (
     <div className="mx-auto flex max-w-[720px] flex-col gap-5">
       <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-        Agenda
+        {t("nav.agenda")}
       </h1>
 
       <div className="flex flex-wrap gap-4">
@@ -70,7 +74,7 @@ export default async function AgendaPage() {
       <div className="grid grid-cols-7 gap-1.5">
         {DAYS.map((d) => (
           <div key={d} className="text-center font-mono text-[10px] uppercase tracking-[0.06em] text-muted-2">
-            {d.slice(0, 1)}
+            {dayLabel(d, locale).slice(0, 1)}
           </div>
         ))}
       </div>
@@ -122,8 +126,8 @@ export default async function AgendaPage() {
                     <Link
                       key={dUTC}
                       href={`/app/seance?jour=${pd}`}
-                      aria-label={`${dom}, jour ${pd}${rest ? " repos" : ""}${isDone ? " validé" : isMissed ? " manquée, à rattraper" : ""}`}
-                      title={`Jour ${pd}${rest ? " · repos" : ""}${isDone ? " · validé" : isMissed ? " · manquée, à rattraper" : ""}`}
+                      aria-label={`${dom}, ${t("common.day").toLowerCase()} ${pd}${rest ? ` ${t("agenda.rest")}` : ""}${isDone ? ` ${t("agenda.done")}` : isMissed ? ` ${t("agenda.missed")}` : ""}`}
+                      title={`${t("common.day")} ${pd}${rest ? ` · ${t("agenda.rest")}` : ""}${isDone ? ` · ${t("agenda.done")}` : isMissed ? ` · ${t("agenda.missed")}` : ""}`}
                       className={base}
                     >
                       {isDone ? (
@@ -148,9 +152,7 @@ export default async function AgendaPage() {
         })}
       </div>
 
-      <MonoLabel>
-        Vraies dates · aujourd&apos;hui encadré · ✓ séance validée · « ! » en orange = séance manquée (touche-la pour la rattraper) · point = jour d&apos;entraînement (couleur = cycle)
-      </MonoLabel>
+      <MonoLabel>{t("agenda.legend")}</MonoLabel>
     </div>
   );
 }

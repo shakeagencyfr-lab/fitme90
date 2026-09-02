@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSessionContext } from "@/lib/guard";
-import { resolveGuide, generateGuide, type ResolvedGuide } from "@/lib/exercise-guide";
+import { resolveGuide, generateGuide, cachedAiGuide, type ResolvedGuide } from "@/lib/exercise-guide";
+import { normalizeExerciseName } from "@/lib/exercise-library";
+import { resolveLocale, userLocale } from "@/lib/i18n/server";
 import { checkLimit, DAY_MS } from "@/lib/ratelimit";
 import { LIMIT_COACH_PER_DAY } from "@/lib/config";
 
@@ -20,17 +22,26 @@ export async function POST(req: Request) {
 
   const tenantId = ctx.profile?.tenant_id ?? null;
 
+  const locale = await resolveLocale(await userLocale(ctx.userId));
+
   try {
-    // 1) Résolution sans IA (rapide, gratuite).
+    // 1) Résolution sans IA (rapide, gratuite). Les textes de la bibliothèque
+    // sont en français : un client anglophone garde les images mais reçoit des
+    // consignes en anglais (cache IA séparé, généré une fois par exercice).
     const resolved = await resolveGuide(name, tenantId);
-    if (resolved) return NextResponse.json({ guide: resolved });
+    if (resolved && (locale === "fr" || resolved.source === "coach")) return NextResponse.json({ guide: resolved });
+    if (locale === "en") {
+      const cached = await cachedAiGuide(normalizeExerciseName(name), "en");
+      if (cached) return NextResponse.json({ guide: { ...cached, frames: resolved?.frames ?? [] } });
+    }
 
     // 2) Génération IA (cache global), plafonnée par la limite quotidienne.
     const limit = await checkLimit(ctx.userId, "coach", LIMIT_COACH_PER_DAY, DAY_MS);
     if (limit.ok) {
-      const gen = await generateGuide(name, ctx.userId);
-      if (gen) return NextResponse.json({ guide: gen });
+      const gen = await generateGuide(name, ctx.userId, locale);
+      if (gen) return NextResponse.json({ guide: { ...gen, frames: resolved?.frames ?? gen.frames } });
     }
+    if (resolved) return NextResponse.json({ guide: resolved });
   } catch {
     /* on tombe sur la fiche minimale ci-dessous plutôt que de renvoyer une 500 */
   }
