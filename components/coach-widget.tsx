@@ -197,14 +197,25 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
   // on ouvre le coach et on mémorise le message à envoyer.
   useEffect(() => {
     const onAsk = (e: Event) => {
-      const msg = (e as CustomEvent<{ message?: string }>).detail?.message;
+      const detail = (e as CustomEvent<{ message?: string; fresh?: boolean }>).detail;
+      const msg = detail?.message;
       if (!msg) return;
       setOpen(true);
       setShowList(false);
+      // `fresh` : l'appelant veut un fil neuf (séance de dépannage). On repart
+      // d'une conversation vide pour ne pas noyer celle en cours.
+      if (detail?.fresh) {
+        setConvId(null);
+        setMessages([GREETING]);
+        setError("");
+      }
       setPendingAsk(msg);
     };
     window.addEventListener("fitme90:coach-ask", onAsk as EventListener);
     return () => window.removeEventListener("fitme90:coach-ask", onAsk as EventListener);
+    // GREETING est recalculé à chaque rendu : l'ajouter en dépendance
+    // réabonnerait l'écouteur en boucle. On garde un abonnement unique.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Envoi différé : une fois le panneau ouvert et l'historique chargé.

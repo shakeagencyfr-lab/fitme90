@@ -81,7 +81,7 @@ export async function POST(req: Request) {
       messages: [{ role: "user", content: user }],
     });
     const exercise = exerciseShape.parse(parseJsonLoose(textOf(message)));
-    await recordCall(ctx.userId, "coach", {
+    await recordCall(ctx.userId, "exercise", {
       input_tokens: message.usage.input_tokens,
       output_tokens: message.usage.output_tokens,
     });

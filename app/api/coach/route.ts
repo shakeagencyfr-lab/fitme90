@@ -25,6 +25,9 @@ import { pnum, grp } from "@/lib/nutrition";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
 import { aiLanguageInstruction } from "@/lib/i18n";
 
+/** Bulles maximum par réponse. Doit rester >= au nombre demandé à la persona. */
+const MAX_BUBBLES = 8;
+
 const DIETS = ["Omnivore", "Flexitarien", "Végétarien", "Végétalien", "Sans porc", "Sans bœuf"];
 
 export const runtime = "nodejs";
@@ -487,7 +490,7 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
   async function callModel(msgs: Anthropic.MessageParam[]) {
     const m = await aiClient.messages.create({
       model: MODELS.coach,
-      max_tokens: 1200,
+      max_tokens: 2000,
       ...effortConfig(MODELS.coach, "low"),
       system,
       tools,
@@ -606,7 +609,10 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     try {
       const parsedOut = parseJsonLoose<{ messages?: unknown }>(raw);
       const arr = Array.isArray(parsedOut.messages) ? parsedOut.messages : [];
-      messages = arr.map((m) => String(m).trim()).filter(Boolean).slice(0, 4);
+      // 8 et non 4 : la persona demande 3 à 5 bulles, et une séance complète en
+      // réclame davantage. Couper à 4 amputait la fin de réponse, obligeant le
+      // client à écrire « c'est tout ? » et à repayer un message.
+      messages = arr.map((m) => String(m).trim()).filter(Boolean).slice(0, MAX_BUBBLES);
     } catch {
       messages = [];
     }

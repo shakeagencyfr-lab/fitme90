@@ -15,7 +15,10 @@ export function DepannageButton() {
 
   function ask(message: string) {
     setOpen(false);
-    window.dispatchEvent(new CustomEvent("fitme90:coach-ask", { detail: { message } }));
+    // `fresh` : la séance de dépannage ouvre son propre fil. Elle produit une
+    // longue réponse ponctuelle, qui noierait la conversation en cours et en
+    // chasserait le contexte utile (la fenêtre d'historique est limitée).
+    window.dispatchEvent(new CustomEvent("fitme90:coach-ask", { detail: { message, fresh: true } }));
   }
 
   return (
