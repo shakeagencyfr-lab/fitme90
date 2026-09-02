@@ -593,6 +593,20 @@ export const fr = {
     dateRange: "Choisis une date entre il y a 30 jours et dans 60 jours.",
     noSub: "Aucun abonnement actif.",
   },
+  pdf: {
+    save: "Enregistrer en PDF",
+    eyebrow: "Plan d'entraînement",
+    title: "Mon programme",
+    titleFor: "Programme de {name}",
+    setsReps: "Séries × reps",
+    note: "Note",
+    cardio: "Cardio",
+    nutrition: "Repères nutritionnels",
+    protein: "Protéines",
+    carbs: "Glucides",
+    fat: "Lipides",
+    footer: "Document généré le {date}. Conseils de forme pour personnes en bonne santé, ne remplace pas un avis médical.",
+  },
   admin: {
     groups: { pilot: "Pilotage", sales: "Vente", content: "Contenu", settings: "Réglages" },
     nav: {
