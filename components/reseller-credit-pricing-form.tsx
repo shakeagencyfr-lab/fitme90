@@ -5,7 +5,7 @@ import { usePhrase } from "@/components/locale-provider";
 import { useActionState, useState } from "react";
 import { saveResellerCredits, type ResellerAiState } from "@/app/admin/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
-import { actionCreditMargin, programGenerationMargin, formatEuros } from "@/lib/config";
+import { actionCreditMargin, programGenerationMargin, formatEuros, formatEurPrecise } from "@/lib/config";
 
 interface Props {
   initialPriceCents: number;
@@ -105,7 +105,7 @@ export function ResellerCreditPricingForm({ initialPriceCents, initialProgramCre
         <p className="text-[12px] leading-[1.6] text-muted-2">
           {buyPriceCents != null
             ? "Ton coût est ton prix d'achat du crédit. Sur une génération, ton fournisseur t'en débite le même nombre."
-            : "Coût estimé d'après les tarifs publics Anthropic, converti en euros à titre indicatif. Une génération de programme coûte plus cher qu'une action : vérifie qu'elle reste rentable au nombre de crédits choisi."}
+            : "Coût MESURÉ sur la conso réelle (table ai_calls), converti en euros à titre indicatif. Il reflète le mix constaté : l'essentiel des crédits part en messages de chat, moins chers qu'une recette. Une génération de programme coûte bien plus qu'une action : vérifie qu'elle reste rentable au nombre de crédits choisi."}
         </p>
 
         {state.error ? <Alert>{state.error}</Alert> : null}
@@ -123,12 +123,12 @@ function Row({ label, cost, price, margin, pct }: { label: string; cost: number;
   return (
     <tr className="border-b border-line-2 last:border-0">
       <td className="px-3.5 py-3 font-semibold text-ink">{label}</td>
-      <td className="px-3.5 py-3 tabular-nums text-body">≈ {cost.toFixed(2)} €</td>
+      <td className="px-3.5 py-3 tabular-nums text-body">≈ {formatEurPrecise(cost)}</td>
       <td className="px-3.5 py-3 tabular-nums text-body">{price.toFixed(2)} €</td>
       <td className="px-3.5 py-3 tabular-nums">
         <span className={positive ? "font-semibold text-brand" : "font-semibold text-[#C4471A]"}>
           {positive ? "+" : ""}
-          {margin.toFixed(2)} €
+          {formatEurPrecise(margin).replace("€", "").trim()} €
         </span>
         {price > 0 ? <span className="ml-1.5 text-[12px] text-muted-2">({pct} %)</span> : null}
       </td>

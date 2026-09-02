@@ -180,6 +180,14 @@ export const AI_COST_PROGRAM_USD = 0.4;
 export const AI_COST_PER_MSG_USD = AI_COST_COACH_MSG_USD;
 /** Coût IA d'onboarding d'un client (génération programme + analyse salle). */
 export const AI_COST_ONBOARDING_USD = 0.4;
+/**
+ * Coût MOYEN d'un crédit consommé, mesuré sur le mix réel d'actions : environ
+ * 208 messages de chat pour 26 recettes sur un mois type, plus la mémoire.
+ * C'est la bonne base pour simuler une marge, alors que AI_COST_ACTION_USD
+ * décrit l'action la PLUS chère prise isolément (la recette).
+ */
+export const AI_COST_CREDIT_USD = 0.006;
+
 /** Coût de la mémoire longue : un résumé par client ACTIF et par jour (cron).
  * Non débité en crédits, c'est une charge système. */
 export const AI_COST_MEMORY_USD = 0.003;
@@ -277,6 +285,18 @@ export function estimateAiMonthlyCredits(msgCap: number, recipeCap: number): Cre
 export const DEFAULT_AI_CREDIT_PRICE_CENTS = 40; // 0,40 € / crédit
 export const DEFAULT_PROGRAM_CREDITS = 10; // une génération de programme = 10 crédits
 
+/**
+ * Montant en euros avec assez de décimales pour rester lisible sous le centime.
+ * Un coût de crédit vaut quelques millièmes d'euro : affiché à 2 décimales, le
+ * coût réel et le pire cas se confondaient tous les deux en « 0,01 € », ce qui
+ * rendait toute simulation de marge impossible.
+ */
+export function formatEurPrecise(n: number): string {
+  const abs = Math.abs(n);
+  const decimals = abs > 0 && abs < 0.1 ? 4 : 2;
+  return `${n.toFixed(decimals)} €`;
+}
+
 export interface CreditMargin {
   /** Coût Anthropic estimé (converti en €). */
   costEur: number;
@@ -295,7 +315,7 @@ function margin(costEur: number, priceEur: number): CreditMargin {
 
 /** Coût / prix / marge d'UN crédit consommé par une action simple (Haiku). */
 export function actionCreditMargin(creditPriceCents: number): CreditMargin {
-  return margin(usdToEur(AI_COST_ACTION_USD), Math.max(0, creditPriceCents) / 100);
+  return margin(usdToEur(AI_COST_CREDIT_USD), Math.max(0, creditPriceCents) / 100);
 }
 
 /**
