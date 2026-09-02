@@ -23,7 +23,7 @@ export async function POST() {
     no_program: "Aucun programme en cours.",
     no_quiz: "Réponds d'abord au questionnaire.",
     no_key: "Ton coach n'a pas encore configuré l'IA. Préviens-le pour débloquer ton bloc suivant.",
-    no_credits: "Ton coach doit recharger ses crédits programme pour construire ton bloc suivant.",
+    no_credits: "Ton coach doit recharger ses crédits IA pour construire ton bloc suivant.",
     failed: "La construction du bloc a échoué. Réessaie dans un instant.",
   };
   const status = res.reason === "not_due" ? 409 : res.reason === "failed" ? 502 : 400;

@@ -1,4 +1,5 @@
 import { loadEspaceOrRedirect } from "@/lib/queries";
+import { getT, userLocale } from "@/lib/i18n/server";
 import { createClient } from "@/lib/supabase/server";
 import { bannedTags, pnum, dislikeTerms } from "@/lib/nutrition";
 import { restPattern, startWeekday } from "@/lib/schedule";
@@ -25,11 +26,12 @@ export default async function NutritionPage() {
     (answers.diet as string) ?? undefined,
   );
   const dislikes = dislikeTerms(answers.dislikes as string | string[] | undefined);
+  const { t } = await getT(await userLocale(ctx.userId));
 
   return (
     <div className="mx-auto flex max-w-[720px] flex-col gap-5">
       <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-        Nutrition
+        {t("nav.nutrition")}
       </h1>
       <NutritionView
         currentDay={Math.max(1, ctx.access.day)}

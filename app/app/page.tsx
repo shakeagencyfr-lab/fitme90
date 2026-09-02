@@ -18,6 +18,9 @@ import { UpgradeCard } from "@/components/upgrade-card";
 import { upgradeEligible } from "@/lib/upgrade-logic";
 import { upgradeQuote, confirmUpgrade } from "@/lib/upgrade";
 import { DAYS_PER_MONTH } from "@/lib/config";
+import { getT, userLocale } from "@/lib/i18n/server";
+import { dateLocale } from "@/lib/i18n";
+import { dayLabel } from "@/lib/i18n/quiz";
 
 export const metadata = { title: "Programme" };
 
@@ -70,32 +73,34 @@ export default async function ProgrammePage({
   }
 
   const { access } = ctx;
+  const { locale, t } = await getT(await userLocale(ctx.userId));
+  const dl = dateLocale(locale);
 
   // --- États sans plan consultable ---
   if (access.phase === "not_paid") {
     return (
       <Empty
-        title="Crée ton programme"
-        body="Réponds au questionnaire et photographie ta salle. Le paiement de ton offre intervient juste après, puis ton programme est généré."
-        cta={{ href: "/questionnaire", label: "Commencer le questionnaire" }}
+        title={t("dashboard.createTitle")}
+        body={t("dashboard.createBodyNotPaid")}
+        cta={{ href: "/questionnaire", label: t("dashboard.startQuiz") }}
       />
     );
   }
   if (access.phase === "not_started") {
     return (
       <Empty
-        title="Crée ton programme"
-        body="Réponds au questionnaire et photographie ta salle : ton programme est généré à partir de tes réponses. Le décompte de ton programme démarre à ce moment-là."
-        cta={{ href: "/questionnaire", label: "Commencer le questionnaire" }}
+        title={t("dashboard.createTitle")}
+        body={t("dashboard.createBodyNotStarted")}
+        cta={{ href: "/questionnaire", label: t("dashboard.startQuiz") }}
       />
     );
   }
   if (access.phase === "ended") {
     return (
       <Empty
-        title="Accès terminé"
-        body="Ton programme et la période de consultation sont écoulés. Pour repartir sur un nouveau cycle, débloque un nouveau programme."
-        cta={{ href: "/app/paiement", label: "Reprendre un programme" }}
+        title={t("dashboard.endedTitle")}
+        body={t("dashboard.endedBody")}
+        cta={{ href: "/app/paiement", label: t("dashboard.endedCta") }}
       />
     );
   }
@@ -104,9 +109,9 @@ export default async function ProgrammePage({
   if (!plan) {
     return (
       <Empty
-        title="Programme à générer"
-        body="Ton compte est actif mais aucun programme n'a encore été généré."
-        cta={{ href: "/questionnaire", label: "Générer mon programme" }}
+        title={t("dashboard.toGenerateTitle")}
+        body={t("dashboard.toGenerateBody")}
+        cta={{ href: "/questionnaire", label: t("dashboard.toGenerateCta") }}
       />
     );
   }
@@ -135,16 +140,16 @@ export default async function ProgrammePage({
   const missedItems = ctx.profile?.start_date
     ? missed.map((day) => ({
         day,
-        date: dateOfProgramDay(ctx.profile!.start_date!, day).toLocaleDateString("fr-FR", {
+        date: dateOfProgramDay(ctx.profile!.start_date!, day).toLocaleDateString(dl, {
           weekday: "short",
           day: "numeric",
           month: "short",
           timeZone: "UTC",
         }),
       }))
-    : missed.map((day) => ({ day, date: `jour ${day}` }));
+    : missed.map((day) => ({ day, date: `${t("common.day").toLowerCase()} ${day}` }));
   const startFmt = ctx.profile?.start_date
-    ? new Date(`${ctx.profile.start_date}T00:00:00Z`).toLocaleDateString("fr-FR", {
+    ? new Date(`${ctx.profile.start_date}T00:00:00Z`).toLocaleDateString(dl, {
         weekday: "long",
         day: "numeric",
         month: "long",
@@ -160,7 +165,7 @@ export default async function ProgrammePage({
       ? sessionForDay(plan, access.day, pattern, startWd)
       : undefined;
   const todayDone = doneDays.includes(access.day);
-  const todayFmt = new Date().toLocaleDateString("fr-FR", {
+  const todayFmt = new Date().toLocaleDateString(dl, {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -203,34 +208,22 @@ export default async function ProgrammePage({
   return (
     <div className="mx-auto flex max-w-[880px] flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <MonoLabel className="text-brand">{accessLabel(access)}</MonoLabel>
+        <MonoLabel className="text-brand">{accessLabel(access, locale)}</MonoLabel>
         <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          {firstName ? `Salut ${firstName} !` : "Ton programme"}
+          {firstName ? t("dashboard.hello", { name: firstName }) : t("dashboard.yourProgram")}
         </h1>
       </header>
 
       {access.phase === "grace" ? (
-        <Alert tone="info">
-          Programme terminé. Le coach IA est désactivé, mais ton plan reste
-          consultable pendant encore {access.daysUntilAccessEnd} jour(s).
-        </Alert>
+        <Alert tone="info">{t("dashboard.graceNotice", { days: access.daysUntilAccessEnd })}</Alert>
       ) : null}
 
       {access.phase === "scheduled" ? (
-        <Alert tone="info">
-          Ton programme démarre le {startFmt} (dans {1 - access.day} jour(s)). Tu peux
-          déjà tout consulter ; le coach IA et le journal des séances s'activent le
-          jour J.
-        </Alert>
+        <Alert tone="info">{t("dashboard.scheduledNotice", { date: startFmt, days: 1 - access.day })}</Alert>
       ) : null}
 
-      {upgraded ? (
-        <Alert tone="info">
-          Bienvenue sur 12 mois. Ton programme continue là où tu en es : le bloc 2 sera construit
-          sur tes résultats une semaine avant la fin du bloc 1.
-        </Alert>
-      ) : null}
-      {sp.upgrade === "0" ? <Alert>Bascule annulée. Rien n&apos;a changé sur ton programme.</Alert> : null}
+      {upgraded ? <Alert tone="info">{t("dashboard.upgraded")}</Alert> : null}
+      {sp.upgrade === "0" ? <Alert>{t("dashboard.upgradeCancelled")}</Alert> : null}
 
       {blockMissing ? <NextBlockPrompt label={nextBlockName} /> : null}
 
@@ -252,7 +245,7 @@ export default async function ProgrammePage({
         <Card className="relative flex flex-col gap-3 overflow-hidden border-brand/30">
           <span className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-brand" />
           <div className="flex items-baseline justify-between gap-3">
-            <MonoLabel className="text-brand">Aujourd&apos;hui</MonoLabel>
+            <MonoLabel className="text-brand">{t("dashboard.today")}</MonoLabel>
             <span className="text-[12.5px] capitalize text-muted-2">{todayFmt}</span>
           </div>
           {todayTraining && todaySession ? (
@@ -263,25 +256,25 @@ export default async function ProgrammePage({
                 </h2>
                 <p className="text-[13.5px] text-muted">
                   {todaySession.cycleLabel}
-                  {todaySession.exercises?.length ? ` · ${todaySession.exercises.length} exercices` : ""}
+                  {todaySession.exercises?.length ? ` · ${todaySession.exercises.length} ${t("dashboard.exercises")}` : ""}
                 </p>
               </div>
               {todayDone ? (
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="inline-flex items-center gap-2 rounded-pill bg-brand/10 px-3 py-1.5 text-[13.5px] font-semibold text-brand">
-                    ✓ Séance validée, bien joué !
+                    {t("dashboard.sessionDone")}
                   </span>
                   <ButtonLink href="/app/evolution" variant="outline" className="h-10">
-                    Noter mon poids
+                    {t("dashboard.logWeight")}
                   </ButtonLink>
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-3">
                   <ButtonLink href="/app/seance" variant="primary" className="h-[50px] px-6 text-[15.5px]">
-                    Démarrer ma séance
+                    {t("dashboard.startSession")}
                   </ButtonLink>
                   <ButtonLink href="/app/nutrition" variant="ghost" className="h-[50px]">
-                    Mes repas du jour
+                    {t("dashboard.mealsToday")}
                   </ButtonLink>
                 </div>
               )}
@@ -290,19 +283,16 @@ export default async function ProgrammePage({
             <>
               <div className="flex flex-col gap-1">
                 <h2 className="font-archivo font-extrabold text-[24px] leading-[1.1] tracking-[-0.02em] text-ink">
-                  Jour de repos
+                  {t("dashboard.restDay")}
                 </h2>
-                <p className="text-[13.5px] leading-[1.6] text-muted">
-                  C&apos;est là que le muscle se construit : marche, hydratation, sommeil.
-                  Et l&apos;assiette fait le reste.
-                </p>
+                <p className="text-[13.5px] leading-[1.6] text-muted">{t("dashboard.restDayBody")}</p>
               </div>
               <div className="flex flex-wrap gap-3">
                 <ButtonLink href="/app/nutrition" variant="primary" className="h-[50px] px-6 text-[15.5px]">
-                  Mes repas du jour
+                  {t("dashboard.mealsToday")}
                 </ButtonLink>
                 <ButtonLink href="/app/evolution" variant="ghost" className="h-[50px]">
-                  Noter mon poids
+                  {t("dashboard.logWeight")}
                 </ButtonLink>
               </div>
             </>
@@ -320,16 +310,16 @@ export default async function ProgrammePage({
 
       <section className="flex flex-col gap-2">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <MonoLabel>Ton programme</MonoLabel>
+          <MonoLabel>{t("dashboard.yourProgram")}</MonoLabel>
           {access.day >= 1 ? (
             <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-brand">
-              {position.label} · Cycle {position.cycleIndex + 1}
+              {position.label} · {t("dashboard.cycle")} {position.cycleIndex + 1}
             </span>
           ) : null}
         </div>
         <p className="text-[14.5px] leading-[1.6] text-muted">{plan.summary}</p>
         <ButtonLink href="/plan-pdf" variant="ghost" className="mt-1 h-10 self-start">
-          Exporter mon plan en PDF
+          {t("dashboard.exportPdf")}
         </ButtonLink>
       </section>
 
@@ -340,9 +330,9 @@ export default async function ProgrammePage({
           mobile : cartes larges lisibles, on glisse pour voir la suite. */}
       <Card className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
-          <MonoLabel>Semaine type</MonoLabel>
+          <MonoLabel>{t("dashboard.typicalWeek")}</MonoLabel>
           <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-2 sm:hidden">
-            glisse →
+            {t("dashboard.swipe")}
           </span>
         </div>
         <div className="-mx-5 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -350,7 +340,7 @@ export default async function ProgrammePage({
             {DAYS.map((code, i) => {
               const rest = pattern[i];
               const trainIdx = pattern.slice(0, i).filter((r) => !r).length;
-              const name = rest ? "Repos" : trainNames[trainIdx % (trainNames.length || 1)] || "Séance";
+              const name = rest ? t("dashboard.rest") : trainNames[trainIdx % (trainNames.length || 1)] || t("dashboard.session");
               return (
                 <div
                   key={code}
@@ -360,7 +350,7 @@ export default async function ProgrammePage({
                   ].join(" ")}
                 >
                   <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted-2">
-                    {code}
+                    {dayLabel(code, locale)}
                   </span>
                   <span
                     className={[
@@ -381,13 +371,13 @@ export default async function ProgrammePage({
 
       {/* Résumé chiffré */}
       <section className="grid gap-3 grid-cols-2">
-        <Card><Stat label="Jour" value={dayStat} sub={access.phase === "scheduled" ? "Avant le départ" : "Programme en cours"} /></Card>
-        <Card><Stat label="Calories / jour" value={`${plan.nutrition.kcal}`} sub="Jour d'entraînement" /></Card>
+        <Card><Stat label={t("common.day")} value={dayStat} sub={access.phase === "scheduled" ? t("dashboard.beforeStart") : t("dashboard.programInProgress")} /></Card>
+        <Card><Stat label={t("dashboard.caloriesPerDay")} value={`${plan.nutrition.kcal}`} sub={t("dashboard.trainingDay")} /></Card>
       </section>
 
       <div className="flex flex-wrap gap-3">
-        <ButtonLink href="/app/seance" variant="primary">Aller à ma séance</ButtonLink>
-        <ButtonLink href="/app/nutrition" variant="outline">Voir la nutrition</ButtonLink>
+        <ButtonLink href="/app/seance" variant="primary">{t("dashboard.goToSession")}</ButtonLink>
+        <ButtonLink href="/app/nutrition" variant="outline">{t("dashboard.seeNutrition")}</ButtonLink>
       </div>
     </div>
   );

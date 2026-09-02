@@ -19,6 +19,8 @@ import { blockPosition } from "@/lib/block-logic";
 import { CYCLES_PER_BLOCK } from "@/lib/config";
 import { revalidatePath } from "next/cache";
 import { pnum, grp } from "@/lib/nutrition";
+import { resolveLocale, userLocale } from "@/lib/i18n/server";
+import { aiLanguageInstruction } from "@/lib/i18n";
 
 const DIETS = ["Omnivore", "Flexitarien", "Végétarien", "Végétalien", "Sans porc", "Sans bœuf"];
 
@@ -196,7 +198,12 @@ export async function POST(req: NextRequest) {
   const past = (history ?? []).reverse() as { role: "user" | "assistant"; content: string }[];
 
   const coachName = await readCoachName(ctx.profile?.tenant_id ?? null);
+  // Langue du client : le coach répond dedans (cookie > profil > tenant).
+  const locale = await resolveLocale(await userLocale(ctx.userId));
+  const dateLoc = locale === "en" ? "en-GB" : "fr-FR";
   const system = `${buildPersona(quiz?.answers ?? {}, { ...DEFAULT_BRAND, coachName })}
+
+${aiLanguageInstruction(locale)}
 
 PROFIL DU CLIENT :
 ${profileLines.length ? profileLines.join("\n") : "Non renseigné."}
@@ -205,10 +212,10 @@ Jours d'entraînement : ${quiz?.train_days?.join(", ") || "non précisés"}.
 CALENDRIER (suis la progression avec ces repères réels) :
 - Programme démarré le ${
     ctx.profile?.start_date
-      ? new Date(`${ctx.profile.start_date}T00:00:00Z`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
+      ? new Date(`${ctx.profile.start_date}T00:00:00Z`).toLocaleDateString(dateLoc, { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
       : "non défini"
   }.
-- Aujourd'hui : ${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" })} — jour ${ctx.access.day} sur ${ctx.access.programDays}.
+- Aujourd'hui : ${new Date().toLocaleDateString(dateLoc, { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" })} — jour ${ctx.access.day} sur ${ctx.access.programDays}.
 - STATUT DU JOUR : aujourd'hui est un jour ${todayIsTraining ? "D'ENTRAÎNEMENT, une séance est prévue" : "DE REPOS, aucune séance n'est prévue"}. Fie-toi à CETTE information (jours d'entraînement à jour : ${quiz?.train_days?.join(", ") || "non précisés"}), pas au texte du programme qui peut dater d'avant un changement de jours.
 - Les séances tombent aux vrais jours de la semaine choisis. Parle en dates concrètes et repère les séances validées vs prévues pour suivre les retards éventuels.
 - Séances en retard (passées, non validées) : ${missedList.length ? `${missedList.length} (jours ${missedList.slice(0, 8).join(", ")}${missedList.length > 8 ? "…" : ""}). Le calendrier ne bouge pas : encourage à les RATTRAPER quand le client peut, sur un ton bienveillant et sans culpabiliser. Rappelle qu'il peut ouvrir une séance passée depuis l'agenda pour la rattraper. N'en parle QUE si c'est pertinent (le client en parle, demande un bilan, ou s'inquiète de son retard).` : "aucune, félicite la régularité si le sujet vient."}
@@ -448,6 +455,7 @@ ${JSON.stringify(logs ?? [])}`;
         equipment,
         programDays: ctx!.access.programDays,
         blockIndex: pos.blockIndex,
+        locale,
       },
       "low", // rapide : tenir sous ~60 s dans la requête coach (Vercel Hobby)
       billing.key,
@@ -560,7 +568,7 @@ ${JSON.stringify(logs ?? [])}`;
   }
   await recordCall(ctx.userId, "coach", totalUsage);
   // Modèle crédits : on débite APRÈS la réponse réussie (jamais de surdébit).
-  // Une adaptation régénère aussi un programme → 1 crédit programme en plus.
+  // Une adaptation régénère aussi un programme → le coût d'une génération en plus.
   {
     await chargeAiUsage(coachTenant, "action", "message", ctx.userId);
     if (adapted) await chargeAiUsage(coachTenant, "program", "generate", ctx.userId);

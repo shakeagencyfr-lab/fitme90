@@ -9,6 +9,7 @@ import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant"
 import { clientOffer } from "@/lib/offers";
 import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
 import { LIMIT_GENERATE_TOTAL, programDaysForMonths } from "@/lib/config";
+import { resolveLocale, userLocale } from "@/lib/i18n/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // génération longue : jusqu'à 5 min
@@ -120,6 +121,7 @@ export async function POST() {
         trainDays: quiz.train_days ?? [],
         equipment,
         programDays,
+        locale: await resolveLocale(await userLocale(ctx.userId)),
       },
       "high",
       billing.key,

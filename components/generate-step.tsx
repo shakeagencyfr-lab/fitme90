@@ -4,20 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MedicalWaiver } from "@/components/medical-waiver";
 import { Button, Alert, MonoLabel } from "@/components/ui";
+import { useT } from "@/components/locale-provider";
 
-const STEPS = [
-  "Lecture du profil et des contraintes",
-  "Filtrage des exercices selon le matériel",
-  "Répartition sur tes jours d'entraînement",
-  "Construction des trois cycles",
-  "Calcul des besoins et des repas",
-  "Mise en forme du programme",
-];
+const STEP_KEYS = ["profile", "filter", "spread", "cycles", "meals", "format"] as const;
 
 type Status = "running" | "error" | "waiver" | "done";
 
 export function GenerateStep() {
   const router = useRouter();
+  const t = useT();
+  const STEPS = STEP_KEYS.map((k) => t(`generate.steps.${k}`));
   const [status, setStatus] = useState<Status>("running");
   const [step, setStep] = useState(0);
   const [reasons, setReasons] = useState<string[]>([]);
@@ -47,15 +43,15 @@ export function GenerateStep() {
         return;
       }
       if (res.status === 402) {
-        throw new Error("Paiement non confirmé. Si tu viens de payer, patiente un instant et réessaie.");
+        throw new Error(t("generate.notPaid"));
       }
-      if (!res.ok) throw new Error(data.error || "La génération a échoué.");
+      if (!res.ok) throw new Error(data.error || t("generate.failedBody"));
       setStep(STEPS.length - 1);
       setStatus("done");
       setTimeout(() => router.push("/app?genere=1"), 600);
     } catch (err) {
       clearInterval(tick);
-      setError(err instanceof Error ? err.message : "La génération a échoué.");
+      setError(err instanceof Error ? err.message : t("generate.failedBody"));
       setStatus("error");
     }
   }
@@ -79,7 +75,7 @@ export function GenerateStep() {
             started.current = false;
             run();
           }}
-          submitLabel="Signer et générer mon programme"
+          submitLabel={t("generate.signAndGenerate")}
         />
       </div>
     );
@@ -88,16 +84,16 @@ export function GenerateStep() {
   return (
     <div className="mx-auto flex max-w-[560px] flex-col gap-6">
       <div className="flex flex-col gap-1.5">
-        <MonoLabel className="text-brand">Étape 3 · génération</MonoLabel>
+        <MonoLabel className="text-brand">{t("generate.step")}</MonoLabel>
         <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          {status === "error" ? "La génération a échoué" : "On écrit ton programme"}
+          {status === "error" ? t("generate.failed") : t("generate.writing")}
         </h1>
       </div>
 
       {status === "error" ? (
         <>
           <Alert>{error}</Alert>
-          <Button onClick={run} className="self-start h-12">Réessayer</Button>
+          <Button onClick={run} className="self-start h-12">{t("generate.retry")}</Button>
         </>
       ) : (
         <>
@@ -125,7 +121,7 @@ export function GenerateStep() {
               </li>
             ))}
           </ul>
-          <p className="text-[12.5px] text-muted-2">Cela prend généralement moins d'une minute.</p>
+          <p className="text-[12.5px] text-muted-2">{t("generate.takesTime")}</p>
         </>
       )}
     </div>

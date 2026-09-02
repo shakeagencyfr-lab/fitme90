@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useT } from "@/components/locale-provider";
 import { updateStartDate, type ProfilState } from "@/app/app/profil/actions";
 import { Card, Button, Alert, MonoLabel } from "@/components/ui";
 
@@ -14,17 +15,17 @@ export function StartDateSetting({ current }: { current: string }) {
     max: iso(Date.now() + 60 * 86_400_000),
   }));
 
+  const t = useT();
   return (
     <Card as="section" className="flex flex-col gap-3">
       <div className="flex flex-col gap-0.5">
-        <MonoLabel>Date de début du programme</MonoLabel>
+        <MonoLabel>{t("profile.startDate")}</MonoLabel>
         <p className="text-[13px] text-muted">
-          Le décompte de ton programme et ton calendrier partent de cette date. La
-          modifier recale l&apos;agenda, les séances et la nutrition.
+          {t("profile.startDateHint")}
         </p>
       </div>
       {state.error ? <Alert>{state.error}</Alert> : null}
-      {state.ok ? <Alert tone="info">Date de début mise à jour.</Alert> : null}
+      {state.ok ? <Alert tone="info">{t("profile.startDateSaved")}</Alert> : null}
       <form action={action} className="flex flex-wrap items-end gap-3">
         <input
           type="date"
@@ -34,9 +35,7 @@ export function StartDateSetting({ current }: { current: string }) {
           max={max}
           className="tap rounded-control border border-line-3 bg-surface-2 px-3.5 text-ink outline-none focus:border-ink"
         />
-        <Button type="submit" loading={pending} className="h-11">
-          Enregistrer
-        </Button>
+        <Button type="submit" loading={pending} className="h-11">{t("common.save")}</Button>
       </form>
     </Card>
   );

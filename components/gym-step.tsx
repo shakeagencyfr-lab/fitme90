@@ -5,22 +5,39 @@ import { useRouter } from "next/navigation";
 import { compressImage, base64Of } from "@/lib/image";
 import { saveEquipment, type EquipItem } from "@/app/salle/actions";
 import { Button, Alert, Card, MonoLabel, Field } from "@/components/ui";
+import { useLocale, useT } from "@/components/locale-provider";
 
-const FALLBACK = [
-  "Rack à squat + barre olympique",
-  "Banc réglable",
-  "Haltères",
-  "Poulie haute / basse",
-  "Presse à cuisses",
-  "Tapis de course",
-  "Rameur",
-  "Kettlebells",
-  "Élastiques",
-  "Poids du corps uniquement",
-];
+const FALLBACK: Record<"fr" | "en", string[]> = {
+  fr: [
+    "Rack à squat + barre olympique",
+    "Banc réglable",
+    "Haltères",
+    "Poulie haute / basse",
+    "Presse à cuisses",
+    "Tapis de course",
+    "Rameur",
+    "Kettlebells",
+    "Élastiques",
+    "Poids du corps uniquement",
+  ],
+  en: [
+    "Squat rack + Olympic bar",
+    "Adjustable bench",
+    "Dumbbells",
+    "Cable machine (high / low)",
+    "Leg press",
+    "Treadmill",
+    "Rowing machine",
+    "Kettlebells",
+    "Resistance bands",
+    "Bodyweight only",
+  ],
+};
 
 export function GymStep({ nextHref = "/generation" }: { nextHref?: string }) {
   const router = useRouter();
+  const t = useT();
+  const locale = useLocale();
   const [items, setItems] = useState<(EquipItem & { on: boolean })[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -55,7 +72,7 @@ export function GymStep({ nextHref = "/generation" }: { nextHref?: string }) {
         body: JSON.stringify({ images }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Analyse indisponible.");
+      if (!res.ok) throw new Error(data.error || t("gym.analyzeUnavailable"));
       addItems(
         (data.equipment as { name: string; confidence: string }[]).map((e2) => ({
           name: e2.name,
@@ -64,7 +81,7 @@ export function GymStep({ nextHref = "/generation" }: { nextHref?: string }) {
         })),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Analyse indisponible.");
+      setError(err instanceof Error ? err.message : t("gym.analyzeUnavailable"));
     } finally {
       setAnalyzing(false);
     }
@@ -95,15 +112,11 @@ export function GymStep({ nextHref = "/generation" }: { nextHref?: string }) {
   return (
     <div className="mx-auto flex max-w-[780px] flex-col gap-6">
       <div className="flex flex-col gap-1.5">
-        <MonoLabel className="text-brand">Étape 2 · matériel</MonoLabel>
+        <MonoLabel className="text-brand">{t("gym.step")}</MonoLabel>
         <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          Photographie ta salle
+          {t("gym.title")}
         </h1>
-        <p className="max-w-[58ch] text-[15.5px] leading-[1.6] text-muted">
-          Une à trois photos larges suffisent. Les images sont réduites avant analyse,
-          puis le matériel lu sur tes photos s'affiche : tu corriges, et seuls ces
-          équipements servent au programme.
-        </p>
+        <p className="max-w-[58ch] text-[15.5px] leading-[1.6] text-muted">{t("gym.body")}</p>
       </div>
 
       {error ? <Alert>{error}</Alert> : null}
@@ -111,12 +124,12 @@ export function GymStep({ nextHref = "/generation" }: { nextHref?: string }) {
       <input type="file" accept="image/*" multiple id="gym-photos" className="hidden" onChange={onPhotos} />
       <div className="flex flex-wrap gap-3">
         <Button onClick={() => document.getElementById("gym-photos")?.click()} loading={analyzing} variant="outline" className="h-12">
-          {analyzing ? "Analyse en cours…" : "Analyser mes photos"}
+          {analyzing ? t("gym.analyzing") : t("gym.analyze")}
         </Button>
       </div>
 
       <Card className="flex flex-col gap-3">
-        <MonoLabel>Ton matériel</MonoLabel>
+        <MonoLabel>{t("gym.yourEquipment")}</MonoLabel>
         {items.length ? (
           <div className="flex flex-wrap gap-2">
             {items.map((it, i) => (
@@ -134,23 +147,21 @@ export function GymStep({ nextHref = "/generation" }: { nextHref?: string }) {
             ))}
           </div>
         ) : (
-          <p className="text-[14px] text-muted-2">
-            Aucun matériel pour l'instant. Analyse des photos ou ajoute à la main.
-          </p>
+          <p className="text-[14px] text-muted-2">{t("gym.empty")}</p>
         )}
         <div className="flex items-end gap-2">
           <Field
             id="manual"
-            label="Ajouter à la main"
+            label={t("gym.addManually")}
             value={manual}
             onChange={(e) => setManual(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addManual())}
-            placeholder="Barre EZ, TRX…"
+            placeholder={t("gym.addPlaceholder")}
           />
-          <Button onClick={addManual} variant="outline" className="h-11">Ajouter</Button>
+          <Button onClick={addManual} variant="outline" className="h-11">{t("gym.add")}</Button>
         </div>
         <div className="flex flex-wrap gap-1.5 pt-1">
-          {FALLBACK.map((name) => (
+          {FALLBACK[locale].map((name) => (
             <button
               key={name}
               onClick={() => addItems([{ name, source: "manuel" }])}
@@ -163,9 +174,9 @@ export function GymStep({ nextHref = "/generation" }: { nextHref?: string }) {
       </Card>
 
       <div className="flex items-center justify-between gap-3">
-        <Button variant="ghost" onClick={validate} className="h-[52px]">Passer</Button>
+        <Button variant="ghost" onClick={validate} className="h-[52px]">{t("gym.skip")}</Button>
         <Button onClick={validate} loading={saving} className="h-[52px] flex-1 max-w-[340px]">
-          {nextHref === "/app/paiement" ? "Continuer vers le paiement" : "Générer mon programme"}
+          {nextHref === "/app/paiement" ? t("gym.toPayment") : t("gym.generate")}
         </Button>
       </div>
     </div>

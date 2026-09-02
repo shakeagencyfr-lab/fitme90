@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/components/locale-provider";
+
 // Sélecteur de thème Clair / Sombre. Aucun état React : on écrit la classe
 // .dark sur <html> + la préférence dans localStorage. L'onglet actif est mis en
 // évidence purement en CSS via la variante `dark:` (pas de mismatch d'hydratation).
@@ -26,6 +28,7 @@ const MoonIcon = (
 );
 
 export function ThemeToggle({ className }: { className?: string }) {
+  const t = useT();
   return (
     <div className={["inline-flex rounded-control border border-line-4 bg-surface-2 p-1", className ?? ""].join(" ")}>
       <button
@@ -34,7 +37,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         className="tap inline-flex items-center gap-2 rounded-[7px] px-3.5 py-2 text-[14px] font-semibold text-muted transition-colors bg-fill text-fillfg dark:bg-transparent dark:text-muted"
       >
         {SunIcon}
-        Clair
+        {t("profile.light")}
       </button>
       <button
         type="button"
@@ -42,7 +45,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         className="tap inline-flex items-center gap-2 rounded-[7px] px-3.5 py-2 text-[14px] font-semibold text-muted transition-colors dark:bg-fill dark:text-fillfg"
       >
         {MoonIcon}
-        Sombre
+        {t("profile.dark")}
       </button>
     </div>
   );

@@ -8,6 +8,8 @@ import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
 import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
 import { COACH_CREDENTIAL } from "@/lib/config";
+import { resolveLocale, userLocale } from "@/lib/i18n/server";
+import { aiLanguageInstruction } from "@/lib/i18n";
 
 export const runtime = "nodejs";
 
@@ -95,7 +97,8 @@ export async function POST() {
           ? "Recettes plus élaborées et gourmandes, techniques un peu plus poussées, davantage d'étapes."
           : "Recettes simples et efficaces.";
 
-  const system = `Tu es ${COACH_CREDENTIAL}. Réponds UNIQUEMENT par un objet JSON valide en français, sans texte autour. Exactement 3 recettes, chacune DÉTAILLÉE et facile à suivre. Schéma EXACT :
+  const locale = await resolveLocale(await userLocale(ctx.userId));
+  const system = `Tu es ${COACH_CREDENTIAL}. Réponds UNIQUEMENT par un objet JSON valide, sans texte autour. ${aiLanguageInstruction(locale)} Exactement 3 recettes, chacune DÉTAILLÉE et facile à suivre. Schéma EXACT :
 {"recipes":[{"name":"","level":"Simple","time":"20 min","servings":"1 portion","kcal":"620","protein":"42 g","carbs":"55 g","fat":"18 g","ingredients":[{"food":"","qty":"120 g"}],"steps":["Étape 1 claire et précise","Étape 2","Étape 3","Étape 4"],"tip":"une astuce courte"}]}
 Consignes : 4 à 7 étapes numérotées, chaque étape est une instruction concrète (température, temps de cuisson, ustensile, indice de cuisson). Donne des quantités précises pour chaque ingrédient, les macros complètes (kcal, protéines, glucides, lipides) et le nombre de portions. Ajoute une astuce ("tip") utile (variante, conservation, gain de temps). Conseils culinaires uniquement, aucune allégation médicale. N'utilise jamais de tiret cadratin (—) ni demi-cadratin (–).`;
   const user =

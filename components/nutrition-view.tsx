@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { useLocale, useT } from "@/components/locale-provider";
+import { dateLocale } from "@/lib/i18n";
 import {
   dayMeals,
   shoppingList,
@@ -59,26 +61,29 @@ export function NutritionView({
 }: Props) {
   // Nombre de semaines couvertes par le programme (dernière semaine incluse).
   const WEEKS = Math.max(1, Math.ceil(programDays / 7));
+  const t = useT();
+  const locale = useLocale();
+  const dl = dateLocale(locale);
   // Vraie date d'un jour de programme (numéro + mois court), si connue.
   const dateOf = (d: number) =>
     startDate
-      ? dateOfProgramDay(startDate, d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" })
-      : `J${d}`;
+      ? dateOfProgramDay(startDate, d).toLocaleDateString(dl, { day: "numeric", month: "short", timeZone: "UTC" })
+      : `${locale === "en" ? "D" : "J"}${d}`;
   // Date longue (jour de semaine + numéro + mois), pour le récapitulatif.
   const dateLong = (d: number) =>
     startDate
-      ? dateOfProgramDay(startDate, d).toLocaleDateString("fr-FR", {
+      ? dateOfProgramDay(startDate, d).toLocaleDateString(dl, {
           weekday: "long",
           day: "numeric",
           month: "long",
           timeZone: "UTC",
         })
-      : `Jour ${d}`;
+      : `${t("common.day")} ${d}`;
   // Vrai jour de semaine (abrégé, MAJ) d'un jour de programme, aligné calendrier.
   const weekdayOf = (d: number, fallback: string) =>
     startDate
       ? dateOfProgramDay(startDate, d)
-          .toLocaleDateString("fr-FR", { weekday: "short", timeZone: "UTC" })
+          .toLocaleDateString(dl, { weekday: "short", timeZone: "UTC" })
           .replace(".", "")
           .toUpperCase()
       : fallback;
@@ -188,7 +193,7 @@ export function NutritionView({
       if (out.error) throw new Error(out.error);
       setRecipes(out.recipes ?? []);
     } catch (e) {
-      setRecipeErr(e instanceof Error ? e.message : "Analyse impossible.");
+      setRecipeErr(e instanceof Error ? e.message : t("nutrition.analyzeImpossible"));
     } finally {
       setPhotoBusy(false);
     }
@@ -198,7 +203,7 @@ export function NutritionView({
     <div className="flex flex-col gap-6">
       {/* Sélecteur de semaine + jour (12+ semaines variées) */}
       <section className="flex flex-col gap-3">
-        <MonoLabel>Calendrier nutrition</MonoLabel>
+        <MonoLabel>{t("nutrition.calendar")}</MonoLabel>
         <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
           {Array.from({ length: WEEKS }, (_, i) => i + 1).map((w) => (
             <button
@@ -209,7 +214,7 @@ export function NutritionView({
                 w === week ? "bg-fill text-fillfg border-fill" : "bg-surface text-body border-line-4",
               ].join(" ")}
             >
-              S{w}
+              {locale === "en" ? "W" : "S"}{w}
             </button>
           ))}
         </div>
@@ -225,7 +230,7 @@ export function NutritionView({
                 key={i}
                 disabled={disabled}
                 onClick={() => setDow(i)}
-                title={disabled ? undefined : `${dateOf(d)}${rest ? " · repos" : " · entraînement"}`}
+                title={disabled ? undefined : `${dateOf(d)} · ${rest ? t("nutrition.restShort") : t("nutrition.trainingShort")}`}
                 className={[
                   "tap flex flex-col items-center gap-0.5 rounded-control border py-2 text-center transition-colors",
                   on ? "border-ink border-2" : rest ? "border-line" : "border-brand/35",
@@ -242,17 +247,17 @@ export function NutritionView({
           })}
         </div>
         <p className="text-[12px] text-muted-2">
-          <span className="font-semibold text-body capitalize">{dateLong(day)}</span> · jour {day} ·{" "}
-          {dayRest ? "sans entraînement" : "entraînement"}. Les menus varient au fil de ton programme.
+          <span className="font-semibold text-body capitalize">{dateLong(day)}</span> · {t("common.day").toLowerCase()} {day} ·{" "}
+          {dayRest ? t("nutrition.noTraining") : t("nutrition.trainingShort")}. {t("nutrition.menusVary")}
         </p>
       </section>
 
       {/* Macros : deux états + explication */}
       <section className="flex flex-col gap-3">
-        <MonoLabel>Besoins du jour</MonoLabel>
+        <MonoLabel>{t("nutrition.needs")}</MonoLabel>
         <div className="grid gap-3 sm:grid-cols-2">
           <MacroCard
-            title="Jour d'entraînement"
+            title={t("nutrition.trainingDay")}
             tone="train"
             active={!dayRest}
             kcal={grp(trainKcal)}
@@ -261,7 +266,7 @@ export function NutritionView({
             fat={`${Math.round(F)} g`}
           />
           <MacroCard
-            title="Jour de repos"
+            title={t("nutrition.restDay")}
             tone="rest"
             active={dayRest}
             kcal={grp(restKcal)}
@@ -271,20 +276,13 @@ export function NutritionView({
           />
         </div>
         <Card className="bg-surface-2">
-          <p className="text-[13.5px] leading-[1.65] text-body">
-            Les jours d'entraînement, tu vises tes calories complètes. Les jours sans
-            entraînement, on retire environ <strong>10 % des calories</strong> et on
-            réduit les glucides d'un cinquième, tout en <strong>maintenant les
-            protéines</strong> : le muscle continue de récupérer, sans surplus
-            inutile les jours où tu bouges moins. Le jour sélectionné ci-dessus est
-            mis en avant.
-          </p>
+          <p className="text-[13.5px] leading-[1.65] text-body">{t("nutrition.macroExplain")}</p>
         </Card>
       </section>
 
       {/* Repas du jour */}
       <section className="flex flex-col gap-3">
-        <MonoLabel>Repas, jour {day}</MonoLabel>
+        <MonoLabel>{t("nutrition.mealsDay", { day })}</MonoLabel>
         {meals.map((m, i) => (
           <Card key={i} className="flex flex-col gap-2">
             <div className="flex items-baseline justify-between gap-2">
@@ -307,10 +305,8 @@ export function NutritionView({
       {canGenerate ? (
         <section className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <MonoLabel>Idées de recettes</MonoLabel>
-            <p className="text-[13px] text-muted">
-              Calculées sur les objectifs du jour, sans tes allergènes ni les aliments que tu refuses.
-            </p>
+            <MonoLabel>{t("nutrition.recipes")}</MonoLabel>
+            <p className="text-[13px] text-muted">{t("nutrition.recipesHint")}</p>
           </div>
           {recipeErr ? <Alert>{recipeErr}</Alert> : null}
           {recipes.map((r, i) => (
@@ -335,7 +331,7 @@ export function NutritionView({
               </div>
 
               <div className="flex flex-col gap-1">
-                <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">Ingrédients</div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">{t("nutrition.ingredients")}</div>
                 {r.ingredients.map((it, j) => (
                   <div key={j} className="flex justify-between border-b border-line-2 py-1 text-[14px] text-body last:border-0">
                     <span>{it.food}</span>
@@ -346,7 +342,7 @@ export function NutritionView({
 
               {r.steps && r.steps.length ? (
                 <div className="flex flex-col gap-1.5">
-                  <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">Préparation</div>
+                  <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">{t("nutrition.preparation")}</div>
                   <ol className="flex flex-col gap-2">
                     {r.steps.map((st, j) => (
                       <li key={j} className="flex items-start gap-2.5 text-[13.5px] leading-[1.5] text-body">
@@ -362,7 +358,7 @@ export function NutritionView({
 
               {r.tip ? (
                 <div className="rounded-control bg-surface-2 px-3.5 py-2.5 text-[13px] leading-[1.5] text-muted">
-                  <span className="font-semibold text-body">Astuce :</span> {r.tip}
+                  <span className="font-semibold text-body">{t("nutrition.tip")}</span> {r.tip}
                 </div>
               ) : null}
             </Card>
@@ -380,23 +376,20 @@ export function NutritionView({
           />
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={genRecipes} loading={recipeBusy} disabled={photoBusy} className="h-11">
-              {recipes.length ? "De nouvelles idées" : "Générer des idées de recettes"}
+              {recipes.length ? t("nutrition.moreIdeas") : t("nutrition.generateIdeas")}
             </Button>
             <Button variant="outline" onClick={() => photoRef.current?.click()} loading={photoBusy} disabled={recipeBusy} className="h-11">
-              Photo de mes aliments
+              {t("nutrition.foodPhoto")}
             </Button>
           </div>
-          <p className="text-[12px] text-muted-2">
-            Prends en photo tes aliments ou ton frigo : le coach identifie ce qu&apos;il y a et te
-            propose une recette réalisable avec.
-          </p>
+          <p className="text-[12px] text-muted-2">{t("nutrition.foodPhotoHint")}</p>
         </section>
       ) : null}
 
       {/* Liste des courses */}
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <MonoLabel>Liste des courses</MonoLabel>
+          <MonoLabel>{t("nutrition.shopping")}</MonoLabel>
           <div className="flex items-center gap-1.5">
             {([3, 7, 14] as const).map((d) => (
               <button
@@ -407,11 +400,11 @@ export function NutritionView({
                   span === d ? "bg-fill text-fillfg border-fill" : "bg-surface text-body border-line-4",
                 ].join(" ")}
               >
-                {d} j
+                {d} {locale === "en" ? "d" : "j"}
               </button>
             ))}
             <button onClick={copyList} className="tap rounded-pill border border-line-4 bg-surface px-3 text-[13px] font-medium text-body">
-              {copied ? "Copié ✓" : "Copier"}
+              {copied ? t("common.copied") : t("common.copy")}
             </button>
           </div>
         </div>
@@ -448,10 +441,7 @@ export function NutritionView({
             </div>
           </Card>
         ))}
-        <p className="text-[12px] text-muted-2">
-          Les allergènes et le régime déclarés sont exclus. Le filtrage est une aide,
-          pas une garantie : vérifie toujours les étiquettes des produits.
-        </p>
+        <p className="text-[12px] text-muted-2">{t("nutrition.allergenNote")}</p>
       </section>
     </div>
   );

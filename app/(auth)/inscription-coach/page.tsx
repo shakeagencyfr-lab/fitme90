@@ -5,6 +5,8 @@ import { CoachSignupForm } from "@/components/auth-forms";
 import { CoachAccent } from "@/components/coach-accent";
 import { CoachBrandHeader } from "@/components/coach-brand-header";
 import { brandForSlug } from "@/lib/branding";
+import { TenantLocale } from "@/components/tenant-locale";
+import { getT, tenantLocaleBySlug } from "@/lib/i18n/server";
 
 // Inscription COACH (page de vente B2B → création d'espace). `?r=<slug>`
 // rattache le coach à un revendeur ET applique sa marque blanche (couleur,
@@ -29,8 +31,9 @@ export default async function InscriptionCoachPage({
   const sp = await searchParams;
   const resellerSlug = (sp.r ?? "").trim().slice(0, 80) || undefined;
   const brand = resellerSlug ? await brandForSlug(resellerSlug) : null;
-
+  const { t } = await getT(await tenantLocaleBySlug(resellerSlug));
   return (
+    <TenantLocale slug={resellerSlug}>
     <CoachAccent slug={resellerSlug}>
       <div className="flex flex-col gap-6">
         {brand ? (
@@ -42,11 +45,12 @@ export default async function InscriptionCoachPage({
         )}
         {brand ? (
           <p className="-mt-2 text-center text-[13px] text-muted">
-            Tu rejoins le réseau <span className="font-semibold text-ink">{brand.name}</span>.
+            {t("auth.joiningNetwork")} <span className="font-semibold text-ink">{brand.name}</span>.
           </p>
         ) : null}
         <CoachSignupForm resellerSlug={resellerSlug} />
       </div>
     </CoachAccent>
+    </TenantLocale>
   );
 }

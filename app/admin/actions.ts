@@ -220,6 +220,7 @@ export async function saveBranding(_prev: BrandingState, formData: FormData): Pr
     aboutEnabled: formData.get("about_enabled") === "on",
     aboutTitle: String(formData.get("about_title") ?? ""),
     aboutText: String(formData.get("about_text") ?? ""),
+    language: String(formData.get("language") ?? ""),
   });
   if (!res.ok) return { error: res.error };
   revalidatePath("/admin/marque-blanche");
@@ -907,7 +908,7 @@ export async function saveResellerAiMode(_prev: ResellerAiState, formData: FormD
  * Tarification en crédits du revendeur d'IA. DEUX types de crédits, chacun avec
  * son prix de vente (en centimes) :
  *  - crédit IA = 1 action simple (chat / recette / exercice), modèle Haiku ;
- *  - crédit programme IA = 1 génération de programme, modèle Opus (plus cher).
+ *  - une génération de programme consomme N crédits IA (réglable), modèle Opus.
  */
 export async function saveResellerCredits(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
   const ctx = await getAdminOrNull();
@@ -966,7 +967,7 @@ export async function saveResellerModelChoice(_prev: ResellerAiState, formData: 
 
 /**
  * Crée un pack de crédits (revendeur). Le pack peut être HYBRIDE : crédits IA et
- * crédits programme dans le même pack, donc dans le même paiement.
+ * Un seul type de crédit IA par pack.
  */
 export async function addCreditPack(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
   const ctx = await getAdminOrNull();

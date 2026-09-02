@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getT, userLocale } from "@/lib/i18n/server";
 import { getSessionContext } from "@/lib/guard";
 import { isShopEnabled, getShopProducts } from "@/lib/shop";
 import { Card, MonoLabel } from "@/components/ui";
@@ -14,19 +15,18 @@ export default async function ShopPage() {
     getShopProducts(),
   ]);
   if (!enabled) redirect("/app");
+  const { t } = await getT(await userLocale(ctx.userId));
 
   return (
     <div className="mx-auto flex max-w-[720px] flex-col gap-5">
       <div className="flex flex-col gap-1.5">
-        <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          Boutique
-        </h1>
-        <p className="text-[14px] text-muted">Une sélection de produits recommandés. Les achats se font sur la boutique partenaire.</p>
+        <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">{t("nav.shop")}</h1>
+        <p className="text-[14px] text-muted">{t("shop.intro")}</p>
       </div>
 
       {products.length === 0 ? (
         <Card>
-          <p className="text-[14px] text-muted">La sélection arrive bientôt.</p>
+          <p className="text-[14px] text-muted">{t("shop.soon")}</p>
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -45,7 +45,7 @@ export default async function ShopPage() {
                 </div>
                 {p.link_url ? (
                   <span className="mt-auto inline-flex w-fit items-center gap-1 text-[13.5px] font-semibold text-brand">
-                    Voir le produit →
+                    {t("shop.view")}
                   </span>
                 ) : null}
               </>
@@ -69,7 +69,7 @@ export default async function ShopPage() {
         </div>
       )}
 
-      <MonoLabel>Liens partenaires : une commission peut être perçue sur les achats.</MonoLabel>
+      <MonoLabel>{t("shop.disclosure")}</MonoLabel>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { programDay } from "@/lib/access";
 import { subscriptionIsActive } from "@/lib/subscription";
 import { programDaysForMonths, PROGRAM_DAYS, CYCLES_PER_BLOCK } from "@/lib/config";
 import { coveredDays, nextBlockDue, blockProgressNote, BLOCK_LEAD_DAYS, BLOCKS_MAX_PER_RUN } from "@/lib/block-logic";
+import { userLocale } from "@/lib/i18n/server";
 
 export { coveredDays, nextBlockDue, blockProgressNote, blockPosition, BLOCK_LEAD_DAYS } from "@/lib/block-logic";
 
@@ -135,6 +136,8 @@ export async function appendNextBlock(userId: string, force = false): Promise<Ap
         // l'année (Construction, Intensité, Réalisation, en boucle).
         programDays: Math.max(programDays, (blockIndex + 1) * CYCLES_PER_BLOCK * CYCLE_DAYS),
         blockIndex,
+        // Hors requête (cron) : la langue vient du profil ou du tenant.
+        locale: (await userLocale(userId)) ?? "fr",
       },
       "medium",
       billing.key,

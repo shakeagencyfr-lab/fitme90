@@ -8,6 +8,8 @@ import { recordCall } from "@/lib/ratelimit";
 import { checkCoachAiBudget } from "@/lib/coach-ai-budget";
 import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
 import { COACH_CREDENTIAL } from "@/lib/config";
+import { resolveLocale, userLocale } from "@/lib/i18n/server";
+import { aiLanguageInstruction } from "@/lib/i18n";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -54,7 +56,8 @@ export async function POST(req: Request) {
     .map((s) => String(s))
     .filter(Boolean);
 
-  const system = `Tu es ${COACH_CREDENTIAL}. Tu proposes UN exercice de remplacement quand un mouvement n'est pas réalisable (machine ou matériel indisponible). Réponds UNIQUEMENT par un objet JSON valide, sans texte autour. L'alternative doit : cibler LES MÊMES groupes musculaires, être réalisable avec le matériel disponible (ou au poids du corps), et être DIFFÉRENTE des exercices à éviter. Garde des séries/reps/repos cohérents avec l'exercice d'origine. Pour un exercice cardio, mets cardio:true, "duration" et "zone", sets:0, reps:"". N'utilise jamais de tiret cadratin. Format JSON : {"name":"","sets":4,"reps":"8-10","load":"","note":"consigne courte","rest":90,"cardio":false,"duration":"","zone":""}`;
+  const locale = await resolveLocale(await userLocale(ctx.userId));
+  const system = `Tu es ${COACH_CREDENTIAL}. ${aiLanguageInstruction(locale)} Tu proposes UN exercice de remplacement quand un mouvement n'est pas réalisable (machine ou matériel indisponible). Réponds UNIQUEMENT par un objet JSON valide, sans texte autour. L'alternative doit : cibler LES MÊMES groupes musculaires, être réalisable avec le matériel disponible (ou au poids du corps), et être DIFFÉRENTE des exercices à éviter. Garde des séries/reps/repos cohérents avec l'exercice d'origine. Pour un exercice cardio, mets cardio:true, "duration" et "zone", sets:0, reps:"". N'utilise jamais de tiret cadratin. Format JSON : {"name":"","sets":4,"reps":"8-10","load":"","note":"consigne courte","rest":90,"cardio":false,"duration":"","zone":""}`;
 
   const user = [
     `Exercice à remplacer : ${name}${body.note ? ` (consigne : ${body.note})` : ""}.`,
