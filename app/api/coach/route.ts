@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { recordCall } from "@/lib/ratelimit";
 import { checkCoachAiBudget } from "@/lib/coach-ai-budget";
-import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
+import { checkAiAllowance, chargeAiUsage, coachUsageToCharge } from "@/lib/credits";
 import { MODELS, textOf, parseJsonLoose, effortConfig, anthropic } from "@/lib/anthropic";
 import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
@@ -381,7 +381,11 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
   ];
 
   const totalUsage = { input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0 };
+  // `adapted` : quelque chose a changé, il faut rafraîchir les pages du client.
+  // `regenerated` : le modèle a réellement reconstruit un programme, ce qui est
+  // le SEUL cas qui justifie de débiter des crédits de génération.
   let adapted = false;
+  let regenerated = false;
 
   // Change réellement les jours d'entraînement (train_days) ET régénère le
   // programme complet, sinon le texte de présentation et la répartition des
@@ -552,6 +556,7 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
       duration_months: program?.duration_months ?? null,
     });
     adapted = true;
+    regenerated = true;
     return `Programme régénéré en tenant compte de : « ${contrainte} ». Les exercices contre-indiqués ont été remplacés par des alternatives sûres. Confirme-le au client et invite-le à consulter si la douleur persiste.`;
   }
 
@@ -648,10 +653,11 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
   }
   await recordCall(ctx.userId, "coach", totalUsage);
   // Modèle crédits : on débite APRÈS la réponse réussie (jamais de surdébit).
-  // Une adaptation régénère aussi un programme → le coût d'une génération en plus.
-  {
-    await chargeAiUsage(coachTenant, "action", "message", ctx.userId);
-    if (adapted) await chargeAiUsage(coachTenant, "program", "generate", ctx.userId);
+  // Seule une VRAIE régénération ajoute le coût d'une génération : un changement
+  // de jours ou une modification nutrition sont déterministes et ne coûtent que
+  // le message.
+  for (const kind of coachUsageToCharge(regenerated)) {
+    await chargeAiUsage(coachTenant, kind, kind === "program" ? "generate" : "message", ctx.userId);
   }
 
   // Une adaptation (jours, nutrition, blessure) a modifié programme/questionnaire :

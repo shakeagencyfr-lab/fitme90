@@ -176,6 +176,19 @@ async function parentOf(tenantId: string): Promise<string | null> {
 
 export type AiUsageKind = "action" | "program";
 
+/**
+ * Ce qu'une réponse du coach doit débiter, selon ce qui s'est RÉELLEMENT passé.
+ *
+ * Trois outils modifient le programme, mais un seul rappelle le modèle :
+ * `adapter_programme` régénère un bloc entier (coût réel mesuré 0,0706 $), là
+ * où le changement de jours et la modification nutrition sont des recalculs
+ * DÉTERMINISTES, sans appel IA. Les débiter comme une génération faisait payer
+ * 10 crédits, soit 4 € au tarif par défaut, pour 0,0044 € de conso réelle.
+ */
+export function coachUsageToCharge(regenerated: boolean): AiUsageKind[] {
+  return regenerated ? ["action", "program"] : ["action"];
+}
+
 export interface AiAllowance {
   ok: boolean;
   /** Message à afficher au client si refus. */
