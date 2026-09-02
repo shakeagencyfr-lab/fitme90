@@ -352,6 +352,7 @@ export const ROOT_DOMAIN = (process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "")
 // À garder en phase avec les routes de `app/` (dossiers + groupes (auth)/(legal)).
 export const RESERVED_PATH_SEGMENTS = new Set([
   "app", "admin", "api", "auth", "c", "r", "revendeurs", "generation", "questionnaire", "salle",
+  "plan-pdf", "dev",
   "connexion", "inscription", "inscription-coach", "inscription-revendeur", "verifie-tes-mails", "mot-de-passe-oublie",
   "reinitialiser", "cgv", "confidentialite", "mentions-legales",
   "_next", "icons", "favicon.ico", "manifest.webmanifest", "sw.js",

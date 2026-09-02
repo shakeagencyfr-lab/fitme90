@@ -51,12 +51,17 @@ export interface AgendaEntry {
 }
 
 /**
- * Séances réellement prévues, calculées avec `sessionForDay`, LA MÊME fonction
- * que l'app. Sans ce bloc, le coach déduisait la séance du `weekPlan`, qui mappe
- * un jour de SEMAINE, alors que la rotation réelle suit le RANG du jour
- * d'entraînement depuis le début du programme. Les deux divergent dès que le
- * programme ne démarre pas sur le premier jour d'entraînement de la semaine :
- * le client voyait alors une séance dans l'app et une autre dans le chat.
+ * Calendrier CONTIGU à partir du jour courant, un élément par jour, jours de
+ * repos COMPRIS. Les séances viennent de `sessionForDay`, la même fonction que
+ * l'app, pour deux raisons distinctes :
+ *
+ * 1. Le `weekPlan` mappe un jour de SEMAINE alors que la rotation réelle suit
+ *    le RANG du jour d'entraînement depuis le début. Les deux divergent dès que
+ *    le programme ne démarre pas sur le premier jour d'entraînement de la
+ *    semaine, et le coach annonçait alors une autre séance que l'app.
+ * 2. Le calendrier doit être contigu. En ne listant que les jours
+ *    d'entraînement, « demain » n'apparaissait pas quand c'était un jour de
+ *    repos, et le modèle répondait avec la séance suivante de la liste.
  */
 export function coachAgenda(
   plan: Plan | null | undefined,
@@ -64,27 +69,23 @@ export function coachAgenda(
   pattern: boolean[],
   startWd: number,
   programDays: number,
-  ahead = 3,
+  days = 7,
 ): AgendaEntry[] {
   if (!plan) return [];
   const out: AgendaEntry[] = [];
   const from = Math.max(1, currentDay);
 
-  for (let day = from; day <= programDays && out.length <= ahead; day++) {
-    const rest = isRestDay(day, pattern, startWd);
-    // Les jours de repos ne sont retenus que pour le jour courant, afin que le
-    // coach sache que rien n'est prévu aujourd'hui.
-    if (rest) {
-      if (day === from) out.push({ day, rest: true, title: "Repos", exercises: [] });
+  for (let day = from; day <= programDays && out.length < days; day++) {
+    if (isRestDay(day, pattern, startWd)) {
+      out.push({ day, rest: true, title: "Repos", exercises: [] });
       continue;
     }
     const s = sessionForDay(plan, day, pattern, startWd);
-    if (!s) continue;
     out.push({
       day,
       rest: false,
-      title: s.title,
-      exercises: s.exercises.map((e) => `${e.name} ${e.sets}x${e.reps}`),
+      title: s?.title ?? "Séance",
+      exercises: s ? s.exercises.map((e) => `${e.name} ${e.sets}x${e.reps}`) : [],
     });
   }
   return out;

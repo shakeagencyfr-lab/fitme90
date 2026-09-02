@@ -100,34 +100,40 @@ describe("logsDigest", () => {
 });
 
 describe("coachAgenda", () => {
-  // Reproduit le bug signalé : jours d'entraînement MAR/MER/VEN/SAM et
-  // programme démarré un MERCREDI. Le weekPlan dit « MER = quadriceps », la
-  // rotation réelle dit « 1er jour d'entraînement = séance A ». Le coach doit
-  // suivre la rotation, comme l'app.
+  // Cas réel signalé : jours d'entraînement MAR/MER/VEN/SAM, programme démarré
+  // un MERCREDI. Le weekPlan dit « MER = 2e séance », la rotation réelle dit
+  // « 1er jour d'entraînement = séance A ». Le coach doit suivre la rotation.
   const pattern = [true, false, false, true, false, false, true]; // LUN..DIM, true = repos
   const startWd = 2; // mercredi (0 = lundi)
 
   it("donne la séance du jour telle que l'app la calcule, pas celle du weekPlan", () => {
-    const agenda = coachAgenda(plan(), 1, pattern, startWd, 90);
-    expect(agenda[0].day).toBe(1);
-    expect(agenda[0].rest).toBe(false);
-    expect(agenda[0].title).toBe("A1"); // 1re séance du cycle, pas la 2e
+    const a = coachAgenda(plan(), 1, pattern, startWd, 90);
+    expect(a[0].day).toBe(1);
+    expect(a[0].rest).toBe(false);
+    expect(a[0].title).toBe("A1"); // 1re séance du cycle, pas la 2e
   });
 
-  it("liste les prochaines séances et saute les jours de repos", () => {
-    const agenda = coachAgenda(plan(), 1, pattern, startWd, 90);
-    expect(agenda.length).toBeGreaterThan(1);
-    expect(agenda.every((e) => e.day >= 1)).toBe(true);
-    expect(agenda.slice(1).every((e) => !e.rest)).toBe(true);
+  it("est contigu et inclut les jours de repos, pour que « demain » soit exact", () => {
+    const a = coachAgenda(plan(), 1, pattern, startWd, 90);
+    // Jours consécutifs, sans trou.
+    expect(a.map((e) => e.day)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    // Demain (jeudi) est un jour de repos : il doit apparaître comme tel.
+    expect(a[1].rest).toBe(true);
+  });
+
+  it("ne détaille les exercices que pour le jour courant", () => {
+    const a = coachAgenda(plan(), 1, pattern, startWd, 90);
+    expect(a[0].exercises.length).toBeGreaterThan(0);
   });
 
   it("annonce le repos quand le jour courant est un jour de repos", () => {
-    const agenda = coachAgenda(plan(), 2, pattern, startWd, 90); // jeudi
-    expect(agenda[0].rest).toBe(true);
+    expect(coachAgenda(plan(), 2, pattern, startWd, 90)[0].rest).toBe(true);
   });
 
   it("ne déborde pas de la durée du programme", () => {
-    expect(coachAgenda(plan(), 90, pattern, startWd, 90).every((e) => e.day <= 90)).toBe(true);
+    const a = coachAgenda(plan(), 88, pattern, startWd, 90);
+    expect(a.every((e) => e.day <= 90)).toBe(true);
+    expect(a.length).toBe(3);
   });
 
   it("renvoie une liste vide sans programme", () => {

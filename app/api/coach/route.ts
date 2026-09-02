@@ -216,7 +216,6 @@ export async function POST(req: NextRequest) {
     ctx.profile?.start_date
       ? new Date(new Date(`${ctx.profile.start_date}T00:00:00Z`).getTime() + (d - 1) * 86400000).toLocaleDateString(dateLoc, { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })
       : `jour ${d}`;
-  const [today, ...upcoming] = agenda;
 
   const coachName = await readCoachName(ctx.profile?.tenant_id ?? null);
   // Langue du client : le coach répond dedans (cookie > profil > tenant).
@@ -250,19 +249,23 @@ ${JSON.stringify(coachPlanView((program?.plan as Plan | undefined) ?? null, ctx.
 - Les séances tombent aux vrais jours de la semaine choisis. Parle en dates concrètes et repère les séances validées vs prévues pour suivre les retards éventuels.
 - Séances en retard (passées, non validées) : ${missedList.length ? `${missedList.length} (jours ${missedList.slice(0, 8).join(", ")}${missedList.length > 8 ? "…" : ""}). Le calendrier ne bouge pas : encourage à les RATTRAPER quand le client peut, sur un ton bienveillant et sans culpabiliser. Rappelle qu'il peut ouvrir une séance passée depuis l'agenda pour la rattraper. N'en parle QUE si c'est pertinent (le client en parle, demande un bilan, ou s'inquiète de son retard).` : "aucune, félicite la régularité si le sujet vient."}
 
-SÉANCE DU JOUR (fait foi : c'est exactement ce que le client voit dans son app) :
+CALENDRIER JOUR PAR JOUR (fait foi : c'est exactement ce que voit le client dans son app ; les jours de repos sont inclus, ne saute jamais un jour pour répondre à « demain » ou à une date) :
 ${
-  !today
-    ? "Programme indisponible."
-    : today.rest
-      ? "Aujourd'hui est un jour de repos, aucune séance n'est prévue."
-      : `${today.title}\n${today.exercises.map((e) => `- ${e}`).join("\n")}`
+  agenda.length
+    ? agenda
+        .map((e, i) => {
+          const quand = i === 0 ? "aujourd'hui" : i === 1 ? "demain" : dayLabel(e.day);
+          const tete = `- ${quand} (${dayLabel(e.day)}, jour ${e.day}) : ${e.rest ? "REPOS, aucune séance" : e.title}`;
+          // Le détail des exercices n'est utile que pour la séance du jour.
+          return i === 0 && !e.rest && e.exercises.length
+            ? `${tete}\n${e.exercises.map((x) => `    . ${x}`).join("\n")}`
+            : tete;
+        })
+        .join("\n")
+    : "Programme indisponible."
 }
 
-PROCHAINES SÉANCES PRÉVUES :
-${upcoming.length ? upcoming.map((s) => `- ${dayLabel(s.day)} (jour ${s.day}) : ${s.title}`).join("\n") : "aucune à venir."}
-
-Le « weekPlan » du programme n'est qu'un gabarit de semaine indicatif : pour une date ou un jour précis, fie-toi TOUJOURS aux séances ci-dessus, jamais au weekPlan.
+Le « weekPlan » du programme n'est qu'un gabarit de semaine indicatif : pour une date ou un jour précis, fie-toi TOUJOURS au calendrier ci-dessus, jamais au weekPlan.
 
 SÉANCES VALIDÉES (les plus récentes d'abord) :
 ${logsDigest((logs ?? []) as CoachLog[])}`;
