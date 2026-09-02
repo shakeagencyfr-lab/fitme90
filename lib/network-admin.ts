@@ -125,3 +125,126 @@ async function deleteTree(tenantId: string): Promise<void> {
   const { error } = await admin.from("tenants").delete().eq("id", tenantId);
   if (error) throw error;
 }
+
+// ─────────────────────────── Fourniture d'IA d'un revendeur ───────────────────────────
+
+export type AiSupply = "byok" | "platform_credits";
+
+/**
+ * Champs à écrire pour basculer la fourniture d'IA d'un revendeur. Pur, testé.
+ *
+ * Vers les crédits : le revendeur fournit l'IA à ses coachs (`ai_mode=provider`)
+ * sans clé à lui, c'est celle de la plateforme qui tourne et son solde qui est
+ * débité, exactement comme un revendeur créé en crédits.
+ *
+ * Retour en BYOK : s'il n'a pas branché sa propre clé, le laisser en `provider`
+ * couperait l'IA de tous ses coachs sans rien afficher. On le repasse donc en
+ * « coachs autonomes » (chacun sa clé) et en modèle abonnement, faute de source
+ * d'IA à revendre.
+ */
+export function supplySwitchPatch(supply: AiSupply, targetHasOwnKey: boolean): Record<string, string> {
+  if (supply === "platform_credits") return { ai_supply: "platform_credits", ai_mode: "provider" };
+  return targetHasOwnKey
+    ? { ai_supply: "byok" }
+    : { ai_supply: "byok", ai_mode: "byok", reseller_model: "subscription" };
+}
+
+/** Ce qu'il faut savoir avant de proposer la bascule (avertissements de l'écran réseau). */
+export interface SupplyContext {
+  current: AiSupply;
+  /** Le revendeur a sa propre clé Anthropic. */
+  targetHasKey: boolean;
+  /** Le parent a une clé : sans elle, l'IA en crédits ne tourne pas. */
+  supplierKeyReady: boolean;
+  /** Le parent propose au moins un pack actif : sans pack, pas de recharge possible. */
+  supplierHasPack: boolean;
+  /** Solde de crédits du revendeur. */
+  credits: number;
+}
+
+/**
+ * Contexte de bascule pour plusieurs revendeurs d'un coup (l'écran réseau les
+ * liste tous) : trois requêtes au total, quel que soit le nombre de comptes.
+ */
+export async function supplyContexts(
+  actorTenantId: string,
+  resellers: { id: string; aiSupply: AiSupply }[],
+): Promise<Map<string, SupplyContext>> {
+  const out = new Map<string, SupplyContext>();
+  if (resellers.length === 0) return out;
+  const admin = createAdminClient();
+  const ids = resellers.map((r) => r.id);
+
+  const [{ data: secrets }, { data: packs }, { data: wallets }] = await Promise.all([
+    admin
+      .from("tenant_secrets")
+      .select("tenant_id, anthropic_key_enc")
+      .in("tenant_id", [actorTenantId, ...ids])
+      .returns<{ tenant_id: string; anthropic_key_enc: string | null }[]>(),
+    admin
+      .from("credit_packs")
+      .select("id")
+      .eq("tenant_id", actorTenantId)
+      .eq("is_active", true)
+      .limit(1)
+      .returns<{ id: number }[]>(),
+    admin
+      .from("credit_wallets")
+      .select("tenant_id, credits")
+      .in("tenant_id", ids)
+      .returns<{ tenant_id: string; credits: number }[]>(),
+  ]);
+
+  const keyed = new Set((secrets ?? []).filter((s) => s.anthropic_key_enc).map((s) => s.tenant_id));
+  const balance = new Map((wallets ?? []).map((w) => [w.tenant_id, w.credits]));
+  const supplierKeyReady = keyed.has(actorTenantId);
+  const supplierHasPack = (packs ?? []).length > 0;
+
+  for (const r of resellers) {
+    out.set(r.id, {
+      current: r.aiSupply,
+      targetHasKey: keyed.has(r.id),
+      supplierKeyReady,
+      supplierHasPack,
+      credits: balance.get(r.id) ?? 0,
+    });
+  }
+  return out;
+}
+
+/**
+ * Bascule un revendeur entre sa propre clé et les crédits achetés à son parent.
+ * Réservé au parent direct : c'est lui qui fournit (et facture) l'IA.
+ */
+export async function setResellerSupply(
+  actorTenantId: string,
+  targetTenantId: string,
+  supply: AiSupply,
+): Promise<NetworkActionResult> {
+  const admin = createAdminClient();
+  const { data: target } = await admin
+    .from("tenants")
+    .select("kind, parent_id, ai_supply")
+    .eq("id", targetTenantId)
+    .maybeSingle<{ kind: string; parent_id: string | null; ai_supply: string | null }>();
+  if (!target || target.parent_id !== actorTenantId) return { ok: false, error: "Ce compte n'est pas rattaché à toi." };
+  if (target.kind !== "reseller") {
+    return { ok: false, error: "La fourniture en crédits se règle sur un revendeur. Pour un coach, elle découle du modèle de son revendeur." };
+  }
+  const current: AiSupply = target.ai_supply === "platform_credits" ? "platform_credits" : "byok";
+  if (current === supply) return { ok: true };
+
+  const [{ data: actorSecret }, { data: targetSecret }] = await Promise.all([
+    admin.from("tenant_secrets").select("anthropic_key_enc").eq("tenant_id", actorTenantId).maybeSingle<{ anthropic_key_enc: string | null }>(),
+    admin.from("tenant_secrets").select("anthropic_key_enc").eq("tenant_id", targetTenantId).maybeSingle<{ anthropic_key_enc: string | null }>(),
+  ]);
+  if (supply === "platform_credits" && !actorSecret?.anthropic_key_enc) {
+    return { ok: false, error: "Branche d'abord ta clé Anthropic (Revenu IA) : c'est elle qui ferait tourner l'IA de ce revendeur." };
+  }
+
+  const { error } = await admin
+    .from("tenants")
+    .update(supplySwitchPatch(supply, !!targetSecret?.anthropic_key_enc))
+    .eq("id", targetTenantId);
+  return error ? { ok: false, error: "Changement impossible." } : { ok: true };
+}

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { suspendTenant, reactivateTenant, giftCredits, deleteTenantTree } from "@/lib/network-admin";
+import { suspendTenant, reactivateTenant, giftCredits, deleteTenantTree, setResellerSupply } from "@/lib/network-admin";
 import { setSupportReturn, readSupportReturn, clearSupportReturn } from "@/lib/support-return";
 import { LANDING_TEMPLATES } from "@/lib/offers";
 import { whitelabelEnabled } from "@/lib/whitelabel";
@@ -1468,7 +1468,7 @@ export async function returnFromSupport(): Promise<void> {
 export interface NetworkState {
   ok?: boolean;
   error?: string;
-  done?: "suspend" | "reactivate" | "gift" | "delete";
+  done?: "suspend" | "reactivate" | "gift" | "delete" | "supply";
 }
 
 async function networkActor(): Promise<{ ctx: NonNullable<Awaited<ReturnType<typeof getAdminOrNull>>>; tenantId: string } | null> {
@@ -1490,7 +1490,10 @@ export async function networkAction(_prev: NetworkState, formData: FormData): Pr
   if (op === "suspend") res = await suspendTenant(actor.tenantId, target);
   else if (op === "reactivate") res = await reactivateTenant(actor.tenantId, target);
   else if (op === "gift") res = await giftCredits(actor.tenantId, target, Number(formData.get("amount") ?? 0));
-  else if (op === "delete") {
+  else if (op === "supply") {
+    const supply = formData.get("supply") === "platform_credits" ? "platform_credits" : "byok";
+    res = await setResellerSupply(actor.tenantId, target, supply);
+  } else if (op === "delete") {
     const expected = String(formData.get("expected_name") ?? "").trim();
     const typed = String(formData.get("confirm_name") ?? "").trim();
     if (!expected || typed.toLowerCase() !== expected.toLowerCase()) return { error: "Le nom saisi ne correspond pas." };
