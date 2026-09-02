@@ -8,7 +8,7 @@ import { SITE_URL } from "@/lib/config";
 import { Alert, Card, MonoLabel } from "@/components/ui";
 import { CreateAccountForm } from "@/components/create-account-form";
 import { NetworkActionsMenu } from "@/components/network-actions-menu";
-import { canGiftCredits } from "@/lib/network-admin";
+import { canGiftCredits, supplyContexts } from "@/lib/network-admin";
 
 export const metadata = { title: "Mon réseau, Admin My Fitness App" };
 export const dynamic = "force-dynamic";
@@ -40,6 +40,15 @@ export default async function AdminNetworkPage({
   const giftable = new Set(
     (await Promise.all(children.map(async (c) => ((tenantId && (await canGiftCredits(tenantId, c.id))) ? c.id : null)))).filter(Boolean) as string[],
   );
+  // Bascule BYOK <-> crédits : réservée aux revendeurs, et donc au seul étage
+  // qui leur vend l'IA. Un coach n'a pas de fourniture propre, elle découle du
+  // modèle de son revendeur.
+  const supplies = tenantId
+    ? await supplyContexts(
+        tenantId,
+        children.filter((c) => c.kind === "reseller").map((c) => ({ id: c.id, aiSupply: c.aiSupply })),
+      )
+    : new Map();
   const base = SITE_URL || "";
   const landingUrl = slug ? `${base}/r/${slug}` : null;
   // Un revendeur recrute des coachs (?r=<son slug>). La plateforme recrute des
@@ -168,6 +177,17 @@ export default async function AdminNetworkPage({
                               {c.kind === "reseller" ? "Revendeur" : "Coach"}
                             </span>
                           ) : null}
+                          {/* Qui paie l'IA de cet étage : visible d'un coup d'œil,
+                              puisque c'est ce que la bascule du menu change. */}
+                          {isPlatform && c.kind === "reseller" ? (
+                            <span
+                              className={`rounded-pill px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] ${
+                                c.aiSupply === "platform_credits" ? "bg-brand/10 text-brand" : "bg-surface-2 text-muted-2"
+                              }`}
+                            >
+                              {c.aiSupply === "platform_credits" ? "Crédits IA" : "Clé perso"}
+                            </span>
+                          ) : null}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -197,6 +217,7 @@ export default async function AdminNetworkPage({
                           ownerUserId={c.ownerUserId}
                           suspended={!!c.suspendedAt}
                           canGift={giftable.has(c.id)}
+                          supply={supplies.get(c.id) ?? null}
                         />
                       </td>
                     </tr>
