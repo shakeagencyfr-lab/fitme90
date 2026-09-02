@@ -75,6 +75,13 @@ export interface ChildTenant {
   subStatus: string | null;
   /** Utilisateur « owner » du tenant enfant (null s'il n'en a pas). */
   ownerUserId: string | null;
+  /** Désactivé par le parent (manual) ou sur impayé (payment). */
+  suspendedAt: string | null;
+  suspendedReason: "manual" | "payment" | null;
+  /** Revendeur : achète-t-il ses crédits IA à la plateforme ? */
+  aiSupply: "byok" | "platform_credits";
+  /** Coach : fournisseur IA de son revendeur (byok = sa propre clé). */
+  aiMode: string | null;
 }
 
 /** Comptes enfants d'un tenant (coachs/salles d'un revendeur, ou d'une plateforme). */
@@ -82,11 +89,14 @@ export async function listChildTenants(parentId: string): Promise<ChildTenant[]>
   const admin = createAdminClient();
   const { data: kids } = await admin
     .from("tenants")
-    .select("id, name, slug, kind, client_limit, sub_status")
+    .select("id, name, slug, kind, client_limit, sub_status, suspended_at, suspended_reason, ai_supply, ai_mode")
     .eq("parent_id", parentId)
     .order("created_at", { ascending: false })
     .returns<
-      { id: string; name: string; slug: string; kind: string | null; client_limit: number | null; sub_status: string | null }[]
+      {
+        id: string; name: string; slug: string; kind: string | null; client_limit: number | null; sub_status: string | null;
+        suspended_at: string | null; suspended_reason: string | null; ai_supply: string | null; ai_mode: string | null;
+      }[]
     >();
   const list = kids ?? [];
   if (list.length === 0) return [];
@@ -115,5 +125,9 @@ export async function listChildTenants(parentId: string): Promise<ChildTenant[]>
     clientLimit: k.client_limit,
     subStatus: k.sub_status,
     ownerUserId: owners.get(k.id) ?? null,
+    suspendedAt: k.suspended_at,
+    suspendedReason: k.suspended_reason === "manual" || k.suspended_reason === "payment" ? k.suspended_reason : null,
+    aiSupply: k.ai_supply === "platform_credits" ? "platform_credits" : "byok",
+    aiMode: k.ai_mode,
   }));
 }

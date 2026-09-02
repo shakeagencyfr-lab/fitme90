@@ -10,6 +10,7 @@ import { clientUsesCredits, getWallet, resellerSupply } from "@/lib/credits";
 import { parentDashboardBrand, platformBrand } from "@/lib/branding";
 import type { Metadata } from "next";
 import { CoachFreezeBanner } from "@/components/coach-freeze-banner";
+import { SupportReturnBar } from "@/components/support-return-bar";
 
 // Titre neutre : le dashboard est en marque blanche (marque du parent affichée
 // dans le bandeau). L'icône d'onglet est le favicon du parent (celui chargé
@@ -40,7 +41,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         parentDashboardBrand(tenantId),
         clientUsesCredits(tenantId),
       ])
-    : [[], 0, null, { frozen: false, status: null }, { costUsd: 0, calls: 0, sinceIso: "" }, null, false];
+    : [[], 0, null, { frozen: false, status: null, suspended: false }, { costUsd: 0, calls: 0, sinceIso: "" }, null, false];
   const kind = node?.kind ?? "coach";
 
   // En modèle crédits, la carte du bandeau montre le solde restant plutôt qu'une
@@ -51,6 +52,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <>
+      <SupportReturnBar />
       <AdminShell
         notifs={notifs}
         unread={unread}
@@ -63,7 +65,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         brandLogoUrl={parentBrand?.logoUrl ?? null}
         brandColor={parentBrand?.brandColor ?? null}
       >
-        {freeze.frozen ? <CoachFreezeBanner /> : null}
+        {freeze.frozen ? <CoachFreezeBanner suspended={freeze.suspended} /> : null}
         {children}
       </AdminShell>
       {/* Invite à installer l'app (Android : invite native ; iOS : marche à suivre). */}

@@ -26,7 +26,8 @@ const USER_TABLES: [string, string][] = [
   ["vip_messages", "client_id"],
 ];
 
-async function purgeUser(userId: string): Promise<void> {
+/** Purge un utilisateur quel que soit son rôle (réservé aux suppressions de compte/tenant). */
+export async function purgeUser(userId: string): Promise<void> {
   const admin = createAdminClient();
   for (const [table, col] of USER_TABLES) {
     await admin.from(table).delete().eq(col, userId);

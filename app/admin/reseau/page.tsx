@@ -5,7 +5,8 @@ import { listChildTenants } from "@/lib/hierarchy";
 import { SITE_URL } from "@/lib/config";
 import { Alert, Card, MonoLabel } from "@/components/ui";
 import { CreateAccountForm } from "@/components/create-account-form";
-import { SupportLoginButton } from "@/components/support-login-button";
+import { NetworkActionsMenu } from "@/components/network-actions-menu";
+import { canGiftCredits } from "@/lib/network-admin";
 
 export const metadata = { title: "Mon réseau, Admin My Fitness App" };
 export const dynamic = "force-dynamic";
@@ -34,6 +35,9 @@ export default async function AdminNetworkPage({
   const isPlatform = kind === "platform";
   const isNetworkOperator = kind !== "coach";
   const children = tenantId ? await listChildTenants(tenantId) : [];
+  const giftable = new Set(
+    (await Promise.all(children.map(async (c) => ((tenantId && (await canGiftCredits(tenantId, c.id))) ? c.id : null)))).filter(Boolean) as string[],
+  );
   const base = SITE_URL || "";
   const landingUrl = slug ? `${base}/r/${slug}` : null;
   // Un revendeur recrute des coachs (?r=<son slug>). La plateforme recrute des
@@ -149,7 +153,7 @@ export default async function AdminNetworkPage({
               <table className="w-full min-w-[560px] border-collapse text-[13.5px]">
                 <thead>
                   <tr className="border-b border-line text-left text-muted-2">
-                    {[isPlatform ? "Compte" : "Coach / salle", "Adresse", "Clients", "Abonnement", "Assistance"].map((h) => (
+                    {[isPlatform ? "Compte" : "Coach / salle", "Adresse", "Clients", "Abonnement", "Actions"].map((h) => (
                       <th key={h} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.08em]">
                         {h}
                       </th>
@@ -162,6 +166,11 @@ export default async function AdminNetworkPage({
                       <td className="px-4 py-3 font-semibold text-ink">
                         <span className="flex items-center gap-2">
                           {c.name}
+                          {c.suspendedAt ? (
+                            <span className="rounded-pill bg-[#C4471A]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[#C4471A]">
+                              {c.suspendedReason === "payment" ? "Impayé" : "Désactivé"}
+                            </span>
+                          ) : null}
                           {isPlatform ? (
                             <span className="rounded-pill bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-2">
                               {c.kind === "reseller" ? "Revendeur" : "Coach"}
@@ -190,11 +199,13 @@ export default async function AdminNetworkPage({
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        {c.ownerUserId ? (
-                          <SupportLoginButton targetUserId={c.ownerUserId} name={c.name} />
-                        ) : (
-                          <span className="font-mono text-[11px] text-muted-2">sans compte</span>
-                        )}
+                        <NetworkActionsMenu
+                          tenantId={c.id}
+                          name={c.name}
+                          ownerUserId={c.ownerUserId}
+                          suspended={!!c.suspendedAt}
+                          canGift={giftable.has(c.id)}
+                        />
                       </td>
                     </tr>
                   ))}

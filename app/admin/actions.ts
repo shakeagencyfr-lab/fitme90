@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { suspendTenant, reactivateTenant, giftCredits, deleteTenantTree } from "@/lib/network-admin";
+import { setSupportReturn, readSupportReturn, clearSupportReturn } from "@/lib/support-return";
 import { LANDING_TEMPLATES } from "@/lib/offers";
 import { whitelabelEnabled } from "@/lib/whitelabel";
 import { sendEmail } from "@/lib/email";
@@ -1447,5 +1449,55 @@ export async function supportLoginAs(formData: FormData): Promise<void> {
   await logSupportAccess({ actorUserId: ctx.userId, actorTenantId, targetUserId, targetTenantId });
   const ok = await establishSupportSession(targetUserId);
   if (!ok) redirect("/admin/reseau?assistance=echec");
+  // Bandeau « Retour à mon espace » dans le compte cible.
+  const { data: actorRow } = await admin.from("tenants").select("name").eq("id", actorTenantId).maybeSingle<{ name: string | null }>();
+  await setSupportReturn({ actorUserId: ctx.userId, actorName: actorRow?.name ?? "", targetUserId });
   redirect("/admin");
 }
+
+/** Retour à l'espace de l'opérateur après une assistance (cookie signé). */
+export async function returnFromSupport(): Promise<void> {
+  const back = await readSupportReturn();
+  await clearSupportReturn();
+  if (!back) redirect("/admin");
+  const ok = await establishSupportSession(back.actorUserId);
+  redirect(ok ? "/admin/reseau" : "/connexion");
+}
+
+// ───────────────────────── Réseau : actions sur un compte enfant ─────────────────────────
+export interface NetworkState {
+  ok?: boolean;
+  error?: string;
+  done?: "suspend" | "reactivate" | "gift" | "delete";
+}
+
+async function networkActor(): Promise<{ ctx: NonNullable<Awaited<ReturnType<typeof getAdminOrNull>>>; tenantId: string } | null> {
+  const ctx = await getAdminOrNull();
+  const tenantId = ctx?.profile?.tenant_id ?? null;
+  if (!ctx || !tenantId) return null;
+  const node = await tenantNode(tenantId);
+  if (!node || node.kind === "coach") return null;
+  return { ctx, tenantId };
+}
+
+export async function networkAction(_prev: NetworkState, formData: FormData): Promise<NetworkState> {
+  const actor = await networkActor();
+  if (!actor) return { error: "Accès refusé." };
+  const target = String(formData.get("tenant_id") ?? "").trim();
+  const op = String(formData.get("op") ?? "");
+  if (!target) return { error: "Compte manquant." };
+  let res: { ok: boolean; error?: string };
+  if (op === "suspend") res = await suspendTenant(actor.tenantId, target);
+  else if (op === "reactivate") res = await reactivateTenant(actor.tenantId, target);
+  else if (op === "gift") res = await giftCredits(actor.tenantId, target, Number(formData.get("amount") ?? 0));
+  else if (op === "delete") {
+    const expected = String(formData.get("expected_name") ?? "").trim();
+    const typed = String(formData.get("confirm_name") ?? "").trim();
+    if (!expected || typed.toLowerCase() !== expected.toLowerCase()) return { error: "Le nom saisi ne correspond pas." };
+    res = await deleteTenantTree(actor.tenantId, target);
+  } else return { error: "Action inconnue." };
+  revalidatePath("/admin/reseau");
+  if (!res.ok) return { error: res.error };
+  return { ok: true, done: op as NetworkState["done"] };
+}
+
