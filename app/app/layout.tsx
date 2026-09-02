@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { CSSProperties, ReactNode } from "react";
 import { getSessionContext } from "@/lib/guard";
@@ -82,6 +83,20 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         brandLogoUrl={brand?.logoUrl ?? null}
       />
       <main className="min-w-0 flex-1 px-4 pt-5 pb-[110px] nav:px-8 nav:pt-8 nav:pb-20">
+        {ctx.access.phase === "not_paid" ? (
+          <Link
+            href="/app/paiement"
+            className="tap mb-5 flex flex-wrap items-center justify-between gap-3 rounded-card border border-brand/30 bg-brand/[0.06] p-4 transition-colors hover:border-brand/60"
+          >
+            <span className="flex flex-col gap-0.5">
+              <span className="font-archivo font-bold text-[15px] text-ink">{t("dashboard.resumeTitle")}</span>
+              <span className="text-[13.5px] leading-relaxed text-muted">{t("dashboard.resumeBody")}</span>
+            </span>
+            <span className="shrink-0 rounded-btn bg-brand px-4 py-2.5 text-[14px] font-semibold text-white">
+              {t("dashboard.resumeCta")}
+            </span>
+          </Link>
+        ) : null}
         {ctx.access.restricted ? (
           <div className="mb-5 flex flex-col gap-1.5 rounded-card border border-alert-line bg-alert p-4">
             <span className="font-archivo font-bold text-[15px] text-alert-ink">{t("dashboard.restrictedTitle")}</span>
