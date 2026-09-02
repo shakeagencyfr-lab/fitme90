@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // cf. schema.sql), donc impossible à contourner en supprimant ses lignes.
 
 /** `block` = génération d'un bloc suivant (même modèle que `generate`, compté à part pour ne pas consommer le plafond de premières générations). */
-export type AiRoute = "generate" | "block" | "coach" | "recipes" | "analyze-gym";
+export type AiRoute = "generate" | "block" | "coach" | "recipes" | "analyze-gym" | "exercise";
 
 /** Nombre d'appels de l'utilisateur sur `route` depuis `sinceMs` (ou au total). */
 async function countCalls(
