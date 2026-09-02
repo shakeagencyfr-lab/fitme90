@@ -1,7 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MODELS } from "@/lib/anthropic";
-import { rowCost, type CostRow } from "@/lib/ai-cost";
+import { costParts, type CostParts, type CostRow } from "@/lib/ai-cost";
 
 // Historique détaillé de la consommation IA, valable pour les TROIS étages et
 // pour les DEUX modes de fourniture.
@@ -37,6 +37,45 @@ export interface UsageRow {
   credits: number;
   /** Coût Anthropic estimé de cet appel, en dollars. */
   costUsd: number;
+  /** Décomposition du coût : c'est elle qui explique l'écart entre deux lignes voisines. */
+  parts: CostParts;
+  /** Poste dominant, pour dire d'un mot d'où vient la facture de la ligne. */
+  driver: CostDriver;
+}
+
+/**
+ * Ce qui a coûté le plus cher sur cet appel. Sans ça, deux lignes aux tokens
+ * quasi identiques affichent des prix du simple au quadruple sans explication.
+ */
+export type CostDriver = "sortie" | "cache-ecrit" | "entree" | "cache-lu";
+
+export function costDriver(parts: CostParts): CostDriver {
+  const ranked: [CostDriver, number][] = [
+    ["sortie", parts.output],
+    ["cache-ecrit", parts.cacheWrite],
+    ["entree", parts.input],
+    ["cache-lu", parts.cacheRead],
+  ];
+  return ranked.reduce((best, cur) => (cur[1] > best[1] ? cur : best))[0];
+}
+
+/** Phrase d'explication du poste dominant, avec sa part du total. */
+export function driverLabel(driver: CostDriver, parts: CostParts): string {
+  const share = parts.total > 0 ? Math.round(((
+    driver === "sortie" ? parts.output
+      : driver === "cache-ecrit" ? parts.cacheWrite
+      : driver === "entree" ? parts.input
+      : parts.cacheRead) / parts.total) * 100) : 0;
+  switch (driver) {
+    case "sortie":
+      return `Réponse longue : la sortie fait ${share} % du coût (elle vaut 5 fois une entrée).`;
+    case "cache-ecrit":
+      return `Cache écrit : ${share} % du coût. Premier échange, ou reprise après 5 min de pause.`;
+    case "cache-lu":
+      return `Cache lu : ${share} % du coût. Le contexte était déjà en mémoire, donc facturé 10 %.`;
+    default:
+      return `Contexte envoyé : ${share} % du coût.`;
+  }
 }
 
 export interface UsageTotals {
@@ -200,6 +239,7 @@ export async function usageHistory(
 
   const rows: UsageRow[] = page.map((r) => {
     const p = person.get(r.user_id);
+    const parts = costParts(r);
     return {
       id: r.id,
       createdAt: r.created_at,
@@ -215,7 +255,9 @@ export async function usageHistory(
       cacheReadTokens: r.cache_read_tokens ?? 0,
       cacheWriteTokens: r.cache_write_tokens ?? 0,
       credits: r.credits ?? 0,
-      costUsd: rowCost(r),
+      costUsd: parts.total,
+      parts,
+      driver: costDriver(parts),
     };
   });
 

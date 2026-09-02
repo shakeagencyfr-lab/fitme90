@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { tenantNode } from "@/lib/hierarchy";
-import { usageHistory, scopeAccounts, modelLabel, type UsageRow } from "@/lib/ai-usage-log";
+import { usageHistory, scopeAccounts, modelLabel, driverLabel, type UsageRow } from "@/lib/ai-usage-log";
 import { formatUsd } from "@/lib/ai-cost";
 import { usdToEur, formatEurPrecise } from "@/lib/config";
 import { Card, MonoLabel } from "@/components/ui";
@@ -123,7 +123,7 @@ export default async function AdminUsagePage({
                 </thead>
                 <tbody>
                   {rows.map((r) => (
-                    <tr key={r.id} className="border-b border-line-2 last:border-0 hover:bg-surface-2">
+                    <tr key={r.id} title={driverLabel(r.driver, r.parts)} className="border-b border-line-2 last:border-0 hover:bg-surface-2">
                       <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-muted">{fmtDate(r.createdAt)}</td>
                       <td className="px-3 py-2.5">
                         <div className="font-medium text-ink">{scope === "network" ? r.accountName : r.personName ?? "·"}</div>
@@ -135,11 +135,12 @@ export default async function AdminUsagePage({
                       <td className="whitespace-nowrap px-3 py-2.5 text-muted">{modelLabel(r.model)}</td>
                       <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-muted">
                         {r.inputTokens.toLocaleString("fr-FR")} / {r.outputTokens.toLocaleString("fr-FR")}
-                        {r.cacheReadTokens + r.cacheWriteTokens > 0 ? (
-                          <span className="text-brand"> +{((r.cacheReadTokens + r.cacheWriteTokens) / 1000).toFixed(1)}k cache</span>
-                        ) : null}
+                        <CacheBadges read={r.cacheReadTokens} write={r.cacheWriteTokens} />
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-ink">{formatEurPrecise(usdToEur(r.costUsd))}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5">
+                        <div className="tabular-nums text-ink">{formatEurPrecise(usdToEur(r.costUsd))}</div>
+                        <div className="text-[11px] text-muted-2">{DRIVER_SHORT[r.driver]}</div>
+                      </td>
                       <td className="px-3 py-2.5 tabular-nums font-semibold text-ink">
                         {r.credits > 0 ? r.credits : <span className="font-normal text-muted-2">·</span>}
                       </td>
@@ -160,7 +161,7 @@ export default async function AdminUsagePage({
       </Card>
 
       <p className="text-[12px] leading-[1.6] text-muted-2">
-        {tx("Le coût est estimé à partir des tarifs publics Anthropic et des tokens réellement consommés (lecture de cache facturée 10 %, écriture 125 %). Il sert au pilotage, pas à la facturation. Les crédits, eux, sont le débit réel du portefeuille.")}</p>
+        {tx("Coût estimé d'après les tarifs publics Anthropic et les tokens réellement consommés. Deux ratios expliquent l'essentiel des écarts entre deux lignes : une sortie coûte 5 fois une entrée, et une écriture de cache 12,5 fois une lecture (125 % contre 10 % du prix d'entrée). Le cache s'écrit au premier échange d'une conversation puis se relit pendant 5 minutes. Ce coût sert au pilotage, pas à la facturation ; les crédits, eux, sont le débit réel du portefeuille.")}</p>
     </div>
   );
 }
@@ -176,12 +177,14 @@ function MobileRow({ row, showAccount }: { row: UsageRow; showAccount: boolean }
         {showAccount ? `${row.accountName} · ` : ""}
         {row.personName ?? row.personEmail ?? "·"}
       </div>
+      <div className="text-[11.5px] text-muted-2">{driverLabel(row.driver, row.parts)}</div>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11.5px] text-muted-2">
         <span className="tabular-nums">{fmtDate(row.createdAt)}</span>
         <span aria-hidden>·</span>
         <span>{modelLabel(row.model)}</span>
         <span aria-hidden>·</span>
         <span className="tabular-nums">{row.inputTokens.toLocaleString("fr-FR")} / {row.outputTokens.toLocaleString("fr-FR")} tokens</span>
+        <CacheBadges read={row.cacheReadTokens} write={row.cacheWriteTokens} />
         {row.credits > 0 ? (
           <>
             <span aria-hidden>·</span>
@@ -190,6 +193,36 @@ function MobileRow({ row, showAccount }: { row: UsageRow; showAccount: boolean }
         ) : null}
       </div>
     </div>
+  );
+}
+
+const DRIVER_SHORT: Record<UsageRow["driver"], string> = {
+  sortie: "réponse longue",
+  "cache-ecrit": "cache écrit",
+  "cache-lu": "cache lu",
+  entree: "contexte",
+};
+
+/**
+ * Lecture et écriture de cache ne se confondent pas : l'écriture est facturée
+ * 125 % d'un token d'entrée, la lecture 10 %. Les fondre en un seul « cache »
+ * rendait inexplicable un écart de prix de 4x entre deux lignes voisines.
+ */
+function CacheBadges({ read, write }: { read: number; write: number }) {
+  if (read + write === 0) return null;
+  return (
+    <>
+      {write > 0 ? (
+        <span className="ml-1.5 rounded-pill bg-[#C4471A]/10 px-1.5 py-0.5 text-[11px] text-[#C4471A]">
+          {(write / 1000).toFixed(1)}k écrit
+        </span>
+      ) : null}
+      {read > 0 ? (
+        <span className="ml-1.5 rounded-pill bg-brand/10 px-1.5 py-0.5 text-[11px] text-brand">
+          {(read / 1000).toFixed(1)}k lu
+        </span>
+      ) : null}
+    </>
   );
 }
 
