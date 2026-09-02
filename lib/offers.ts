@@ -60,11 +60,12 @@ export async function listOffers(tenantId: string): Promise<Offer[]> {
   return (data ?? []) as Offer[];
 }
 
-export type LandingTemplate = "onyx" | "lumen";
+export type LandingTemplate = "onyx" | "lumen" | "volt" | "sage";
+export const LANDING_TEMPLATES: readonly LandingTemplate[] = ["onyx", "lumen", "volt", "sage"] as const;
 
 /** Normalise la valeur stockée en une clé de template connue (défaut onyx). */
 export function asLandingTemplate(v: string | null | undefined): LandingTemplate {
-  return v === "lumen" ? "lumen" : "onyx";
+  return (LANDING_TEMPLATES as readonly string[]).includes(v ?? "") ? (v as LandingTemplate) : "onyx";
 }
 
 export interface PublicTenant {

@@ -9,28 +9,29 @@ import type { LandingTemplate } from "@/lib/offers";
 // Miniature d'aperçu d'un template (rendu CSS léger, pas d'iframe).
 function Thumb({ variant, accent }: { variant: LandingTemplate; accent: string }) {
   const dark = variant === "onyx";
-  const bg = dark ? "#0a0b0c" : "#f6f4ef";
+  const bg = dark ? "#0a0b0c" : variant === "volt" ? "#eeeee8" : variant === "sage" ? "#f7f2ea" : "#f6f4ef";
   const card = dark ? "rgba(255,255,255,0.06)" : "#ffffff";
-  const line = dark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.10)";
+  const line = dark ? "rgba(255,255,255,0.14)" : variant === "volt" ? "rgba(0,0,0,0.35)" : variant === "sage" ? "#e7dccd" : "rgba(0,0,0,0.10)";
   const ink = dark ? "rgba(255,255,255,0.92)" : "#1b1815";
   const soft = dark ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.10)";
+  const r = variant === "volt" ? 2 : variant === "sage" ? 999 : 4;
   return (
-    <div className="aspect-[4/3] w-full overflow-hidden rounded-[10px] border" style={{ background: bg, borderColor: line }}>
+    <div className="aspect-[4/3] w-full overflow-hidden rounded-[10px] border" style={{ background: bg, borderColor: line, ["--r" as string]: `${r}px` }}>
       <div className="flex items-center justify-between px-2.5 py-2">
         <span className="h-1.5 w-8 rounded-full" style={{ background: soft }} />
-        <span className="h-3 w-8 rounded-[3px]" style={{ background: accent }} />
+        <span className="h-3 w-8" style={{ background: accent, borderRadius: "var(--r)" }} />
       </div>
       <div className="px-2.5">
         <div className="h-2 w-[70%] rounded-full" style={{ background: ink, opacity: 0.85 }} />
         <div className="mt-1 h-1.5 w-[85%] rounded-full" style={{ background: soft }} />
         <div className="mt-1 h-1.5 w-[55%] rounded-full" style={{ background: soft }} />
         <div className="mt-2 flex gap-1.5">
-          <span className="h-3.5 w-10 rounded-[4px]" style={{ background: accent }} />
-          <span className="h-3.5 w-8 rounded-[4px] border" style={{ borderColor: line }} />
+          <span className="h-3.5 w-10" style={{ background: accent, borderRadius: "var(--r)" }} />
+          <span className="h-3.5 w-8 border" style={{ borderColor: line, borderRadius: "var(--r)" }} />
         </div>
         <div className="mt-2 grid grid-cols-3 gap-1.5 pb-2.5">
           {[0, 1, 2].map((i) => (
-            <span key={i} className="h-6 rounded-[5px] border" style={{ background: card, borderColor: line }} />
+            <span key={i} className="h-6 border" style={{ background: card, borderColor: line, borderRadius: variant === "sage" ? 10 : variant === "volt" ? 2 : 5 }} />
           ))}
         </div>
       </div>
@@ -41,6 +42,8 @@ function Thumb({ variant, accent }: { variant: LandingTemplate; accent: string }
 const TEMPLATES: { key: LandingTemplate; name: string; desc: string }[] = [
   { key: "onyx", name: "Onyx", desc: "Sombre, premium, contrasté." },
   { key: "lumen", name: "Lumen", desc: "Clair, éditorial, aéré." },
+  { key: "volt", name: "Volt", desc: "Énergique, contrasté, angles nets." },
+  { key: "sage", name: "Sage", desc: "Doux, bien-être, serif et arrondi." },
 ];
 
 export function TemplateSelector({ current, accent }: { current: LandingTemplate; accent: string }) {

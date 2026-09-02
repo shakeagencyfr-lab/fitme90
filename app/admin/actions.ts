@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { LANDING_TEMPLATES } from "@/lib/offers";
 import { whitelabelEnabled } from "@/lib/whitelabel";
 import { sendEmail } from "@/lib/email";
 import { setTenantCustomDomain } from "@/lib/custom-domain";
@@ -240,7 +241,7 @@ export async function saveLandingTemplate(_prev: TemplateState, formData: FormDa
   const ctx = await getAdminOrNull();
   if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
   const raw = String(formData.get("template") ?? "");
-  const template = raw === "lumen" ? "lumen" : raw === "onyx" ? "onyx" : null;
+  const template = (LANDING_TEMPLATES as readonly string[]).includes(raw) ? raw : null;
   if (!template) return { error: "Template inconnu." };
   const admin = createAdminClient();
   const { error } = await admin

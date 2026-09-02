@@ -4,6 +4,8 @@ import { publicOffersBySlug, landingTemplateBySlug } from "@/lib/offers";
 import { leadMagnetEnabled } from "@/lib/prospects";
 import { CoachOnyx } from "@/components/landing-templates/coach-onyx";
 import { CoachLumen } from "@/components/landing-templates/coach-lumen";
+import { CoachVolt } from "@/components/landing-templates/coach-volt";
+import { CoachSage } from "@/components/landing-templates/coach-sage";
 import { LocaleProvider } from "@/components/locale-provider";
 import { resolveLocale, tenantLocale } from "@/lib/i18n/server";
 
@@ -13,7 +15,8 @@ export const dynamic = "force-dynamic";
 export async function generateViewport({ params }: { params: Promise<{ slug: string }> }): Promise<Viewport> {
   const { slug } = await params;
   const template = await landingTemplateBySlug(slug);
-  return { themeColor: template === "lumen" ? "#f6f4ef" : "#0a0b0c" };
+  const colors: Record<string, string> = { lumen: "#f6f4ef", volt: "#eeeee8", sage: "#f7f2ea" };
+  return { themeColor: colors[template] ?? "#0a0b0c" };
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
@@ -35,11 +38,11 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
 
   const { tenant, offers } = data;
   const [leadMagnet, locale] = await Promise.all([leadMagnetEnabled(tenant.id), resolveLocale(await tenantLocale(tenant.id))]);
+  const props = { tenant, offers, leadMagnet, locale };
   const page =
-    tenant.landingTemplate === "lumen" ? (
-      <CoachLumen tenant={tenant} offers={offers} leadMagnet={leadMagnet} locale={locale} />
-    ) : (
-      <CoachOnyx tenant={tenant} offers={offers} leadMagnet={leadMagnet} locale={locale} />
-    );
+    tenant.landingTemplate === "lumen" ? <CoachLumen {...props} />
+    : tenant.landingTemplate === "volt" ? <CoachVolt {...props} />
+    : tenant.landingTemplate === "sage" ? <CoachSage {...props} />
+    : <CoachOnyx {...props} />;
   return <LocaleProvider locale={locale}>{page}</LocaleProvider>;
 }
