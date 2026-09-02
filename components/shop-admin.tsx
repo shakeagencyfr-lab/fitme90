@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useActionState } from "react";
 import {
   setShopEnabled,
@@ -11,22 +13,21 @@ import type { ShopProduct } from "@/lib/shop";
 import { Card, Button, Alert, MonoLabel, Field, TextArea } from "@/components/ui";
 
 export function ShopAdmin({ enabled, products }: { enabled: boolean; products: ShopProduct[] }) {
+  const tx = usePhrase();
   const [tState, tAction, tPending] = useActionState(setShopEnabled, {} as ShopState);
   const [aState, aAction, aPending] = useActionState(addShopProduct, {} as ShopState);
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
-        <h1 className="font-archivo font-extrabold text-[26px] tracking-[-0.02em] text-ink">Boutique</h1>
+        <h1 className="font-archivo font-extrabold text-[26px] tracking-[-0.02em] text-ink">{tx("Boutique")}</h1>
         <p className="text-[14px] text-muted">
-          Produits d&apos;affiliation mis en avant dans l&apos;app (compléments, matériel…). Chaque
-          produit renvoie vers ta boutique externe. Tu peux activer ou désactiver la boutique.
-        </p>
+          {tx("Produits d'affiliation mis en avant dans l'app (compléments, matériel…). Chaque produit renvoie vers ta boutique externe. Tu peux activer ou désactiver la boutique.")}</p>
       </div>
 
       {/* Activation */}
       <Card className="flex flex-col gap-3">
-        <MonoLabel>Activation</MonoLabel>
+        <MonoLabel>{tx("Activation")}</MonoLabel>
         <form action={tAction} className="flex items-center gap-4">
           <label className="flex items-center gap-2.5 text-[15px] text-ink">
             <input
@@ -35,34 +36,33 @@ export function ShopAdmin({ enabled, products }: { enabled: boolean; products: S
               defaultChecked={enabled}
               className="size-4 accent-[var(--color-brand)]"
             />
-            Boutique visible par les clients
-          </label>
-          <Button type="submit" loading={tPending} className="h-10">Enregistrer</Button>
+            {tx("Boutique visible par les clients")}</label>
+          <Button type="submit" loading={tPending} className="h-10">{tx("Enregistrer")}</Button>
         </form>
-        {tState.ok ? <Alert tone="info">Réglage enregistré.</Alert> : null}
+        {tState.ok ? <Alert tone="info">{tx("Réglage enregistré.")}</Alert> : null}
         {tState.error ? <Alert>{tState.error}</Alert> : null}
       </Card>
 
       {/* Ajout d'un produit */}
       <Card className="flex flex-col gap-3">
-        <MonoLabel>Ajouter un produit</MonoLabel>
+        <MonoLabel>{tx("Ajouter un produit")}</MonoLabel>
         <form action={aAction} className="flex flex-col gap-3">
-          <Field name="title" label="Titre" placeholder="Whey isolate vanille" />
-          <TextArea name="description" label="Description" placeholder="Protéine à digestion rapide, 24 g par dose…" rows={2} />
-          <Field name="image_url" label="URL de l'image" placeholder="https://…/produit.jpg" />
-          <Field name="link_url" label="Lien vers la boutique" placeholder="https://ma-boutique.com/whey" />
-          <Field name="position" label="Ordre d'affichage (0 = en premier)" placeholder="0" />
+          <Field name="title" label={tx("Titre")} placeholder={tx("Whey isolate vanille")} />
+          <TextArea name="description" label={tx("Description")} placeholder={tx("Protéine à digestion rapide, 24 g par dose…")} rows={2} />
+          <Field name="image_url" label={tx("URL de l'image")} placeholder={tx("https://…/produit.jpg")} />
+          <Field name="link_url" label={tx("Lien vers la boutique")} placeholder={tx("https://ma-boutique.com/whey")} />
+          <Field name="position" label={tx("Ordre d'affichage (0 = en premier)")} placeholder="0" />
           {aState.error ? <Alert>{aState.error}</Alert> : null}
-          {aState.ok ? <Alert tone="info">Produit ajouté.</Alert> : null}
-          <Button type="submit" loading={aPending} className="self-start h-11">Ajouter le produit</Button>
+          {aState.ok ? <Alert tone="info">{tx("Produit ajouté.")}</Alert> : null}
+          <Button type="submit" loading={aPending} className="self-start h-11">{tx("Ajouter le produit")}</Button>
         </form>
       </Card>
 
       {/* Liste des produits */}
       <Card className="flex flex-col gap-3">
-        <MonoLabel>Produits ({products.length})</MonoLabel>
+        <MonoLabel>{tx("Produits (")}{products.length})</MonoLabel>
         {products.length === 0 ? (
-          <p className="text-[13.5px] text-muted-2">Aucun produit pour l&apos;instant.</p>
+          <p className="text-[13.5px] text-muted-2">{tx("Aucun produit pour l'instant.")}</p>
         ) : (
           <div className="flex flex-col gap-2">
             {products.map((p) => (
@@ -80,8 +80,7 @@ export function ShopAdmin({ enabled, products }: { enabled: boolean; products: S
                 <form action={deleteShopProduct}>
                   <input type="hidden" name="id" value={p.id} />
                   <button className="tap rounded-control border border-alert-line bg-alert px-3 py-1.5 text-[13px] font-semibold text-alert-ink">
-                    Supprimer
-                  </button>
+                    {tx("Supprimer")}</button>
                 </form>
               </div>
             ))}

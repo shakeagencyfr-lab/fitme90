@@ -1,3 +1,4 @@
+import { tx } from "@/lib/i18n/request";
 // Courbe de poids compacte, rendue côté serveur (SVG). Lecture seule, pour la
 // fiche client du coach.
 export interface WeightPoint {
@@ -10,13 +11,13 @@ const fmtDate = (d: string) =>
 
 export function MiniWeightChart({ points }: { points: WeightPoint[] }) {
   if (points.length === 0) {
-    return <p className="text-[13px] text-muted">Aucune pesée enregistrée.</p>;
+    return <p className="text-[13px] text-muted">{tx("Aucune pesée enregistrée.")}</p>;
   }
   if (points.length === 1) {
     return (
       <div className="flex items-baseline gap-2">
-        <span className="font-archivo text-[24px] font-extrabold tracking-[-0.02em] text-ink">{points[0].kg} kg</span>
-        <span className="text-[12px] text-muted-2">le {fmtDate(points[0].date)}</span>
+        <span className="font-archivo text-[24px] font-extrabold tracking-[-0.02em] text-ink">{points[0].kg} {tx("kg")}</span>
+        <span className="text-[12px] text-muted-2">{tx("le")} {fmtDate(points[0].date)}</span>
       </div>
     );
   }
@@ -43,13 +44,13 @@ export function MiniWeightChart({ points }: { points: WeightPoint[] }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <span className="font-archivo text-[24px] font-extrabold tracking-[-0.02em] text-ink">{last.kg} kg</span>
+        <span className="font-archivo text-[24px] font-extrabold tracking-[-0.02em] text-ink">{last.kg} {tx("kg")}</span>
         <span className={`text-[13px] font-semibold ${delta < 0 ? "text-brand" : delta > 0 ? "text-body-2" : "text-muted-2"}`}>
-          {delta > 0 ? "+" : ""}{delta} kg depuis le {fmtDate(first.date)}
+          {delta > 0 ? "+" : ""}{delta} {tx("kg depuis le")} {fmtDate(first.date)}
         </span>
       </div>
       <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${W} ${H}`} className="h-[160px] w-full min-w-[420px]" role="img" aria-label="Courbe de poids">
+        <svg viewBox={`0 0 ${W} ${H}`} className="h-[160px] w-full min-w-[420px]" role="img" aria-label={tx("Courbe de poids")}>
           <path d={area} fill="var(--color-brand)" opacity="0.10" />
           <path d={line} fill="none" stroke="var(--color-brand)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
           {points.map((p, i) => (

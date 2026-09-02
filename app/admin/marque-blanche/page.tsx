@@ -1,4 +1,5 @@
 import { getAdminOrNull } from "@/lib/admin";
+import { tx } from "@/lib/i18n/request";
 import { customDomainInfo } from "@/lib/custom-domain";
 import { tenantBranding } from "@/lib/branding";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -42,9 +43,8 @@ export default async function WhiteLabelPage({
     return (
       <div className="flex flex-col gap-5">
         <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          Marque blanche
-        </h1>
-        <Alert>Aucun compte (tenant) n&apos;est rattaché à ton profil.</Alert>
+          {tx("Marque blanche")}</h1>
+        <Alert>{tx("Aucun compte (tenant) n'est rattaché à ton profil.")}</Alert>
       </div>
     );
   }
@@ -83,12 +83,9 @@ export default async function WhiteLabelPage({
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          Marque blanche
-        </h1>
+          {tx("Marque blanche")}</h1>
         <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
-          Configure l&apos;identité de ta page publique et vois le rendu en direct. Logo, couleurs,
-          textes, template, adresse personnalisée et domaine : tout au même endroit.
-        </p>
+          {tx("Configure l'identité de ta page publique et vois le rendu en direct. Logo, couleurs, textes, template, adresse personnalisée et domaine : tout au même endroit.")}</p>
       </div>
 
       <WhiteLabelStudio
@@ -113,8 +110,8 @@ export default async function WhiteLabelPage({
 
       {kind === "coach" ? (
         <>
-          {sp.wl_session_id ? <Alert tone="info">Marque blanche activée. Ton domaine et ton SMTP sont débloqués.</Alert> : null}
-          {sp.wl_annule ? <Alert>Souscription annulée.</Alert> : null}
+          {sp.wl_session_id ? <Alert tone="info">{tx("Marque blanche activée. Ton domaine et ton SMTP sont débloqués.")}</Alert> : null}
+          {sp.wl_annule ? <Alert>{tx("Souscription annulée.")}</Alert> : null}
           <WhitelabelPanel
             enabled={wl.enabled}
             priceCents={wl.priceCents}

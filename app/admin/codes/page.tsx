@@ -1,4 +1,5 @@
 import { getAdminOrNull } from "@/lib/admin";
+import { tx } from "@/lib/i18n/request";
 import { listOffers } from "@/lib/offers";
 import { listPromos } from "@/lib/promo";
 import { listGiftCodes } from "@/lib/gift";
@@ -25,23 +26,20 @@ export default async function AdminCodesPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1.5">
         <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          Codes promo &amp; cadeaux
-        </h1>
+          {tx("Codes promo & cadeaux")}</h1>
         <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
-          Des codes promo (remise) sur tes offres à paiement unique, et des cartes cadeaux (accès offert). Les cadeaux
-          achetés depuis ta page publique apparaissent aussi ici.
-        </p>
+          {tx("Des codes promo (remise) sur tes offres à paiement unique, et des cartes cadeaux (accès offert). Les cadeaux achetés depuis ta page publique apparaissent aussi ici.")}</p>
       </div>
 
       {!tenantId ? (
-        <Alert>Aucun compte (tenant) n&apos;est rattaché à ton profil.</Alert>
+        <Alert>{tx("Aucun compte (tenant) n'est rattaché à ton profil.")}</Alert>
       ) : (
         <>
           {/* ---- Codes promo ---- */}
           <section className="flex flex-col gap-3">
-            <div className="font-archivo font-bold text-[17px] text-ink">Codes promo</div>
+            <div className="font-archivo font-bold text-[17px] text-ink">{tx("Codes promo")}</div>
             {promos.length === 0 ? (
-              <Alert tone="info">Aucun code promo. Crée le premier ci-dessous.</Alert>
+              <Alert tone="info">{tx("Aucun code promo. Crée le premier ci-dessous.")}</Alert>
             ) : (
               promos.map((p) => (
                 <Card key={p.id} className="flex flex-wrap items-center justify-between gap-3">
@@ -53,12 +51,11 @@ export default async function AdminCodesPage() {
                       </span>
                       {!p.active ? (
                         <span className="rounded-pill border border-line-4 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">
-                          Inactif
-                        </span>
+                          {tx("Inactif")}</span>
                       ) : null}
                     </div>
                     <span className="text-[12.5px] text-muted-2">
-                      {p.used_count} utilisation{p.used_count > 1 ? "s" : ""}
+                      {p.used_count} {tx("utilisation")}{p.used_count > 1 ? "s" : ""}
                       {p.max_uses != null ? ` / ${p.max_uses}` : ""}
                       {p.expires_at ? ` · expire le ${fmtDate(p.expires_at)}` : ""}
                     </span>
@@ -74,8 +71,7 @@ export default async function AdminCodesPage() {
                     <form action={removePromo}>
                       <input type="hidden" name="id" value={p.id} />
                       <button type="submit" className="tap rounded-btn border border-alert-line bg-alert px-3.5 py-2 text-[13px] font-semibold text-alert-ink hover:border-brand">
-                        Supprimer
-                      </button>
+                        {tx("Supprimer")}</button>
                     </form>
                   </div>
                 </Card>
@@ -86,7 +82,7 @@ export default async function AdminCodesPage() {
 
           {/* ---- Cartes cadeaux ---- */}
           <section className="flex flex-col gap-3">
-            <div className="font-archivo font-bold text-[17px] text-ink">Cartes cadeaux</div>
+            <div className="font-archivo font-bold text-[17px] text-ink">{tx("Cartes cadeaux")}</div>
             <GiftGenerator offers={oneTimeOffers.map((o) => ({ id: o.id, name: o.name }))} />
 
             {gifts.length > 0 ? (
@@ -108,9 +104,9 @@ export default async function AdminCodesPage() {
                           <td className="px-4 py-3 text-muted">{g.kind === "gift_purchase" ? "Acheté" : "Offert"}</td>
                           <td className="px-4 py-3">
                             {g.used_by ? (
-                              <span className="rounded-pill bg-surface-2 px-2 py-0.5 text-[12px] text-muted-2">Utilisé</span>
+                              <span className="rounded-pill bg-surface-2 px-2 py-0.5 text-[12px] text-muted-2">{tx("Utilisé")}</span>
                             ) : (
-                              <span className="rounded-pill bg-brand/10 px-2 py-0.5 text-[12px] font-semibold text-brand">Disponible</span>
+                              <span className="rounded-pill bg-brand/10 px-2 py-0.5 text-[12px] font-semibold text-brand">{tx("Disponible")}</span>
                             )}
                           </td>
                           <td className="px-4 py-3 tabular-nums text-muted">{fmtDate(g.created_at)}</td>

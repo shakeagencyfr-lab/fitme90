@@ -9,6 +9,7 @@
 
 import { fr } from "./fr";
 import { en } from "./en";
+import { PHRASES_EN } from "./phrases-en";
 
 export type Locale = "fr" | "en";
 export const LOCALES: readonly Locale[] = ["fr", "en"] as const;
@@ -93,4 +94,10 @@ export function dateLocale(locale: Locale): string {
 /** Libellé lisible d'une locale, dans sa propre langue. */
 export function localeLabel(locale: Locale): string {
   return locale === "en" ? "English" : "Français";
+}
+
+/** Traduction « par phrase » (dashboards, landings) : le français est la clé. */
+export function translatePhrase(locale: Locale, text: string): string {
+  if (locale !== "en") return text;
+  return PHRASES_EN[text] ?? text;
 }

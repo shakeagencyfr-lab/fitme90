@@ -1,4 +1,7 @@
 import { notFound } from "next/navigation";
+import { LocaleProvider } from "@/components/locale-provider";
+import { setRequestLocale } from "@/lib/i18n/request";
+import { resolveLocale, tenantLocale } from "@/lib/i18n/server";
 import { getAdminOrNull } from "@/lib/admin";
 import { AdminShell } from "@/components/admin-shell";
 import { PwaInstall } from "@/components/pwa-install";
@@ -43,6 +46,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       ])
     : [[], 0, null, { frozen: false, status: null, suspended: false }, { costUsd: 0, calls: 0, sinceIso: "" }, null, false];
   const kind = node?.kind ?? "coach";
+  // Langue du dashboard : choix de la personne (cookie), sinon langue du tenant.
+  const locale = await resolveLocale(await tenantLocale(tenantId));
+  setRequestLocale(locale);
 
   // En modèle crédits, la carte du bandeau montre le solde restant plutôt qu'une
   // conso en dollars : ce coach ne paie pas Anthropic, il dépense des crédits.
@@ -51,7 +57,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const wallet = bal ? { credits: bal.credits } : null;
 
   return (
-    <>
+    <LocaleProvider locale={locale}>
       <SupportReturnBar />
       <AdminShell
         notifs={notifs}
@@ -70,6 +76,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </AdminShell>
       {/* Invite à installer l'app (Android : invite native ; iOS : marche à suivre). */}
       <PwaInstall />
-    </>
+    </LocaleProvider>
   );
 }

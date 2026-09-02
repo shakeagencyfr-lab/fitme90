@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useState } from "react";
 
 // Simulateur de revenus interactif (curseurs). Réutilisable :
@@ -39,6 +41,7 @@ export function RevenueSimulator({
   /** Ligne informative sur le coût IA (BYOK), affichée sous le résultat. */
   aiNote?: string;
 }) {
+  const tx = usePhrase();
   const [count, setCount] = useState(countDefault);
   const [price, setPrice] = useState(priceDefault);
   const monthly = count * price;
@@ -92,12 +95,12 @@ export function RevenueSimulator({
 
         {/* Résultat */}
         <div className="rounded-[20px] border border-brand/25 bg-gradient-to-b from-brand/[0.12] to-transparent p-6 text-center">
-          <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-brand">Revenu mensuel estimé</div>
+          <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-brand">{tx("Revenu mensuel estimé")}</div>
           <div className="mt-2 font-archivo text-[clamp(34px,7vw,52px)] font-extrabold leading-none tracking-[-0.03em] text-white tabular-nums">
             {euros(monthly)}
           </div>
           <div className="mt-4 border-t border-white/10 pt-4">
-            <div className="text-[13px] text-white/55">soit sur un an</div>
+            <div className="text-[13px] text-white/55">{tx("soit sur un an")}</div>
             <div className="mt-1 font-archivo text-[24px] font-extrabold tracking-[-0.02em] text-brand tabular-nums">{euros(yearly)}</div>
           </div>
         </div>

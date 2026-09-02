@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useActionState } from "react";
 import { submitLeadMagnet, type LeadState } from "@/app/c/[slug]/decouverte/actions";
 import { GOALS, LEVELS, EQUIPMENTS, GOAL_LABEL, LEVEL_LABEL, EQUIP_LABEL } from "@/lib/lead-magnet";
@@ -8,6 +10,7 @@ const field = "w-full rounded-control border border-line-4 bg-surface px-3.5 py-
 const label = "font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2";
 
 export function LeadMagnetForm({ slug }: { slug: string }) {
+  const tx = usePhrase();
   const [state, action, pending] = useActionState(submitLeadMagnet, {} as LeadState);
 
   return (
@@ -16,36 +19,36 @@ export function LeadMagnetForm({ slug }: { slug: string }) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5">
-          <span className={label}>Prénom</span>
-          <input name="name" maxLength={80} placeholder="Ton prénom" className={field} />
+          <span className={label}>{tx("Prénom")}</span>
+          <input name="name" maxLength={80} placeholder={tx("Ton prénom")} className={field} />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className={label}>E-mail</span>
-          <input name="email" type="email" maxLength={160} placeholder="toi@email.com" className={field} />
+          <span className={label}>{tx("E-mail")}</span>
+          <input name="email" type="email" maxLength={160} placeholder={tx("toi@email.com")} className={field} />
         </label>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5">
-          <span className={label}>Ton objectif</span>
+          <span className={label}>{tx("Ton objectif")}</span>
           <select name="goal" defaultValue="forme" className={field}>
             {GOALS.map((g) => <option key={g} value={g}>{GOAL_LABEL[g]}</option>)}
           </select>
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className={label}>Ton niveau</span>
+          <span className={label}>{tx("Ton niveau")}</span>
           <select name="level" defaultValue="debutant" className={field}>
             {LEVELS.map((l) => <option key={l} value={l}>{LEVEL_LABEL[l]}</option>)}
           </select>
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className={label}>Séances / semaine</span>
+          <span className={label}>{tx("Séances / semaine")}</span>
           <select name="days" defaultValue="3" className={field}>
-            {[2, 3, 4].map((d) => <option key={d} value={d}>{d} séances</option>)}
+            {[2, 3, 4].map((d) => <option key={d} value={d}>{d} {tx("séances")}</option>)}
           </select>
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className={label}>Ton matériel</span>
+          <span className={label}>{tx("Ton matériel")}</span>
           <select name="equipment" defaultValue="maison" className={field}>
             {EQUIPMENTS.map((e) => <option key={e} value={e}>{EQUIP_LABEL[e]}</option>)}
           </select>
@@ -54,7 +57,7 @@ export function LeadMagnetForm({ slug }: { slug: string }) {
 
       <label className="flex cursor-pointer items-start gap-2.5 text-[13px] leading-[1.5] text-body">
         <input type="checkbox" name="consent" className="mt-0.5 size-4 accent-brand" />
-        <span>J&apos;accepte de recevoir mon mini-programme et des conseils par e-mail. Je peux me désinscrire à tout moment.</span>
+        <span>{tx("J'accepte de recevoir mon mini-programme et des conseils par e-mail. Je peux me désinscrire à tout moment.")}</span>
       </label>
 
       {state.error ? (

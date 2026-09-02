@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { sendClientVipMessage } from "@/app/app/chat/actions";
@@ -50,6 +52,7 @@ export function VipChat({
   clientId?: string; // requis côté coach
   emptyHint: string;
 }) {
+  const tx = usePhrase();
   const router = useRouter();
   const action = me === "coach" ? sendCoachVipMessage : sendClientVipMessage;
   const [pending, start] = useTransition();
@@ -136,7 +139,7 @@ export function VipChat({
         {preview ? (
           <div className="relative w-fit">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={preview} alt="Aperçu" className="max-h-28 rounded-lg border border-line-3 object-cover" />
+            <img src={preview} alt={tx("Aperçu")} className="max-h-28 rounded-lg border border-line-3 object-cover" />
             <button
               type="button"
               onClick={() => {
@@ -145,7 +148,7 @@ export function VipChat({
                 if (fileRef.current) fileRef.current.value = "";
               }}
               className="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full bg-ink text-[13px] text-paper"
-              aria-label="Retirer l'image"
+              aria-label={tx("Retirer l'image")}
             >
               ×
             </button>
@@ -156,7 +159,7 @@ export function VipChat({
           ref={textRef}
           rows={2}
           maxLength={4000}
-          placeholder="Écris ton message…"
+          placeholder={tx("Écris ton message…")}
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
               e.preventDefault();
@@ -175,14 +178,12 @@ export function VipChat({
               <circle cx="8.5" cy="9" r="1.6" />
               <path d="M4 17l4.5-4 3.5 3 3-2.5L20 16" />
             </svg>
-            Photo
-            <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={onPick} disabled={pending} className="hidden" />
+            {tx("Photo")}<input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={onPick} disabled={pending} className="hidden" />
           </label>
           <Button type="button" onClick={submit} loading={pending} className="h-10">
-            Envoyer
-          </Button>
+            {tx("Envoyer")}</Button>
         </div>
-        <span className="text-[11px] text-muted-2">Texte et photos uniquement. ⌘/Ctrl + Entrée pour envoyer.</span>
+        <span className="text-[11px] text-muted-2">{tx("Texte et photos uniquement. ⌘/Ctrl + Entrée pour envoyer.")}</span>
       </div>
     </div>
   );

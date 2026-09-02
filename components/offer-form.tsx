@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useActionState, useState } from "react";
 import { addOffer, type OfferState } from "@/app/admin/actions";
 import { Button, Alert, MonoLabel } from "@/components/ui";
@@ -33,6 +35,7 @@ export function OfferForm({
   /** Quota par défaut de la configuration IA du coach. */
   defaultQuota: number;
 }) {
+  const tx = usePhrase();
   const [state, action, pending] = useActionState(addOffer, {} as OfferState);
   const [months, setMonths] = useState<OfferDurationMonths>(12);
   const [billing, setBilling] = useState<"one_time" | "subscription">("one_time");
@@ -51,19 +54,18 @@ export function OfferForm({
   if (atLimit) {
     return (
       <Alert tone="info">
-        Tu as atteint le maximum de 3 plans (tous types confondus). Supprime un plan pour en ajouter un nouveau.
-      </Alert>
+        {tx("Tu as atteint le maximum de 3 plans (tous types confondus). Supprime un plan pour en ajouter un nouveau.")}</Alert>
     );
   }
 
   return (
     <form action={action} className="flex flex-col gap-4 rounded-card border border-line bg-surface p-5">
-      <div className="font-archivo font-bold text-[16px] text-ink">Nouveau plan</div>
+      <div className="font-archivo font-bold text-[16px] text-ink">{tx("Nouveau plan")}</div>
 
       {/* Choix du produit : la durée fixe la structure du programme. */}
       <input type="hidden" name="duration_months" value={months} />
       <div className="flex flex-col gap-1.5">
-        <MonoLabel>Produit</MonoLabel>
+        <MonoLabel>{tx("Produit")}</MonoLabel>
         <div className="grid grid-cols-2 gap-2">
           {OFFER_DURATIONS_MONTHS.map((m) => {
             const p = PRODUCTS[m];
@@ -79,7 +81,7 @@ export function OfferForm({
                   on ? "border-brand bg-brand/[0.06] ring-1 ring-brand/25" : "border-line-4 hover:border-ink",
                 ].join(" ")}
               >
-                <span className="font-semibold text-[14px] text-ink">{m} mois</span>
+                <span className="font-semibold text-[14px] text-ink">{m} {tx("mois")}</span>
                 <span className="text-[12px] text-muted-2">{p.promise}</span>
               </button>
             );
@@ -95,7 +97,7 @@ export function OfferForm({
       {/* Choix du mode de paiement */}
       <input type="hidden" name="billing_type" value={billing} />
       <div className="flex flex-col gap-1.5">
-        <MonoLabel>Paiement</MonoLabel>
+        <MonoLabel>{tx("Paiement")}</MonoLabel>
         <div className="grid grid-cols-2 gap-2">
           {([
             ["one_time", "Paiement unique", "Le client paie une fois"],
@@ -122,7 +124,7 @@ export function OfferForm({
       </div>
 
       <label className="flex flex-col gap-1.5">
-        <MonoLabel>Intitulé</MonoLabel>
+        <MonoLabel>{tx("Intitulé")}</MonoLabel>
         <input
           type="text"
           name="name"
@@ -136,27 +138,23 @@ export function OfferForm({
         <>
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1.5">
-              <MonoLabel>Prix / mois (€)</MonoLabel>
+              <MonoLabel>{tx("Prix / mois (€)")}</MonoLabel>
               <input type="text" inputMode="decimal" name="price_month_euros" placeholder={months === 12 ? "49" : "69"}
                 className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink" />
             </label>
             <label className="flex flex-col gap-1.5">
-              <MonoLabel>Prix / an (€), optionnel</MonoLabel>
+              <MonoLabel>{tx("Prix / an (€), optionnel")}</MonoLabel>
               <input type="text" inputMode="decimal" name="price_year_euros" placeholder="490"
                 className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink" />
             </label>
           </div>
           <div className="rounded-control border border-line-4 bg-surface-2 p-3.5 text-[12.5px] leading-relaxed text-muted">
-            <span className="font-semibold text-body">Mensuel, sans engagement.</span> Le client règle chaque mois, sur ton
-            compte Stripe, et peut arrêter quand il veut. Le programme suit la structure du produit « {months} mois » et
-            continue d&apos;évoluer par blocs tant que l&apos;abonnement est actif. Avec un prix annuel en plus, le client voit
-            un comparateur d&apos;économies.
-          </div>
+            <span className="font-semibold text-body">{tx("Mensuel, sans engagement.")}</span> {tx("Le client règle chaque mois, sur ton compte Stripe, et peut arrêter quand il veut. Le programme suit la structure du produit «")} {months} {tx("mois » et continue d'évoluer par blocs tant que l'abonnement est actif. Avec un prix annuel en plus, le client voit un comparateur d'économies.")}</div>
         </>
       ) : (
         <>
           <label className="flex flex-col gap-1.5">
-            <MonoLabel>Prix (€)</MonoLabel>
+            <MonoLabel>{tx("Prix (€)")}</MonoLabel>
             <input
               type="text"
               inputMode="decimal"
@@ -168,11 +166,10 @@ export function OfferForm({
             />
           </label>
           <span className="-mt-1 text-[12px] leading-relaxed text-muted-2">
-            Le client paiera ce montant une fois, directement sur ton compte Stripe.
-            {perMonth > 0 ? (
+            {tx("Le client paiera ce montant une fois, directement sur ton compte Stripe.")}{perMonth > 0 ? (
               <>
-                {" "}Sur sa page, il verra aussi l&apos;équivalent :{" "}
-                <span className="text-body">{formatEuros(perMonth)}/mois</span>.
+                {" "}{tx("Sur sa page, il verra aussi l'équivalent :")}{" "}
+                <span className="text-body">{formatEuros(perMonth)}{tx("/mois")}</span>.
                 {months === 12
                   ? " Pour que le 12 mois soit évident, vise 2,5 à 3 fois le prix de ton 3 mois, pas 4."
                   : ""}
@@ -184,7 +181,7 @@ export function OfferForm({
 
       {/* Inclusions (upsells par plan) */}
       <div className="flex flex-col gap-2">
-        <MonoLabel>Inclusions</MonoLabel>
+        <MonoLabel>{tx("Inclusions")}</MonoLabel>
         <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
           <input
             type="checkbox"
@@ -194,16 +191,15 @@ export function OfferForm({
             className="mt-0.5 size-4 accent-brand"
           />
           <span className="flex flex-col gap-0.5">
-            <span className="font-semibold text-[14px] text-ink">Coach IA inclus</span>
+            <span className="font-semibold text-[14px] text-ink">{tx("Coach IA inclus")}</span>
             <span className="text-[12px] text-muted-2">
-              L&apos;assistant IA (entraîné sur ta méthode) accompagne le client au quotidien. Décoché, le client n&apos;y a pas accès.
-            </span>
+              {tx("L'assistant IA (entraîné sur ta méthode) accompagne le client au quotidien. Décoché, le client n'y a pas accès.")}</span>
           </span>
         </label>
         {coachAi ? (
           <div className="ml-3 flex flex-col gap-3 rounded-control border border-brand/30 bg-surface p-3.5">
             <label className="flex flex-col gap-1.5">
-              <MonoLabel>Messages IA par jour et par client (0 = illimité)</MonoLabel>
+              <MonoLabel>{tx("Messages IA par jour et par client (0 = illimité)")}</MonoLabel>
               <input
                 name="coach_ai_daily_limit"
                 type="number"
@@ -215,31 +211,24 @@ export function OfferForm({
                 className="w-full max-w-[160px] rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
               />
               <span className="text-[12px] leading-relaxed text-muted-2">
-                Messages du chat et alternatives d&apos;exercice. Le compteur du client se remet à ce
-                quota chaque jour à minuit, rien ne s&apos;accumule. Tu n&apos;es débité que de ce qu&apos;il
-                utilise vraiment.
-              </span>
+                {tx("Messages du chat et alternatives d'exercice. Le compteur du client se remet à ce quota chaque jour à minuit, rien ne s'accumule. Tu n'es débité que de ce qu'il utilise vraiment.")}</span>
             </label>
             <div className="text-[13px] leading-[1.6] text-body">
-              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">Coût maximum de ce plan</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">{tx("Coût maximum de ce plan")}</span>
               <div>
                 {creditMode ? (
                   <>
-                    <span className="font-semibold text-ink">{max.total.toLocaleString("fr-FR")} crédits IA</span> au
-                    pire, si le client sature tout : {max.generations} génération{max.generations > 1 ? "s" : ""} de
-                    programme ({max.generationCredits} crédits)
-                    {quotaN > 0
+                    <span className="font-semibold text-ink">{max.total.toLocaleString("fr-FR")} {tx("crédits IA")}</span> {tx("au pire, si le client sature tout :")} {max.generations} {tx("génération")}{max.generations > 1 ? "s" : ""} {tx("de programme (")}{max.generationCredits} {tx("crédits)")}{quotaN > 0
                       ? ` + ${quotaN} messages × ${programDaysForMonths(months)} jours (${max.chatCredits.toLocaleString("fr-FR")} crédits)`
                       : " + un chat sans plafond"}
                     .
                   </>
                 ) : quotaN > 0 ? (
                   <>
-                    Au pire {max.chatCredits.toLocaleString("fr-FR")} messages sur {programDaysForMonths(months)} jours, plus{" "}
-                    {max.generations} génération{max.generations > 1 ? "s" : ""} de programme, sur ta propre clé Anthropic.
-                  </>
+                    {tx("Au pire")} {max.chatCredits.toLocaleString("fr-FR")} {tx("messages sur")} {programDaysForMonths(months)} {tx("jours, plus")}{" "}
+                    {max.generations} {tx("génération")}{max.generations > 1 ? "s" : ""} {tx("de programme, sur ta propre clé Anthropic.")}</>
                 ) : (
-                  <>Sans plafond, le coût de ce plan n&apos;est pas borné.</>
+                  <>{tx("Sans plafond, le coût de ce plan n'est pas borné.")}</>
                 )}
               </div>
             </div>
@@ -248,20 +237,18 @@ export function OfferForm({
         <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
           <input type="checkbox" name="vip_chat" className="mt-0.5 size-4 accent-brand" />
           <span className="flex flex-col gap-0.5">
-            <span className="font-semibold text-[14px] text-ink">Chat VIP avec toi</span>
+            <span className="font-semibold text-[14px] text-ink">{tx("Chat VIP avec toi")}</span>
             <span className="text-[12px] text-muted-2">
-              Le client pourra t&apos;écrire (texte et photos) depuis un onglet dédié. Sans coche, l&apos;onglet n&apos;apparaît pas.
-            </span>
+              {tx("Le client pourra t'écrire (texte et photos) depuis un onglet dédié. Sans coche, l'onglet n'apparaît pas.")}</span>
           </span>
         </label>
       </div>
 
       {state.error ? <Alert>{state.error}</Alert> : null}
-      {state.ok ? <Alert tone="info">Plan ajouté.</Alert> : null}
+      {state.ok ? <Alert tone="info">{tx("Plan ajouté.")}</Alert> : null}
 
       <Button type="submit" loading={pending} className="self-start h-11">
-        Ajouter le plan
-      </Button>
+        {tx("Ajouter le plan")}</Button>
     </form>
   );
 }

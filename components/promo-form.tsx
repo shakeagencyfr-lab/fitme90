@@ -1,11 +1,14 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addPromo, type PromoFormState } from "@/app/admin/actions";
 import { Button, Alert, MonoLabel } from "@/components/ui";
 
 export function PromoForm() {
+  const tx = usePhrase();
   const router = useRouter();
   const [state, action, pending] = useActionState(addPromo, {} as PromoFormState);
   const [type, setType] = useState<"percent" | "fixed">("percent");
@@ -20,30 +23,30 @@ export function PromoForm() {
 
   return (
     <form ref={formRef} action={action} className="flex flex-col gap-3 rounded-card border border-line bg-surface p-5">
-      <div className="font-archivo font-bold text-[16px] text-ink">Nouveau code promo</div>
+      <div className="font-archivo font-bold text-[16px] text-ink">{tx("Nouveau code promo")}</div>
 
       <label className="flex flex-col gap-1.5">
-        <MonoLabel>Code</MonoLabel>
+        <MonoLabel>{tx("Code")}</MonoLabel>
         <input
           type="text"
           name="code"
           maxLength={32}
-          placeholder="Ex : RENTREE20"
+          placeholder={tx("Ex : RENTREE20")}
           className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] uppercase tracking-[0.08em] text-ink outline-none focus:border-ink"
         />
       </label>
 
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1.5">
-          <MonoLabel>Type de remise</MonoLabel>
+          <MonoLabel>{tx("Type de remise")}</MonoLabel>
           <select
             name="discount_type"
             value={type}
             onChange={(e) => setType(e.target.value as "percent" | "fixed")}
             className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
           >
-            <option value="percent">Pourcentage (%)</option>
-            <option value="fixed">Montant fixe (€)</option>
+            <option value={tx("percent")}>{tx("Pourcentage (%)")}</option>
+            <option value={tx("fixed")}>{tx("Montant fixe (€)")}</option>
           </select>
         </label>
         <label className="flex flex-col gap-1.5">
@@ -60,17 +63,17 @@ export function PromoForm() {
 
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1.5">
-          <MonoLabel>Utilisations max</MonoLabel>
+          <MonoLabel>{tx("Utilisations max")}</MonoLabel>
           <input
             type="text"
             inputMode="numeric"
             name="max_uses"
-            placeholder="illimité"
+            placeholder={tx("illimité")}
             className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <MonoLabel>Expire le</MonoLabel>
+          <MonoLabel>{tx("Expire le")}</MonoLabel>
           <input
             type="date"
             name="expires_at"
@@ -80,14 +83,12 @@ export function PromoForm() {
       </div>
 
       {state.error ? <Alert>{state.error}</Alert> : null}
-      {state.ok ? <Alert tone="info">Code promo créé.</Alert> : null}
+      {state.ok ? <Alert tone="info">{tx("Code promo créé.")}</Alert> : null}
 
       <Button type="submit" loading={pending} className="self-start h-11">
-        Créer le code
-      </Button>
+        {tx("Créer le code")}</Button>
       <p className="text-[12px] text-muted-2">
-        S&apos;applique aux offres à paiement unique. La remise ne peut pas descendre en dessous de 0,50 €.
-      </p>
+        {tx("S'applique aux offres à paiement unique. La remise ne peut pas descendre en dessous de 0,50 €.")}</p>
     </form>
   );
 }

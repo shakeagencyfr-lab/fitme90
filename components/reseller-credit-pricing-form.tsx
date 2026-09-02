@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useActionState, useState } from "react";
 import { saveResellerCredits, type ResellerAiState } from "@/app/admin/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
@@ -21,6 +23,7 @@ interface Props {
  * ne passe jamais inaperçu.
  */
 export function ResellerCreditPricingForm({ initialPriceCents, initialProgramCredits, buyPriceCents = null, buyerLabel = "tes coachs" }: Props) {
+  const tx = usePhrase();
   const [state, action, saving] = useActionState(saveResellerCredits, {} as ResellerAiState);
   const [cents, setCents] = useState<number>(initialPriceCents);
   const [programCredits, setProgramCredits] = useState<number>(initialProgramCredits);
@@ -38,19 +41,15 @@ export function ResellerCreditPricingForm({ initialPriceCents, initialProgramCre
   return (
     <Card as="section" className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
-        <div className="font-archivo font-bold text-[17px] text-ink">Tarification du crédit IA</div>
+        <div className="font-archivo font-bold text-[17px] text-ink">{tx("Tarification du crédit IA")}</div>
         <p className="max-w-[72ch] text-[13px] leading-[1.6] text-muted">
-          Un seul crédit IA. Chaque action (message du chat, recette, alternative d&apos;exercice) en
-          consomme <span className="text-body">1</span> ; une génération de programme en consomme le
-          nombre que tu fixes ici. Tu choisis le prix de revente à {buyerLabel}, la marge se calcule
-          toute seule.
-        </p>
+          {tx("Un seul crédit IA. Chaque action (message du chat, recette, alternative d'exercice) en consomme")} <span className="text-body">1</span> {tx("; une génération de programme en consomme le nombre que tu fixes ici. Tu choisis le prix de revente à")} {buyerLabel}{tx(", la marge se calcule toute seule.")}</p>
       </div>
 
       <form action={action} className="flex flex-col gap-5">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5">
-            <MonoLabel>Prix de revente d&apos;1 crédit IA (€)</MonoLabel>
+            <MonoLabel>{tx("Prix de revente d'1 crédit IA (€)")}</MonoLabel>
             <input
               type="number"
               min={0}
@@ -67,7 +66,7 @@ export function ResellerCreditPricingForm({ initialPriceCents, initialProgramCre
             </span>
           </label>
           <label className="flex flex-col gap-1.5">
-            <MonoLabel>Crédits consommés par génération de programme</MonoLabel>
+            <MonoLabel>{tx("Crédits consommés par génération de programme")}</MonoLabel>
             <input
               type="number"
               min={1}
@@ -78,8 +77,7 @@ export function ResellerCreditPricingForm({ initialPriceCents, initialProgramCre
             />
             <input type="hidden" name="ai_program_credits" value={programCredits} />
             <span className="text-[12px] text-muted-2">
-              Un programme de 12 mois compte 4 générations (une par bloc de 3 mois).
-            </span>
+              {tx("Un programme de 12 mois compte 4 générations (une par bloc de 3 mois).")}</span>
           </label>
         </div>
 
@@ -93,7 +91,7 @@ export function ResellerCreditPricingForm({ initialPriceCents, initialProgramCre
               </tr>
             </thead>
             <tbody>
-              <Row label="1 crédit IA (1 action)" cost={costEur} price={unit.priceEur} margin={marginEur} pct={marginPct} />
+              <Row label={tx("1 crédit IA (1 action)")} cost={costEur} price={unit.priceEur} margin={marginEur} pct={marginPct} />
               <Row
                 label={`1 génération de programme (${programCredits} crédits)`}
                 cost={programCost}
@@ -111,11 +109,10 @@ export function ResellerCreditPricingForm({ initialPriceCents, initialProgramCre
         </p>
 
         {state.error ? <Alert>{state.error}</Alert> : null}
-        {state.ok ? <Alert tone="info">Tarification enregistrée.</Alert> : null}
+        {state.ok ? <Alert tone="info">{tx("Tarification enregistrée.")}</Alert> : null}
 
         <Button type="submit" loading={saving} className="self-start h-11">
-          Enregistrer la tarification
-        </Button>
+          {tx("Enregistrer la tarification")}</Button>
       </form>
     </Card>
   );

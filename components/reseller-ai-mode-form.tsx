@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useActionState, useState } from "react";
 import { saveResellerAiMode, type ResellerAiState } from "@/app/admin/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
@@ -16,6 +18,7 @@ interface Props {
 // Choix du mode de fourniture de l'IA du revendeur + plafond par client. Le
 // coût projeté (plafond atteint) s'affiche en direct pour piloter la marge.
 export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured }: Props) {
+  const tx = usePhrase();
   const [state, action, saving] = useActionState(saveResellerAiMode, {} as ResellerAiState);
   const [mode, setMode] = useState<"byok" | "provider">(initialMode);
   const [limit, setLimit] = useState<number>(initialLimit);
@@ -27,12 +30,10 @@ export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured }:
   return (
     <Card as="section" className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
-        <div className="font-archivo font-bold text-[17px] text-ink">Mode de fourniture de l&apos;IA</div>
+        <div className="font-archivo font-bold text-[17px] text-ink">{tx("Mode de fourniture de l'IA")}</div>
         <p className="max-w-[72ch] text-[13px] leading-[1.6] text-muted">
-          Choisis comment l&apos;IA est fournie à tes coachs. Tu peux les laisser brancher leur
-          propre clé (tu ne factures que les abonnements), ou fournir <span className="text-body">ta</span>{" "}
-          clé à tout ton réseau et refacturer l&apos;IA via tes paliers.
-        </p>
+          {tx("Choisis comment l'IA est fournie à tes coachs. Tu peux les laisser brancher leur propre clé (tu ne factures que les abonnements), ou fournir")} <span className="text-body">{tx("ta")}</span>{" "}
+          {tx("clé à tout ton réseau et refacturer l'IA via tes paliers.")}</p>
       </div>
 
       <form action={action} className="flex flex-col gap-5">
@@ -40,15 +41,15 @@ export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured }:
           <ModeCard
             active={mode === "byok"}
             onClick={() => setMode("byok")}
-            title="Coachs autonomes (BYOK)"
-            desc="Chaque coach branche sa propre clé Anthropic et paie sa consommation IA. Tu ne factures que les abonnements."
+            title={tx("Coachs autonomes (BYOK)")}
+            desc={tx("Chaque coach branche sa propre clé Anthropic et paie sa consommation IA. Tu ne factures que les abonnements.")}
           />
           <ModeCard
             active={mode === "provider"}
             onClick={() => keyConfigured && setMode("provider")}
             disabled={!keyConfigured}
-            title="Revendeur d'IA"
-            desc="Tu fournis ta clé à tes coachs et fixes un plafond de messages/jour par client. Tu absorbes le coût IA et le refactures dans tes paliers."
+            title={tx("Revendeur d'IA")}
+            desc={tx("Tu fournis ta clé à tes coachs et fixes un plafond de messages/jour par client. Tu absorbes le coût IA et le refactures dans tes paliers.")}
             lockNote={keyConfigured ? undefined : "Nécessite ta clé Anthropic (à brancher plus bas)."}
           />
         </div>
@@ -56,16 +57,13 @@ export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured }:
 
         {!keyConfigured ? (
           <Alert>
-            Pour activer le mode <span className="font-semibold">revendeur d&apos;IA</span>, branche
-            d&apos;abord ta clé Anthropic dans la section ci-dessous. Tant qu&apos;aucune clé
-            n&apos;est enregistrée, tes coachs restent en BYOK (chacun sa clé).
-          </Alert>
+            {tx("Pour activer le mode")} <span className="font-semibold">{tx("revendeur d'IA")}</span>{tx(", branche d'abord ta clé Anthropic dans la section ci-dessous. Tant qu'aucune clé n'est enregistrée, tes coachs restent en BYOK (chacun sa clé).")}</Alert>
         ) : null}
 
         {mode === "provider" ? (
           <div className="flex flex-col gap-3 rounded-control border border-line-4 bg-surface-2 p-4">
             <label className="flex flex-col gap-1.5">
-              <MonoLabel>Plafond de messages Coach IA / jour / client (0 = illimité)</MonoLabel>
+              <MonoLabel>{tx("Plafond de messages Coach IA / jour / client (0 = illimité)")}</MonoLabel>
               <input
                 type="number"
                 name="ai_client_daily_limit"
@@ -76,40 +74,30 @@ export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured }:
                 className="w-40 rounded-control border border-line-4 bg-surface px-3.5 py-2.5 font-plex text-[14px] text-ink outline-none focus:border-ink"
               />
               <span className="text-[12px] text-muted-2">
-                Recettes incluses. Ce plafond s&apos;impose à tous les clients de tes coachs (le
-                coach peut le baisser, jamais le dépasser).
-              </span>
+                {tx("Recettes incluses. Ce plafond s'impose à tous les clients de tes coachs (le coach peut le baisser, jamais le dépasser).")}</span>
             </label>
 
             <div className="flex flex-col gap-2 border-t border-line pt-3 text-[13px] text-body">
               <div>
                 <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">
-                  Coût IA réaliste par client
-                </div>
+                  {tx("Coût IA réaliste par client")}</div>
                 <span>
-                  ≈ <span className="font-semibold text-ink">${realMonth.toFixed(2)}</span> / client / mois pour
-                  un client actif (la plupart consomment moins).
-                </span>
+                  ≈ <span className="font-semibold text-ink">${realMonth.toFixed(2)}</span> {tx("/ client / mois pour un client actif (la plupart consomment moins).")}</span>
               </div>
               <div>
                 <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">
-                  Plafond de sécurité
-                </div>
+                  {tx("Plafond de sécurité")}</div>
                 <span>
                   {ceilingMonth != null ? (
                     <>
-                      Jamais plus de ≈ <span className="font-semibold text-ink">${ceilingMonth.toFixed(0)}</span> /
-                      client / mois, même en saturant le plafond tous les jours.
-                    </>
+                      {tx("Jamais plus de ≈")} <span className="font-semibold text-ink">${ceilingMonth.toFixed(0)}</span> {tx("/ client / mois, même en saturant le plafond tous les jours.")}</>
                   ) : (
-                    <span className="text-muted">Plafond désactivé (illimité) — le coût n&apos;est pas borné.</span>
+                    <span className="text-muted">{tx("Plafond désactivé (illimité) — le coût n'est pas borné.")}</span>
                   )}
                 </span>
               </div>
               <span className="text-[12px] text-muted-2">
-                Estimation d&apos;après la conso réelle (chat et recette sur Haiku ≈ $0.015–0.02 l&apos;action).
-                Détaille ta marge par crédit dans la « Tarification en crédits » ci-dessous.
-              </span>
+                {tx("Estimation d'après la conso réelle (chat et recette sur Haiku ≈ $0.015–0.02 l'action). Détaille ta marge par crédit dans la « Tarification en crédits » ci-dessous.")}</span>
             </div>
           </div>
         ) : (
@@ -117,11 +105,10 @@ export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured }:
         )}
 
         {state.error ? <Alert>{state.error}</Alert> : null}
-        {state.ok ? <Alert tone="info">Mode enregistré. Il s&apos;applique dès maintenant.</Alert> : null}
+        {state.ok ? <Alert tone="info">{tx("Mode enregistré. Il s'applique dès maintenant.")}</Alert> : null}
 
         <Button type="submit" loading={saving} disabled={mode === "provider" && !keyConfigured} className="self-start h-11">
-          Enregistrer le mode
-        </Button>
+          {tx("Enregistrer le mode")}</Button>
       </form>
     </Card>
   );

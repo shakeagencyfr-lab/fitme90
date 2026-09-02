@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { tx } from "@/lib/i18n/request";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminOrNull } from "@/lib/admin";
@@ -164,8 +165,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
         <Link href="/admin" className="text-[13px] font-medium text-muted-2 hover:text-ink">
-          ← Tous les clients
-        </Link>
+          {tx("← Tous les clients")}</Link>
         <h1 className="font-archivo font-extrabold text-[clamp(24px,5vw,34px)] leading-[1.05] tracking-[-0.03em] text-ink">
           {displayName}
         </h1>
@@ -174,29 +174,29 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
       {/* Progression */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Card><Stat label="Phase" value={accessLabel(access)} /></Card>
-        <Card><Stat label="Jour" value={access.phase === "active" ? `${access.day}/90` : "·"} /></Card>
-        <Card><Stat label="Séances faites" value={doneDays.length} /></Card>
-        <Card><Stat label="Adhérence" value={adherence == null ? "·" : `${adherence}%`} /></Card>
-        <Card><Stat label="Coût IA" value={formatUsd(clientCost)} /></Card>
+        <Card><Stat label={tx("Phase")} value={accessLabel(access)} /></Card>
+        <Card><Stat label={tx("Jour")} value={access.phase === "active" ? `${access.day}/90` : "·"} /></Card>
+        <Card><Stat label={tx("Séances faites")} value={doneDays.length} /></Card>
+        <Card><Stat label={tx("Adhérence")} value={adherence == null ? "·" : `${adherence}%`} /></Card>
+        <Card><Stat label={tx("Coût IA")} value={formatUsd(clientCost)} /></Card>
       </div>
 
       {/* Santé / décharge */}
       {profile.medical_hold ? (
         <Card className="flex flex-col gap-1.5 border-alert-line bg-alert">
-          <MonoLabel>Santé signalée</MonoLabel>
+          <MonoLabel>{tx("Santé signalée")}</MonoLabel>
           <p className="text-[13.5px] text-alert-ink">
             {profile.medical_ack_at
               ? `Décharge médicale signée le ${fmt(profile.medical_ack_at)}${profile.medical_ack_name ? ` par ${profile.medical_ack_name}` : ""}.`
               : "Situation de santé déclarée, décharge non encore signée."}
           </p>
-          {answers.meds ? <p className="text-[13px] text-alert-ink">Traitement déclaré : {val(answers.meds)}.</p> : null}
+          {answers.meds ? <p className="text-[13px] text-alert-ink">{tx("Traitement déclaré :")} {val(answers.meds)}.</p> : null}
         </Card>
       ) : null}
 
       {/* Profil */}
       <Card className="flex flex-col gap-3">
-        <MonoLabel>Profil</MonoLabel>
+        <MonoLabel>{tx("Profil")}</MonoLabel>
         <div className="grid grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-2">
           {facts.map(([k, v]) => (
             <div key={k} className="flex items-baseline justify-between gap-3 border-b border-line-2 pb-2">
@@ -207,7 +207,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         </div>
         <div className="flex items-center gap-3 pt-1">
           <span className={`rounded-pill px-3 py-1 text-[12px] font-semibold ${streak > 0 ? "bg-brand/10 text-brand" : "bg-surface-2 text-muted-2"}`}>
-            Série en cours : {streak}
+            {tx("Série en cours :")} {streak}
           </span>
         </div>
       </Card>
@@ -217,14 +217,14 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         <div id="chat-vip" className="scroll-mt-4">
           <Card className="flex flex-col gap-3.5">
             <div className="flex flex-col gap-1">
-              <MonoLabel>Chat VIP</MonoLabel>
-              <p className="text-[12px] text-muted-2">Ligne directe avec {displayName}. Texte et photos.</p>
+              <MonoLabel>{tx("Chat VIP")}</MonoLabel>
+              <p className="text-[12px] text-muted-2">{tx("Ligne directe avec")} {displayName}{tx(". Texte et photos.")}</p>
             </div>
             <VipChat
               messages={vipMessages}
               me="coach"
               clientId={profile.id}
-              emptyHint="Aucun message. Écris le premier mot à ton client."
+              emptyHint={tx("Aucun message. Écris le premier mot à ton client.")}
             />
           </Card>
         </div>
@@ -233,9 +233,9 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       {/* Évolution du poids */}
       <Card className="flex flex-col gap-3.5">
         <div className="flex items-baseline justify-between gap-2">
-          <MonoLabel>Évolution du poids</MonoLabel>
+          <MonoLabel>{tx("Évolution du poids")}</MonoLabel>
           {weightPoints.length > 0 ? (
-            <span className="font-mono text-[11px] text-muted-2">{weightPoints.length} pesée{weightPoints.length > 1 ? "s" : ""}</span>
+            <span className="font-mono text-[11px] text-muted-2">{weightPoints.length} {tx("pesée")}{weightPoints.length > 1 ? "s" : ""}</span>
           ) : null}
         </div>
         <MiniWeightChart points={weightPoints} />
@@ -243,15 +243,15 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
       {/* Mensurations datées */}
       <Card className="flex flex-col gap-3.5">
-        <MonoLabel>Mensurations (cm)</MonoLabel>
+        <MonoLabel>{tx("Mensurations (cm)")}</MonoLabel>
         {measureRows.length === 0 ? (
-          <p className="text-[13px] text-muted">Aucune mensuration enregistrée.</p>
+          <p className="text-[13px] text-muted">{tx("Aucune mensuration enregistrée.")}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[420px] border-collapse text-[13.5px]">
               <thead>
                 <tr className="text-left">
-                  <th className="border-b border-line-2 pb-2 pr-3 font-mono text-[11px] font-medium uppercase tracking-wide text-muted-2">Date</th>
+                  <th className="border-b border-line-2 pb-2 pr-3 font-mono text-[11px] font-medium uppercase tracking-wide text-muted-2">{tx("Date")}</th>
                   {MEASURE_COLS.map(([key, label]) => (
                     <th key={key} className="border-b border-line-2 pb-2 px-3 text-right font-mono text-[11px] font-medium uppercase tracking-wide text-muted-2">
                       {label}
@@ -279,8 +279,8 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       {/* Notes privées du coach */}
       <Card className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <MonoLabel>Notes privées</MonoLabel>
-          <p className="text-[12px] text-muted-2">Visibles de toi seul. Le client ne les voit jamais.</p>
+          <MonoLabel>{tx("Notes privées")}</MonoLabel>
+          <p className="text-[12px] text-muted-2">{tx("Visibles de toi seul. Le client ne les voit jamais.")}</p>
         </div>
         <CoachNoteForm clientId={profile.id} />
         {noteRows.length > 0 ? (
@@ -292,7 +292,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                   <form action={deleteCoachNote}>
                     <input type="hidden" name="id" value={note.id} />
                     <input type="hidden" name="client_id" value={profile.id} />
-                    <button type="submit" className="text-[12px] text-muted-2 underline hover:text-ink">Supprimer</button>
+                    <button type="submit" className="text-[12px] text-muted-2 underline hover:text-ink">{tx("Supprimer")}</button>
                   </form>
                 </div>
                 <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-body">{note.body}</p>
@@ -307,10 +307,9 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
       {/* Zone dangereuse */}
       <Card className="flex flex-col gap-3 border-alert-line">
-        <MonoLabel className="text-alert-ink">Zone sensible</MonoLabel>
+        <MonoLabel className="text-alert-ink">{tx("Zone sensible")}</MonoLabel>
         <p className="text-[13px] text-muted">
-          Supprime définitivement ce client et toutes ses données. Action irréversible.
-        </p>
+          {tx("Supprime définitivement ce client et toutes ses données. Action irréversible.")}</p>
         <DeleteClientButton clientId={profile.id} name={displayName} />
       </Card>
     </div>

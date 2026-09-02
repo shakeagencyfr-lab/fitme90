@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { listCoachVipThreads } from "@/lib/vip";
 import { Alert, Card } from "@/components/ui";
@@ -18,19 +19,16 @@ export default async function AdminChatPage() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          Chat VIP
-        </h1>
+          {tx("Chat VIP")}</h1>
         <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
-          Tes échanges directs avec les clients qui ont une offre « Chat VIP ». Configure tes e-mails de notification dans l&apos;onglet Notifications.
-        </p>
+          {tx("Tes échanges directs avec les clients qui ont une offre « Chat VIP ». Configure tes e-mails de notification dans l'onglet Notifications.")}</p>
       </div>
 
       {!tenantId ? (
-        <Alert>Aucun compte (tenant) n&apos;est rattaché à ton profil.</Alert>
+        <Alert>{tx("Aucun compte (tenant) n'est rattaché à ton profil.")}</Alert>
       ) : threads.length === 0 ? (
         <Alert tone="info">
-          Aucun client VIP pour l&apos;instant. Active l&apos;option « Chat VIP » sur une offre (onglet Ma page) : les clients qui l&apos;achètent apparaîtront ici.
-        </Alert>
+          {tx("Aucun client VIP pour l'instant. Active l'option « Chat VIP » sur une offre (onglet Ma page) : les clients qui l'achètent apparaîtront ici.")}</Alert>
       ) : (
         <div className="flex flex-col gap-2.5">
           {threads.map((t) => (

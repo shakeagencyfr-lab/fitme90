@@ -1,4 +1,5 @@
 import { readSupportReturn } from "@/lib/support-return";
+import { tx } from "@/lib/i18n/request";
 import { returnFromSupport } from "@/app/admin/actions";
 
 // Bandeau affiché en haut du dashboard quand l'opérateur est connecté en
@@ -10,9 +11,9 @@ export async function SupportReturnBar() {
     <form action={returnFromSupport} className="flex items-center justify-between gap-3 bg-ink px-4 py-2 text-white">
       <button type="submit" className="tap inline-flex items-center gap-2 text-[13.5px] font-semibold hover:underline">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M15 18l-6-6 6-6" /></svg>
-        Retour à mon espace{back.actorName ? ` (${back.actorName})` : ""}
+        {tx("Retour à mon espace")}{back.actorName ? ` (${back.actorName})` : ""}
       </button>
-      <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-white/60">Assistance</span>
+      <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-white/60">{tx("Assistance")}</span>
     </form>
   );
 }

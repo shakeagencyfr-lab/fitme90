@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { tx } from "@/lib/i18n/request";
 
 // Bandeau affiché en haut du dashboard coach quand son compte est gelé (défaut
 // de paiement auprès de son revendeur). Ses clients sont suspendus tant qu'il
@@ -28,8 +29,7 @@ export function CoachFreezeBanner({ suspended = false }: { suspended?: boolean }
         href="/admin/abonnement"
         className="tap inline-flex h-10 shrink-0 items-center justify-center rounded-btn bg-brand px-4 text-[13.5px] font-semibold text-white hover:bg-brand-hover"
       >
-        Régulariser
-      </Link>
+        {tx("Régulariser")}</Link>
       )}
     </div>
   );

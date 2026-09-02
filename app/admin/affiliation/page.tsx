@@ -1,4 +1,5 @@
 import { getAdminOrNull } from "@/lib/admin";
+import { tx } from "@/lib/i18n/request";
 import { affiliationConfig, coachAffiliationOverview } from "@/lib/affiliation";
 import { AffiliationForm } from "@/components/affiliation-form";
 import { Alert, Card } from "@/components/ui";
@@ -17,9 +18,8 @@ export default async function AdminAffiliationPage() {
     return (
       <div className="flex flex-col gap-5">
         <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          Affiliation
-        </h1>
-        <Alert>Aucun compte (tenant) n&apos;est rattaché à ton profil.</Alert>
+          {tx("Affiliation")}</h1>
+        <Alert>{tx("Aucun compte (tenant) n'est rattaché à ton profil.")}</Alert>
       </div>
     );
   }
@@ -33,12 +33,9 @@ export default async function AdminAffiliationPage() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          Affiliation
-        </h1>
+          {tx("Affiliation")}</h1>
         <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
-          Transforme tes clients en ambassadeurs. Ils partagent leur lien, tu suis les parrainages et
-          tu récompenses ceux qui font grandir ton réseau.
-        </p>
+          {tx("Transforme tes clients en ambassadeurs. Ils partagent leur lien, tu suis les parrainages et tu récompenses ceux qui font grandir ton réseau.")}</p>
       </div>
 
       <AffiliationForm enabled={cfg.enabled} reward={cfg.reward} />
@@ -46,28 +43,28 @@ export default async function AdminAffiliationPage() {
       {/* Statistiques */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Card className="flex flex-col gap-1">
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">Parrainages</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">{tx("Parrainages")}</span>
           <span className="font-archivo text-[26px] font-extrabold text-ink">{overview.total}</span>
         </Card>
         <Card className="flex flex-col gap-1">
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">Convertis</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">{tx("Convertis")}</span>
           <span className="font-archivo text-[26px] font-extrabold text-brand">{overview.converted}</span>
         </Card>
         <Card className="flex flex-col gap-1">
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">Statut</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">{tx("Statut")}</span>
           <span className="font-archivo text-[18px] font-extrabold text-ink">{cfg.enabled ? "Actif" : "Inactif"}</span>
         </Card>
       </div>
 
       {/* Détail */}
       <div className="flex flex-col gap-3">
-        <div className="font-archivo font-bold text-[17px] text-ink">Détail des parrainages</div>
+        <div className="font-archivo font-bold text-[17px] text-ink">{tx("Détail des parrainages")}</div>
         {overview.rows.length === 0 ? (
-          <Alert tone="info">Aucun parrainage pour l&apos;instant.</Alert>
+          <Alert tone="info">{tx("Aucun parrainage pour l'instant.")}</Alert>
         ) : (
           <Card className="flex flex-col gap-0 p-0">
             <div className="hidden grid-cols-[1fr_1fr_auto_auto] gap-3 border-b border-line px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2 sm:grid">
-              <span>Parrain</span><span>Filleul</span><span>Inscrit</span><span>Statut</span>
+              <span>{tx("Parrain")}</span><span>{tx("Filleul")}</span><span>{tx("Inscrit")}</span><span>{tx("Statut")}</span>
             </div>
             {overview.rows.map((r, i) => (
               <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-4 py-3 last:border-0 sm:grid sm:grid-cols-[1fr_1fr_auto_auto]">
