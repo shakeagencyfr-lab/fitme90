@@ -206,8 +206,12 @@ export function sessionForDay(
 }
 
 /**
- * Titres des séances de la semaine calendaire EN COURS, un par jour LUN→DIM
- * (`null` = repos, ou jour hors programme).
+ * Titres de la SEMAINE TYPE, un par jour LUN→DIM (`null` = repos).
+ *
+ * Pour chaque jour de la semaine, on prend sa PROCHAINE occurrence à partir
+ * d'aujourd'hui (aujourd'hui compris) : le bloc décrit la routine du client, pas
+ * la semaine calendaire en cours. Sans cela, les jours de la première semaine
+ * antérieurs au démarrage n'avaient aucune séance et s'affichaient « Séance ».
  *
  * Passe par `sessionForDay`, comme la carte « aujourd'hui », la page séance et
  * l'agenda. La semaine type se déduisait avant du seul `weekPlan`, qui suppose
@@ -222,14 +226,13 @@ export function weekSessionTitles(
   startWd: number,
   programDays: number,
 ): (string | null)[] {
-  const day0 = Math.max(1, currentDay);
-  // Jour de programme correspondant au LUNDI de la semaine en cours.
-  const todayWd = (((startWd + day0 - 1) % 7) + 7) % 7;
-  const monday = day0 - todayWd;
+  const from = Math.max(1, currentDay);
+  const todayWd = (((startWd + from - 1) % 7) + 7) % 7;
 
   return Array.from({ length: 7 }, (_, i) => {
-    const day = monday + i;
-    if (day < 1 || day > programDays) return null;
+    // Prochaine occurrence de ce jour de semaine, aujourd'hui compris.
+    const day = from + ((i - todayWd + 7) % 7);
+    if (day > programDays) return null;
     if (isRestDay(day, pattern, startWd)) return null;
     return sessionForDay(plan, day, pattern, startWd)?.title ?? null;
   });

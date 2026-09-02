@@ -49,15 +49,23 @@ describe("weekSessionTitles", () => {
     expect(w[6]).toBeNull(); // DIM
   });
 
-  it("ne montre rien avant le début du programme", () => {
-    // Semaine 1 : lundi et mardi précèdent le démarrage du mercredi.
+  it("remplit le mardi de la 1re semaine, pourtant antérieur au démarrage", () => {
+    // Le programme démarre le mercredi : le mardi de cette semaine est passé.
+    // La semaine TYPE doit décrire la routine, donc montrer le prochain mardi.
     const w = weekSessionTitles(plan, 1, pattern, startWd, 90);
-    expect(w[1]).toBeNull(); // MAR, jour 0, hors programme
+    expect(w[1]).toBe("Bas ischios"); // 4e jour d'entraînement, prochain mardi
+    expect(w[1]).not.toBeNull();
   });
 
-  it("montre le mardi une fois la première semaine passée", () => {
-    const w = weekSessionTitles(plan, 8, pattern, startWd, 90); // mercredi S2
-    expect(w[1]).toBe("Bas ischios"); // MAR de la semaine 2, 4e jour d'entraînement
+  it("donne la même semaine type une fois la 1re semaine passée", () => {
+    const s1 = weekSessionTitles(plan, 1, pattern, startWd, 90);
+    const s2 = weekSessionTitles(plan, 8, pattern, startWd, 90); // mercredi S2
+    expect(s2).toEqual(s1); // 4 séances pour 4 jours : la rotation se verrouille
+  });
+
+  it("laisse null quand la fin du programme est atteinte", () => {
+    const w = weekSessionTitles(plan, 89, pattern, startWd, 90);
+    expect(w.some((x) => x === null)).toBe(true);
   });
 
   it("s'arrête à la fin du programme", () => {
