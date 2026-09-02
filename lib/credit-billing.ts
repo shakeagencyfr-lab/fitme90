@@ -91,7 +91,9 @@ export async function verifyPackCheckout(buyerTenantId: string, sessionId: strin
     const credits = Number.isFinite(meta) && meta > 0 ? meta : (pack?.credits ?? 0);
     if (credits <= 0) return { credited: false };
 
-    const credited = await applyPurchaseCredit(buyerTenantId, credits, sessionId);
+    // Montant réellement encaissé par Stripe, repli sur le prix du pack.
+    const paidCents = session.amount_total ?? pack?.price_cents ?? null;
+    const credited = await applyPurchaseCredit(buyerTenantId, credits, sessionId, paidCents);
     return { credited, credits: credited ? credits : 0 };
   } catch {
     return { credited: false };

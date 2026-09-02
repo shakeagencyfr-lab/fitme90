@@ -49,12 +49,22 @@ export async function creditWallet(tenantId: string, amount: number, reason: Led
  * si le ref existe déjà, l'achat a déjà été traité. Renvoie true si le crédit
  * vient d'être posé.
  */
-export async function applyPurchaseCredit(tenantId: string, credits: number, sessionRef: string): Promise<boolean> {
+export async function applyPurchaseCredit(
+  tenantId: string,
+  credits: number,
+  sessionRef: string,
+  /** Montant réellement payé, en centimes : base du coût réel du crédit. */
+  priceCents?: number | null,
+): Promise<boolean> {
   if (!credits || credits <= 0 || !sessionRef) return false;
   const admin = createAdminClient();
-  const { error } = await admin
-    .from("credit_ledger")
-    .insert({ tenant_id: tenantId, delta: credits, reason: "purchase", ref: sessionRef });
+  const { error } = await admin.from("credit_ledger").insert({
+    tenant_id: tenantId,
+    delta: credits,
+    reason: "purchase",
+    ref: sessionRef,
+    price_cents: priceCents != null && priceCents >= 0 ? Math.round(priceCents) : null,
+  });
   if (error) return false; // conflit d'unicité = déjà crédité
 
   await admin.from("credit_wallets").upsert({ tenant_id: tenantId }, { onConflict: "tenant_id" });
@@ -64,6 +74,75 @@ export async function applyPurchaseCredit(tenantId: string, credits: number, ses
     .update({ credits: w.credits + credits, updated_at: new Date().toISOString() })
     .eq("tenant_id", tenantId);
   return true;
+}
+
+export interface PurchaseLine {
+  /** Crédits reçus. */
+  credits: number;
+  /** Montant payé, en centimes. */
+  priceCents: number;
+}
+
+/**
+ * Coût unitaire RÉEL d'un crédit, en centimes, moyenné sur les achats.
+ *
+ * Le prix unitaire affiché par le fournisseur n'est qu'un prix conseillé : le
+ * montant facturé vient du PACK, que le fournisseur peut remiser au volume. Un
+ * acheteur qui simulait sa marge sur le prix affiché se trompait donc dès qu'un
+ * pack était remisé. Renvoie null si aucun achat chiffré n'existe, à charge de
+ * l'appelant de retomber sur une autre base.
+ */
+export function averagePurchaseCostCents(lines: PurchaseLine[]): number | null {
+  let credits = 0;
+  let cents = 0;
+  for (const l of lines) {
+    if (!(l.credits > 0) || !(l.priceCents >= 0)) continue;
+    credits += l.credits;
+    cents += l.priceCents;
+  }
+  return credits > 0 ? cents / credits : null;
+}
+
+/**
+ * Coût unitaire réel d'un crédit pour un acheteur, en centimes :
+ *   1. moyenne de ses achats déjà payés (la vérité) ;
+ *   2. sinon le meilleur tarif unitaire des packs actifs de son fournisseur
+ *      (ce qu'il paierait s'il achetait maintenant) ;
+ *   3. sinon null, l'appelant retombe sur le prix affiché du fournisseur.
+ */
+export async function realCreditCostCents(buyerTenantId: string | null): Promise<number | null> {
+  if (!buyerTenantId) return null;
+  const admin = createAdminClient();
+
+  const { data: rows } = await admin
+    .from("credit_ledger")
+    .select("delta, price_cents")
+    .eq("tenant_id", buyerTenantId)
+    .eq("reason", "purchase")
+    .not("price_cents", "is", null)
+    .limit(500)
+    .returns<{ delta: number; price_cents: number }[]>();
+
+  const avg = averagePurchaseCostCents(
+    (rows ?? []).map((r) => ({ credits: r.delta, priceCents: r.price_cents })),
+  );
+  if (avg != null) return avg;
+
+  // Aucun achat chiffré : on montre le tarif qu'il obtiendrait en achetant.
+  const supplierId = await parentOf(buyerTenantId);
+  if (!supplierId) return null;
+  const { data: packs } = await admin
+    .from("credit_packs")
+    .select("credits, price_cents")
+    .eq("tenant_id", supplierId)
+    .eq("is_active", true)
+    .limit(50)
+    .returns<{ credits: number; price_cents: number }[]>();
+
+  const units = (packs ?? [])
+    .filter((p) => p.credits > 0 && p.price_cents >= 0)
+    .map((p) => p.price_cents / p.credits);
+  return units.length ? Math.min(...units) : null;
 }
 
 export interface DebitResult {
