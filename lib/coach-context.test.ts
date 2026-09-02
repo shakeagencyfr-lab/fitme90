@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { coachPlanView, logsDigest } from "./coach-context";
+import { coachAgenda, coachPlanView, logsDigest } from "./coach-context";
 import type { Plan, Session } from "./program";
 
 function session(title: string): Session {
@@ -96,5 +96,41 @@ describe("logsDigest", () => {
   it("marque le cardio et gère l'absence de séance", () => {
     expect(logsDigest([{ day: 3, volume: null, sets_done: null, entries: [{ exercise: "Vélo", kg: null, reps: null, cardio: true }] }])).toContain("cardio");
     expect(logsDigest([])).toContain("Aucune séance");
+  });
+});
+
+describe("coachAgenda", () => {
+  // Reproduit le bug signalé : jours d'entraînement MAR/MER/VEN/SAM et
+  // programme démarré un MERCREDI. Le weekPlan dit « MER = quadriceps », la
+  // rotation réelle dit « 1er jour d'entraînement = séance A ». Le coach doit
+  // suivre la rotation, comme l'app.
+  const pattern = [true, false, false, true, false, false, true]; // LUN..DIM, true = repos
+  const startWd = 2; // mercredi (0 = lundi)
+
+  it("donne la séance du jour telle que l'app la calcule, pas celle du weekPlan", () => {
+    const agenda = coachAgenda(plan(), 1, pattern, startWd, 90);
+    expect(agenda[0].day).toBe(1);
+    expect(agenda[0].rest).toBe(false);
+    expect(agenda[0].title).toBe("A1"); // 1re séance du cycle, pas la 2e
+  });
+
+  it("liste les prochaines séances et saute les jours de repos", () => {
+    const agenda = coachAgenda(plan(), 1, pattern, startWd, 90);
+    expect(agenda.length).toBeGreaterThan(1);
+    expect(agenda.every((e) => e.day >= 1)).toBe(true);
+    expect(agenda.slice(1).every((e) => !e.rest)).toBe(true);
+  });
+
+  it("annonce le repos quand le jour courant est un jour de repos", () => {
+    const agenda = coachAgenda(plan(), 2, pattern, startWd, 90); // jeudi
+    expect(agenda[0].rest).toBe(true);
+  });
+
+  it("ne déborde pas de la durée du programme", () => {
+    expect(coachAgenda(plan(), 90, pattern, startWd, 90).every((e) => e.day <= 90)).toBe(true);
+  });
+
+  it("renvoie une liste vide sans programme", () => {
+    expect(coachAgenda(null, 1, pattern, startWd, 90)).toEqual([]);
   });
 });

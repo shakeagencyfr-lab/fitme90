@@ -16,7 +16,7 @@ import { readCoachName } from "@/lib/methodology";
 import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
 import { missedDays } from "@/lib/streak";
 import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan } from "@/lib/program";
-import { coachPlanView, logsDigest, type CoachLog } from "@/lib/coach-context";
+import { coachAgenda, coachPlanView, logsDigest, type CoachLog } from "@/lib/coach-context";
 import { blockPosition } from "@/lib/block-logic";
 import { CYCLES_PER_BLOCK } from "@/lib/config";
 import { revalidatePath } from "next/cache";
@@ -200,6 +200,24 @@ export async function POST(req: NextRequest) {
 
   const past = (history ?? []).reverse() as { role: "user" | "assistant"; content: string }[];
 
+  // Séances réellement prévues, calculées comme dans l'app. Le weekPlan mappe un
+  // jour de SEMAINE alors que la rotation suit le RANG du jour d'entraînement :
+  // les deux divergent dès que le programme ne démarre pas le premier jour
+  // d'entraînement de la semaine. Sans ce bloc, le coach annonçait une séance
+  // différente de celle affichée au client.
+  const agenda = coachAgenda(
+    (program?.plan as Plan | undefined) ?? null,
+    ctx.access.day,
+    coachPattern,
+    coachStartWd,
+    ctx.access.programDays,
+  );
+  const dayLabel = (d: number) =>
+    ctx.profile?.start_date
+      ? new Date(new Date(`${ctx.profile.start_date}T00:00:00Z`).getTime() + (d - 1) * 86400000).toLocaleDateString(dateLoc, { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })
+      : `jour ${d}`;
+  const [today, ...upcoming] = agenda;
+
   const coachName = await readCoachName(ctx.profile?.tenant_id ?? null);
   // Langue du client : le coach répond dedans (cookie > profil > tenant).
   const locale = await resolveLocale(await userLocale(ctx.userId));
@@ -231,6 +249,20 @@ ${JSON.stringify(coachPlanView((program?.plan as Plan | undefined) ?? null, ctx.
 - STATUT DU JOUR : aujourd'hui est un jour ${todayIsTraining ? "D'ENTRAÎNEMENT, une séance est prévue" : "DE REPOS, aucune séance n'est prévue"}. Fie-toi à CETTE information (jours d'entraînement à jour : ${quiz?.train_days?.join(", ") || "non précisés"}), pas au texte du programme qui peut dater d'avant un changement de jours.
 - Les séances tombent aux vrais jours de la semaine choisis. Parle en dates concrètes et repère les séances validées vs prévues pour suivre les retards éventuels.
 - Séances en retard (passées, non validées) : ${missedList.length ? `${missedList.length} (jours ${missedList.slice(0, 8).join(", ")}${missedList.length > 8 ? "…" : ""}). Le calendrier ne bouge pas : encourage à les RATTRAPER quand le client peut, sur un ton bienveillant et sans culpabiliser. Rappelle qu'il peut ouvrir une séance passée depuis l'agenda pour la rattraper. N'en parle QUE si c'est pertinent (le client en parle, demande un bilan, ou s'inquiète de son retard).` : "aucune, félicite la régularité si le sujet vient."}
+
+SÉANCE DU JOUR (fait foi : c'est exactement ce que le client voit dans son app) :
+${
+  !today
+    ? "Programme indisponible."
+    : today.rest
+      ? "Aujourd'hui est un jour de repos, aucune séance n'est prévue."
+      : `${today.title}\n${today.exercises.map((e) => `- ${e}`).join("\n")}`
+}
+
+PROCHAINES SÉANCES PRÉVUES :
+${upcoming.length ? upcoming.map((s) => `- ${dayLabel(s.day)} (jour ${s.day}) : ${s.title}`).join("\n") : "aucune à venir."}
+
+Le « weekPlan » du programme n'est qu'un gabarit de semaine indicatif : pour une date ou un jour précis, fie-toi TOUJOURS aux séances ci-dessus, jamais au weekPlan.
 
 SÉANCES VALIDÉES (les plus récentes d'abord) :
 ${logsDigest((logs ?? []) as CoachLog[])}`;
