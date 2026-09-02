@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { saveSmtp, removeSmtp, type SmtpState } from "@/app/admin/actions";
+import { useTransition, useActionState, useState } from "react";
+import { saveSmtp, removeSmtp, sendTestEmail, type SmtpState } from "@/app/admin/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
 
 interface Props {
@@ -94,7 +94,8 @@ function SmtpForm({ smtp, encryptionReady }: { smtp: Props["smtp"]; encryptionRe
       <div className="flex items-center gap-2.5 rounded-control border border-line-4 bg-surface-2 px-3.5 py-3">
         <span className={["inline-block h-2.5 w-2.5 rounded-full", smtp.configured ? "bg-brand" : "bg-line-4"].join(" ")} />
         <span className="text-[14px] text-body">
-          {smtp.configured ? (
+          <TestEmailButton />
+      {smtp.configured ? (
             <>SMTP configuré{smtp.host ? <> : <span className="font-plex text-muted">{smtp.host}</span></> : null}.</>
           ) : (
             <>Aucun SMTP — les e-mails partent du service par défaut.</>
@@ -137,6 +138,27 @@ function SmtpForm({ smtp, encryptionReady }: { smtp: Props["smtp"]; encryptionRe
           <Button type="submit" variant="ghost" loading={removing} className="h-10">Supprimer le SMTP</Button>
         </form>
       ) : null}
+    </div>
+  );
+}
+
+/** Envoie un e-mail de test au coach (SMTP perso, sinon service par défaut). */
+function TestEmailButton() {
+  const [pending, start] = useTransition();
+  const [res, setRes] = useState<{ ok: boolean; error?: string } | null>(null);
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button
+        type="button"
+        variant="outline"
+        loading={pending}
+        className="h-10"
+        onClick={() => start(async () => setRes(await sendTestEmail()))}
+      >
+        M&apos;envoyer un e-mail de test
+      </Button>
+      {res?.ok ? <span className="text-[13px] text-muted">E-mail envoyé, regarde ta boîte (et les indésirables).</span> : null}
+      {res && !res.ok ? <span className="text-[13px] text-[#C4471A]">{res.error}</span> : null}
     </div>
   );
 }

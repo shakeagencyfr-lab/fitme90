@@ -1,6 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { getT, resolveLocale, userLocale } from "@/lib/i18n/server";
+import { makeT } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSessionContext } from "@/lib/guard";
@@ -19,6 +21,7 @@ export async function updateMeasures(
   formData: FormData,
 ): Promise<ProfilState> {
   const ctx = await getSessionContext();
+  const t = makeT(await resolveLocale(await userLocale(ctx?.userId)));
   if (!ctx) return { error: "Non authentifié." };
 
   const numOrNull = (k: string) => {
@@ -37,7 +40,7 @@ export async function updateMeasures(
   if (rest) update.rest_hr = Math.round(rest);
   if (Object.keys(update).length) {
     const { error } = await supabase.from("profiles").update(update).eq("id", ctx.userId);
-    if (error) return { error: "Enregistrement impossible." };
+    if (error) return { error: t("srv.saveFailed") };
   }
   if (weight) {
     await supabase.from("weights").insert({ user_id: ctx.userId, kg: weight });
@@ -54,23 +57,24 @@ export async function updateStartDate(
   formData: FormData,
 ): Promise<ProfilState> {
   const ctx = await getSessionContext();
+  const t = makeT(await resolveLocale(await userLocale(ctx?.userId)));
   if (!ctx) return { error: "Non authentifié." };
 
   const raw = String(formData.get("start_date") ?? "").slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return { error: "Date invalide." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return { error: t("srv.invalidDate") };
   const picked = new Date(`${raw}T00:00:00Z`);
-  if (Number.isNaN(picked.getTime())) return { error: "Date invalide." };
+  if (Number.isNaN(picked.getTime())) return { error: t("srv.invalidDate") };
 
   const now = new Date();
   const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   const diffDays = Math.round((picked.getTime() - todayUTC) / 86_400_000);
   if (diffDays < -30 || diffDays > 60) {
-    return { error: "Choisis une date entre il y a 30 jours et dans 60 jours." };
+    return { error: t("srv.dateRange") };
   }
 
   const admin = createAdminClient();
   const { error } = await admin.from("profiles").update({ start_date: raw }).eq("id", ctx.userId);
-  if (error) return { error: "Enregistrement impossible." };
+  if (error) return { error: t("srv.saveFailed") };
 
   revalidatePath("/app");
   revalidatePath("/app/agenda");
@@ -85,13 +89,14 @@ export async function changePassword(
   _prev: ProfilState,
   formData: FormData,
 ): Promise<ProfilState> {
+  const { t } = await getT();
   const password = String(formData.get("password") ?? "");
-  if (password.length < 8) return { error: "8 caractères minimum." };
-  if (password !== formData.get("confirm")) return { error: "Les mots de passe diffèrent." };
+  if (password.length < 8) return { error: t("authErr.passwordMin") };
+  if (password !== formData.get("confirm")) return { error: t("authErr.mismatch") };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ password });
-  if (error) return { error: "Impossible de changer le mot de passe." };
+  if (error) return { error: t("authErr.updateFailed") };
   return { ok: true };
 }
 
@@ -136,6 +141,7 @@ export interface CancelSubState {
  */
 export async function cancelSubscription(): Promise<CancelSubState> {
   const ctx = await getSessionContext();
+  const t = makeT(await resolveLocale(await userLocale(ctx?.userId)));
   if (!ctx) return { error: "Session expirée." };
   const admin = createAdminClient();
   const { data: prof } = await admin
@@ -144,12 +150,12 @@ export async function cancelSubscription(): Promise<CancelSubState> {
     .eq("id", ctx.userId)
     .maybeSingle<{ subscription_id: string | null; tenant_id: string | null }>();
   if (!prof?.subscription_id || !prof.tenant_id) {
-    return { error: "Aucun abonnement actif." };
+    return { error: t("srv.noSub") };
   }
 
   const { stripeForTenant } = await import("@/lib/coach-payments");
   const stripe = await stripeForTenant(prof.tenant_id);
-  if (!stripe) return { error: "Paiement indisponible pour le moment." };
+  if (!stripe) return { error: t("payment.unavailable") };
 
   try {
     const sub = await stripe.subscriptions.update(prof.subscription_id, {
@@ -169,6 +175,6 @@ export async function cancelSubscription(): Promise<CancelSubState> {
     revalidatePath("/app/profil");
     return { ok: true, endsAt };
   } catch {
-    return { error: "La résiliation a échoué. Réessaie dans un instant." };
+    return { error: t("sub.failed") };
   }
 }

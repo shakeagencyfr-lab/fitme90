@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { makeT } from "@/lib/i18n";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
@@ -39,10 +40,11 @@ const recipesSchema = z.object({
 
 export async function POST() {
   const ctx = await getSessionContext();
+  const t = makeT(await resolveLocale(await userLocale(ctx?.userId)));
   if (!ctx) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   if (!ctx.access.coachEnabled) {
     return NextResponse.json(
-      { error: "Le générateur de recettes est disponible pendant ton programme." },
+      { error: t("srv.duringProgram") },
       { status: 403 },
     );
   }
@@ -119,7 +121,7 @@ Consignes : 4 à 7 étapes numérotées, chaque étape est une instruction concr
     });
     const parsed = recipesSchema.parse(parseJsonLoose(textOf(message)));
     if (!parsed.recipes.length) {
-      return NextResponse.json({ error: "Aucune recette renvoyée." }, { status: 502 });
+      return NextResponse.json({ error: t("srv.noRecipes") }, { status: 502 });
     }
     await recordCall(ctx.userId, "recipes", {
       input_tokens: message.usage.input_tokens,
@@ -128,6 +130,6 @@ Consignes : 4 à 7 étapes numérotées, chaque étape est une instruction concr
     await chargeAiUsage(coachTenant, "action", "recipe", ctx.userId);
     return NextResponse.json({ recipes: parsed.recipes });
   } catch {
-    return NextResponse.json({ error: "Génération des recettes indisponible." }, { status: 502 });
+    return NextResponse.json({ error: t("srv.recipesDown") }, { status: 502 });
   }
 }

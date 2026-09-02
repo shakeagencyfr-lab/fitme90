@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { makeT } from "@/lib/i18n";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { getSessionContext } from "@/lib/guard";
@@ -36,25 +37,26 @@ const resultSchema = z.object({
 
 export async function POST(req: NextRequest) {
   const ctx = await getSessionContext();
+  const t = makeT(await resolveLocale(await userLocale(ctx?.userId)));
   if (!ctx) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   // L'analyse des photos de salle est la SEULE étape IA autorisée AVANT le
   // paiement (elle fait partie du questionnaire, avant la caisse). On ne bloque
   // donc pas sur `not_paid` ici. Le rate limit total protège des abus.
   if (ctx.access.phase === "ended") {
-    return NextResponse.json({ error: "Accès terminé." }, { status: 403 });
+    return NextResponse.json({ error: t("srv.accessEnded") }, { status: 403 });
   }
 
   const limit = await checkLimit(ctx.userId, "analyze-gym", LIMIT_ANALYZE_GYM_TOTAL);
   if (!limit.ok) {
     return NextResponse.json(
-      { error: "Limite d'analyses atteinte. Ajoute ton matériel à la main." },
+      { error: t("srv.analyzeLimit") },
       { status: 429 },
     );
   }
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: "Images invalides." }, { status: 400 });
+    return NextResponse.json({ error: t("srv.invalidImages") }, { status: 400 });
   }
 
   const locale = await resolveLocale(await userLocale(ctx.userId));
@@ -87,7 +89,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ equipment: result.equipment });
   } catch {
     return NextResponse.json(
-      { error: "Analyse indisponible. Ajoute ton matériel à la main." },
+      { error: t("srv.analyzeDown") },
       { status: 502 },
     );
   }

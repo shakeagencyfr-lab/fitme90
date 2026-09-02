@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { makeT } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
@@ -19,9 +20,10 @@ export const maxDuration = 30;
 // disponible uniquement. L'app remplace l'exercice dans sa carte (côté client).
 export async function POST(req: Request) {
   const ctx = await getSessionContext();
+  const t = makeT(await resolveLocale(await userLocale(ctx?.userId)));
   if (!ctx) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   if (!ctx.access.coachEnabled) {
-    return NextResponse.json({ error: "Disponible pendant ton programme." }, { status: 403 });
+    return NextResponse.json({ error: t("srv.duringProgram") }, { status: 403 });
   }
 
   // Porte d'accès : crédits (Modèle crédits) ou plafond journalier.
@@ -29,7 +31,7 @@ export async function POST(req: Request) {
   // Une alternative compte dans le quota journalier du plan, comme un message.
   const budget = await checkCoachAiBudget(ctx.userId, coachTenant);
   if (!budget.ok) {
-    return NextResponse.json({ error: "Quota IA du jour atteint, il se renouvelle à minuit." }, { status: 429 });
+    return NextResponse.json({ error: t("srv.aiQuotaMidnight") }, { status: 429 });
   }
   const allowance = await checkAiAllowance(coachTenant, "action");
   if (!allowance.ok) return NextResponse.json({ error: allowance.error }, { status: 402 });
@@ -42,7 +44,7 @@ export async function POST(req: Request) {
     avoid?: string[];
   };
   const name = String(body.name ?? "").trim().slice(0, 120);
-  if (!name) return NextResponse.json({ error: "Exercice manquant." }, { status: 400 });
+  if (!name) return NextResponse.json({ error: t("srv.missingExercise") }, { status: 400 });
 
   const supabase = await createClient();
   const { data: equipRows } = await supabase
@@ -86,6 +88,6 @@ export async function POST(req: Request) {
     await chargeAiUsage(coachTenant, "action", "alternative", ctx.userId);
     return NextResponse.json({ exercise });
   } catch {
-    return NextResponse.json({ error: "Alternative indisponible, réessaie." }, { status: 502 });
+    return NextResponse.json({ error: t("srv.altDown") }, { status: 502 });
   }
 }

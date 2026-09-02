@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setLocaleAction } from "@/app/actions/locale";
 import { useLocale } from "@/components/locale-provider";
@@ -9,13 +9,21 @@ import { LOCALES, type Locale } from "@/lib/i18n";
 // Bascule FR / EN, compacte : deux pastilles. Le choix est un cookie (et le
 // profil si la personne est connectée) ; la page se recharge côté serveur.
 export function LangSwitch({ className = "", compact = false }: { className?: string; compact?: boolean }) {
-  const current = useLocale();
+  const ctxLocale = useLocale();
+  // État local optimiste : le provider racine peut se rafraîchir un peu après
+  // la page ; la pastille active suit tout de suite le choix.
+  const [picked, setPicked] = useState<{ base: Locale; value: Locale }>({ base: ctxLocale, value: ctxLocale });
+  // Si le provider a changé depuis le dernier clic, il fait foi.
+  const current = picked.base === ctxLocale ? picked.value : ctxLocale;
+  const setCurrent = (l: Locale) => setPicked({ base: ctxLocale, value: l });
   const router = useRouter();
   const [pending, start] = useTransition();
   function pick(l: Locale) {
     if (l === current || pending) return;
+    setCurrent(l);
     start(async () => {
-      await setLocaleAction(l);
+      const res = await setLocaleAction(l);
+      if (!res.ok) setCurrent(ctxLocale);
       router.refresh();
     });
   }

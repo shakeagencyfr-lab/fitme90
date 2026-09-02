@@ -6,6 +6,7 @@ import { BrandingForm } from "@/components/branding-form";
 import { TemplateSelector } from "@/components/template-selector";
 import { SubdomainForm } from "@/components/subdomain-form";
 import { CustomDomainCard } from "@/components/custom-domain-card";
+import type { CustomDomainInfo } from "@/lib/custom-domain";
 import type { Branding } from "@/lib/branding";
 import type { LandingTemplate } from "@/lib/offers";
 
@@ -16,7 +17,6 @@ interface Props {
   accent: string;
   slug: string | null;
   subdomain: string | null;
-  customDomain: string | null;
   siteHost: string;
   rootDomain: string;
   previewUrl: string | null;
@@ -24,6 +24,7 @@ interface Props {
   previewVersion: number;
   /** Domaine perso verrouillé (option marque blanche non débloquée) ? */
   domainLocked?: boolean;
+  customDomainInfo: CustomDomainInfo;
 }
 
 // Studio « marque blanche » : configuration à gauche, aperçu live à droite.
@@ -37,12 +38,12 @@ export function WhiteLabelStudio({
   accent,
   slug,
   subdomain,
-  customDomain,
   siteHost,
   rootDomain,
   previewUrl,
   previewVersion,
   domainLocked = false,
+  customDomainInfo,
 }: Props) {
   const router = useRouter();
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
@@ -70,7 +71,7 @@ export function WhiteLabelStudio({
             </div>
           </div>
         ) : (
-          <CustomDomainCard domain={customDomain} />
+          <CustomDomainCard info={customDomainInfo} />
         )}
       </div>
 

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { makeT } from "@/lib/i18n";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -71,11 +72,12 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const ctx = await getSessionContext();
   if (!ctx) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  const t = makeT(await resolveLocale(await userLocale(ctx.userId)));
 
   // Le Coach IA doit être inclus dans l'offre du client (upsell par plan).
   if (!(await clientCoachAiIncluded(ctx.userId))) {
     return NextResponse.json(
-      { error: "Le Coach IA n'est pas inclus dans ta formule." },
+      { error: t("srv.aiNotIncluded") },
       { status: 403 },
     );
   }
@@ -102,7 +104,7 @@ export async function POST(req: NextRequest) {
   if (!budget.ok) {
     const at = new Date(budget.resetsAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
     return NextResponse.json(
-      { error: `Tu as utilisé tes ${budget.limit} messages du jour. Ton quota se renouvelle à ${at}.`, quota: budget },
+      { error: t("srv.quotaUsed", { n: budget.limit, time: at }), quota: budget },
       { status: 429 },
     );
   }
@@ -113,7 +115,7 @@ export async function POST(req: NextRequest) {
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: "Message invalide." }, { status: 400 });
+    return NextResponse.json({ error: t("srv.invalidMessage") }, { status: 400 });
   }
 
   const supabase = await createClient();
@@ -541,7 +543,7 @@ ${JSON.stringify(logs ?? [])}`;
     }
   } catch {
     return NextResponse.json(
-      { error: "Le coach est momentanément indisponible." },
+      { error: t("srv.coachDown") },
       { status: 502 },
     );
   }

@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { resolveLocale, userLocale } from "@/lib/i18n/server";
+import { makeT } from "@/lib/i18n";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSessionContext } from "@/lib/guard";
 import { screen, type QuizHealthAnswers } from "@/lib/screening";
@@ -29,9 +31,10 @@ export async function signMedicalWaiver(payload: {
   reasons?: string[];
 }): Promise<WaiverResult> {
   const ctx = await getSessionContext();
+  const t = makeT(await resolveLocale(await userLocale(ctx?.userId)));
   if (!ctx) return { error: "Non authentifié." };
   const name = (payload.name ?? "").trim();
-  if (name.length < 2) return { error: "Indique ton nom pour signer." };
+  if (name.length < 2) return { error: t("srv.signName") };
 
   const admin = createAdminClient();
   const { error } = await admin
@@ -42,7 +45,7 @@ export async function signMedicalWaiver(payload: {
       medical_ack_reasons: (payload.reasons ?? []).slice(0, 12),
     })
     .eq("id", ctx.userId);
-  if (error) return { error: "Signature impossible, réessaie." };
+  if (error) return { error: t("srv.signFailed") };
   return { ok: true };
 }
 
@@ -51,6 +54,7 @@ export async function saveQuestionnaire(payload: {
   trainDays: string[];
 }): Promise<SaveResult> {
   const ctx = await getSessionContext();
+  const t = makeT(await resolveLocale(await userLocale(ctx?.userId)));
   if (!ctx) return { error: "Non authentifié." };
   // Le paiement a lieu APRÈS le questionnaire : on n'exige pas d'avoir payé pour
   // enregistrer ses réponses.
@@ -87,7 +91,7 @@ export async function saveQuestionnaire(payload: {
     answers: { ...answers, freq: String(trainDays.length), train_days: trainDays },
     train_days: trainDays,
   });
-  if (error) return { error: "Enregistrement du questionnaire impossible." };
+  if (error) return { error: t("srv.saveFailed") };
 
   // GARDE-FOU MÉDICAL, version consentement éclairé : une situation de santé
   // déclarée n'empêche PLUS l'accès. On la signale (medical_hold reste vrai
