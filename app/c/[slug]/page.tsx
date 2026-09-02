@@ -4,6 +4,8 @@ import { publicOffersBySlug, landingTemplateBySlug } from "@/lib/offers";
 import { leadMagnetEnabled } from "@/lib/prospects";
 import { CoachOnyx } from "@/components/landing-templates/coach-onyx";
 import { CoachLumen } from "@/components/landing-templates/coach-lumen";
+import { LocaleProvider } from "@/components/locale-provider";
+import { resolveLocale, tenantLocale } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -32,10 +34,12 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
   if (!data) notFound();
 
   const { tenant, offers } = data;
-  const leadMagnet = await leadMagnetEnabled(tenant.id);
-  return tenant.landingTemplate === "lumen" ? (
-    <CoachLumen tenant={tenant} offers={offers} leadMagnet={leadMagnet} />
-  ) : (
-    <CoachOnyx tenant={tenant} offers={offers} leadMagnet={leadMagnet} />
-  );
+  const [leadMagnet, locale] = await Promise.all([leadMagnetEnabled(tenant.id), resolveLocale(await tenantLocale(tenant.id))]);
+  const page =
+    tenant.landingTemplate === "lumen" ? (
+      <CoachLumen tenant={tenant} offers={offers} leadMagnet={leadMagnet} locale={locale} />
+    ) : (
+      <CoachOnyx tenant={tenant} offers={offers} leadMagnet={leadMagnet} locale={locale} />
+    );
+  return <LocaleProvider locale={locale}>{page}</LocaleProvider>;
 }

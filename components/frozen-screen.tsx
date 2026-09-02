@@ -1,11 +1,13 @@
 import type { CSSProperties } from "react";
+import { getT } from "@/lib/i18n/server";
 import { signOutAction } from "@/app/(auth)/actions";
 import type { PublicBrand } from "@/lib/branding";
 
 // Écran affiché à un client dont le coach est temporairement suspendu (défaut de
 // paiement du coach auprès de son revendeur). L'accès reprend dès que le coach
 // régularise. Aux couleurs du coach (marque blanche).
-export function FrozenScreen({ brand }: { brand: PublicBrand | null }) {
+export async function FrozenScreen({ brand }: { brand: PublicBrand | null }) {
+  const { t } = await getT();
   const name = brand?.name ?? "ton coach";
   const accentStyle = brand?.brandColor
     ? ({ ["--color-brand" as string]: brand.brandColor } as CSSProperties)
@@ -21,21 +23,20 @@ export function FrozenScreen({ brand }: { brand: PublicBrand | null }) {
           </svg>
         </div>
         <h1 className="mt-5 font-archivo text-[22px] font-extrabold tracking-[-0.02em] text-ink">
-          Espace momentanément en pause
+          {t("frozen.title")}
         </h1>
         <p className="mt-3 text-[14.5px] leading-[1.6] text-muted">
-          L&apos;espace de {name} est temporairement suspendu. Ton programme et tes données sont
-          bien conservés : l&apos;accès reprendra dès que {name} aura régularisé la situation.
+          {t("frozen.body", { name })}
         </p>
         <p className="mt-3 text-[13px] leading-[1.6] text-muted-2">
-          Rien à faire de ton côté. Reviens un peu plus tard, ou reconnecte-toi pour vérifier.
+          {t("frozen.hint")}
         </p>
         <form action={signOutAction} className="mt-6">
           <button
             type="submit"
             className="tap inline-flex h-11 items-center justify-center rounded-btn border border-line-4 bg-surface px-5 text-[14px] font-semibold text-ink hover:border-ink"
           >
-            Se déconnecter
+            {t("profile.logout")}
           </button>
         </form>
       </div>

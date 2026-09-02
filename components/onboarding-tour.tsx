@@ -1,8 +1,10 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useLocale } from "@/components/locale-provider";
+import { tourTexts, tourUi } from "@/lib/i18n/tour";
 
 const KEY = "fitme90_onboarded";
 
@@ -11,114 +13,21 @@ type Rect = { top: number; left: number; width: number; height: number };
 // Chaque étape ouvre la page (href) ET met en surbrillance l'élément (target).
 // `scroll` : la cible est DANS la page (un champ, un bouton) et doit être
 // amenée à l'écran avant d'être encadrée.
-const STEPS: {
-  tag: string;
-  title: string;
-  body: string;
-  href?: string;
-  target?: string;
-  bullets?: string[];
-  scroll?: boolean;
-}[] = [
-  {
-    tag: "Bienvenue",
-    title: "Bienvenue dans ton espace 👋",
-    body: "En quelques étapes, on te montre où tout se trouve. Chaque page va s'ouvrir et l'onglet concerné sera mis en évidence. Tu peux passer ce guide quand tu veux, et le revoir depuis ton profil.",
-  },
-  {
-    tag: "Programme",
-    title: "1. Ton programme",
-    body: "Ta page d'accueil. Tout en haut, le résumé de ton plan. Juste en dessous, tes 3 cycles à faire glisser du doigt pour comprendre chaque phase. Plus bas, tu peux changer tes jours d'entraînement.",
-    href: "/app",
-    target: "programme",
-  },
-  {
-    tag: "Agenda",
-    title: "2. Ton agenda",
-    body: "Un vrai calendrier daté. Les jours d'entraînement sont marqués, aujourd'hui est encadré, un ✓ apparaît sur les séances validées. Touche un jour pour ouvrir la séance de ce jour.",
-    href: "/app/agenda",
-    target: "agenda",
-  },
-  {
-    tag: "Séance",
-    title: "3. Ta séance du jour",
-    body: "C'est ici que tu suis ton entraînement, exercice par exercice. Je te montre maintenant, un par un, exactement où toucher pour remplir une série.",
-    href: "/app/seance",
-    target: "seance",
-  },
-  {
-    tag: "Séance · 1 sur 4",
-    title: "La charge, en kilos",
-    body: "Pour chaque série, tape ici le poids soulevé, en kilos. Par exemple 40. Laisse vide au poids du corps (pompes, gainage).",
-    href: "/app/seance",
-    target: "charge",
-    scroll: true,
-  },
-  {
-    tag: "Séance · 2 sur 4",
-    title: "Les répétitions",
-    body: "Juste à côté, indique le nombre de répétitions réellement faites. Par exemple 10. C'est ce chiffre qui valide la série.",
-    href: "/app/seance",
-    target: "reps",
-    scroll: true,
-  },
-  {
-    tag: "Séance · 3 sur 4",
-    title: "Le minuteur de repos",
-    body: "Touche « Repos » après ta série : un minuteur de récupération se lance en bas de l'écran. Tu peux le mettre en pause, retirer 15 secondes ou l'arrêter.",
-    href: "/app/seance",
-    target: "repos",
-    scroll: true,
-  },
-  {
-    tag: "Séance · 4 sur 4",
-    title: "Valider ta séance",
-    body: "Quand tes séries sont remplies, touche ce bouton. Remplir tes charges à chaque fois permet au coach de te caler les bonnes charges ensuite. Tu peux refaire ou mettre à jour une séance quand tu veux.",
-    href: "/app/seance",
-    target: "valider",
-    scroll: true,
-  },
-  {
-    tag: "Nutrition",
-    title: "4. Ta nutrition",
-    body: "Tes repas du jour, tes macros (jour d'entraînement et jour de repos) et ta liste de courses, en respectant tes allergies et ton régime. Navigue semaine par semaine et génère des recettes.",
-    href: "/app/nutrition",
-    target: "nutrition",
-  },
-  {
-    tag: "Coach IA",
-    title: "5. Ton coach, disponible 24h/24",
-    body: "Ce bouton, en bas à droite, est là 24 heures sur 24, 7 jours sur 7, pendant ton programme. Ouvre-le pour discuter :",
-    bullets: [
-      "Pose tes questions, envoie une photo d'un repas ou d'une machine, ou dicte à la voix.",
-      "Tu peux créer plusieurs conversations (icône ≡ en haut) et les retrouver quand tu veux.",
-      "Sur ta séance, le bouton « Je n'ai pas mon matériel » lui demande une version adaptée (voyage, hôtel).",
-    ],
-    href: "/app",
-    target: "coach",
-  },
-  {
-    tag: "Régularité",
-    title: "6. Reste sur la durée",
-    body: "Tout est pensé pour t'aider à aller au bout de ton programme :",
-    bullets: [
-      "Ton score de régularité et tes séances validées s'affichent sur l'accueil.",
-      "Une séance oubliée apparaît « à rattraper » : tu peux la faire quand tu veux, ton programme ne se décale pas.",
-      "Sur les cardios, un chrono se lance pour la durée prévue, avec un bip sur les dernières secondes.",
-    ],
-    href: "/app",
-  },
-  {
-    tag: "Installe l'app",
-    title: "7. Installe l'app et active les rappels",
-    body: "Pour ne rien oublier, installe My Fitness App sur ton téléphone et active les notifications. C'est ce qui fait la différence sur la régularité.",
-    bullets: [
-      "Android / Chrome : menu ⋮ en haut à droite, puis « Installer l'application » (ou « Ajouter à l'écran d'accueil »).",
-      "iPhone / Safari : bouton Partager (le carré avec la flèche), puis « Sur l'écran d'accueil ». Ouvre ensuite l'app depuis son icône.",
-      "Enfin, dans Profil → « Rappels de séance », touche « Activer » et autorise les notifications.",
-    ],
-    href: "/app/profil",
-  },
+// Structure des étapes : page ouverte (href), élément encadré (target),
+// `scroll` si la cible est dans la page. Les textes viennent de lib/i18n/tour.
+const STEP_SHAPE: { href?: string; target?: string; scroll?: boolean }[] = [
+  {},
+  { href: "/app", target: "programme" },
+  { href: "/app/agenda", target: "agenda" },
+  { href: "/app/seance", target: "seance" },
+  { href: "/app/seance", target: "charge", scroll: true },
+  { href: "/app/seance", target: "reps", scroll: true },
+  { href: "/app/seance", target: "repos", scroll: true },
+  { href: "/app/seance", target: "valider", scroll: true },
+  { href: "/app/nutrition", target: "nutrition" },
+  { href: "/app", target: "coach" },
+  { href: "/app" },
+  { href: "/app/profil" }
 ];
 
 function findTargetEl(target: string): HTMLElement | null {
@@ -146,6 +55,9 @@ function scrollTargetTo(el: HTMLElement, ratio: number) {
 }
 
 export function OnboardingTour() {
+  const locale = useLocale();
+  const ui = tourUi(locale);
+  const STEPS = useMemo(() => tourTexts(locale).map((txt, i) => ({ ...txt, ...STEP_SHAPE[i] })), [locale]);
   const [step, setStep] = useState<number | null>(null);
   const [rect, setRect] = useState<Rect | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -191,7 +103,7 @@ export function OnboardingTour() {
     if (step === null) return;
     const scrollStepNow = !!STEPS[step]?.scroll;
     setPhase(scrollStepNow && isMobile ? "reveal" : "explain");
-  }, [step, isMobile]);
+  }, [STEPS, step, isMobile]);
 
   // Mesure la position de la cible (et la recalcule au redimensionnement).
   useEffect(() => {
@@ -218,7 +130,7 @@ export function OnboardingTour() {
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure);
     };
-  }, [step]);
+  }, [STEPS, step]);
 
   function finish() {
     try {
@@ -355,7 +267,7 @@ export function OnboardingTour() {
 
           <div className="flex items-center justify-between gap-3 border-t border-line px-6 py-4">
             <button onClick={finish} className="tap text-[14px] font-medium text-muted-2 hover:text-ink">
-              Passer
+              {ui.skip}
             </button>
             <div className="flex items-center gap-2">
               {step > 0 ? (
@@ -370,7 +282,7 @@ export function OnboardingTour() {
                 onClick={() => (last ? finish() : goTo(step + 1))}
                 className="tap rounded-btn bg-brand px-5 py-2.5 text-[14px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]"
               >
-                {last ? "C'est parti" : "Suivant"}
+                {last ? ui.start : ui.next}
               </button>
             </div>
           </div>

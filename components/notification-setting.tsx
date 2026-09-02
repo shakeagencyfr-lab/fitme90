@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/components/locale-provider";
 import { Card, Button, MonoLabel, Alert } from "@/components/ui";
 
 // Réglage « Rappels de séance » : demande la permission, s'abonne au Web Push
@@ -22,6 +23,7 @@ function urlBase64ToUint8Array(base64: string): BufferSource {
 type State = "loading" | "unsupported" | "ios-install" | "denied" | "off" | "on" | "busy";
 
 export function NotificationSetting() {
+  const t = useT();
   const [state, setState] = useState<State>("loading");
   const [error, setError] = useState<string | null>(null);
 
@@ -83,7 +85,7 @@ export function NotificationSetting() {
       if (!res.ok) throw new Error("save");
       setState("on");
     } catch {
-      setError("Activation impossible. Réessaie depuis l'app installée.");
+      setError(t("notif.enableFailed"));
       setState("off");
     }
   }
@@ -111,46 +113,37 @@ export function NotificationSetting() {
   return (
     <Card className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
-        <MonoLabel>Notifications</MonoLabel>
+        <MonoLabel>{t("notif.title")}</MonoLabel>
         {state === "on" ? (
           <span className="rounded-pill bg-brand/10 px-2.5 py-1 text-[12px] font-semibold text-brand">
-            Activées
+            {t("notif.on")}
           </span>
         ) : null}
       </div>
-      <p className="text-[13.5px] leading-[1.6] text-muted">
-        Reçois une notification les jours d'entraînement pour ne jamais oublier ta séance,
-        et dès que ton coach te répond dans le Chat VIP.
-      </p>
+      <p className="text-[13.5px] leading-[1.6] text-muted">{t("notif.body")}</p>
 
       {error ? <Alert>{error}</Alert> : null}
 
       {state === "loading" ? (
-        <div className="text-[13px] text-muted-2">Vérification…</div>
+        <div className="text-[13px] text-muted-2">{t("notif.checking")}</div>
       ) : state === "on" ? (
         <Button variant="outline" className="h-11 self-start" onClick={disable}>
-          Désactiver les notifications
+          {t("notif.disable")}
         </Button>
       ) : state === "off" ? (
         <Button className="h-11 self-start" onClick={enable}>
-          Activer les notifications
+          {t("notif.enable")}
         </Button>
       ) : state === "busy" ? (
         <Button className="h-11 self-start" loading disabled>
-          Un instant
+          {t("notif.wait")}
         </Button>
       ) : state === "denied" ? (
-        <Alert tone="info">
-          Les notifications sont bloquées pour ce site. Autorise-les dans les réglages de
-          ton navigateur, puis reviens ici.
-        </Alert>
+        <Alert tone="info">{t("notif.blocked")}</Alert>
       ) : state === "ios-install" ? (
-        <Alert tone="info">
-          Sur iPhone, installe d'abord My Fitness App sur ton écran d'accueil (bouton Partager,
-          « Sur l'écran d'accueil »), puis ouvre l'app pour activer les rappels.
-        </Alert>
+        <Alert tone="info">{t("notif.iosInstall")}</Alert>
       ) : (
-        <Alert tone="info">Ton navigateur ne prend pas en charge les notifications.</Alert>
+        <Alert tone="info">{t("notif.unsupported")}</Alert>
       )}
     </Card>
   );
