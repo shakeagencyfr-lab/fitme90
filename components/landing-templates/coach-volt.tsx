@@ -5,7 +5,7 @@ import { formatEuros, DEFAULT_BRAND_COLOR } from "@/lib/config";
 import { S } from "@/components/landing-icons";
 import { SubscriptionPrice } from "@/components/subscription-price";
 import { Reveal } from "@/components/reveal";
-import { offerCardCopy, landingCopy } from "@/components/landing-templates/coach-copy";
+import { offerCardCopy, landingCopy, type LandingCopy } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
 
 // Template « Volt » : énergique, contrasté, angles nets et titres en capitales.
@@ -17,7 +17,7 @@ const sectionTitle =
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-pill border border-brand/25 bg-brand/[0.07] px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] text-brand">
+    <span className="inline-flex items-center gap-2 rounded-[4px] bg-ink px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.16em] text-white">
       {children}
     </span>
   );
@@ -32,7 +32,7 @@ function Brand({ tenant, imgClass = "h-11", textClass = "text-[20px]" }: { tenan
 }
 
 // Maquette « produit » claire pour le hero (aperçu de l'espace client).
-function VoltAppCard({ name }: { name: string }) {
+function VoltAppCard({ name, L }: { name: string; L: LandingCopy }) {
   return (
     <div className="relative mx-auto w-full max-w-[380px]">
       <div className="rounded-[6px] border border-ink/15 bg-white p-4">
@@ -43,7 +43,7 @@ function VoltAppCard({ name }: { name: string }) {
           </div>
           <div className="mt-4 rounded-2xl border border-ink/15 bg-white p-3.5">
             <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.12em] text-ink/45">
-              <span>Séance du jour</span><span className="text-brand">Jour 24</span>
+              <span>{L.mockSession}</span><span className="text-brand">{L.mockDay}</span>
             </div>
             <ul className="mt-2.5 flex flex-col gap-2">
               {[["Développé couché", "4 × 8"], ["Tirage vertical", "4 × 10"], ["Élévations latérales", "3 × 15"]].map(([ex, sr], i) => (
@@ -69,8 +69,8 @@ function VoltAppCard({ name }: { name: string }) {
         <div className="flex items-center gap-2.5">
           <span className="flex size-9 items-center justify-center rounded-full bg-brand/12 text-brand"><S.chat className="h-5 w-5" /></span>
           <div>
-            <div className="font-archivo text-[14px] font-extrabold leading-none text-ink">Coach IA</div>
-            <div className="mt-0.5 text-[11px] text-ink/50">répond en direct</div>
+            <div className="font-archivo text-[14px] font-extrabold leading-none text-ink">{L.mockCoach}</div>
+            <div className="mt-0.5 text-[11px] text-ink/50">{L.mockCoachSub}</div>
           </div>
         </div>
       </div>
@@ -208,12 +208,12 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
       <main id="top">
         {/* Hero */}
         <section className="relative overflow-hidden">
-          <div className="pointer-events-none absolute -right-24 top-0 hidden h-full w-[42%] -skew-x-12 lg:block" style={{ background: `color-mix(in srgb, ${accent} 14%, transparent)` }} />
+          <div className="pointer-events-none absolute -right-24 top-0 hidden h-full w-[26%] -skew-x-12 lg:block" style={{ background: `color-mix(in srgb, ${accent} 14%, transparent)` }} />
           <div className="pointer-events-none absolute inset-x-0 top-0 h-[6px] bg-brand" />
           <div className="mx-auto grid w-full max-w-[1120px] items-center gap-12 px-5 pb-16 pt-[clamp(40px,7vw,84px)] sm:px-8 lg:grid-cols-[1.05fr_0.95fr]">
             <div>
               <span className="lm-up inline-block"><Eyebrow><S.spark className="h-3.5 w-3.5" /> {L.heroChip}</Eyebrow></span>
-              <h1 className="lm-up mt-5 max-w-[16ch] font-archivo text-[clamp(40px,8vw,80px)] font-extrabold leading-[0.96] tracking-[-0.04em] text-balance text-ink" style={{ animationDelay: "70ms" }}>
+              <h1 className="lm-up mt-5 max-w-[16ch] font-archivo text-[clamp(40px,8vw,84px)] font-extrabold uppercase leading-[0.9] tracking-[-0.045em] text-balance text-ink" style={{ animationDelay: "70ms" }}>
                 {title}
               </h1>
               <p className="lm-up mt-5 max-w-[54ch] text-[clamp(16px,2.2vw,19px)] leading-[1.6] text-ink/65" style={{ animationDelay: "140ms" }}>{tagline}</p>
@@ -235,7 +235,7 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
                 ))}
               </div>
             </div>
-            <div className="lm-up" style={{ animationDelay: "180ms" }}><VoltAppCard name={tenant.name} /></div>
+            <div className="lm-up" style={{ animationDelay: "180ms" }}><VoltAppCard name={tenant.name} L={L} /></div>
           </div>
         </section>
 
@@ -311,7 +311,7 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
           <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(52px,7vw,90px)] sm:px-8 lg:grid-cols-2">
             <div className="order-2 lg:order-1">
               <ShotFrame>
-                <VoltAppCard name={tenant.name} />
+                <VoltAppCard name={tenant.name} L={L} />
               </ShotFrame>
             </div>
             <div className="order-1 flex flex-col gap-5 lg:order-2">

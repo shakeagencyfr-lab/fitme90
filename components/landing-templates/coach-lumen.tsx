@@ -5,7 +5,7 @@ import { formatEuros, DEFAULT_BRAND_COLOR } from "@/lib/config";
 import { S } from "@/components/landing-icons";
 import { SubscriptionPrice } from "@/components/subscription-price";
 import { Reveal } from "@/components/reveal";
-import { offerCardCopy, landingCopy } from "@/components/landing-templates/coach-copy";
+import { offerCardCopy, landingCopy, type LandingCopy } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
 
 // Template « Lumen » : design clair, éditorial et aéré. Même contenu que Onyx,
@@ -32,7 +32,7 @@ function Brand({ tenant, imgClass = "h-11", textClass = "text-[20px]" }: { tenan
 }
 
 // Maquette « produit » claire pour le hero (aperçu de l'espace client).
-function LumenAppCard({ name }: { name: string }) {
+function LumenAppCard({ name, L }: { name: string; L: LandingCopy }) {
   return (
     <div className="relative mx-auto w-full max-w-[380px]">
       <div className="rounded-[28px] border border-black/8 bg-white p-4 shadow-[0_40px_90px_-30px_rgba(30,20,10,.35)]">
@@ -43,7 +43,7 @@ function LumenAppCard({ name }: { name: string }) {
           </div>
           <div className="mt-4 rounded-2xl border border-black/8 bg-white p-3.5">
             <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.12em] text-ink/45">
-              <span>Séance du jour</span><span className="text-brand">Jour 24</span>
+              <span>{L.mockSession}</span><span className="text-brand">{L.mockDay}</span>
             </div>
             <ul className="mt-2.5 flex flex-col gap-2">
               {[["Développé couché", "4 × 8"], ["Tirage vertical", "4 × 10"], ["Élévations latérales", "3 × 15"]].map(([ex, sr], i) => (
@@ -69,8 +69,8 @@ function LumenAppCard({ name }: { name: string }) {
         <div className="flex items-center gap-2.5">
           <span className="flex size-9 items-center justify-center rounded-full bg-brand/12 text-brand"><S.chat className="h-5 w-5" /></span>
           <div>
-            <div className="font-archivo text-[14px] font-extrabold leading-none text-ink">Coach IA</div>
-            <div className="mt-0.5 text-[11px] text-ink/50">répond en direct</div>
+            <div className="font-archivo text-[14px] font-extrabold leading-none text-ink">{L.mockCoach}</div>
+            <div className="mt-0.5 text-[11px] text-ink/50">{L.mockCoachSub}</div>
           </div>
         </div>
       </div>
@@ -234,7 +234,7 @@ export function CoachLumen({ tenant, offers, leadMagnet = false, locale = "fr" }
                 ))}
               </div>
             </div>
-            <div className="lm-up" style={{ animationDelay: "180ms" }}><LumenAppCard name={tenant.name} /></div>
+            <div className="lm-up" style={{ animationDelay: "180ms" }}><LumenAppCard name={tenant.name} L={L} /></div>
           </div>
         </section>
 
@@ -310,7 +310,7 @@ export function CoachLumen({ tenant, offers, leadMagnet = false, locale = "fr" }
           <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(52px,7vw,90px)] sm:px-8 lg:grid-cols-2">
             <div className="order-2 lg:order-1">
               <ShotFrame>
-                <LumenAppCard name={tenant.name} />
+                <LumenAppCard name={tenant.name} L={L} />
               </ShotFrame>
             </div>
             <div className="order-1 flex flex-col gap-5 lg:order-2">

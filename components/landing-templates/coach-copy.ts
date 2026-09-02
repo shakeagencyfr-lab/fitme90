@@ -101,6 +101,8 @@ export interface LandingCopy {
   soon: string;
   mockCoach: string;
   mockCoachSub: string;
+  mockSession: string;
+  mockDay: string;
 }
 
 const FR: Omit<LandingCopy, "features"> & { features: Feature[] } = {
@@ -193,6 +195,8 @@ const FR: Omit<LandingCopy, "features"> & { features: Feature[] } = {
   soon: "Bientôt disponible",
   mockCoach: "Coach IA",
   mockCoachSub: "répond en direct",
+  mockSession: "Séance du jour",
+  mockDay: "Jour 24",
 };
 
 const EN: Omit<LandingCopy, "features"> & { features: Feature[] } = {
@@ -285,6 +289,8 @@ const EN: Omit<LandingCopy, "features"> & { features: Feature[] } = {
   soon: "Coming soon",
   mockCoach: "AI coach",
   mockCoachSub: "replies live",
+  mockSession: "Today's session",
+  mockDay: "Day 24",
 };
 
 export function landingCopy(locale: Locale): LandingCopy {
