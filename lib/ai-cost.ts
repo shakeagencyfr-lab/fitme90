@@ -59,13 +59,34 @@ export type CostRow = {
 const CACHE_READ_RATE = 0.1;
 const CACHE_WRITE_RATE = 1.25;
 
-export function rowCost(r: CostRow): number {
+/** Coût d'un appel, poste par poste (USD). La somme vaut `rowCost`. */
+export interface CostParts {
+  input: number;
+  cacheRead: number;
+  cacheWrite: number;
+  output: number;
+  total: number;
+}
+
+/**
+ * Décompose le coût d'un appel. Deux écarts expliquent presque toute la
+ * variation entre deux lignes voisines, et aucun n'est visible sur le seul
+ * nombre de tokens :
+ *   - une SORTIE coûte 5x une entrée (Haiku : $5 contre $1 le million) ;
+ *   - une ÉCRITURE de cache coûte 12,5x une LECTURE (125 % contre 10 %).
+ * Un premier message de conversation écrit le cache, les suivants le lisent.
+ */
+export function costParts(r: CostRow): CostParts {
   const p = priceFor(r.model || modelForRoute(r.route));
-  const input =
-    (r.input_tokens ?? 0) * p.in +
-    (r.cache_read_tokens ?? 0) * p.in * CACHE_READ_RATE +
-    (r.cache_write_tokens ?? 0) * p.in * CACHE_WRITE_RATE;
-  return (input + (r.output_tokens ?? 0) * p.out) / 1_000_000;
+  const input = ((r.input_tokens ?? 0) * p.in) / 1_000_000;
+  const cacheRead = ((r.cache_read_tokens ?? 0) * p.in * CACHE_READ_RATE) / 1_000_000;
+  const cacheWrite = ((r.cache_write_tokens ?? 0) * p.in * CACHE_WRITE_RATE) / 1_000_000;
+  const output = ((r.output_tokens ?? 0) * p.out) / 1_000_000;
+  return { input, cacheRead, cacheWrite, output, total: input + cacheRead + cacheWrite + output };
+}
+
+export function rowCost(r: CostRow): number {
+  return costParts(r).total;
 }
 
 /**
