@@ -16,6 +16,7 @@ import { readCoachName } from "@/lib/methodology";
 import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
 import { missedDays } from "@/lib/streak";
 import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan } from "@/lib/program";
+import { coachPlanView, logsDigest, type CoachLog } from "@/lib/coach-context";
 import { blockPosition } from "@/lib/block-logic";
 import { CYCLES_PER_BLOCK } from "@/lib/config";
 import { revalidatePath } from "next/cache";
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
         : ctx.access.phase === "ended"
           ? "Ton accès au programme est terminé."
           : ctx.access.phase === "scheduled"
-            ? "Ton programme n'a pas encore démarré — le coach IA s'active le jour du départ."
+            ? "Ton programme n'a pas encore démarré, le coach IA s'active le jour du départ."
             : "Débloque ton programme pour accéder au coach.";
     return NextResponse.json({ error: msg }, { status: 403 });
   }
@@ -203,7 +204,13 @@ export async function POST(req: NextRequest) {
   // Langue du client : le coach répond dedans (cookie > profil > tenant).
   const locale = await resolveLocale(await userLocale(ctx.userId));
   const dateLoc = locale === "en" ? "en-GB" : "fr-FR";
-  const system = `${buildPersona(quiz?.answers ?? {}, { ...DEFAULT_BRAND, coachName })}
+  // Le prompt système est scindé en DEUX blocs pour le cache Anthropic, qui
+  // fonctionne par préfixe : tout ce qui est stable d'un message à l'autre
+  // (persona, profil, programme) va dans le premier bloc et porte le
+  // `cache_control` ; tout ce qui bouge (date du jour, retards, séances
+  // validées) va APRÈS, sinon un simple changement de date invaliderait le
+  // programme entier. Une lecture de cache coûte 10 % d'un token d'entrée.
+  const systemStable = `${buildPersona(quiz?.answers ?? {}, { ...DEFAULT_BRAND, coachName })}
 
 ${aiLanguageInstruction(locale)}
 
@@ -211,22 +218,27 @@ PROFIL DU CLIENT :
 ${profileLines.length ? profileLines.join("\n") : "Non renseigné."}
 Jours d'entraînement : ${quiz?.train_days?.join(", ") || "non précisés"}.
 
-CALENDRIER (suis la progression avec ces repères réels) :
+PROGRAMME (JSON, cycle en cours détaillé) :
+${JSON.stringify(coachPlanView((program?.plan as Plan | undefined) ?? null, ctx.access.day))}`;
+
+  const systemVolatile = `CALENDRIER (suis la progression avec ces repères réels) :
 - Programme démarré le ${
     ctx.profile?.start_date
       ? new Date(`${ctx.profile.start_date}T00:00:00Z`).toLocaleDateString(dateLoc, { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
       : "non défini"
   }.
-- Aujourd'hui : ${new Date().toLocaleDateString(dateLoc, { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" })} — jour ${ctx.access.day} sur ${ctx.access.programDays}.
+- Aujourd'hui : ${new Date().toLocaleDateString(dateLoc, { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" })}, jour ${ctx.access.day} sur ${ctx.access.programDays}.
 - STATUT DU JOUR : aujourd'hui est un jour ${todayIsTraining ? "D'ENTRAÎNEMENT, une séance est prévue" : "DE REPOS, aucune séance n'est prévue"}. Fie-toi à CETTE information (jours d'entraînement à jour : ${quiz?.train_days?.join(", ") || "non précisés"}), pas au texte du programme qui peut dater d'avant un changement de jours.
 - Les séances tombent aux vrais jours de la semaine choisis. Parle en dates concrètes et repère les séances validées vs prévues pour suivre les retards éventuels.
 - Séances en retard (passées, non validées) : ${missedList.length ? `${missedList.length} (jours ${missedList.slice(0, 8).join(", ")}${missedList.length > 8 ? "…" : ""}). Le calendrier ne bouge pas : encourage à les RATTRAPER quand le client peut, sur un ton bienveillant et sans culpabiliser. Rappelle qu'il peut ouvrir une séance passée depuis l'agenda pour la rattraper. N'en parle QUE si c'est pertinent (le client en parle, demande un bilan, ou s'inquiète de son retard).` : "aucune, félicite la régularité si le sujet vient."}
 
-PROGRAMME (JSON) :
-${JSON.stringify(program?.plan ?? {})}
-
 SÉANCES VALIDÉES (les plus récentes d'abord) :
-${JSON.stringify(logs ?? [])}`;
+${logsDigest((logs ?? []) as CoachLog[])}`;
+
+  const system: Anthropic.TextBlockParam[] = [
+    { type: "text", text: systemStable, cache_control: { type: "ephemeral" } },
+    { type: "text", text: systemVolatile },
+  ];
 
   const userContent: Anthropic.ContentBlockParam[] = [];
   if (parsed.data.image) {
@@ -311,7 +323,7 @@ ${JSON.stringify(logs ?? [])}`;
     },
   ];
 
-  const totalUsage = { input_tokens: 0, output_tokens: 0 };
+  const totalUsage = { input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0 };
   let adapted = false;
 
   // Change réellement les jours d'entraînement (train_days) ET régénère le
@@ -429,6 +441,8 @@ ${JSON.stringify(logs ?? [])}`;
     });
     totalUsage.input_tokens += m.usage.input_tokens;
     totalUsage.output_tokens += m.usage.output_tokens;
+    totalUsage.cache_read_tokens += m.usage.cache_read_input_tokens ?? 0;
+    totalUsage.cache_write_tokens += m.usage.cache_creation_input_tokens ?? 0;
     return m;
   }
 

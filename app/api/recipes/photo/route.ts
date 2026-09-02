@@ -6,6 +6,7 @@ import { getSessionContext } from "@/lib/guard";
 import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
 import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
+import { saveClientRecipes } from "@/lib/recipes-store";
 import { LIMIT_RECIPES_PER_DAY, COACH_CREDENTIAL } from "@/lib/config";
 
 export const runtime = "nodejs";
@@ -98,6 +99,7 @@ Consignes : 4 à 7 étapes concrètes, quantités précises, macros estimées, u
       input_tokens: message.usage.input_tokens,
       output_tokens: message.usage.output_tokens,
     });
+    await saveClientRecipes(ctx.userId, out.recipes);
     return NextResponse.json({ recipes: out.recipes });
   } catch {
     return NextResponse.json({ error: "Analyse de la photo indisponible." }, { status: 502 });

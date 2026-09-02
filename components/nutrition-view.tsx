@@ -40,6 +40,8 @@ interface Props {
   macros: { protein: string; carbs: string; fat: string };
   canGenerate: boolean;
   initialChecks?: string[]; // clés d'articles déjà cochées (persistées)
+  /** Recettes déjà générées, rechargées depuis la base (survivent au refresh). */
+  initialRecipes?: Recipe[];
   startDate?: string; // date de début du programme (pour les vraies dates)
   /** Durée du programme en jours (offre du client). Défaut 90 j ≈ 13 semaines. */
   programDays?: number;
@@ -56,6 +58,7 @@ export function NutritionView({
   macros,
   canGenerate,
   initialChecks = [],
+  initialRecipes = [],
   startDate = "",
   programDays = 90,
 }: Props) {
@@ -108,7 +111,7 @@ export function NutritionView({
     });
   }
 
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [recipes, setRecipes] = useState<Recipe[]>(initialRecipes);
   // Deux actions distinctes (générer / photo) : un état de chargement PAR bouton
   // pour n'afficher le spinner que sur celui réellement cliqué.
   const [recipeBusy, setRecipeBusy] = useState(false);

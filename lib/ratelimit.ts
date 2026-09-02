@@ -46,7 +46,14 @@ export async function checkLimit(
 export async function recordCall(
   userId: string,
   route: AiRoute,
-  usage?: { input_tokens?: number; output_tokens?: number },
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    /** Tokens servis par le cache de prompt (facturés 10 % d'un token d'entrée). */
+    cache_read_tokens?: number;
+    /** Tokens écrits dans le cache (facturés 125 %). */
+    cache_write_tokens?: number;
+  },
 ): Promise<void> {
   const admin = createAdminClient();
   await admin.from("ai_calls").insert({
@@ -54,6 +61,8 @@ export async function recordCall(
     route,
     input_tokens: usage?.input_tokens ?? null,
     output_tokens: usage?.output_tokens ?? null,
+    cache_read_tokens: usage?.cache_read_tokens ?? null,
+    cache_write_tokens: usage?.cache_write_tokens ?? null,
   });
 }
 
