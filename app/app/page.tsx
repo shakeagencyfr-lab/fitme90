@@ -9,7 +9,7 @@ import { CatchUp } from "@/components/catch-up";
 import { restPattern, startWeekday, isRestDay, dateOfProgramDay } from "@/lib/schedule";
 import { computeAdherence, missedDays } from "@/lib/streak";
 import { DAYS } from "@/lib/questionnaire";
-import { sessionForDay, type Plan } from "@/lib/program";
+import { sessionForDay, weekSessionTitles, type Plan } from "@/lib/program";
 import { coveredDays, blockPosition, nextBlockDue } from "@/lib/block-logic";
 import { subscriptionIsActive } from "@/lib/subscription";
 import { NextBlockPrompt } from "@/components/next-block";
@@ -119,7 +119,10 @@ export default async function ProgrammePage({
   const planRest = plan.weekPlan.slice(0, 7).map((d) => d.rest);
   const pattern = restPattern(trainDays, planRest);
   const startWd = startWeekday(ctx.profile?.start_date);
-  const trainNames = plan.weekPlan.filter((d) => !d.rest).map((d) => d.name);
+  // Séances de la semaine en cours, calculées comme la carte « aujourd'hui ».
+  // Le weekPlan seul décalait l'affichage quand le programme ne démarrait pas
+  // le premier jour d'entraînement de la semaine.
+  const weekTitles = weekSessionTitles(plan, access.day, pattern, startWd, access.programDays);
 
   // Adhérence / série : seulement une fois le programme démarré (jour ≥ 1).
   const showAdherence = access.phase !== "scheduled";
@@ -339,8 +342,7 @@ export default async function ProgrammePage({
           <div className="flex gap-2">
             {DAYS.map((code, i) => {
               const rest = pattern[i];
-              const trainIdx = pattern.slice(0, i).filter((r) => !r).length;
-              const name = rest ? t("dashboard.rest") : trainNames[trainIdx % (trainNames.length || 1)] || t("dashboard.session");
+              const name = rest ? t("dashboard.rest") : weekTitles[i] || t("dashboard.session");
               return (
                 <div
                   key={code}

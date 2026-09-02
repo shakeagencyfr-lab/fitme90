@@ -3,7 +3,7 @@ import { aiLanguageInstruction, type Locale } from "./i18n";
 import { z } from "zod";
 import { anthropic, MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
-import { restPatternFromTrainDays } from "@/lib/schedule";
+import { restPatternFromTrainDays, isRestDay } from "@/lib/schedule";
 import { scheduledTrainingDays } from "@/lib/streak";
 import { COACH_CREDENTIAL, CYCLES_PER_BLOCK } from "@/lib/config";
 import { templatePrompt, cycleWeeksLabel, blocksForMonths } from "@/lib/templates";
@@ -203,6 +203,36 @@ export function sessionForDay(
     scheduledTrainingDays(pattern, startWd, cycleStartDay - 1).length;
   const slot = (((ordinalInCycle - 1) % pool.length) + pool.length) % pool.length;
   return pool[slot] ?? pool[0];
+}
+
+/**
+ * Titres des séances de la semaine calendaire EN COURS, un par jour LUN→DIM
+ * (`null` = repos, ou jour hors programme).
+ *
+ * Passe par `sessionForDay`, comme la carte « aujourd'hui », la page séance et
+ * l'agenda. La semaine type se déduisait avant du seul `weekPlan`, qui suppose
+ * une semaine démarrant sur le premier jour d'entraînement : dès qu'un client
+ * démarre un autre jour, l'affichage était décalé d'un cran et contredisait la
+ * séance réellement lancée.
+ */
+export function weekSessionTitles(
+  plan: Plan,
+  currentDay: number,
+  pattern: boolean[],
+  startWd: number,
+  programDays: number,
+): (string | null)[] {
+  const day0 = Math.max(1, currentDay);
+  // Jour de programme correspondant au LUNDI de la semaine en cours.
+  const todayWd = (((startWd + day0 - 1) % 7) + 7) % 7;
+  const monday = day0 - todayWd;
+
+  return Array.from({ length: 7 }, (_, i) => {
+    const day = monday + i;
+    if (day < 1 || day > programDays) return null;
+    if (isRestDay(day, pattern, startWd)) return null;
+    return sessionForDay(plan, day, pattern, startWd)?.title ?? null;
+  });
 }
 
 /**
