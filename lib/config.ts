@@ -147,28 +147,45 @@ export const LIMIT_COACH_PER_DAY = 60; // messages par jour (défaut historique)
 export const LIMIT_RECIPES_PER_DAY = 20;
 export const LIMIT_ANALYZE_GYM_TOTAL = 10;
 
-// ── Estimations de coût IA (BYOK), en USD. Fondées sur la conso RÉELLE mesurée
-// (table ai_calls) et les tarifs publics Anthropic, arrondies vers le HAUT par
+// ── Estimations de coût IA (BYOK), en USD. MESURÉES sur la table `ai_calls`
+// après la mise en cache du prompt coach, puis arrondies vers le HAUT par
 // prudence. Repères d'ordre de grandeur, pas une facture exacte.
 //
-// Tout tourne désormais sur Haiku 4.5 ($1 / $5 le M) SAUF la génération du
-// programme (Opus 5, $5 / $25). Mesuré : un message chat ≈ 12k in + 150 out
-// ≈ $0.013 ; une régénération de recettes ≈ 2k in + 3,8k out ≈ $0.02 ; une
-// génération de programme ≈ 9k in + 12,5k out sur Opus ≈ $0.36.
-/** Coût estimé d'UN message Coach IA (chat, Haiku). */
-export const AI_COST_COACH_MSG_USD = 0.015;
-/** Coût estimé d'UNE régénération de recettes (Haiku). */
-export const AI_COST_RECIPE_USD = 0.02;
-/** Coût estimé d'UNE action IA « simple » = 1 crédit (chat / recette / exercice, Haiku). */
-export const AI_COST_ACTION_USD = 0.02;
+// Tout tourne sur Haiku 4.5 ($1 / $5 le M) SAUF la génération de programme
+// (Opus 5, $5 / $25). Le prompt du coach est mis en cache : une lecture coûte
+// 10 % d'un token d'entrée, une écriture 125 %. D'où l'écart entre le premier
+// message d'une session, qui écrit le cache, et les suivants qui le lisent.
+//
+// Mesures par appel :
+//   message coach, 1er d'une session  0,0097 $   (écriture du cache)
+//   message coach, suivants           0,0021 $   (lecture du cache)
+//   message déclenchant un outil      0,0048 $
+//   alternative d'exercice            0,0011 $
+//   régénération de recettes          0,0099 $
+//   adaptation du programme           0,0706 $   (1 crédit + 10 crédits)
+//   génération de programme (Opus)    0,3882 $
+//   résumé de mémoire (cron nocturne) 0,0029 $   par client actif et par jour
+/** Coût estimé d'UN message Coach IA. Moyenne d'une session réelle : une
+ * écriture de cache pour deux à trois lectures. */
+export const AI_COST_COACH_MSG_USD = 0.005;
+/** Coût estimé d'UNE régénération de recettes (3 recettes détaillées). Son coût
+ * vient de la SORTIE, que le cache ne réduit pas. */
+export const AI_COST_RECIPE_USD = 0.01;
+/** Coût estimé d'UNE action IA « simple » = 1 crédit. Aligné sur l'action
+ * courante la PLUS chère (la recette), les autres coûtant moins. */
+export const AI_COST_ACTION_USD = 0.01;
 /** Coût estimé d'UNE génération de programme (Opus, livrable premium). */
 export const AI_COST_PROGRAM_USD = 0.4;
 /** Ancien alias (échange générique) — conservé pour compat, aligné sur le chat. */
 export const AI_COST_PER_MSG_USD = AI_COST_COACH_MSG_USD;
 /** Coût IA d'onboarding d'un client (génération programme + analyse salle). */
-export const AI_COST_ONBOARDING_USD = 0.35;
+export const AI_COST_ONBOARDING_USD = 0.4;
+/** Coût de la mémoire longue : un résumé par client ACTIF et par jour (cron).
+ * Non débité en crédits, c'est une charge système. */
+export const AI_COST_MEMORY_USD = 0.003;
+
 /** Coût IA récurrent estimé par client et par mois (usage typique modéré). */
-export const AI_COST_PER_CLIENT_MONTH_USD = 1.5;
+export const AI_COST_PER_CLIENT_MONTH_USD = 1.4;
 
 // Taux de conversion indicatif USD→EUR pour afficher un coût lisible en euros
 // (le tarif Anthropic est en USD, la revente du revendeur en EUR). Approx.
@@ -206,11 +223,15 @@ export interface AiCostEstimate {
 export function estimateAiMonthlyCost(msgCap: number, recipeCap: number): AiCostEstimate {
   const realMsgs = msgCap > 0 ? Math.min(msgCap, AI_REALISTIC_MSG_PER_DAY) : AI_REALISTIC_MSG_PER_DAY;
   const realRecipes = recipeCap > 0 ? Math.min(recipeCap, AI_REALISTIC_RECIPES_PER_DAY) : AI_REALISTIC_RECIPES_PER_DAY;
-  const realMonth = (realMsgs * AI_COST_COACH_MSG_USD + realRecipes * AI_COST_RECIPE_USD) * AI_REALISTIC_ACTIVE_DAYS;
+  const realMonth =
+    (realMsgs * AI_COST_COACH_MSG_USD + realRecipes * AI_COST_RECIPE_USD + AI_COST_MEMORY_USD) *
+    AI_REALISTIC_ACTIVE_DAYS;
 
   // Borne haute seulement si les DEUX plafonds sont fixés (sinon dépense illimitée).
   const bounded = msgCap > 0 && recipeCap > 0;
-  const ceilingMonth = bounded ? (msgCap * AI_COST_COACH_MSG_USD + recipeCap * AI_COST_RECIPE_USD) * 30 : null;
+  const ceilingMonth = bounded
+    ? (msgCap * AI_COST_COACH_MSG_USD + recipeCap * AI_COST_RECIPE_USD + AI_COST_MEMORY_USD) * 30
+    : null;
   return { realMonth, ceilingMonth };
 }
 
