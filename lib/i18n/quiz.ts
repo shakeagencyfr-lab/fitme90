@@ -25,6 +25,7 @@ const EN_SECTIONS: Record<string, { title: string; intro?: string }> = {
 };
 
 const EN_FIELDS: Record<string, FieldText> = {
+  program_lang: { label: "Language of your program", help: "The language of your space, your program and your AI coach.", options: { Français: "Français", English: "English" } },
   name: { label: "First name", placeholder: "Lea" },
   sex: { label: "Biological sex", options: { Femme: "Female", Homme: "Male", Autre: "Other" } },
   age: { label: "Age", placeholder: "34", help: "Used for your estimated max heart rate (220 minus age)." },
