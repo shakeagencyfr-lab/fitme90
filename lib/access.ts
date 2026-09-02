@@ -151,3 +151,13 @@ export function accessLabel(a: AccessState, locale: Locale = "fr"): string {
       return t("access.restricted");
   }
 }
+
+/**
+ * Prochaine étape d'un client qui n'a pas encore payé. Un questionnaire déjà
+ * rempli ne se refait pas : la suite est la caisse. Sans cette distinction, le
+ * tableau de bord renvoyait toujours au questionnaire et l'écran de paiement
+ * devenait inatteignable dès qu'on en sortait.
+ */
+export function unpaidNextStep(hasQuestionnaire: boolean): "/app/paiement" | "/questionnaire" {
+  return hasQuestionnaire ? "/app/paiement" : "/questionnaire";
+}

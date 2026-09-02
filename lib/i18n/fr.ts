@@ -61,6 +61,11 @@ export const fr = {
     createBodyNotStarted:
       "Réponds au questionnaire et photographie ta salle : ton programme est généré à partir de tes réponses. Le décompte de ton programme démarre à ce moment-là.",
     startQuiz: "Commencer le questionnaire",
+    resumeTitle: "Ton programme t'attend",
+    resumeBody:
+      "Ton questionnaire est enregistré. Il ne reste qu'à régler ton offre, ou à saisir ta carte cadeau, pour que ton programme soit généré.",
+    resumeCta: "Débloquer mon programme",
+    editAnswers: "Modifier mes réponses",
     endedTitle: "Accès terminé",
     endedBody: "Ton programme et la période de consultation sont écoulés. Pour repartir sur un nouveau cycle, débloque un nouveau programme.",
     endedCta: "Reprendre un programme",

@@ -138,16 +138,18 @@ export default async function Home() {
       {/* Header */}
       <header className="relative z-30 sticky top-0 border-b border-white/10 bg-[#080a0c]/70 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-[1160px] items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
-          <Link href="#top" className="text-white [&_span]:text-white"><Wordmark size={22} /></Link>
+          <Link href="#top" className="min-w-0 overflow-hidden text-white [&_span]:text-white"><Wordmark size={22} /></Link>
           <nav className="hidden items-center gap-7 md:flex">
             {[["#apercu", "Aperçu"], ["#simulateur", "Simulateur"], ["#formules", "Tarifs"], ["#faq", "FAQ"]].map(([h, l]) => (
               <a key={h} href={h} className="text-[14px] font-medium text-white/60 transition-colors hover:text-white">{tx(l)}</a>
             ))}
           </nav>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <LangSwitch compact className="border-white/20 bg-white/5 text-white/70" />
             <Link href="/connexion" className="hidden text-[14px] font-medium text-white/60 transition-colors hover:text-white sm:inline">{tx("Connexion")}</Link>
-            <Link href={signup} className="tap inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-btn bg-brand px-3.5 text-[13.5px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">{tx("Démarrer gratuitement")}</Link>
+            {/* Masqué sous sm : la barre collante du bas porte déjà ce CTA, et
+                le garder ici poussait le bouton hors de l'écran sur mobile. */}
+            <Link href={signup} className="tap hidden h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-btn bg-brand px-3.5 text-[13.5px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98] sm:inline-flex">{tx("Démarrer gratuitement")}</Link>
           </div>
         </div>
       </header>

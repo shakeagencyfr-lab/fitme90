@@ -99,7 +99,7 @@ export default async function RevendeursPage() {
       {/* Header */}
       <header className="relative z-30 sticky top-0 border-b border-white/10 bg-[#080a0c]/70 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-[1160px] items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
-          <Link href="/" className="text-white [&_span]:text-white">
+          <Link href="/" className="min-w-0 overflow-hidden text-white [&_span]:text-white">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={logoUrl} alt="" className="h-7 w-auto max-w-[170px] object-contain" />
@@ -112,7 +112,9 @@ export default async function RevendeursPage() {
               <a key={h} href={h} className="text-[14px] font-medium text-white/60 transition-colors hover:text-white">{tx(l)}</a>
             ))}
           </nav>
-          <Link href={signup} className="tap inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-btn bg-brand px-3.5 text-[13.5px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">{tx("Devenir revendeur")}</Link>
+          {/* Masqué sous sm comme sur la landing plateforme : la barre collante
+              du bas porte le même CTA. */}
+          <Link href={signup} className="tap hidden h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-btn bg-brand px-3.5 text-[13.5px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98] sm:inline-flex">{tx("Devenir revendeur")}</Link>
         </div>
       </header>
 
@@ -362,7 +364,7 @@ export default async function RevendeursPage() {
       {/* Footer */}
       <footer className="relative z-10 border-t border-white/10">
         <div className="mx-auto flex w-full max-w-[1160px] flex-col items-center gap-3 px-5 py-10 text-center sm:px-8">
-          <Link href="/" className="text-white [&_span]:text-white">
+          <Link href="/" className="min-w-0 overflow-hidden text-white [&_span]:text-white">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={logoUrl} alt="" className="h-6 w-auto max-w-[150px] object-contain" />

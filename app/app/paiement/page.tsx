@@ -12,6 +12,25 @@ import { productCopy, durationLabel as durLabel } from "@/lib/i18n/products";
 
 export const metadata = { title: "Débloquer mon programme" };
 
+/**
+ * Séparateur « ou » + saisie de carte cadeau. Présent sur les TROIS parcours de
+ * paiement : sans cette reprise, un client venant d'une offre coach (le cas
+ * courant) n'avait aucun endroit où saisir sa carte, alors que /api/redeem
+ * savait déjà la traiter.
+ */
+function GiftBlock({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-line" />
+        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">{label}</span>
+        <div className="h-px flex-1 bg-line" />
+      </div>
+      <RedeemForm />
+    </div>
+  );
+}
+
 export default async function PaiementPage() {
   const ctx = await getSessionContext();
   if (!ctx) redirect("/connexion?suite=/app/paiement");
@@ -51,6 +70,7 @@ export default async function PaiementPage() {
             </p>
           </header>
           <CoachCheckoutButton priceLabel={`${formatEuros(cents)}${suffix}`} />
+          <GiftBlock label={t("common.or")} />
           <p className="text-[12px] text-muted-2 leading-relaxed">{t("payment.subNote")}</p>
         </div>
       );
@@ -91,6 +111,7 @@ export default async function PaiementPage() {
           </Card>
         ) : null}
         <CoachCheckoutButton priceLabel={formatEuros(offer.price_cents)} allowPromo />
+        <GiftBlock label={t("common.or")} />
         <p className="text-[12px] text-muted-2 leading-relaxed">{t("payment.legalNote")}</p>
       </div>
     );
@@ -125,14 +146,7 @@ export default async function PaiementPage() {
 
       <CheckoutButton />
 
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-line" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">{t("common.or")}</span>
-          <div className="h-px flex-1 bg-line" />
-        </div>
-        <RedeemForm />
-      </div>
+      <GiftBlock label={t("common.or")} />
 
       <p className="text-[12px] text-muted-2 leading-relaxed">{t("payment.legalNote")}</p>
     </div>
