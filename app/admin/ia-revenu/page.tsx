@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { tenantNode, platformTenantId } from "@/lib/hierarchy";
 import { tenantKeyStatus } from "@/lib/tenant";
 import { resellerMonthlyAiUsage } from "@/lib/ai-cost";
-import { listCreditPacks, getWallet, programCreditCost } from "@/lib/credits";
+import { listCreditPacks, getWallet, programCreditCost, realCreditCostCents } from "@/lib/credits";
 import { ResellerModelForm } from "@/components/reseller-model-form";
 import { WhitelabelPriceForm } from "@/components/whitelabel-price-form";
 import { ResellerAiModeForm } from "@/components/reseller-ai-mode-form";
@@ -107,7 +107,12 @@ export default async function AdminResellerAiPage() {
       .select("ai_credit_price_cents")
       .eq("id", platformId)
       .maybeSingle<{ ai_credit_price_cents: number | null }>();
-    buyPriceCents = p?.ai_credit_price_cents ?? DEFAULT_AI_CREDIT_PRICE_CENTS;
+    // Coût RÉEL du crédit : moyenne de ce qui a été payé, sinon meilleur tarif
+    // des packs actifs. Le prix unitaire affiché par la plateforme n'est qu'un
+    // prix conseillé, les packs pouvant être remisés au volume : simuler dessus
+    // faussait la marge.
+    const real = await realCreditCostCents(tenantId);
+    buyPriceCents = real ?? p?.ai_credit_price_cents ?? DEFAULT_AI_CREDIT_PRICE_CENTS;
     platformProgramCredits = await programCreditCost(tenantId);
   }
   // Une source d'IA existe : sa clé, ou les crédits de la plateforme.

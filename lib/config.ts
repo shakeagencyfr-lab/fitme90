@@ -122,7 +122,7 @@ export const PLATFORM_FEE_BPS = Number(process.env.PLATFORM_FEE_BPS ?? 0) || 0;
 
 /** Formate un montant en centimes → « 190 € » / « 29,90 € ». */
 export function formatEuros(cents: number | null | undefined): string {
-  if (cents == null) return "—";
+  if (cents == null) return "n.c.";
   const euros = cents / 100;
   const s = Number.isInteger(euros)
     ? String(euros)
