@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
-import { accessLabel } from "@/lib/access";
+import { accessLabel, unpaidNextStep } from "@/lib/access";
 import { Card, Stat, MonoLabel, ButtonLink, Alert } from "@/components/ui";
 import { TrainingDaysEditor } from "@/components/training-days";
 import { CyclesCarousel } from "@/components/cycles-carousel";
@@ -78,7 +78,24 @@ export default async function ProgrammePage({
 
   // --- États sans plan consultable ---
   if (access.phase === "not_paid") {
-    return (
+    // Le questionnaire est-il déjà rempli ? Si oui, la prochaine étape n'est pas
+    // de le refaire mais de payer : sans ce test, l'écran de paiement devenait
+    // inatteignable une fois revenu sur le tableau de bord.
+    const supabase = await createClient();
+    const { data: quiz } = await supabase
+      .from("questionnaires")
+      .select("id")
+      .eq("user_id", ctx.userId)
+      .limit(1)
+      .maybeSingle<{ id: string }>();
+    return unpaidNextStep(!!quiz) === "/app/paiement" ? (
+      <Empty
+        title={t("dashboard.resumeTitle")}
+        body={t("dashboard.resumeBody")}
+        cta={{ href: "/app/paiement", label: t("dashboard.resumeCta") }}
+        secondary={{ href: "/questionnaire", label: t("dashboard.editAnswers") }}
+      />
+    ) : (
       <Empty
         title={t("dashboard.createTitle")}
         body={t("dashboard.createBodyNotPaid")}
@@ -389,10 +406,12 @@ function Empty({
   title,
   body,
   cta,
+  secondary,
 }: {
   title: string;
   body: string;
   cta: { href: string; label: string };
+  secondary?: { href: string; label: string };
 }) {
   return (
     <div className="mx-auto flex min-h-[60dvh] max-w-[520px] flex-col items-start justify-center gap-4">
@@ -400,9 +419,16 @@ function Empty({
         {title}
       </h1>
       <p className="text-[15px] leading-[1.6] text-muted">{body}</p>
-      <ButtonLink href={cta.href} variant="primary" className="h-[52px] px-7 text-[16px]">
-        {cta.label}
-      </ButtonLink>
+      <div className="flex flex-wrap items-center gap-3">
+        <ButtonLink href={cta.href} variant="primary" className="h-[52px] px-7 text-[16px]">
+          {cta.label}
+        </ButtonLink>
+        {secondary ? (
+          <ButtonLink href={secondary.href} variant="outline" className="h-[52px] px-5 text-[15px]">
+            {secondary.label}
+          </ButtonLink>
+        ) : null}
+      </div>
     </div>
   );
 }

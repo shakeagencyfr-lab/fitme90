@@ -63,6 +63,11 @@ export const en: Shape<typeof fr> = {
     createBodyNotStarted:
       "Answer the questionnaire and photograph your gym: your program is generated from your answers. Your program countdown starts then.",
     startQuiz: "Start the questionnaire",
+    resumeTitle: "Your program is waiting",
+    resumeBody:
+      "Your questionnaire is saved. All that is left is paying for your plan, or entering your gift card, and your program is generated.",
+    resumeCta: "Unlock my program",
+    editAnswers: "Edit my answers",
     endedTitle: "Access ended",
     endedBody: "Your program and the viewing period are over. To start a new cycle, unlock a new program.",
     endedCta: "Get a new program",

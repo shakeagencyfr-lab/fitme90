@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeAccess, accessLabel } from "./access";
+import { computeAccess, accessLabel, unpaidNextStep } from "./access";
 import { PROGRAM_DAYS, GRACE_DAYS, programDaysForMonths } from "./config";
 
 // Date de référence : le programme démarre le 1er (jour 1).
@@ -64,5 +64,32 @@ describe("computeAccess — durée dynamique (offre du coach)", () => {
     const graceEnd = computeAccess(true, start, at("2026-07-05"), d180);
     expect(graceEnd.phase).toBe("grace");
     expect(d180 + GRACE_DAYS).toBe(194);
+  });
+});
+
+describe("unpaidNextStep", () => {
+  it("envoie à la caisse quand le questionnaire est déjà rempli", () => {
+    expect(unpaidNextStep(true)).toBe("/app/paiement");
+  });
+
+  it("envoie au questionnaire quand il n'existe pas encore", () => {
+    expect(unpaidNextStep(false)).toBe("/questionnaire");
+  });
+});
+
+describe("tutoriel : pas de plan consultable avant paiement", () => {
+  it("ne rend pas le plan consultable tant que rien n'est payé", () => {
+    // Le tutoriel est monté sur `planViewable` : sans ça il tournait à vide
+    // pour un client non payant, puis se marquait « vu » définitivement.
+    expect(computeAccess(false, null).planViewable).toBe(false);
+    expect(computeAccess(false, "2026-09-01").planViewable).toBe(false);
+  });
+
+  it("ne le rend pas non plus consultable payé mais sans programme généré", () => {
+    expect(computeAccess(true, null).planViewable).toBe(false);
+  });
+
+  it("le rend consultable dès que le programme tourne", () => {
+    expect(computeAccess(true, new Date()).planViewable).toBe(true);
   });
 });

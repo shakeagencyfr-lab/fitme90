@@ -91,7 +91,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <PageTransition>{children}</PageTransition>
       </main>
       {ctx.access.coachEnabled && aiIncluded ? <CoachWidget coachName={coachName} /> : null}
-      <OnboardingTour />
+      {/* Le tutoriel visite programme, séance et nutrition : sans plan consultable
+          il tournait à vide, et se marquait « vu » en localStorage, donc le
+          client ne le revoyait jamais une fois son programme généré. */}
+      {ctx.access.planViewable ? <OnboardingTour /> : null}
       {/* Invite à installer l'app (Android natif ; iOS marche à suivre).
           Côté client : on attend la fin du tutoriel d'accueil. */}
       <PwaInstall requireOnboarded />
