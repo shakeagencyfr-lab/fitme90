@@ -60,9 +60,9 @@ export function RevenueSimulator({
         <div className="flex flex-col gap-7">
           <label className="flex flex-col gap-2.5">
             <span className="flex items-baseline justify-between">
-              <span className="text-[14px] font-medium text-white/70">{countLabel}</span>
+              <span className="text-[14px] font-medium text-white/70">{tx(countLabel)}</span>
               <span className="font-archivo text-[20px] font-extrabold text-white">
-                {count} <span className="text-[13px] font-medium text-white/45">{countUnit}</span>
+                {count} <span className="text-[13px] font-medium text-white/45">{tx(countUnit)}</span>
               </span>
             </span>
             <input
@@ -77,7 +77,7 @@ export function RevenueSimulator({
           </label>
           <label className="flex flex-col gap-2.5">
             <span className="flex items-baseline justify-between">
-              <span className="text-[14px] font-medium text-white/70">{priceLabel}</span>
+              <span className="text-[14px] font-medium text-white/70">{tx(priceLabel)}</span>
               <span className="font-archivo text-[20px] font-extrabold text-white">{euros(price)}</span>
             </span>
             <input
@@ -110,10 +110,10 @@ export function RevenueSimulator({
           <svg viewBox="0 0 24 24" width="18" height="18" className="mt-0.5 shrink-0 text-brand" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M12 3l1.6 4L18 8.5l-4 3 1 4.5-3-2.4-3 2.4 1-4.5-4-3L10.4 7z" />
           </svg>
-          <span>{aiNote}</span>
+          <span>{tx(aiNote)}</span>
         </div>
       ) : null}
-      <p className="mt-4 text-center text-[12.5px] text-white/40">{note}</p>
+      <p className="mt-4 text-center text-[12.5px] text-white/40">{tx(note)}</p>
 
       <style
         dangerouslySetInnerHTML={{

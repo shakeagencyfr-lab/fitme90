@@ -43,7 +43,7 @@ function ShowcaseVisual({ kind, name }: { kind: "ai" | "program" | "nutrition"; 
           <div>
             <div className="grid grid-cols-3 gap-2">
               {[["Prot.", "156 g"], ["Gluc.", "210 g"], ["Lip.", "62 g"]].map(([k, v]) => (
-                <div key={k} className="rounded-xl border border-black/8 bg-white p-2.5 text-center"><div className="font-archivo text-[15px] font-extrabold text-ink">{v}</div><div className="text-[10px] text-ink/45">{k}</div></div>
+                <div key={k} className="rounded-xl border border-black/8 bg-white p-2.5 text-center"><div className="font-archivo text-[15px] font-extrabold text-ink">{tx(v)}</div><div className="text-[10px] text-ink/45">{tx(k)}</div></div>
               ))}
             </div>
             <div className="mt-3 flex items-center gap-3 rounded-xl border border-brand/20 bg-brand/[0.06] p-3">
@@ -61,10 +61,10 @@ const eyebrow = "font-mono text-[11px] uppercase tracking-[0.18em] text-brand";
 
 export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; plans: Plan[] }) {
   const accent = reseller.brandColor || DEFAULT_BRAND_COLOR;
-  const headline = reseller.headline || "Lance ton business de coaching. On s'occupe de la technologie.";
+  const headline = reseller.headline || tx("Lance ton business de coaching. On s'occupe de la technologie.");
   const tagline =
     reseller.tagline ||
-    `${reseller.name} te confie une plateforme de coaching complète, propulsée par l'IA et à ta marque. Tu vends, tu encaisses, tu grandis. Sans limite.`;
+    `${reseller.name} ${tx("te confie une plateforme de coaching complète, propulsée par l'IA et à ta marque. Tu vends, tu encaisses, tu grandis. Sans limite.")}`;
   const signup = `/inscription-coach?r=${reseller.slug}`;
   const login = `/connexion?r=${reseller.slug}`;
 
@@ -97,7 +97,7 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
           <span className="min-w-0 flex-1 truncate whitespace-nowrap"><CoachMark brand={{ name: reseller.name, logoUrl: reseller.logoUrl }} size={20} imgClass="h-9 sm:h-12" /></span>
           <nav className="hidden items-center gap-7 md:flex">
             {[["#apercu", "Aperçu"], ["#simulateur", "Simulateur"], ["#formules", "Tarifs"], ["#faq", "FAQ"]].map(([href, label]) => (
-              <a key={href} href={href} className="text-[14px] font-medium text-ink/60 transition-colors hover:text-ink">{label}</a>
+              <a key={href} href={href} className="text-[14px] font-medium text-ink/60 transition-colors hover:text-ink">{tx(label)}</a>
             ))}
           </nav>
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -132,7 +132,7 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
           </div>
           <div className="lm-up mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-ink/55" style={{ animationDelay: "320ms" }}>
             {["Premier client offert", "Aucune ligne de code", "Sans engagement"].map((t) => (
-              <span key={t} className="inline-flex items-center gap-1.5"><Ic name="check" className="h-4 w-4 text-brand" /> {t}</span>
+              <span key={t} className="inline-flex items-center gap-1.5"><Ic name="check" className="h-4 w-4 text-brand" /> {tx(t)}</span>
             ))}
           </div>
         </div>
@@ -155,7 +155,7 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {[["Force", "+18%"], ["Séances", "21"], ["Assiduité", "94%"]].map(([k, v]) => (
-                  <div key={k} className="rounded-xl border border-black/8 bg-white p-2.5 text-center"><div className="font-archivo text-[15px] font-extrabold text-ink">{v}</div><div className="text-[10px] text-ink/45">{k}</div></div>
+                  <div key={k} className="rounded-xl border border-black/8 bg-white p-2.5 text-center"><div className="font-archivo text-[15px] font-extrabold text-ink">{tx(v)}</div><div className="text-[10px] text-ink/45">{tx(k)}</div></div>
                 ))}
               </div>
             </div>
@@ -171,7 +171,7 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
         <div className="lm-marquee flex w-max items-center gap-4">
           {[...MARQUEE, ...MARQUEE].map((m, i) => (
             <span key={i} className="inline-flex items-center gap-4 text-[15px] font-semibold text-ink/40">
-              <span className="size-1.5 rounded-full bg-brand" /> {m}
+              <span className="size-1.5 rounded-full bg-brand" /> {tx(m)}
             </span>
           ))}
         </div>
@@ -185,11 +185,11 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
           { n: 24, s: "/7", l: "coach IA au travail" },
           { n: 0, s: " €", l: "pour démarrer" },
         ].map((s, i) => (
-          <Reveal key={s.l} delay={i * 90} className="text-center sm:text-left">
+          <Reveal key={tx(s.l)} delay={i * 90} className="text-center sm:text-left">
             <div className="font-archivo text-[clamp(30px,5vw,44px)] font-extrabold tracking-[-0.03em] text-ink">
               <CountUp to={s.n} suffix={s.s} />
             </div>
-            <div className="mt-1 text-[13.5px] text-ink/55">{s.l}</div>
+            <div className="mt-1 text-[13.5px] text-ink/55">{tx(s.l)}</div>
           </Reveal>
         ))}
       </section>
@@ -206,7 +206,7 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
             <ul className="mt-5 flex flex-col gap-3.5">
               {COMPARE_WITHOUT.map((t) => (
                 <li key={t} className="flex items-start gap-3 text-[14.5px] leading-[1.5] text-ink/55">
-                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-black/8 text-ink/50"><Ic name="x" className="h-3 w-3" /></span>{t}
+                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-black/8 text-ink/50"><Ic name="x" className="h-3 w-3" /></span>{tx(t)}
                 </li>
               ))}
             </ul>
@@ -217,7 +217,7 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
               <ul className="mt-5 flex flex-col gap-3.5">
                 {COMPARE_WITH.map((t) => (
                   <li key={t} className="flex items-start gap-3 text-[14.5px] font-medium leading-[1.5] text-ink/90">
-                    <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-brand text-white"><Ic name="check" className="h-3 w-3" /></span>{t}
+                    <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-brand text-white"><Ic name="check" className="h-3 w-3" /></span>{tx(t)}
                   </li>
                 ))}
               </ul>
@@ -239,12 +239,12 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
                 <ShowcaseVisual kind={s.kind} name={reseller.name} />
               </Reveal>
               <Reveal delay={100}>
-                <span className={`${eyebrow} tracking-[0.16em]`}>{s.tag}</span>
-                <h3 className="mt-3 font-archivo text-[clamp(22px,3.5vw,32px)] font-extrabold leading-[1.1] tracking-[-0.02em] text-ink">{s.title}</h3>
-                <p className="mt-4 text-[15.5px] leading-[1.7] text-ink/65">{s.desc}</p>
+                <span className={`${eyebrow} tracking-[0.16em]`}>{tx(s.tag)}</span>
+                <h3 className="mt-3 font-archivo text-[clamp(22px,3.5vw,32px)] font-extrabold leading-[1.1] tracking-[-0.02em] text-ink">{tx(s.title)}</h3>
+                <p className="mt-4 text-[15.5px] leading-[1.7] text-ink/65">{tx(s.desc)}</p>
                 <ul className="mt-5 flex flex-col gap-2.5">
                   {s.points.map((p) => (
-                    <li key={p} className="flex items-center gap-2.5 text-[14.5px] text-ink/80"><Ic name="check" className="h-4 w-4 shrink-0 text-brand" /> {p}</li>
+                    <li key={p} className="flex items-center gap-2.5 text-[14.5px] text-ink/80"><Ic name="check" className="h-4 w-4 shrink-0 text-brand" /> {tx(p)}</li>
                   ))}
                 </ul>
               </Reveal>
@@ -277,8 +277,8 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
           {FEATURES.map((f, i) => (
             <Reveal key={f.title} delay={(i % 3) * 80} className="group rounded-[22px] border border-black/8 bg-white p-6 transition-all hover:-translate-y-1 hover:border-brand/30">
               <span className="flex size-12 items-center justify-center rounded-2xl bg-brand/10 text-brand transition-colors group-hover:bg-brand/20"><Ic name={f.icon} className="h-6 w-6" /></span>
-              <h3 className="mt-4 font-archivo text-[18px] font-bold text-ink">{f.title}</h3>
-              <p className="mt-2 text-[14px] leading-[1.6] text-ink/60">{f.desc}</p>
+              <h3 className="mt-4 font-archivo text-[18px] font-bold text-ink">{tx(f.title)}</h3>
+              <p className="mt-2 text-[14px] leading-[1.6] text-ink/60">{tx(f.desc)}</p>
             </Reveal>
           ))}
         </div>
@@ -295,8 +295,8 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
             {STEPS.map((s, i) => (
               <Reveal key={s.n} delay={i * 100} className="relative rounded-[22px] border border-black/8 bg-[#faf8f5] p-7">
                 <span className="font-archivo text-[42px] font-extrabold leading-none text-brand/25">{s.n}</span>
-                <h3 className="mt-3 font-archivo text-[19px] font-bold text-ink">{s.title}</h3>
-                <p className="mt-2 text-[14.5px] leading-[1.6] text-ink/60">{s.desc}</p>
+                <h3 className="mt-3 font-archivo text-[19px] font-bold text-ink">{tx(s.title)}</h3>
+                <p className="mt-2 text-[14.5px] leading-[1.6] text-ink/60">{tx(s.desc)}</p>
               </Reveal>
             ))}
           </div>
@@ -312,7 +312,7 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
         <div className="mt-9 flex flex-wrap justify-center gap-3">
           {SECTORS.map((s, i) => (
             <Reveal key={s.label} delay={i * 60} className="inline-flex items-center gap-2.5 rounded-pill border border-black/8 bg-white px-4 py-2.5 text-[14px] font-medium text-ink/80">
-              <span className="text-brand"><Ic name={s.icon} className="h-5 w-5" /></span>{s.label}
+              <span className="text-brand"><Ic name={s.icon} className="h-5 w-5" /></span>{tx(s.label)}
             </Reveal>
           ))}
         </div>
@@ -331,9 +331,9 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
             <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {plans.map((p, i) => (
                 <Reveal key={p.id} delay={i * 80} className="flex flex-col gap-4 rounded-[24px] border border-black/8 bg-[#faf8f5] p-7 transition-all hover:-translate-y-1 hover:border-brand/30">
-                  <div className="font-archivo text-[20px] font-bold text-ink">{p.name}</div>
-                  <div><span className="font-archivo text-[30px] font-extrabold tracking-[-0.02em] text-brand">{priceLine(p) || "Sur mesure"}</span></div>
-                  <div className="text-[14px] text-ink/70">{p.client_limit == null ? "Clients illimités" : `Jusqu'à ${p.client_limit} client${p.client_limit > 1 ? "s" : ""} actifs`}</div>
+                  <div className="font-archivo text-[20px] font-bold text-ink">{tx(p.name)}</div>
+                  <div><span className="font-archivo text-[30px] font-extrabold tracking-[-0.02em] text-brand">{priceLine(p) || tx("Sur mesure")}</span></div>
+                  <div className="text-[14px] text-ink/70">{p.client_limit == null ? tx("Clients illimités") : `${tx("Jusqu'à")} ${p.client_limit} ${p.client_limit > 1 ? tx("clients actifs") : tx("client actif")}`}</div>
                   {p.setup_fee_cents > 0 ? <div className="text-[12.5px] text-ink/45">+ {formatEuros(p.setup_fee_cents)} {tx("de mise en place (une fois)")}</div> : null}
                   <Link href={signup} className="tap mt-auto inline-flex items-center justify-center rounded-btn bg-brand px-5 py-3.5 text-[14.5px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">{tx("Commencer")}</Link>
                 </Reveal>
@@ -350,7 +350,7 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
 
           <Reveal delay={120} className="mx-auto mt-10 flex max-w-[720px] flex-wrap items-center justify-center gap-x-7 gap-y-3 text-[13.5px] text-ink/60">
             {["Sans carte bancaire", "Sans engagement", "Annule quand tu veux", "Données hébergées en UE"].map((t) => (
-              <span key={t} className="inline-flex items-center gap-1.5"><Ic name="check" className="h-4 w-4 text-brand" /> {t}</span>
+              <span key={t} className="inline-flex items-center gap-1.5"><Ic name="check" className="h-4 w-4 text-brand" /> {tx(t)}</span>
             ))}
           </Reveal>
         </div>
@@ -367,10 +367,10 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
             <Reveal key={item.q} delay={i * 50}>
               <details className="group rounded-[18px] border border-black/8 bg-white px-5 py-4 open:border-brand/30">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[15.5px] font-semibold text-ink/90 [&::-webkit-details-marker]:hidden">
-                  {item.q}
+                  {tx(item.q)}
                   <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-black/12 text-ink/50 transition-transform group-open:rotate-45"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg></span>
                 </summary>
-                <p className="mt-3 text-[14.5px] leading-[1.7] text-ink/60">{item.a}</p>
+                <p className="mt-3 text-[14.5px] leading-[1.7] text-ink/60">{tx(item.a)}</p>
               </details>
             </Reveal>
           ))}

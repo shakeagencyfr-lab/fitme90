@@ -109,10 +109,10 @@ export default async function RevendeursPage() {
           </Link>
           <nav className="hidden items-center gap-7 md:flex">
             {[["#marche", "Le marché"], ["#simulateur", "Simulateur"], ["#modele", "Rémunération"], ["#faq", "FAQ"]].map(([h, l]) => (
-              <a key={h} href={h} className="text-[14px] font-medium text-white/60 transition-colors hover:text-white">{l}</a>
+              <a key={h} href={h} className="text-[14px] font-medium text-white/60 transition-colors hover:text-white">{tx(l)}</a>
             ))}
           </nav>
-          <Link href={signup} className="tap inline-flex h-10 items-center gap-1.5 rounded-btn bg-brand px-4 text-[14px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">{tx("Devenir revendeur")}</Link>
+          <Link href={signup} className="tap inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-btn bg-brand px-3.5 text-[13.5px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">{tx("Devenir revendeur")}</Link>
         </div>
       </header>
 
@@ -145,7 +145,7 @@ export default async function RevendeursPage() {
           </div>
           <div className="rv-up mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-white/55" style={{ animationDelay: "320ms" }}>
             {["Démarrage gratuit", "Aucun développement", "Ta marque, ton Stripe"].map((t) => (
-              <span key={t} className="inline-flex items-center gap-1.5"><LIcon name="check" className="h-4 w-4 text-brand" /> {t}</span>
+              <span key={t} className="inline-flex items-center gap-1.5"><LIcon name="check" className="h-4 w-4 text-brand" /> {tx(t)}</span>
             ))}
           </div>
         </div>
@@ -163,8 +163,8 @@ export default async function RevendeursPage() {
                 <div className={`flex items-center gap-3 rounded-2xl border p-3.5 ${r.hi ? "border-brand/35 bg-brand/[0.08]" : "border-white/10 bg-white/[0.03]"}`}>
                   <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${r.hi ? "bg-brand text-white" : "bg-white/8 text-brand"}`}><LIcon name={r.icon} className="h-5 w-5" /></span>
                   <div>
-                    <div className="text-[13.5px] font-semibold text-white">{r.t}</div>
-                    <div className="text-[11.5px] leading-snug text-white/50">{r.d}</div>
+                    <div className="text-[13.5px] font-semibold text-white">{tx(r.t)}</div>
+                    <div className="text-[11.5px] leading-snug text-white/50">{tx(r.d)}</div>
                   </div>
                 </div>
                 {i < 2 ? <div className="mx-auto my-1 h-4 w-px bg-white/15" /> : null}
@@ -182,7 +182,7 @@ export default async function RevendeursPage() {
       <div className="relative z-10 overflow-hidden border-y border-white/10 bg-white/[0.02] py-4">
         <div className="rv-marquee flex w-max items-center gap-4">
           {[...MARQUEE, ...MARQUEE].map((m, i) => (
-            <span key={i} className="inline-flex items-center gap-4 text-[15px] font-semibold text-white/45"><span className="size-1.5 rounded-full bg-brand" /> {m}</span>
+            <span key={i} className="inline-flex items-center gap-4 text-[15px] font-semibold text-white/45"><span className="size-1.5 rounded-full bg-brand" /> {tx(m)}</span>
           ))}
         </div>
       </div>
@@ -198,8 +198,8 @@ export default async function RevendeursPage() {
           {MARKET.map((c, i) => (
             <Reveal key={c.t} delay={i * 90} className="rounded-[22px] border border-white/10 bg-white/[0.03] p-6">
               <span className="flex size-12 items-center justify-center rounded-2xl bg-brand/12 text-brand"><LIcon name={c.icon} className="h-6 w-6" /></span>
-              <h3 className="mt-4 font-archivo text-[19px] font-bold">{c.t}</h3>
-              <p className="mt-2 text-[14.5px] leading-[1.6] text-white/60">{c.d}</p>
+              <h3 className="mt-4 font-archivo text-[19px] font-bold">{tx(c.t)}</h3>
+              <p className="mt-2 text-[14.5px] leading-[1.6] text-white/60">{tx(c.d)}</p>
             </Reveal>
           ))}
         </div>
@@ -217,8 +217,8 @@ export default async function RevendeursPage() {
             {WHY.map((c, i) => (
               <Reveal key={c.t} delay={i * 90} className="group rounded-[22px] border border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent p-6 transition-all hover:-translate-y-1 hover:border-brand/40">
                 <span className="flex size-12 items-center justify-center rounded-2xl bg-brand/12 text-brand transition-colors group-hover:bg-brand/20"><LIcon name={c.icon} className="h-6 w-6" /></span>
-                <h3 className="mt-4 font-archivo text-[19px] font-bold">{c.t}</h3>
-                <p className="mt-2 text-[14.5px] leading-[1.6] text-white/60">{c.d}</p>
+                <h3 className="mt-4 font-archivo text-[19px] font-bold">{tx(c.t)}</h3>
+                <p className="mt-2 text-[14.5px] leading-[1.6] text-white/60">{tx(c.d)}</p>
               </Reveal>
             ))}
           </div>
@@ -236,8 +236,8 @@ export default async function RevendeursPage() {
           {STEPS.map((s, i) => (
             <Reveal key={s.n} delay={i * 100} className="relative rounded-[22px] border border-white/10 bg-[#0c0f12] p-7">
               <span className="font-archivo text-[42px] font-extrabold leading-none text-brand/25">{s.n}</span>
-              <h3 className="mt-3 font-archivo text-[19px] font-bold">{s.t}</h3>
-              <p className="mt-2 text-[14.5px] leading-[1.6] text-white/60">{s.d}</p>
+              <h3 className="mt-3 font-archivo text-[19px] font-bold">{tx(s.t)}</h3>
+              <p className="mt-2 text-[14.5px] leading-[1.6] text-white/60">{tx(s.d)}</p>
             </Reveal>
           ))}
         </div>
@@ -263,7 +263,7 @@ export default async function RevendeursPage() {
               priceMax={300}
               priceDefault={49}
               note="Revenu brut illustratif. Ta marge = ce revenu moins ton abonnement plateforme. À toi de fixer prix et volume."
-              aiNote="Coût IA : en BYOK, chaque coach branche sa propre clé et paie son IA (≈ 1 à 2 €/client actif/mois) — toi, revendeur, tu n'as aucun coût IA. En mode « revendeur IA », tu peux au contraire fournir l'IA et la revendre avec ta marge."
+              aiNote="Coût IA : en BYOK, chaque coach branche sa propre clé et paie son IA (≈ 1 à 2 €/client actif/mois). Toi, revendeur, tu n'as aucun coût IA. En mode « revendeur IA », tu peux au contraire fournir l'IA et la revendre avec ta marge."
             />
           </Reveal>
         </div>
@@ -285,7 +285,7 @@ export default async function RevendeursPage() {
           ].map((c, i) => (
             <Reveal key={c.t} delay={(i % 2) * 90} className="flex gap-4 rounded-[22px] border border-white/10 bg-white/[0.03] p-6">
               <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-brand/12 text-brand"><LIcon name={c.icon} className="h-5 w-5" /></span>
-              <div><h3 className="font-archivo text-[17px] font-bold">{c.t}</h3><p className="mt-1.5 text-[14px] leading-[1.6] text-white/60">{c.d}</p></div>
+              <div><h3 className="font-archivo text-[17px] font-bold">{tx(c.t)}</h3><p className="mt-1.5 text-[14px] leading-[1.6] text-white/60">{tx(c.d)}</p></div>
             </Reveal>
           ))}
         </div>
@@ -297,7 +297,7 @@ export default async function RevendeursPage() {
           </div>
           {[["Lancement", 10, 39], ["Croissance", 30, 49], ["Réseau établi", 80, 59]].map(([label, n, p]) => (
             <div key={label as string} className="grid grid-cols-4 items-center gap-2 border-b border-white/5 px-5 py-3.5 text-[14px] last:border-0">
-              <span className="font-semibold text-white/90">{label}</span>
+              <span className="font-semibold text-white/90">{tx(String(label))}</span>
               <span className="text-white/70">{n as number}</span>
               <span className="text-white/70">{p as number} €</span>
               <span className="text-right font-archivo text-[18px] font-extrabold text-brand tabular-nums">{((n as number) * (p as number)).toLocaleString("fr-FR")} €</span>
@@ -318,8 +318,8 @@ export default async function RevendeursPage() {
             {FEATURES.map((f, i) => (
               <Reveal key={f.t} delay={(i % 3) * 80} className="group rounded-[22px] border border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent p-6 transition-all hover:-translate-y-1 hover:border-brand/40">
                 <span className="flex size-12 items-center justify-center rounded-2xl bg-brand/12 text-brand transition-colors group-hover:bg-brand/20"><LIcon name={f.icon} className="h-6 w-6" /></span>
-                <h3 className="mt-4 font-archivo text-[18px] font-bold">{f.t}</h3>
-                <p className="mt-2 text-[14px] leading-[1.6] text-white/60">{f.d}</p>
+                <h3 className="mt-4 font-archivo text-[18px] font-bold">{tx(f.t)}</h3>
+                <p className="mt-2 text-[14px] leading-[1.6] text-white/60">{tx(f.d)}</p>
               </Reveal>
             ))}
           </div>
@@ -337,10 +337,10 @@ export default async function RevendeursPage() {
             <Reveal key={item.q} delay={i * 50}>
               <details className="group rounded-[18px] border border-white/10 bg-white/[0.03] px-5 py-4 transition-colors open:border-brand/30">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[15.5px] font-semibold text-white/90 [&::-webkit-details-marker]:hidden">
-                  {item.q}
+                  {tx(item.q)}
                   <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-white/15 text-white/60 transition-transform group-open:rotate-45"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg></span>
                 </summary>
-                <p className="mt-3 text-[14.5px] leading-[1.7] text-white/60">{item.a}</p>
+                <p className="mt-3 text-[14.5px] leading-[1.7] text-white/60">{tx(item.a)}</p>
               </details>
             </Reveal>
           ))}
