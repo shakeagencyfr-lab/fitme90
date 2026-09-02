@@ -41,11 +41,28 @@ function priceFor(model: string): Price {
   return PRICES[model] ?? DEFAULT_PRICE;
 }
 
-type CallRow = { user_id: string; route: string; input_tokens: number | null; output_tokens: number | null };
+type CallRow = {
+  user_id: string;
+  route: string;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  cache_read_tokens: number | null;
+  cache_write_tokens: number | null;
+};
+
+// Tarifs du cache de prompt, en multiples du prix d'un token d'entrée : une
+// lecture coûte 10 %, une écriture 125 %. `input_tokens` renvoyé par l'API
+// EXCLUT déjà les tokens servis par le cache, les trois lignes s'additionnent.
+const CACHE_READ_RATE = 0.1;
+const CACHE_WRITE_RATE = 1.25;
 
 function rowCost(r: CallRow): number {
   const p = priceFor(modelForRoute(r.route));
-  return ((r.input_tokens ?? 0) * p.in + (r.output_tokens ?? 0) * p.out) / 1_000_000;
+  const input =
+    (r.input_tokens ?? 0) * p.in +
+    (r.cache_read_tokens ?? 0) * p.in * CACHE_READ_RATE +
+    (r.cache_write_tokens ?? 0) * p.in * CACHE_WRITE_RATE;
+  return (input + (r.output_tokens ?? 0) * p.out) / 1_000_000;
 }
 
 /**
@@ -58,7 +75,7 @@ export async function aiCostForUsers(userIds: string[]): Promise<Map<string, num
   const admin = createAdminClient();
   const { data } = await admin
     .from("ai_calls")
-    .select("user_id, route, input_tokens, output_tokens")
+    .select("user_id, route, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens")
     .in("user_id", userIds)
     .limit(100000)
     .returns<CallRow[]>();
@@ -116,7 +133,7 @@ export async function tenantMonthlyAiUsage(tenantId: string | null): Promise<Ten
 
   const { data } = await admin
     .from("ai_calls")
-    .select("user_id, route, input_tokens, output_tokens")
+    .select("user_id, route, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens")
     .in("user_id", ids)
     .gte("created_at", since)
     .limit(100000)
@@ -165,7 +182,7 @@ export async function resellerMonthlyAiUsage(resellerTenantId: string | null): P
 
   const { data } = await admin
     .from("ai_calls")
-    .select("user_id, route, input_tokens, output_tokens")
+    .select("user_id, route, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens")
     .in("user_id", ids)
     .gte("created_at", since)
     .limit(100000)

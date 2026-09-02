@@ -5,6 +5,7 @@ import { bannedTags, pnum, dislikeTerms } from "@/lib/nutrition";
 import { restPattern, startWeekday } from "@/lib/schedule";
 import { DAYS } from "@/lib/questionnaire";
 import { NutritionView } from "@/components/nutrition-view";
+import { readClientRecipes } from "@/lib/recipes-store";
 
 export const metadata = { title: "Nutrition" };
 
@@ -17,6 +18,7 @@ export default async function NutritionPage() {
     .select("item_key")
     .eq("user_id", ctx.userId);
   const initialChecks = (checks ?? []).map((c: { item_key: string }) => c.item_key);
+  const initialRecipes = await readClientRecipes(ctx.userId);
 
   const baseKcal = pnum(plan.nutrition.kcal) || 2580;
   const week = plan.weekPlan.slice(0, 7);
@@ -44,6 +46,7 @@ export default async function NutritionPage() {
         macros={{ protein: plan.nutrition.protein, carbs: plan.nutrition.carbs, fat: plan.nutrition.fat }}
         canGenerate={ctx.access.coachEnabled}
         initialChecks={initialChecks}
+        initialRecipes={initialRecipes as never}
         startDate={ctx.profile?.start_date ?? ""}
         programDays={ctx.access.programDays}
       />

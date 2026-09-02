@@ -8,6 +8,7 @@ import { checkRecipeAiBudget } from "@/lib/coach-ai-budget";
 import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
 import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
+import { saveClientRecipes } from "@/lib/recipes-store";
 import { COACH_CREDENTIAL } from "@/lib/config";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
 import { aiLanguageInstruction } from "@/lib/i18n";
@@ -128,6 +129,9 @@ Consignes : 4 à 7 étapes numérotées, chaque étape est une instruction concr
       output_tokens: message.usage.output_tokens,
     });
     await chargeAiUsage(coachTenant, "action", "recipe", ctx.userId);
+    // Persistées : sans cela le client les perdait au rechargement de page, sans
+    // pouvoir régénérer avant le lendemain (plafond journalier).
+    await saveClientRecipes(ctx.userId, parsed.recipes);
     return NextResponse.json({ recipes: parsed.recipes });
   } catch {
     return NextResponse.json({ error: t("srv.recipesDown") }, { status: 502 });
