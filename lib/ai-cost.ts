@@ -3,10 +3,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { MODELS } from "@/lib/anthropic";
 
 // Estimation du coût BYOK (clés Anthropic du coach) à partir de la table
-// `ai_calls` (tokens entrée/sortie par appel). La table ne stocke pas le modèle :
-// on le déduit du route (chaque route a son modèle configuré) et on applique le
-// tarif public correspondant. C'est donc une ESTIMATION (les tarifs peuvent
-// évoluer), suffisamment fidèle pour piloter le budget.
+// `ai_calls` (tokens entrée/sortie par appel). Depuis la migration
+// `ai_calls_detail` la table porte le modèle appelé ; pour les lignes
+// antérieures on le déduit du route (chaque route a son modèle configuré). On
+// applique ensuite le tarif public correspondant. C'est donc une ESTIMATION
+// (les tarifs peuvent évoluer), suffisamment fidèle pour piloter le budget.
 
 type Price = { in: number; out: number }; // dollars par million de tokens
 
@@ -41,9 +42,11 @@ function priceFor(model: string): Price {
   return PRICES[model] ?? DEFAULT_PRICE;
 }
 
-type CallRow = {
+export type CostRow = {
   user_id: string;
   route: string;
+  /** Modèle réellement appelé. Absent sur les lignes antérieures : on le déduit du route. */
+  model?: string | null;
   input_tokens: number | null;
   output_tokens: number | null;
   cache_read_tokens: number | null;
@@ -56,8 +59,8 @@ type CallRow = {
 const CACHE_READ_RATE = 0.1;
 const CACHE_WRITE_RATE = 1.25;
 
-function rowCost(r: CallRow): number {
-  const p = priceFor(modelForRoute(r.route));
+export function rowCost(r: CostRow): number {
+  const p = priceFor(r.model || modelForRoute(r.route));
   const input =
     (r.input_tokens ?? 0) * p.in +
     (r.cache_read_tokens ?? 0) * p.in * CACHE_READ_RATE +
@@ -75,10 +78,10 @@ export async function aiCostForUsers(userIds: string[]): Promise<Map<string, num
   const admin = createAdminClient();
   const { data } = await admin
     .from("ai_calls")
-    .select("user_id, route, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens")
+    .select("user_id, route, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens")
     .in("user_id", userIds)
     .limit(100000)
-    .returns<CallRow[]>();
+    .returns<CostRow[]>();
   for (const r of data ?? []) {
     out.set(r.user_id, (out.get(r.user_id) ?? 0) + rowCost(r));
   }
@@ -133,11 +136,11 @@ export async function tenantMonthlyAiUsage(tenantId: string | null): Promise<Ten
 
   const { data } = await admin
     .from("ai_calls")
-    .select("user_id, route, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens")
+    .select("user_id, route, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens")
     .in("user_id", ids)
     .gte("created_at", since)
     .limit(100000)
-    .returns<CallRow[]>();
+    .returns<CostRow[]>();
 
   let cost = 0;
   for (const r of data ?? []) cost += rowCost(r);
@@ -182,11 +185,11 @@ export async function resellerMonthlyAiUsage(resellerTenantId: string | null): P
 
   const { data } = await admin
     .from("ai_calls")
-    .select("user_id, route, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens")
+    .select("user_id, route, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens")
     .in("user_id", ids)
     .gte("created_at", since)
     .limit(100000)
-    .returns<CallRow[]>();
+    .returns<CostRow[]>();
 
   let cost = 0;
   for (const r of data ?? []) cost += rowCost(r);

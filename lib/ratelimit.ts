@@ -42,6 +42,32 @@ export async function checkLimit(
   return { ok: used < max, used, max };
 }
 
+/**
+ * Action métier à l'origine de l'appel. Distincte de `route`, qui reste le seau
+ * de quota : la fiche exercice compte dans le plafond « coach » sans être un
+ * message, et le résumé de mémoire tourne la nuit sans utilisateur devant.
+ */
+export type AiAction =
+  | "message"
+  | "recette"
+  | "recette-photo"
+  | "alternative"
+  | "fiche-exercice"
+  | "generation"
+  | "bloc"
+  | "analyse-salle"
+  | "memoire";
+
+export interface CallMeta {
+  /** Tenant de l'appelant, dénormalisé : l'historique réseau se lit sans jointure. */
+  tenantId?: string | null;
+  /** Modèle réellement appelé (ne plus le déduire du route). */
+  model?: string | null;
+  action?: AiAction;
+  /** Crédits débités par cette action (0 en BYOK). */
+  credits?: number | null;
+}
+
 /** Enregistre un appel effectué (après succès de l'appel externe). */
 export async function recordCall(
   userId: string,
@@ -54,6 +80,7 @@ export async function recordCall(
     /** Tokens écrits dans le cache (facturés 125 %). */
     cache_write_tokens?: number;
   },
+  meta?: CallMeta,
 ): Promise<void> {
   const admin = createAdminClient();
   await admin.from("ai_calls").insert({
@@ -63,6 +90,10 @@ export async function recordCall(
     output_tokens: usage?.output_tokens ?? null,
     cache_read_tokens: usage?.cache_read_tokens ?? null,
     cache_write_tokens: usage?.cache_write_tokens ?? null,
+    tenant_id: meta?.tenantId ?? null,
+    model: meta?.model ?? null,
+    action: meta?.action ?? null,
+    credits: meta?.credits ?? null,
   });
 }
 

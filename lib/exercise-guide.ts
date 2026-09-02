@@ -3,7 +3,7 @@ import { aiLanguageInstruction, type Locale } from "@/lib/i18n";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { anthropic, MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
-import { tenantAnthropicKey } from "@/lib/tenant";
+import { tenantAnthropicKey, tenantIdForUser } from "@/lib/tenant";
 import { recordCall } from "@/lib/ratelimit";
 import {
   matchLibraryExercise,
@@ -140,10 +140,14 @@ export async function generateGuide(name: string, userId: string, locale: Locale
       messages: [{ role: "user", content: `Exercice : ${name}\n\nRends le JSON.` }],
     });
     const parsed = aiSchema.parse(parseJsonLoose(textOf(message)));
-    await recordCall(userId, "coach", {
-      input_tokens: message.usage.input_tokens,
-      output_tokens: message.usage.output_tokens,
-    });
+    // Le route reste « coach » : la fiche compte dans le plafond journalier du
+    // coach, comme avant. Seule l'action précise ce qui a été fait.
+    await recordCall(
+      userId,
+      "coach",
+      { input_tokens: message.usage.input_tokens, output_tokens: message.usage.output_tokens },
+      { tenantId: await tenantIdForUser(userId), model: MODELS.assist, action: "fiche-exercice", credits: 0 },
+    );
 
     const admin = createAdminClient();
     await admin.from("exercise_guides").upsert(

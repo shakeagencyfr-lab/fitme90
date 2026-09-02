@@ -81,10 +81,12 @@ export async function POST(req: Request) {
       messages: [{ role: "user", content: user }],
     });
     const exercise = exerciseShape.parse(parseJsonLoose(textOf(message)));
-    await recordCall(ctx.userId, "exercise", {
-      input_tokens: message.usage.input_tokens,
-      output_tokens: message.usage.output_tokens,
-    });
+    await recordCall(
+      ctx.userId,
+      "exercise",
+      { input_tokens: message.usage.input_tokens, output_tokens: message.usage.output_tokens },
+      { tenantId: coachTenant, model: MODELS.assist, action: "alternative", credits: allowance.coachCost },
+    );
     await chargeAiUsage(coachTenant, "action", "alternative", ctx.userId);
     return NextResponse.json({ exercise });
   } catch {

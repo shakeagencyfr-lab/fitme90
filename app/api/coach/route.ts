@@ -651,14 +651,22 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
       .eq("user_id", ctx.userId)
       .eq("title", "Nouvelle conversation");
   }
-  await recordCall(ctx.userId, "coach", totalUsage);
   // Modèle crédits : on débite APRÈS la réponse réussie (jamais de surdébit).
   // Seule une VRAIE régénération ajoute le coût d'une génération : un changement
   // de jours ou une modification nutrition sont déterministes et ne coûtent que
   // le message.
+  let charged = 0;
   for (const kind of coachUsageToCharge(regenerated)) {
-    await chargeAiUsage(coachTenant, kind, kind === "program" ? "generate" : "message", ctx.userId);
+    charged += await chargeAiUsage(coachTenant, kind, kind === "program" ? "generate" : "message", ctx.userId);
   }
+  // Enregistré APRÈS le débit : l'historique porte les crédits réellement
+  // prélevés, pas une estimation refaite à côté.
+  await recordCall(ctx.userId, "coach", totalUsage, {
+    tenantId: coachTenant,
+    model: MODELS.coach,
+    action: "message",
+    credits: charged,
+  });
 
   // Une adaptation (jours, nutrition, blessure) a modifié programme/questionnaire :
   // on purge le cache des pages concernées pour que tout soit à jour à la nav.

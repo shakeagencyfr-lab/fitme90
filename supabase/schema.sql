@@ -210,6 +210,9 @@ create table if not exists public.credit_ledger (
   ref text,
   -- Client à l'origine d'un débit (journal de consommation du coach).
   client_id uuid,
+  -- Montant réellement payé sur un achat de pack (net encaissé Stripe), qui
+  -- donne le prix de revient réel du crédit. Null sur les autres mouvements.
+  price_cents integer,
   created_at timestamptz not null default now(),
   constraint credit_ledger_pkey primary key (id)
 );
@@ -392,12 +395,29 @@ create table if not exists public.scheduled_pushes (
 create table if not exists public.ai_calls (
   id bigint generated always as identity,
   user_id uuid not null,
+  -- Seau de quota (cf. lib/ratelimit.ts). La fiche exercice compte dans le
+  -- plafond « coach » : c'est `action` qui dit ce qui a réellement été fait.
   route text not null,
+  -- Action métier : 'message', 'recette', 'recette-photo', 'alternative',
+  -- 'fiche-exercice', 'generation', 'bloc', 'analyse-salle', 'memoire'.
+  action text,
+  -- Tenant de l'appelant, dénormalisé : l'historique réseau se lit sans jointure.
+  tenant_id uuid,
+  -- Modèle réellement appelé (les lignes antérieures le déduisent du route).
+  model text,
+  -- Crédits débités par cette action (0 ou null en BYOK).
+  credits integer,
   input_tokens integer,
   output_tokens integer,
+  -- Cache de prompt : lecture facturée 10 % d'un token d'entrée, écriture 125 %.
+  cache_read_tokens integer,
+  cache_write_tokens integer,
   created_at timestamptz not null default now(),
   constraint ai_calls_pkey primary key (id)
 );
+
+create index if not exists ai_calls_tenant_created_idx
+  on public.ai_calls (tenant_id, created_at desc);
 
 create table if not exists public.gift_codes (
   code text not null,

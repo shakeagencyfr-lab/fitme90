@@ -95,10 +95,12 @@ Consignes : 4 à 7 étapes concrètes, quantités précises, macros estimées, u
     if (!out.recipes.length) {
       return NextResponse.json({ error: "Aucun aliment reconnu sur la photo. Réessaie avec une photo plus nette." }, { status: 200 });
     }
-    await recordCall(ctx.userId, "recipes", {
-      input_tokens: message.usage.input_tokens,
-      output_tokens: message.usage.output_tokens,
-    });
+    await recordCall(
+      ctx.userId,
+      "recipes",
+      { input_tokens: message.usage.input_tokens, output_tokens: message.usage.output_tokens },
+      { tenantId: ctx.profile?.tenant_id ?? null, model: MODELS.recipes, action: "recette-photo", credits: 0 },
+    );
     await saveClientRecipes(ctx.userId, out.recipes);
     return NextResponse.json({ recipes: out.recipes });
   } catch {

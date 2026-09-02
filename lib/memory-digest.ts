@@ -1,7 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MODELS, textOf, effortConfig, anthropic } from "@/lib/anthropic";
-import { anthropicKeyForBilling } from "@/lib/tenant";
+import { anthropicKeyForBilling, tenantIdForUser } from "@/lib/tenant";
 import { recordCall } from "@/lib/ratelimit";
 import { MAX_DIGEST_CHARS, readMemory, saveDigest } from "@/lib/coach-memory";
 
@@ -110,12 +110,19 @@ Jette ce qui est passager (météo, humeur d'un jour, question ponctuelle déjà
         out.skipped++;
       }
 
-      await recordCall(userId, "coach", {
-        input_tokens: message.usage.input_tokens,
-        output_tokens: message.usage.output_tokens,
-        cache_read_tokens: message.usage.cache_read_input_tokens ?? 0,
-        cache_write_tokens: message.usage.cache_creation_input_tokens ?? 0,
-      });
+      await recordCall(
+        userId,
+        "coach",
+        {
+          input_tokens: message.usage.input_tokens,
+          output_tokens: message.usage.output_tokens,
+          cache_read_tokens: message.usage.cache_read_input_tokens ?? 0,
+          cache_write_tokens: message.usage.cache_creation_input_tokens ?? 0,
+        },
+        // Tourne la nuit, sans personne devant : sans cette action, la ligne se
+        // confondait avec un message du client dans l'historique.
+        { tenantId: await tenantIdForUser(userId), model: MODELS.coach, action: "memoire", credits: 0 },
+      );
     } catch {
       // Un client en échec ne doit pas interrompre la tournée.
       out.failed++;

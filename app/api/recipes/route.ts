@@ -124,10 +124,12 @@ Consignes : 4 à 7 étapes numérotées, chaque étape est une instruction concr
     if (!parsed.recipes.length) {
       return NextResponse.json({ error: t("srv.noRecipes") }, { status: 502 });
     }
-    await recordCall(ctx.userId, "recipes", {
-      input_tokens: message.usage.input_tokens,
-      output_tokens: message.usage.output_tokens,
-    });
+    await recordCall(
+      ctx.userId,
+      "recipes",
+      { input_tokens: message.usage.input_tokens, output_tokens: message.usage.output_tokens },
+      { tenantId: coachTenant, model: MODELS.recipes, action: "recette", credits: allowance.coachCost },
+    );
     await chargeAiUsage(coachTenant, "action", "recipe", ctx.userId);
     // Persistées : sans cela le client les perdait au rechargement de page, sans
     // pouvoir régénérer avant le lendemain (plafond journalier).
