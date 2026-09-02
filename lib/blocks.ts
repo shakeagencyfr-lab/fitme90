@@ -158,7 +158,12 @@ export async function appendNextBlock(userId: string, force = false): Promise<Ap
     });
     if (insErr) return { ok: false, reason: "failed" };
 
-    await recordCall(userId, "block", result.usage);
+    await recordCall(userId, "block", result.usage, {
+      tenantId: coachTenant,
+      model: result.model,
+      action: "bloc",
+      credits: allowance.coachCost,
+    });
     await chargeAiUsage(coachTenant, "program", "block", userId);
 
     return { ok: true, blockIndex, cycles: result.plan.cycles?.length ?? 0 };

@@ -82,10 +82,12 @@ export async function POST(req: NextRequest) {
       messages: [{ role: "user", content }],
     });
     const result = resultSchema.parse(parseJsonLoose(textOf(message)));
-    await recordCall(ctx.userId, "analyze-gym", {
-      input_tokens: message.usage.input_tokens,
-      output_tokens: message.usage.output_tokens,
-    });
+    await recordCall(
+      ctx.userId,
+      "analyze-gym",
+      { input_tokens: message.usage.input_tokens, output_tokens: message.usage.output_tokens },
+      { tenantId: ctx.profile?.tenant_id ?? null, model: MODELS.analyzeGym, action: "analyse-salle", credits: 0 },
+    );
     return NextResponse.json({ equipment: result.equipment });
   } catch {
     return NextResponse.json(

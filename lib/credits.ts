@@ -328,16 +328,23 @@ export async function checkAiAllowance(coachTenantId: string | null, kind: AiUsa
  * revendeur, le revendeur paie la plateforme : deux journaux, deux soldes, une
  * seule action. `clientId` alimente le journal du coach ; le journal du
  * revendeur porte le coach concerné.
+ *
+ * Renvoie les crédits RÉELLEMENT débités au coach (0 en BYOK), pour que
+ * l'historique de consommation enregistre le débit constaté, pas une
+ * estimation refaite de son côté.
  */
 export async function chargeAiUsage(
   coachTenantId: string | null,
   kind: AiUsageKind,
   reason: LedgerReason,
   clientId?: string | null,
-): Promise<void> {
-  if (!coachTenantId) return;
+): Promise<number> {
+  if (!coachTenantId) return 0;
   const a = await checkAiAllowance(coachTenantId, kind);
-  if (a.coachCost > 0) await debitWallet(coachTenantId, a.coachCost, reason, clientId);
+  let charged = 0;
+  if (a.coachCost > 0 && (await debitWallet(coachTenantId, a.coachCost, reason, clientId)).ok) {
+    charged = a.coachCost;
+  }
   if (a.resellerCost > 0 && a.resellerId) {
     // Journal du revendeur : le « client » est le coach (owner) concerné.
     const admin = createAdminClient();
@@ -350,6 +357,7 @@ export async function chargeAiUsage(
       .maybeSingle<{ id: string }>();
     await debitWallet(a.resellerId, a.resellerCost, reason, owner?.id ?? null);
   }
+  return charged;
 }
 
 // ------------------------------------------------------------------ packs

@@ -6,6 +6,7 @@ import { getSessionContext } from "@/lib/guard";
 import { checkLimit, recordCall } from "@/lib/ratelimit";
 import { screen, type QuizHealthAnswers } from "@/lib/screening";
 import { generateProgram } from "@/lib/program";
+import { MODELS } from "@/lib/anthropic";
 import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { clientOffer } from "@/lib/offers";
 import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
@@ -180,7 +181,12 @@ export async function POST() {
     }
   }
 
-  await recordCall(ctx.userId, "generate", result.usage);
+  await recordCall(ctx.userId, "generate", result.usage, {
+    tenantId: coachTenant,
+    model: MODELS.generate,
+    action: "generation",
+    credits: allowance.coachCost,
+  });
   await chargeAiUsage(coachTenant, "program", "generate", ctx.userId);
 
   return NextResponse.json({ plan: result.plan });
