@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { tx } from "@/lib/i18n/request";
 import { redirect } from "next/navigation";
 import { getAdminOrNull } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -58,13 +59,9 @@ export default async function AdminResellerAiPage() {
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-1.5">
           <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
-            Revenu IA
-          </h1>
+            {tx("Revenu IA")}</h1>
           <p className="max-w-[72ch] text-[15px] leading-[1.6] text-muted">
-            Tu vends des crédits IA à tes revendeurs en « crédits plateforme » (choix fait à la
-            création de leur compte). L&apos;IA tourne sur ta clé Anthropic, chaque action de leurs
-            coachs débite leur solde, et ils revendent le crédit à leurs coachs avec leur marge.
-          </p>
+            {tx("Tu vends des crédits IA à tes revendeurs en « crédits plateforme » (choix fait à la création de leur compte). L'IA tourne sur ta clé Anthropic, chaque action de leurs coachs débite leur solde, et ils revendent le crédit à leurs coachs avec leur marge.")}</p>
         </div>
 
         <ResellerCreditPricingForm
@@ -84,9 +81,7 @@ export default async function AdminResellerAiPage() {
 
         {!key.configured ? (
           <Alert>
-            Aucune clé Anthropic enregistrée : tes revendeurs en crédits plateforme ne peuvent pas
-            faire tourner l&apos;IA. Branche ta clé ci-dessous.
-          </Alert>
+            {tx("Aucune clé Anthropic enregistrée : tes revendeurs en crédits plateforme ne peuvent pas faire tourner l'IA. Branche ta clé ci-dessous.")}</Alert>
         ) : null}
         <ByokForm configured={key.configured} hint={key.hint} encryptionReady={key.encryptionReady} />
       </div>
@@ -125,22 +120,15 @@ export default async function AdminResellerAiPage() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          Revenu IA
-        </h1>
+          {tx("Revenu IA")}</h1>
         <p className="max-w-[72ch] text-[15px] leading-[1.6] text-muted">
           {buysFromPlatform ? (
             <>
-              Tu achètes tes crédits IA à la plateforme et tu les revends à tes coachs avec ta marge.
-              L&apos;IA tourne sur la clé de la plateforme : chaque action de tes coachs débite ton
-              solde, et ton prix de revente fait ta marge.
-            </>
+              {tx("Tu achètes tes crédits IA à la plateforme et tu les revends à tes coachs avec ta marge. L'IA tourne sur la clé de la plateforme : chaque action de tes coachs débite ton solde, et ton prix de revente fait ta marge.")}</>
           ) : (
             <>
-              Décide comment l&apos;IA est fournie à ton réseau de coachs. Soit chaque coach paie sa
-              consommation (tu ne factures que les abonnements), soit tu deviens{" "}
-              <span className="text-body">revendeur d&apos;IA</span> : tu fournis ta clé et tu revends
-              des crédits à tes coachs.
-            </>
+              {tx("Décide comment l'IA est fournie à ton réseau de coachs. Soit chaque coach paie sa consommation (tu ne factures que les abonnements), soit tu deviens")}{" "}
+              <span className="text-body">{tx("revendeur d'IA")}</span> {tx(": tu fournis ta clé et tu revends des crédits à tes coachs.")}</>
           )}
         </p>
       </div>
@@ -148,24 +136,22 @@ export default async function AdminResellerAiPage() {
       {buysFromPlatform && wallet ? (
         <Card as="section" className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <MonoLabel>Ton solde de crédits plateforme</MonoLabel>
+            <MonoLabel>{tx("Ton solde de crédits plateforme")}</MonoLabel>
             <div className="flex items-baseline gap-2">
               <span className={`font-archivo text-[30px] font-extrabold leading-none tracking-[-0.02em] tabular-nums ${wallet.credits <= 0 ? "text-[#C4471A]" : "text-ink"}`}>
                 {wallet.credits}
               </span>
-              <span className="text-[13px] text-muted">crédit{wallet.credits > 1 ? "s" : ""} IA</span>
+              <span className="text-[13px] text-muted">{tx("crédit")}{wallet.credits > 1 ? "s" : ""} IA</span>
             </div>
             <span className="text-[12.5px] text-muted-2">
-              Achetés {formatEuros(buyPriceCents ?? 0)} le crédit ; une génération de programme t&apos;en
-              débite {platformProgramCredits ?? DEFAULT_PROGRAM_CREDITS}.
+              {tx("Achetés")} {formatEuros(buyPriceCents ?? 0)} {tx("le crédit ; une génération de programme t'en débite")} {platformProgramCredits ?? DEFAULT_PROGRAM_CREDITS}.
             </span>
           </div>
           <Link
             href="/admin/credits"
             className="tap inline-flex h-11 items-center rounded-btn bg-brand px-5 text-[14px] font-semibold text-white hover:bg-brand-hover"
           >
-            Recharger et voir le détail
-          </Link>
+            {tx("Recharger et voir le détail")}</Link>
         </Card>
       ) : null}
 
@@ -193,31 +179,26 @@ export default async function AdminResellerAiPage() {
       <Card as="section" className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <div className="font-archivo font-bold text-[17px] text-ink">
-            Coût IA de ton réseau {mode === "provider" ? "(à ta charge)" : "(à titre indicatif)"}
+            {tx("Coût IA de ton réseau")} {mode === "provider" ? "(à ta charge)" : "(à titre indicatif)"}
           </div>
           <p className="max-w-[72ch] text-[13px] leading-[1.6] text-muted">
-            Estimation cumulée depuis le 1er du mois, sur la consommation de tous les comptes de tes
-            coachs.
-          </p>
+            {tx("Estimation cumulée depuis le 1er du mois, sur la consommation de tous les comptes de tes coachs.")}</p>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Metric label="Coût IA · ce mois" value={cost} />
-          <Metric label="Appels IA" value={usage.calls.toLocaleString("fr-FR")} />
-          <Metric label="Coachs du réseau" value={String(usage.coachCount)} />
-          <Metric label="Coût moyen / coach" value={`$${perCoach.toFixed(2)}`} />
+          <Metric label={tx("Coût IA · ce mois")} value={cost} />
+          <Metric label={tx("Appels IA")} value={usage.calls.toLocaleString("fr-FR")} />
+          <Metric label={tx("Coachs du réseau")} value={String(usage.coachCount)} />
+          <Metric label={tx("Coût moyen / coach")} value={`$${perCoach.toFixed(2)}`} />
         </div>
         <p className="text-[12px] leading-[1.6] text-muted-2">
-          Estimation à partir des tarifs publics Anthropic. Elle sert au pilotage, pas à la facturation.
-        </p>
+          {tx("Estimation à partir des tarifs publics Anthropic. Elle sert au pilotage, pas à la facturation.")}</p>
       </Card>
 
       {!buysFromPlatform ? (
         <>
           {mode === "provider" && !key.configured ? (
             <Alert>
-              Mode revendeur d&apos;IA activé mais aucune clé Anthropic n&apos;est enregistrée. Branche ta
-              clé ci-dessous pour que tes coachs puissent utiliser l&apos;IA.
-            </Alert>
+              {tx("Mode revendeur d'IA activé mais aucune clé Anthropic n'est enregistrée. Branche ta clé ci-dessous pour que tes coachs puissent utiliser l'IA.")}</Alert>
           ) : null}
           <ByokForm configured={key.configured} hint={key.hint} encryptionReady={key.encryptionReady} />
         </>

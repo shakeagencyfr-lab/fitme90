@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { generateGiftCodesAction, type GiftGenState } from "@/app/admin/actions";
@@ -11,6 +13,7 @@ interface Offer {
 }
 
 export function GiftGenerator({ offers }: { offers: Offer[] }) {
+  const tx = usePhrase();
   const router = useRouter();
   const [state, action, pending] = useActionState(generateGiftCodesAction, {} as GiftGenState);
   const [copied, setCopied] = useState(false);
@@ -33,18 +36,17 @@ export function GiftGenerator({ offers }: { offers: Offer[] }) {
   if (offers.length === 0) {
     return (
       <Alert tone="info">
-        Crée d&apos;abord une offre à paiement unique (onglet Ma page) pour pouvoir générer des codes cadeaux.
-      </Alert>
+        {tx("Crée d'abord une offre à paiement unique (onglet Ma page) pour pouvoir générer des codes cadeaux.")}</Alert>
     );
   }
 
   return (
     <form action={action} className="flex flex-col gap-3 rounded-card border border-line bg-surface p-5">
-      <div className="font-archivo font-bold text-[16px] text-ink">Générer des codes cadeaux gratuits</div>
+      <div className="font-archivo font-bold text-[16px] text-ink">{tx("Générer des codes cadeaux gratuits")}</div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5">
-          <MonoLabel>Offre offerte</MonoLabel>
+          <MonoLabel>{tx("Offre offerte")}</MonoLabel>
           <select
             name="offer_id"
             className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
@@ -57,7 +59,7 @@ export function GiftGenerator({ offers }: { offers: Offer[] }) {
           </select>
         </label>
         <label className="flex flex-col gap-1.5">
-          <MonoLabel>Combien de codes</MonoLabel>
+          <MonoLabel>{tx("Combien de codes")}</MonoLabel>
           <input
             type="text"
             inputMode="numeric"
@@ -69,12 +71,12 @@ export function GiftGenerator({ offers }: { offers: Offer[] }) {
       </div>
 
       <label className="flex flex-col gap-1.5">
-        <MonoLabel>Note (facultatif)</MonoLabel>
+        <MonoLabel>{tx("Note (facultatif)")}</MonoLabel>
         <input
           type="text"
           name="note"
           maxLength={200}
-          placeholder="Ex : concours Instagram"
+          placeholder={tx("Ex : concours Instagram")}
           className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
         />
       </label>
@@ -85,7 +87,7 @@ export function GiftGenerator({ offers }: { offers: Offer[] }) {
         <div className="flex flex-col gap-2 rounded-control border border-brand/30 bg-brand/5 p-4">
           <div className="flex items-center justify-between gap-2">
             <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-brand">
-              {state.codes.length} code{state.codes.length > 1 ? "s" : ""} généré{state.codes.length > 1 ? "s" : ""}
+              {state.codes.length} {tx("code")}{state.codes.length > 1 ? "s" : ""} {tx("généré")}{state.codes.length > 1 ? "s" : ""}
             </span>
             <button type="button" onClick={copyAll} className="text-[12px] font-semibold text-brand underline hover:text-ink">
               {copied ? "Copié ✓" : "Tout copier"}
@@ -102,8 +104,7 @@ export function GiftGenerator({ offers }: { offers: Offer[] }) {
       ) : null}
 
       <Button type="submit" loading={pending} className="self-start h-11">
-        Générer
-      </Button>
+        {tx("Générer")}</Button>
     </form>
   );
 }

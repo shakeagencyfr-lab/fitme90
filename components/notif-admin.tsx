@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useActionState, useEffect, useState, useTransition } from "react";
 import {
   sendBroadcastNow,
@@ -37,6 +39,7 @@ const selectClass =
 // Filtres de segmentation (sexe, objectif, phase) + aperçu d'audience en direct.
 // Les <select> portent les noms filter_* pour être soumis avec le formulaire.
 function SegmentFilters() {
+  const tx = usePhrase();
   const [sex, setSex] = useState("");
   const [goal, setGoal] = useState("");
   const [phase, setPhase] = useState("all");
@@ -58,24 +61,24 @@ function SegmentFilters() {
 
   return (
     <fieldset className="flex flex-col gap-2.5 rounded-control border border-line-2 bg-surface-2 p-3.5">
-      <MonoLabel>Cibler un segment (optionnel)</MonoLabel>
+      <MonoLabel>{tx("Cibler un segment (optionnel)")}</MonoLabel>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <select name="filter_sex" value={sex} onChange={(e) => setSex(e.target.value)} className={selectClass}>
-          <option value="">Sexe : tous</option>
+          <option value="">{tx("Sexe : tous")}</option>
           {SEX_OPTIONS.map((o) => (
             <option key={o} value={o}>{o}</option>
           ))}
         </select>
         <select name="filter_goal" value={goal} onChange={(e) => setGoal(e.target.value)} className={selectClass}>
-          <option value="">Objectif : tous</option>
+          <option value="">{tx("Objectif : tous")}</option>
           {GOAL_OPTIONS.map((o) => (
             <option key={o} value={o}>{o}</option>
           ))}
         </select>
         <select name="filter_phase" value={phase} onChange={(e) => setPhase(e.target.value)} className={selectClass}>
-          <option value="all">Phase : tous</option>
-          <option value="active">Programme en cours</option>
-          <option value="paid">Ont payé</option>
+          <option value={tx("all")}>{tx("Phase : tous")}</option>
+          <option value={tx("active")}>{tx("Programme en cours")}</option>
+          <option value={tx("paid")}>{tx("Ont payé")}</option>
         </select>
       </div>
       <p className="text-[12.5px] text-muted">
@@ -90,62 +93,57 @@ function SegmentFilters() {
 }
 
 export function NotifAdmin({ scheduled }: { scheduled: Scheduled[] }) {
+  const tx = usePhrase();
   const [nState, nAction, nPending] = useActionState(sendBroadcastNow, {} as NotifState);
   const [sState, sAction, sPending] = useActionState(scheduleBroadcast, {} as NotifState);
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
-        <h1 className="font-archivo font-extrabold text-[26px] tracking-[-0.02em] text-ink">Notifications</h1>
+        <h1 className="font-archivo font-extrabold text-[26px] tracking-[-0.02em] text-ink">{tx("Notifications")}</h1>
         <p className="text-[14px] text-muted">
-          Envoie une notification push à tes clients abonnés (ceux qui ont activé les rappels).
-          Tu peux viser tout le monde ou un segment précis (sexe, objectif, phase), l&apos;envoyer
-          maintenant ou la programmer.
-        </p>
+          {tx("Envoie une notification push à tes clients abonnés (ceux qui ont activé les rappels). Tu peux viser tout le monde ou un segment précis (sexe, objectif, phase), l'envoyer maintenant ou la programmer.")}</p>
       </div>
 
       {/* Envoi immédiat */}
       <Card className="flex flex-col gap-3">
-        <MonoLabel>Envoyer maintenant</MonoLabel>
+        <MonoLabel>{tx("Envoyer maintenant")}</MonoLabel>
         <form action={nAction} className="flex flex-col gap-3">
-          <Field name="title" label="Titre" placeholder="Nouvelle recette dispo" className="h-11" />
-          <TextArea name="body" label="Message" placeholder="Va voir la nouvelle recette dans l'onglet Nutrition." rows={2} />
-          <Field name="url" label="Lien à ouvrir (optionnel)" placeholder="/app/nutrition" className="h-11" />
+          <Field name="title" label={tx("Titre")} placeholder={tx("Nouvelle recette dispo")} className="h-11" />
+          <TextArea name="body" label={tx("Message")} placeholder={tx("Va voir la nouvelle recette dans l'onglet Nutrition.")} rows={2} />
+          <Field name="url" label={tx("Lien à ouvrir (optionnel)")} placeholder={tx("/app/nutrition")} className="h-11" />
           <SegmentFilters />
           {nState.error ? <Alert>{nState.error}</Alert> : null}
           {nState.ok ? (
             <Alert tone="info">
-              Envoyée à {nState.sent} appareil(s){nState.audience ? ` (${nState.audience} client(s) ciblé(s))` : ""}.
+              {tx("Envoyée à")} {nState.sent} {tx("appareil(s)")}{nState.audience ? ` (${nState.audience} client(s) ciblé(s))` : ""}.
             </Alert>
           ) : null}
-          <Button type="submit" loading={nPending} className="self-start h-11">Envoyer maintenant</Button>
+          <Button type="submit" loading={nPending} className="self-start h-11">{tx("Envoyer maintenant")}</Button>
         </form>
       </Card>
 
       {/* Programmation */}
       <Card className="flex flex-col gap-3">
-        <MonoLabel>Programmer</MonoLabel>
+        <MonoLabel>{tx("Programmer")}</MonoLabel>
         <form action={sAction} className="flex flex-col gap-3">
-          <Field name="title" label="Titre" placeholder="Rappel pesée du dimanche" className="h-11" />
-          <TextArea name="body" label="Message" placeholder="N'oublie pas ta pesée hebdo ce matin." rows={2} />
-          <Field name="url" label="Lien à ouvrir (optionnel)" placeholder="/app/evolution" className="h-11" />
-          <Field name="send_at" label="Date et heure d'envoi" type="datetime-local" className="h-11" />
+          <Field name="title" label={tx("Titre")} placeholder={tx("Rappel pesée du dimanche")} className="h-11" />
+          <TextArea name="body" label={tx("Message")} placeholder={tx("N'oublie pas ta pesée hebdo ce matin.")} rows={2} />
+          <Field name="url" label={tx("Lien à ouvrir (optionnel)")} placeholder={tx("/app/evolution")} className="h-11" />
+          <Field name="send_at" label={tx("Date et heure d'envoi")} type="datetime-local" className="h-11" />
           <SegmentFilters />
           {sState.error ? <Alert>{sState.error}</Alert> : null}
-          {sState.ok ? <Alert tone="info">Notification programmée.</Alert> : null}
-          <Button type="submit" variant="outline" loading={sPending} className="self-start h-11">Programmer</Button>
+          {sState.ok ? <Alert tone="info">{tx("Notification programmée.")}</Alert> : null}
+          <Button type="submit" variant="outline" loading={sPending} className="self-start h-11">{tx("Programmer")}</Button>
         </form>
         <p className="text-[12px] text-muted-2">
-          Envoi géré une fois par jour par le serveur : la notification part le jour prévu, à peu
-          près à l&apos;heure du traitement quotidien (plan actuel). Pour une heure précise, un plan
-          Vercel supérieur sera nécessaire.
-        </p>
+          {tx("Envoi géré une fois par jour par le serveur : la notification part le jour prévu, à peu près à l'heure du traitement quotidien (plan actuel). Pour une heure précise, un plan Vercel supérieur sera nécessaire.")}</p>
       </Card>
 
       {/* Programmées en attente */}
       {scheduled.length ? (
         <Card className="flex flex-col gap-3">
-          <MonoLabel>Programmées ({scheduled.length})</MonoLabel>
+          <MonoLabel>{tx("Programmées (")}{scheduled.length})</MonoLabel>
           <div className="flex flex-col gap-2">
             {scheduled.map((s) => (
               <div key={s.id} className="flex items-center gap-3 rounded-control border border-line px-3.5 py-2.5">
@@ -156,8 +154,7 @@ export function NotifAdmin({ scheduled }: { scheduled: Scheduled[] }) {
                 <form action={deleteScheduled}>
                   <input type="hidden" name="id" value={s.id} />
                   <button className="tap rounded-control border border-alert-line bg-alert px-3 py-1.5 text-[13px] font-semibold text-alert-ink">
-                    Annuler
-                  </button>
+                    {tx("Annuler")}</button>
                 </form>
               </div>
             ))}

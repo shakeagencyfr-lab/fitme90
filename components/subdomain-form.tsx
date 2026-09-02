@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveSubdomain, type SubdomainState } from "@/app/admin/actions";
@@ -19,6 +21,7 @@ export function SubdomainForm({
   siteHost: string;
   rootDomain: string;
 }) {
+  const tx = usePhrase();
   const router = useRouter();
   const [state, action, pending] = useActionState(saveSubdomain, {} as SubdomainState);
   const [value, setValue] = useState(current ?? "");
@@ -34,10 +37,10 @@ export function SubdomainForm({
   return (
     <Card className="flex flex-col gap-3.5">
       <div className="flex flex-col gap-1">
-        <div className="font-archivo font-bold text-[17px] text-ink">Adresse personnalisée</div>
+        <div className="font-archivo font-bold text-[17px] text-ink">{tx("Adresse personnalisée")}</div>
         <p className="text-[13.5px] leading-[1.6] text-muted">
-          Choisis le nom qui apparaît à la fin de l&apos;adresse de ta page publique, du type{" "}
-          <span className="font-mono text-body">{siteHost}/tonnom</span>.
+          {tx("Choisis le nom qui apparaît à la fin de l'adresse de ta page publique, du type")}{" "}
+          <span className="font-mono text-body">{siteHost}{tx("/tonnom")}</span>.
         </p>
       </div>
 
@@ -58,18 +61,17 @@ export function SubdomainForm({
             />
           </div>
           <Button type="submit" loading={pending} className="h-11 shrink-0">
-            Enregistrer
-          </Button>
+            {tx("Enregistrer")}</Button>
         </div>
 
         <p className="text-[13px] text-muted">
-          Ta page sera accessible sur{" "}
+          {tx("Ta page sera accessible sur")}{" "}
           <a href={pathUrl} target="_blank" rel="noreferrer" className="font-medium text-brand underline">
             {siteHost}/{shown}
           </a>
           {rootDomain ? (
             <>
-              {" "}et sur <span className="font-mono text-body">{shown}.{rootDomain}</span>
+              {" "}{tx("et sur")} <span className="font-mono text-body">{shown}.{rootDomain}</span>
             </>
           ) : null}
           .

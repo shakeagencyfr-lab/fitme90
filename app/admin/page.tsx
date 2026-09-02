@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { tx } from "@/lib/i18n/request";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminOrNull } from "@/lib/admin";
@@ -73,13 +74,12 @@ export default async function AdminClientsPage() {
       {tenantId ? <CoachOnboarding tenantId={tenantId} /> : null}
 
       <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
-        Clients
-      </h1>
+        {tx("Clients")}</h1>
 
       <div className="grid grid-cols-3 gap-3">
-        <Card><Stat label="Inscrits" value={rows.length} /></Card>
-        <Card><Stat label="Ont payé" value={paidCount} /></Card>
-        <Card><Stat label="Programme actif" value={activeCount} /></Card>
+        <Card><Stat label={tx("Inscrits")} value={rows.length} /></Card>
+        <Card><Stat label={tx("Ont payé")} value={paidCount} /></Card>
+        <Card><Stat label={tx("Programme actif")} value={activeCount} /></Card>
       </div>
 
       {cap ? <CapacityCard cap={cap} /> : null}
@@ -92,18 +92,16 @@ export default async function AdminClientsPage() {
               <path d="m12 3 2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z" />
             </svg>
           </span>
-          <MonoLabel>Coût de l&apos;IA</MonoLabel>
+          <MonoLabel>{tx("Coût de l'IA")}</MonoLabel>
         </div>
         <div className="flex items-baseline gap-2">
           <span className="font-archivo font-extrabold text-[34px] leading-none tracking-[-0.03em] text-ink">
             {formatUsd(globalCost)}
           </span>
-          <span className="text-[13px] text-muted-2">sur vos propres clés</span>
+          <span className="text-[13px] text-muted-2">{tx("sur vos propres clés")}</span>
         </div>
         <p className="text-[12.5px] leading-[1.6] text-muted-2">
-          Estimation cumulée de la génération, du coach IA et des recettes avec tes clés Anthropic.
-          Le détail par client est en face de chaque ligne.
-        </p>
+          {tx("Estimation cumulée de la génération, du coach IA et des recettes avec tes clés Anthropic. Le détail par client est en face de chaque ligne.")}</p>
       </Card>
 
       <Card className="p-0">
@@ -129,7 +127,7 @@ export default async function AdminClientsPage() {
                         </span>
                         {unreadByClient.get(p.id) ? (
                           <span
-                            title="Message VIP non lu"
+                            title={tx("Message VIP non lu")}
                             className="inline-flex h-[18px] min-w-[18px] items-center justify-center gap-0.5 rounded-full bg-brand px-1 font-mono text-[10px] font-bold leading-none text-white"
                           >
                             <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -148,9 +146,9 @@ export default async function AdminClientsPage() {
                         {p.medical_ack_at ? "Santé, décharge signée" : "Santé à surveiller"}
                       </Badge>
                     ) : p.paid ? (
-                      <Badge tone="ok">Payé</Badge>
+                      <Badge tone="ok">{tx("Payé")}</Badge>
                     ) : (
-                      <Badge tone="muted">Non payé</Badge>
+                      <Badge tone="muted">{tx("Non payé")}</Badge>
                     )}
                   </td>
                   <td className="px-4 py-3 text-body">{accessLabel(access)}</td>
@@ -165,7 +163,7 @@ export default async function AdminClientsPage() {
               ))}
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-muted">Aucun client pour l&apos;instant.</td>
+                  <td colSpan={8} className="px-4 py-8 text-center text-muted">{tx("Aucun client pour l'instant.")}</td>
                 </tr>
               ) : null}
             </tbody>
@@ -174,8 +172,7 @@ export default async function AdminClientsPage() {
       </Card>
 
       <p className="text-[12.5px] text-muted-2">
-        Données clients (RGPD), usage strictement professionnel, réservé au coach.
-      </p>
+        {tx("Données clients (RGPD), usage strictement professionnel, réservé au coach.")}</p>
     </div>
   );
 }
@@ -196,14 +193,13 @@ function CapacityCard({ cap }: { cap: TenantCapacity }) {
     return (
       <Card className="flex items-center justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <MonoLabel>Capacité clients</MonoLabel>
+          <MonoLabel>{tx("Capacité clients")}</MonoLabel>
           <span className="text-[14px] text-body">
-            <span className="font-semibold text-ink">Illimité</span> · {cap.used} membre{cap.used > 1 ? "s" : ""}
+            <span className="font-semibold text-ink">{tx("Illimité")}</span> · {cap.used} {tx("membre")}{cap.used > 1 ? "s" : ""}
           </span>
         </div>
         <span className="rounded-pill border border-brand/30 bg-brand/10 px-2.5 py-0.5 text-[12px] font-medium text-brand">
-          Sans limite
-        </span>
+          {tx("Sans limite")}</span>
       </Card>
     );
   }
@@ -213,7 +209,7 @@ function CapacityCard({ cap }: { cap: TenantCapacity }) {
   return (
     <Card className={`flex flex-col gap-2 ${cap.full ? "border-alert-line bg-alert" : ""}`}>
       <div className="flex items-center justify-between gap-3">
-        <MonoLabel>Capacité clients</MonoLabel>
+        <MonoLabel>{tx("Capacité clients")}</MonoLabel>
         <span
           className={`font-archivo font-extrabold text-[18px] leading-none tracking-[-0.02em] tabular-nums ${
             cap.full ? "text-alert-ink" : "text-ink"
@@ -231,11 +227,9 @@ function CapacityCard({ cap }: { cap: TenantCapacity }) {
       <p className={`text-[12.5px] leading-[1.6] ${cap.full ? "text-alert-ink" : "text-muted-2"}`}>
         {cap.full ? (
           <>
-            Tu as atteint la capacité de ton offre. Une place se libère en supprimant un compte
-            client existant, ou{" "}
+            {tx("Tu as atteint la capacité de ton offre. Une place se libère en supprimant un compte client existant, ou")}{" "}
             <Link href="/admin/abonnement" className="font-semibold underline underline-offset-2">
-              passe à l&apos;offre supérieure
-            </Link>
+              {tx("passe à l'offre supérieure")}</Link>
             .
           </>
         ) : (

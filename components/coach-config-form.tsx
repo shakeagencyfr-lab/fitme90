@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useActionState, useState } from "react";
 import { saveCoachConfig, type ConfigState } from "@/app/admin/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
@@ -34,6 +36,7 @@ export function CoachConfigForm({
   creditMode,
   programCredits,
 }: Props) {
+  const tx = usePhrase();
   const [state, action, pending] = useActionState(saveCoachConfig, {} as ConfigState);
   const [mode, setMode] = useState<"auto" | "custom">(initialMode);
   const [limit, setLimit] = useState<number>(initialDailyLimit);
@@ -46,11 +49,9 @@ export function CoachConfigForm({
     <Card as="section" className="flex flex-col gap-4">
       <form action={action} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <div className="font-archivo font-bold text-[17px] text-ink">Prénom du coach IA</div>
+          <div className="font-archivo font-bold text-[17px] text-ink">{tx("Prénom du coach IA")}</div>
           <p className="text-[13px] text-muted">
-            Le prénom sous lequel l&apos;assistant se présente à tes clients (bulle
-            de chat, message d&apos;accueil, signatures).
-          </p>
+            {tx("Le prénom sous lequel l'assistant se présente à tes clients (bulle de chat, message d'accueil, signatures).")}</p>
         </div>
         <label className="flex flex-col gap-1.5">
           <input
@@ -58,21 +59,19 @@ export function CoachConfigForm({
             name="coach_name"
             defaultValue={initialCoachName}
             maxLength={40}
-            placeholder="Ex : Sébastien"
+            placeholder={tx("Ex : Sébastien")}
             className="w-full max-w-[280px] rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
           />
           <span className="text-[12px] text-muted-2">
-            Laisse vide pour le prénom par défaut. Lettres, espaces et tirets uniquement.
-          </span>
+            {tx("Laisse vide pour le prénom par défaut. Lettres, espaces et tirets uniquement.")}</span>
         </label>
 
         <div className="h-px bg-line" />
 
         <div className="flex flex-col gap-1">
-          <div className="font-archivo font-bold text-[17px] text-ink">Mode de génération</div>
+          <div className="font-archivo font-bold text-[17px] text-ink">{tx("Mode de génération")}</div>
           <p className="text-[13px] text-muted">
-            Comment l&apos;IA construit les programmes des clients.
-          </p>
+            {tx("Comment l'IA construit les programmes des clients.")}</p>
         </div>
 
         <div className="flex flex-col gap-2.5">
@@ -107,45 +106,38 @@ export function CoachConfigForm({
         </div>
 
         <label className="flex flex-col gap-1.5">
-          <MonoLabel>Ma méthodologie (utilisée en mode personnalisé)</MonoLabel>
+          <MonoLabel>{tx("Ma méthodologie (utilisée en mode personnalisé)")}</MonoLabel>
           <textarea
             name="custom_methodology"
             defaultValue={initialCustom}
             rows={12}
             maxLength={8000}
-            placeholder="Ex : Toujours full-body 3× pour les débutants. Squat et soulevé de terre au cœur du cycle 2. Éviter le développé militaire debout pour les épaules fragiles. Repos 90 s en hypertrophie. Déficit max −20 %…"
+            placeholder={tx("Ex : Toujours full-body 3× pour les débutants. Squat et soulevé de terre au cœur du cycle 2. Éviter le développé militaire debout pour les épaules fragiles. Repos 90 s en hypertrophie. Déficit max −20 %…")}
             className="w-full rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5 text-[14px] leading-relaxed text-ink outline-none focus:border-ink"
           />
           <span className="text-[12px] text-muted-2">
-            Écris tes règles comme à un assistant coach. 8000 caractères max.
-          </span>
+            {tx("Écris tes règles comme à un assistant coach. 8000 caractères max.")}</span>
         </label>
 
         <div className="h-px bg-line" />
 
         {/* Plafonds Coach IA + estimation de coût réaliste */}
         <div className="flex flex-col gap-1">
-          <div className="font-archivo font-bold text-[17px] text-ink">Plafonds du Coach IA</div>
+          <div className="font-archivo font-bold text-[17px] text-ink">{tx("Plafonds du Coach IA")}</div>
           <p className="text-[13px] text-muted">
             {creditMode ? (
               <>
-                Deux plafonds <span className="text-body">par client et par jour</span> pour maîtriser ta
-                consommation de crédits : les messages du chat, et les régénérations de recettes. Chaque
-                action décompte {CREDITS_PER_AI_ACTION} crédit IA de ton solde ; une génération de
-                programme en décompte {programCredits}.
+                {tx("Deux plafonds")} <span className="text-body">{tx("par client et par jour")}</span> {tx("pour maîtriser ta consommation de crédits : les messages du chat, et les régénérations de recettes. Chaque action décompte")} {CREDITS_PER_AI_ACTION} {tx("crédit IA de ton solde ; une génération de programme en décompte")} {programCredits}.
               </>
             ) : (
               <>
-                Deux plafonds <span className="text-body">par client et par jour</span> pour maîtriser ton
-                coût IA (BYOK) : les messages du chat, et les régénérations de recettes (comptées à part
-                car le modèle recettes coûte un peu plus).
-              </>
+                {tx("Deux plafonds")} <span className="text-body">{tx("par client et par jour")}</span> {tx("pour maîtriser ton coût IA (BYOK) : les messages du chat, et les régénérations de recettes (comptées à part car le modèle recettes coûte un peu plus).")}</>
             )}
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5">
-            <MonoLabel>Messages chat / jour / client (0 = illimité)</MonoLabel>
+            <MonoLabel>{tx("Messages chat / jour / client (0 = illimité)")}</MonoLabel>
             <input
               type="number"
               name="coach_ai_daily_limit"
@@ -157,7 +149,7 @@ export function CoachConfigForm({
             />
           </label>
           <label className="flex flex-col gap-1.5">
-            <MonoLabel>Recettes régénérées / jour / client (0 = illimité)</MonoLabel>
+            <MonoLabel>{tx("Recettes régénérées / jour / client (0 = illimité)")}</MonoLabel>
             <input
               type="number"
               name="recipe_ai_daily_limit"
@@ -174,65 +166,50 @@ export function CoachConfigForm({
             voit un solde descendre). */}
         <div className="flex flex-col gap-2 rounded-control border border-line-4 bg-surface-2 p-3.5 text-[13px] leading-relaxed text-muted">
           <div>
-            <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">Estimation réaliste</span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">{tx("Estimation réaliste")}</span>
             <div className="mt-0.5 text-body">
               {creditMode ? (
                 <>
-                  Un client actif consomme environ{" "}
-                  <span className="font-semibold text-ink">{credits.realMonth} crédits IA/mois</span>
-                  {" "}(≈8 messages + 1 recette par jour), plus {programCredits} crédits à chaque
-                  génération de programme. La plupart consomment moins.
-                </>
+                  {tx("Un client actif consomme environ")}{" "}
+                  <span className="font-semibold text-ink">{credits.realMonth} {tx("crédits IA/mois")}</span>
+                  {" "}{tx("(≈8 messages + 1 recette par jour), plus")} {programCredits} {tx("crédits à chaque génération de programme. La plupart consomment moins.")}</>
               ) : (
                 <>
-                  Un client actif te coûte environ{" "}
-                  <span className="font-semibold text-ink">${realMonth.toFixed(2)}/mois</span> en IA
-                  {" "}(≈8 messages + 1 recette par jour). La plupart consomment moins.
-                </>
+                  {tx("Un client actif te coûte environ")}{" "}
+                  <span className="font-semibold text-ink">${realMonth.toFixed(2)}{tx("/mois")}</span> {tx("en IA")}{" "}{tx("(≈8 messages + 1 recette par jour). La plupart consomment moins.")}</>
               )}
             </div>
           </div>
           <div className="border-t border-line pt-2">
-            <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">Plafond de sécurité</span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">{tx("Plafond de sécurité")}</span>
             <div className="mt-0.5">
               {creditMode ? (
                 credits.ceilingMonth == null ? (
                   <>
-                    Un de tes plafonds est sur <span className="font-semibold text-body">illimité</span> : rien ne
-                    borne le nombre de crédits qu&apos;un client peut consommer. Fixe les deux plafonds pour
-                    garantir un maximum mensuel.
-                  </>
+                    {tx("Un de tes plafonds est sur")} <span className="font-semibold text-body">{tx("illimité")}</span> {tx(": rien ne borne le nombre de crédits qu'un client peut consommer. Fixe les deux plafonds pour garantir un maximum mensuel.")}</>
                 ) : (
                   <>
-                    Même si un client saturait ses plafonds{" "}
-                    <span className="font-semibold text-body">tous les jours</span>, il ne dépasserait jamais{" "}
-                    <span className="font-semibold text-body">{credits.ceilingMonth} crédits IA/mois</span>.
-                    Multiplie par ton nombre de clients pour dimensionner tes recharges.
-                  </>
+                    {tx("Même si un client saturait ses plafonds")}{" "}
+                    <span className="font-semibold text-body">{tx("tous les jours")}</span>{tx(", il ne dépasserait jamais")}{" "}
+                    <span className="font-semibold text-body">{credits.ceilingMonth} {tx("crédits IA/mois")}</span>{tx(". Multiplie par ton nombre de clients pour dimensionner tes recharges.")}</>
                 )
               ) : ceilingMonth == null ? (
                 <>
-                  Un de tes plafonds est sur <span className="font-semibold text-body">illimité</span> : le coût
-                  maximum n&apos;est pas borné. Fixe les deux plafonds pour garantir un coût mensuel maximum.
-                </>
+                  {tx("Un de tes plafonds est sur")} <span className="font-semibold text-body">{tx("illimité")}</span> {tx(": le coût maximum n'est pas borné. Fixe les deux plafonds pour garantir un coût mensuel maximum.")}</>
               ) : (
                 <>
-                  Même si un client saturait ses plafonds <span className="font-semibold text-body">tous les jours</span>,
-                  le coût ne dépasserait jamais ≈{" "}
-                  <span className="font-semibold text-body">${ceilingMonth.toFixed(0)}/mois</span>. À comparer au
-                  prix de ton abonnement : la marge reste très large.
-                </>
+                  {tx("Même si un client saturait ses plafonds")} <span className="font-semibold text-body">{tx("tous les jours")}</span>{tx(", le coût ne dépasserait jamais ≈")}{" "}
+                  <span className="font-semibold text-body">${ceilingMonth.toFixed(0)}{tx("/mois")}</span>{tx(". À comparer au prix de ton abonnement : la marge reste très large.")}</>
               )}
             </div>
           </div>
         </div>
 
         {state.error ? <Alert>{state.error}</Alert> : null}
-        {state.ok ? <Alert tone="info">Configuration enregistrée. Elle s&apos;applique aux prochaines générations.</Alert> : null}
+        {state.ok ? <Alert tone="info">{tx("Configuration enregistrée. Elle s'applique aux prochaines générations.")}</Alert> : null}
 
         <Button type="submit" loading={pending} className="self-start h-11">
-          Enregistrer la configuration
-        </Button>
+          {tx("Enregistrer la configuration")}</Button>
       </form>
     </Card>
   );

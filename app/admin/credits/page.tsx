@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { billingParentId, tenantNode } from "@/lib/hierarchy";
 import { getWallet, listCreditPacks, clientUsesCredits, listLedger, programCreditCost, type LedgerEntry } from "@/lib/credits";
@@ -80,32 +81,29 @@ export default async function AdminCreditsPage({
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          Crédits IA
-        </h1>
+          {tx("Crédits IA")}</h1>
         <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
-          Un seul type de crédit. Chaque action IA (message du coach, recette, alternative
-          d&apos;exercice) en consomme 1 ; une génération de programme en consomme {programCredits}.
+          {tx("Un seul type de crédit. Chaque action IA (message du coach, recette, alternative d'exercice) en consomme 1 ; une génération de programme en consomme")} {programCredits}.
           {isReseller ? " Tes coachs te les achètent, tu les achètes à la plateforme." : " Tu n'es débité que de ce que tes clients utilisent réellement."}
         </p>
       </div>
 
       {justCredited ? (
-        <Alert tone="info">Paiement confirmé : {creditPackContents(justCredited)} ajoutés à ton solde.</Alert>
+        <Alert tone="info">{tx("Paiement confirmé :")} {creditPackContents(justCredited)} {tx("ajoutés à ton solde.")}</Alert>
       ) : null}
-      {sp.annule ? <Alert>Paiement annulé. Ton solde n&apos;a pas changé.</Alert> : null}
+      {sp.annule ? <Alert>{tx("Paiement annulé. Ton solde n'a pas changé.")}</Alert> : null}
 
       <Card>
-        <MonoLabel>Solde</MonoLabel>
+        <MonoLabel>{tx("Solde")}</MonoLabel>
         <div className="mt-1 flex items-baseline gap-2">
           <span className={`font-archivo text-[34px] font-extrabold leading-none tracking-[-0.02em] tabular-nums ${wallet.credits <= 0 ? "text-[#C4471A]" : "text-ink"}`}>
             {wallet.credits}
           </span>
-          <span className="text-[13px] text-muted">crédit{wallet.credits > 1 ? "s" : ""} IA</span>
+          <span className="text-[13px] text-muted">{tx("crédit")}{wallet.credits > 1 ? "s" : ""} IA</span>
         </div>
         {wallet.credits < programCredits ? (
           <p className="mt-2 text-[13px] text-muted">
-            Il en faut {programCredits} pour une génération de programme.
-          </p>
+            {tx("Il en faut")} {programCredits} {tx("pour une génération de programme.")}</p>
         ) : null}
       </Card>
 
@@ -116,7 +114,7 @@ export default async function AdminCreditsPage({
             : "Ton offre actuelle n'utilise pas de crédits (formule abonnement / clé personnelle). Les crédits ne sont nécessaires que si ton revendeur fournit l'IA."}
         </Alert>
       ) : packs.length === 0 ? (
-        <Alert>{supplierLabel === "la plateforme" ? "La plateforme" : "Ton revendeur"} n&apos;a pas encore mis de packs en vente. Contacte-le pour recharger.</Alert>
+        <Alert>{supplierLabel === "la plateforme" ? "La plateforme" : "Ton revendeur"} {tx("n'a pas encore mis de packs en vente. Contacte-le pour recharger.")}</Alert>
       ) : (
         <PackGroup packs={packs} />
       )}
@@ -129,7 +127,7 @@ export default async function AdminCreditsPage({
 function PackGroup({ packs }: { packs: CreditPack[] }) {
   return (
     <Card as="section" className="flex flex-col gap-3">
-      <div className="font-archivo font-bold text-[16px] text-ink">Recharger</div>
+      <div className="font-archivo font-bold text-[16px] text-ink">{tx("Recharger")}</div>
       <div className="flex flex-col gap-2">
         {packs.map((p) => (
           <div key={p.id} className="flex items-center justify-between gap-3 rounded-control border border-line-4 bg-surface-2 px-4 py-3">
@@ -137,7 +135,7 @@ function PackGroup({ packs }: { packs: CreditPack[] }) {
               <div className="font-semibold text-ink">{p.name}</div>
               <div className="text-[13px] text-muted">
                 {creditPackContents(p.credits)} · <span className="text-body">{(p.price_cents / 100).toFixed(2)} €</span>
-                <span className="text-muted-2"> · {(p.price_cents / 100 / p.credits).toFixed(2)} € le crédit</span>
+                <span className="text-muted-2"> · {(p.price_cents / 100 / p.credits).toFixed(2)} {tx("€ le crédit")}</span>
               </div>
             </div>
             <BuyPackButton packId={p.id} label={`${(p.price_cents / 100).toFixed(0)} €`} />
@@ -156,11 +154,11 @@ function Journal({ entries }: { entries: LedgerEntry[] }) {
   return (
     <Card as="section" className="flex flex-col gap-3">
       <div className="flex flex-col gap-0.5">
-        <div className="font-archivo font-bold text-[16px] text-ink">Détail de la consommation</div>
-        <p className="text-[13px] text-muted">Les 200 derniers mouvements, du plus récent au plus ancien.</p>
+        <div className="font-archivo font-bold text-[16px] text-ink">{tx("Détail de la consommation")}</div>
+        <p className="text-[13px] text-muted">{tx("Les 200 derniers mouvements, du plus récent au plus ancien.")}</p>
       </div>
       {entries.length === 0 ? (
-        <p className="text-[13px] text-muted-2">Aucun mouvement pour l&apos;instant.</p>
+        <p className="text-[13px] text-muted-2">{tx("Aucun mouvement pour l'instant.")}</p>
       ) : (
         <div className="overflow-x-auto rounded-control border border-line-4">
           <table className="w-full min-w-[520px] border-collapse text-[13px]">

@@ -1,11 +1,14 @@
 import Link from "next/link";
+import { FROZEN_STATUSES } from "@/lib/freeze";
+import { tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { listChildTenants } from "@/lib/hierarchy";
 import { SITE_URL } from "@/lib/config";
 import { Alert, Card, MonoLabel } from "@/components/ui";
 import { CreateAccountForm } from "@/components/create-account-form";
-import { SupportLoginButton } from "@/components/support-login-button";
+import { NetworkActionsMenu } from "@/components/network-actions-menu";
+import { canGiftCredits } from "@/lib/network-admin";
 
 export const metadata = { title: "Mon réseau, Admin My Fitness App" };
 export const dynamic = "force-dynamic";
@@ -34,6 +37,9 @@ export default async function AdminNetworkPage({
   const isPlatform = kind === "platform";
   const isNetworkOperator = kind !== "coach";
   const children = tenantId ? await listChildTenants(tenantId) : [];
+  const giftable = new Set(
+    (await Promise.all(children.map(async (c) => ((tenantId && (await canGiftCredits(tenantId, c.id))) ? c.id : null)))).filter(Boolean) as string[],
+  );
   const base = SITE_URL || "";
   const landingUrl = slug ? `${base}/r/${slug}` : null;
   // Un revendeur recrute des coachs (?r=<son slug>). La plateforme recrute des
@@ -50,38 +56,31 @@ export default async function AdminNetworkPage({
         <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
           {isPlatform ? (
             <>
-              Les revendeurs et coachs rattachés directement à la plateforme. Chacun gère son
-              propre étage et te facture (ou non) selon son modèle. Partage les liens ci-dessous
-              pour faire grandir l&apos;entonnoir.
-            </>
+              {tx("Les revendeurs et coachs rattachés directement à la plateforme. Chacun gère son propre étage et te facture (ou non) selon son modèle. Partage les liens ci-dessous pour faire grandir l'entonnoir.")}</>
           ) : (
             <>
-              Les coachs et salles rattachés à ton réseau. Chacun gère ses propres clients ; toi tu
-              définis leurs paliers et tu les factures sur ton compte Stripe.
-            </>
+              {tx("Les coachs et salles rattachés à ton réseau. Chacun gère ses propres clients ; toi tu définis leurs paliers et tu les factures sur ton compte Stripe.")}</>
           )}
         </p>
       </div>
 
       {!tenantId ? (
-        <Alert>Aucun compte (tenant) n&apos;est rattaché à ton profil.</Alert>
+        <Alert>{tx("Aucun compte (tenant) n'est rattaché à ton profil.")}</Alert>
       ) : (
         <>
           {sp.assistance === "refus" ? (
-            <Alert>Accès d&apos;assistance refusé : ce compte n&apos;est pas dans ton réseau.</Alert>
+            <Alert>{tx("Accès d'assistance refusé : ce compte n'est pas dans ton réseau.")}</Alert>
           ) : sp.assistance === "echec" ? (
-            <Alert>Le lien de connexion d&apos;assistance n&apos;a pas pu être généré. Réessaie.</Alert>
+            <Alert>{tx("Le lien de connexion d'assistance n'a pas pu être généré. Réessaie.")}</Alert>
           ) : null}
 
           {/* Plateforme : recrutement des revendeurs (page publique). Un revendeur
               qui s'inscrit ici devient un enfant direct de la plateforme. */}
           {isPlatform ? (
             <Card className="flex flex-col gap-1.5">
-              <MonoLabel>Inviter un revendeur</MonoLabel>
+              <MonoLabel>{tx("Inviter un revendeur")}</MonoLabel>
               <p className="text-[12.5px] leading-[1.6] text-muted-2">
-                Partage ce lien à un distributeur / une enseigne. Il crée son espace revendeur
-                (avec son propre e-mail), héberge ses coachs et encaisse sur son Stripe.
-              </p>
+                {tx("Partage ce lien à un distributeur / une enseigne. Il crée son espace revendeur (avec son propre e-mail), héberge ses coachs et encaisse sur son Stripe.")}</p>
               <code className="block overflow-x-auto rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5 font-mono text-[12.5px] text-ink">
                 {resellerInviteUrl}
               </code>
@@ -94,10 +93,9 @@ export default async function AdminNetworkPage({
             <Card className="flex flex-col gap-3">
               {!isPlatform ? (
                 <div className="flex flex-col gap-1.5">
-                  <MonoLabel>Ta page de vente (marque blanche)</MonoLabel>
+                  <MonoLabel>{tx("Ta page de vente (marque blanche)")}</MonoLabel>
                   <p className="text-[12.5px] leading-[1.6] text-muted-2">
-                    Ta landing à ta marque pour convaincre les coachs. Personnalise couleurs et logo
-                    dans <Link href="/admin/integrations" className="text-brand hover:underline">Intégrations</Link>.
+                    {tx("Ta landing à ta marque pour convaincre les coachs. Personnalise couleurs et logo dans")} <Link href="/admin/integrations" className="text-brand hover:underline">{tx("Intégrations")}</Link>.
                   </p>
                   {landingUrl ? (
                     <div className="flex flex-wrap items-center gap-2">
@@ -109,8 +107,7 @@ export default async function AdminNetworkPage({
                         target="_blank"
                         className="tap inline-flex h-10 items-center rounded-btn border border-line-4 px-3.5 text-[13px] font-semibold text-body hover:border-ink"
                       >
-                        Voir ↗
-                      </Link>
+                        {tx("Voir ↗")}</Link>
                     </div>
                   ) : null}
                 </div>
@@ -119,8 +116,7 @@ export default async function AdminNetworkPage({
                 <MonoLabel>{isPlatform ? "Rattacher un coach en direct" : "Lien d'inscription directe"}</MonoLabel>
                 {isPlatform ? (
                   <p className="text-[12.5px] leading-[1.6] text-muted-2">
-                    Pour un coach sans revendeur (facturé directement par la plateforme).
-                  </p>
+                    {tx("Pour un coach sans revendeur (facturé directement par la plateforme).")}</p>
                 ) : null}
                 <code className="block overflow-x-auto rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5 font-mono text-[12.5px] text-ink">
                   {inviteUrl}
@@ -140,7 +136,7 @@ export default async function AdminNetworkPage({
               />
             </Card>
             <Card>
-              <Stat label="Clients (réseau)" value={children.reduce((s, c) => s + c.clientCount, 0)} />
+              <Stat label={tx("Clients (réseau)")} value={children.reduce((s, c) => s + c.clientCount, 0)} />
             </Card>
           </div>
 
@@ -149,7 +145,7 @@ export default async function AdminNetworkPage({
               <table className="w-full min-w-[560px] border-collapse text-[13.5px]">
                 <thead>
                   <tr className="border-b border-line text-left text-muted-2">
-                    {[isPlatform ? "Compte" : "Coach / salle", "Adresse", "Clients", "Abonnement", "Assistance"].map((h) => (
+                    {[isPlatform ? "Compte" : "Coach / salle", "Adresse", "Clients", "Abonnement", "Actions"].map((h) => (
                       <th key={h} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.08em]">
                         {h}
                       </th>
@@ -162,6 +158,11 @@ export default async function AdminNetworkPage({
                       <td className="px-4 py-3 font-semibold text-ink">
                         <span className="flex items-center gap-2">
                           {c.name}
+                          {c.suspendedAt || (c.subStatus && FROZEN_STATUSES.has(c.subStatus)) ? (
+                            <span className="rounded-pill bg-[#C4471A]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[#C4471A]">
+                              {c.suspendedAt ? tx("Désactivé") : tx("Impayé")}
+                            </span>
+                          ) : null}
                           {isPlatform ? (
                             <span className="rounded-pill bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-2">
                               {c.kind === "reseller" ? "Revendeur" : "Coach"}
@@ -184,17 +185,19 @@ export default async function AdminNetworkPage({
                       </td>
                       <td className="px-4 py-3">
                         {c.subStatus === "active" || c.subStatus === "trialing" ? (
-                          <span className="rounded-pill bg-brand/10 px-2.5 py-0.5 text-[12px] font-medium text-brand">Payant</span>
+                          <span className="rounded-pill bg-brand/10 px-2.5 py-0.5 text-[12px] font-medium text-brand">{tx("Payant")}</span>
                         ) : (
-                          <span className="rounded-pill bg-surface-2 px-2.5 py-0.5 text-[12px] font-medium text-muted-2">Palier gratuit</span>
+                          <span className="rounded-pill bg-surface-2 px-2.5 py-0.5 text-[12px] font-medium text-muted-2">{tx("Palier gratuit")}</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        {c.ownerUserId ? (
-                          <SupportLoginButton targetUserId={c.ownerUserId} name={c.name} />
-                        ) : (
-                          <span className="font-mono text-[11px] text-muted-2">sans compte</span>
-                        )}
+                        <NetworkActionsMenu
+                          tenantId={c.id}
+                          name={c.name}
+                          ownerUserId={c.ownerUserId}
+                          suspended={!!c.suspendedAt}
+                          canGift={giftable.has(c.id)}
+                        />
                       </td>
                     </tr>
                   ))}

@@ -1,4 +1,5 @@
 import { getAdminOrNull } from "@/lib/admin";
+import { tx } from "@/lib/i18n/request";
 import { listCoachExerciseMedia } from "@/lib/exercise-guide";
 import { EXERCISE_LIBRARY } from "@/lib/exercise-library";
 import { removeExerciseMedia } from "@/app/admin/actions";
@@ -17,28 +18,22 @@ export default async function AdminExercisesPage() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          Bibliothèque d&apos;exercices
-        </h1>
+          {tx("Bibliothèque d'exercices")}</h1>
         <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
-          Quand un client clique sur un exercice de sa séance, une fiche s&apos;ouvre avec une image et
-          les consignes. {EXERCISE_LIBRARY.length} mouvements courants sont déjà illustrés par défaut,
-          et les autres reçoivent des consignes générées automatiquement. Ici, tu peux ajouter TES
-          propres visuels et consignes pour n&apos;importe quel exercice (ils remplacent la fiche par défaut).
-        </p>
+          {tx("Quand un client clique sur un exercice de sa séance, une fiche s'ouvre avec une image et les consignes.")} {EXERCISE_LIBRARY.length} {tx("mouvements courants sont déjà illustrés par défaut, et les autres reçoivent des consignes générées automatiquement. Ici, tu peux ajouter TES propres visuels et consignes pour n'importe quel exercice (ils remplacent la fiche par défaut).")}</p>
       </div>
 
       {!tenantId ? (
-        <Alert>Aucun compte (tenant) n&apos;est rattaché à ton profil.</Alert>
+        <Alert>{tx("Aucun compte (tenant) n'est rattaché à ton profil.")}</Alert>
       ) : (
         <>
           <ExerciseMediaForm />
 
           <div className="flex flex-col gap-3">
-            <MonoLabel>Mes exercices personnalisés</MonoLabel>
+            <MonoLabel>{tx("Mes exercices personnalisés")}</MonoLabel>
             {media.length === 0 ? (
               <Alert tone="info">
-                Aucun exercice personnalisé pour l&apos;instant. Tes clients voient la bibliothèque par défaut.
-              </Alert>
+                {tx("Aucun exercice personnalisé pour l'instant. Tes clients voient la bibliothèque par défaut.")}</Alert>
             ) : (
               media.map((m) => (
                 <Card key={m.id} className="flex items-center gap-3.5">
@@ -63,8 +58,7 @@ export default async function AdminExercisesPage() {
                       type="submit"
                       className="tap shrink-0 rounded-btn border border-alert-line bg-alert px-3.5 py-2 text-[13px] font-semibold text-alert-ink hover:border-brand"
                     >
-                      Supprimer
-                    </button>
+                      {tx("Supprimer")}</button>
                   </form>
                 </Card>
               ))

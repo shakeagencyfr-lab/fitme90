@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { saveLandingTemplate, type TemplateState } from "@/app/admin/actions";
@@ -47,6 +49,7 @@ const TEMPLATES: { key: LandingTemplate; name: string; desc: string }[] = [
 ];
 
 export function TemplateSelector({ current, accent }: { current: LandingTemplate; accent: string }) {
+  const tx = usePhrase();
   const router = useRouter();
   const [state, action, pending] = useActionState(saveLandingTemplate, {} as TemplateState);
 
@@ -57,10 +60,9 @@ export function TemplateSelector({ current, accent }: { current: LandingTemplate
   return (
     <Card className="flex flex-col gap-3.5">
       <div className="flex flex-col gap-1">
-        <div className="font-archivo font-bold text-[17px] text-ink">Template de page</div>
+        <div className="font-archivo font-bold text-[17px] text-ink">{tx("Template de page")}</div>
         <p className="text-[13.5px] leading-[1.6] text-muted">
-          Choisis la présentation de ta page publique. Ta marque (logo, couleurs, textes) s&apos;applique quel que soit le template.
-        </p>
+          {tx("Choisis la présentation de ta page publique. Ta marque (logo, couleurs, textes) s'applique quel que soit le template.")}</p>
       </div>
 
       <form action={action} className="grid gap-3 sm:grid-cols-2">

@@ -1,5 +1,8 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+import { LangSwitch } from "@/components/lang-switch";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode, type CSSProperties } from "react";
@@ -73,11 +76,12 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 function NavList({ pathname, kind, onNavigate }: { pathname: string; kind: TenantKind; onNavigate?: () => void }) {
+  const tx = usePhrase();
   return (
     <nav className="flex flex-col gap-5">
       {groupsForKind(kind).map((g) => (
-        <div key={g.label} className="flex flex-col gap-1">
-          <div className="px-3 pb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">{g.label}</div>
+        <div key={tx(g.label)} className="flex flex-col gap-1">
+          <div className="px-3 pb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">{tx(g.label)}</div>
           {g.items.map((it) => {
             const on = isActive(pathname, it.href);
             return (
@@ -93,7 +97,7 @@ function NavList({ pathname, kind, onNavigate }: { pathname: string; kind: Tenan
               >
                 {on ? <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-brand" /> : null}
                 <span className={on ? "text-brand" : "text-muted-2 group-hover:text-ink"}>{it.icon}</span>
-                {it.label}
+                {tx(it.label)}
               </Link>
             );
           })}
@@ -105,6 +109,7 @@ function NavList({ pathname, kind, onNavigate }: { pathname: string; kind: Tenan
 
 // Bascule de thème compacte (une seule icône) : lune en clair, soleil en sombre.
 function ThemeIconButton() {
+  const tx = usePhrase();
   const [dark, setDark] = useState(false);
   useEffect(() => {
     // Différé (microtâche) pour satisfaire la règle set-state-in-effect.
@@ -124,8 +129,8 @@ function ThemeIconButton() {
     <button
       type="button"
       onClick={toggle}
-      aria-label="Changer de thème"
-      title="Changer de thème"
+      aria-label={tx("Changer de thème")}
+      title={tx("Changer de thème")}
       className="tap flex size-9 shrink-0 items-center justify-center rounded-control border border-line-4 text-muted transition-colors hover:border-ink hover:text-ink"
     >
       {dark ? (
@@ -155,17 +160,17 @@ const SPARK = (
 // En BYOK le coach paie sa propre facture Anthropic, donc ce qui l'intéresse
 // est un montant.
 function UsageCard({ costUsd, calls }: { costUsd: number; calls: number }) {
+  const tx = usePhrase();
   return (
     <Link href="/admin/compte" className={CARD_CLASS}>
       <div className={CARD_LABEL}>
         {SPARK}
-        Conso IA · ce mois
-      </div>
+        {tx("Conso IA · ce mois")}</div>
       <div className="flex items-baseline gap-2 text-ink">
         <span className="font-archivo text-[20px] font-extrabold leading-none tracking-[-0.02em]">
           ${costUsd.toFixed(2)}
         </span>
-        <span className="text-[11px] text-muted-2">{calls} appel{calls > 1 ? "s" : ""}</span>
+        <span className="text-[11px] text-muted-2">{calls} {tx("appel")}{calls > 1 ? "s" : ""}</span>
       </div>
     </Link>
   );
@@ -178,20 +183,20 @@ function UsageCard({ costUsd, calls }: { costUsd: number; calls: number }) {
  * au rouge à zéro : c'est le moment où l'IA de ses clients s'arrête.
  */
 function WalletCard({ credits }: { credits: number }) {
+  const tx = usePhrase();
   const empty = credits <= 0;
   return (
     <Link href="/admin/credits" className={CARD_CLASS}>
       <div className={CARD_LABEL}>
         {SPARK}
-        Crédits · restants
-      </div>
+        {tx("Crédits · restants")}</div>
       <div className="flex items-baseline gap-2">
         <span
           className={`font-archivo text-[20px] font-extrabold leading-none tracking-[-0.02em] tabular-nums ${empty ? "text-[#C4471A]" : "text-ink"}`}
         >
           {credits}
         </span>
-        <span className="text-[11px] text-muted-2">crédit{credits > 1 ? "s" : ""} IA</span>
+        <span className="text-[11px] text-muted-2">{tx("crédit")}{credits > 1 ? "s" : ""} IA</span>
       </div>
     </Link>
   );
@@ -225,6 +230,7 @@ export function AdminShell({
   brandLogoUrl?: string | null;
   brandColor?: string | null;
 }) {
+  const tx = usePhrase();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   // En modèle crédits, le solde remplace la conso en dollars : c'est le même
@@ -247,6 +253,7 @@ export function AdminShell({
   const brandBadge = (
     <div className="flex items-center gap-2.5">
       {brandLogoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
         <img src={brandLogoUrl} alt={brandName ?? ""} className="h-6 w-auto max-w-[150px] object-contain" />
       ) : brandName ? (
         <span className="font-archivo text-[19px] font-extrabold tracking-[-0.02em] text-ink">{brandName}</span>
@@ -254,8 +261,7 @@ export function AdminShell({
         <Wordmark size={20} />
       )}
       <span className="rounded-pill border border-line-4 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">
-        Admin
-      </span>
+        {tx("Admin")}</span>
     </div>
   );
 
@@ -265,11 +271,12 @@ export function AdminShell({
         {email}
       </span>
       <ThemeIconButton />
+      <LangSwitch compact />
       <form action={signOutAction}>
         <button
           type="submit"
-          aria-label="Se déconnecter"
-          title="Se déconnecter"
+          aria-label={tx("Se déconnecter")}
+          title={tx("Se déconnecter")}
           className="tap flex size-9 items-center justify-center rounded-control border border-line-4 text-muted transition-colors hover:border-ink hover:text-[#C4471A]"
         >
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -304,7 +311,7 @@ export function AdminShell({
           <button
             type="button"
             onClick={() => setOpen(true)}
-            aria-label="Ouvrir le menu"
+            aria-label={tx("Ouvrir le menu")}
             className="tap flex size-9 items-center justify-center rounded-control text-body-2 hover:bg-surface-2"
           >
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden>
@@ -319,11 +326,11 @@ export function AdminShell({
       {/* ───────── Tiroir en carte arrondie (mobile) ───────── */}
       {open ? (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <button aria-label="Fermer le menu" onClick={() => setOpen(false)} className="absolute inset-0 bg-ink/40 backdrop-blur-[2px]" />
+          <button aria-label={tx("Fermer le menu")} onClick={() => setOpen(false)} className="absolute inset-0 bg-ink/40 backdrop-blur-[2px]" />
           <div className="absolute inset-y-3 left-3 flex w-[300px] max-w-[87vw] flex-col gap-5 overflow-hidden rounded-card border border-line bg-surface p-4 shadow-2xl animate-[slidein_0.2s_ease-out]">
             <div className="flex items-center justify-between gap-2">
               {brandBadge}
-              <button onClick={() => setOpen(false)} aria-label="Fermer" className="tap flex size-9 items-center justify-center rounded-control text-muted-2 hover:bg-surface-2 hover:text-ink">
+              <button onClick={() => setOpen(false)} aria-label={tx("Fermer")} className="tap flex size-9 items-center justify-center rounded-control text-muted-2 hover:bg-surface-2 hover:text-ink">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden>
                   <path d="M6 6l12 12M18 6L6 18" />
                 </svg>

@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useActionState, useState } from "react";
 import {
   saveResellerModelChoice,
@@ -36,6 +38,7 @@ export function ResellerModelForm({
   buyerLabel = "tes coachs",
   packsOnly = false,
 }: Props) {
+  const tx = usePhrase();
   const [state, action, saving] = useActionState(saveResellerModelChoice, {} as ResellerAiState);
   const [model, setModel] = useState<"subscription" | "credits">(initialModel);
   // Modèle réellement en base. `state.ok` couvre l'instant entre l'enregistrement
@@ -54,11 +57,9 @@ export function ResellerModelForm({
   return (
     <Card as="section" className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
-        <div className="font-archivo font-bold text-[17px] text-ink">Modèle de revente</div>
+        <div className="font-archivo font-bold text-[17px] text-ink">{tx("Modèle de revente")}</div>
         <p className="max-w-[72ch] text-[13px] leading-[1.6] text-muted">
-          Deux façons de gagner de l&apos;argent avec ton réseau. Tu choisis l&apos;une des deux pour
-          l&apos;ensemble de tes coachs.
-        </p>
+          {tx("Deux façons de gagner de l'argent avec ton réseau. Tu choisis l'une des deux pour l'ensemble de tes coachs.")}</p>
       </div>
 
       <form action={action} className="flex flex-col gap-5">
@@ -66,31 +67,29 @@ export function ResellerModelForm({
           <ModelCard
             active={model === "subscription"}
             onClick={() => setModel("subscription")}
-            title="Abonnement"
-            desc="Tes coachs branchent leur propre clé IA (BYOK) et te paient un abonnement par fonctionnalités. Simple, tu ne gères pas l'IA."
+            title={tx("Abonnement")}
+            desc={tx("Tes coachs branchent leur propre clé IA (BYOK) et te paient un abonnement par fonctionnalités. Simple, tu ne gères pas l'IA.")}
           />
           <ModelCard
             active={model === "credits"}
             onClick={() => keyConfigured && setModel("credits")}
             disabled={!keyConfigured}
             lockNote={keyConfigured ? undefined : "Nécessite une source d'IA (ta clé Anthropic, ou des crédits plateforme)."}
-            title="Crédits IA"
-            desc="Tes coachs achètent des packs de crédits IA, clients illimités, pas d'abonnement de base. Tu fournis l'IA et prends ta marge sur chaque crédit."
+            title={tx("Crédits IA")}
+            desc={tx("Tes coachs achètent des packs de crédits IA, clients illimités, pas d'abonnement de base. Tu fournis l'IA et prends ta marge sur chaque crédit.")}
           />
         </div>
         <input type="hidden" name="reseller_model" value={model} />
 
         {state.error ? <Alert>{state.error}</Alert> : null}
-        {state.ok ? <Alert tone="info">Modèle enregistré.</Alert> : null}
+        {state.ok ? <Alert tone="info">{tx("Modèle enregistré.")}</Alert> : null}
 
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" loading={saving} disabled={model === "credits" && !keyConfigured} className="h-11">
-            Enregistrer le modèle
-          </Button>
+            {tx("Enregistrer le modèle")}</Button>
           {unsaved ? (
             <span className="text-[13px] text-[#C4471A]">
-              Choix pas encore enregistré, rien n&apos;a changé pour tes coachs.
-            </span>
+              {tx("Choix pas encore enregistré, rien n'a changé pour tes coachs.")}</span>
           ) : null}
         </div>
       </form>
@@ -103,9 +102,7 @@ export function ResellerModelForm({
       ) : model === "credits" ? (
         <div className="border-t border-line pt-5">
           <Alert>
-            Enregistre d&apos;abord le modèle « Crédits IA » ci-dessus : tes packs ne peuvent exister
-            que dans ce modèle, et tes coachs ne les verraient pas.
-          </Alert>
+            {tx("Enregistre d'abord le modèle « Crédits IA » ci-dessus : tes packs ne peuvent exister que dans ce modèle, et tes coachs ne les verraient pas.")}</Alert>
         </div>
       ) : null}
     </Card>
@@ -123,6 +120,7 @@ function PacksManager({
   buyPriceCents: number | null;
   buyerLabel: string;
 }) {
+  const tx = usePhrase();
   const [addState, addAction, adding] = useActionState(addCreditPack, {} as ResellerAiState);
   // Prix de revient d'un crédit : prix d'achat s'il existe, sinon coût Anthropic estimé.
   const costPerCredit = buyPriceCents != null ? buyPriceCents / 100 : creditPackMargin(1, 0).costEur;
@@ -130,13 +128,9 @@ function PacksManager({
   return (
     <div className="flex flex-col gap-4 border-t border-line pt-5">
       <div>
-        <div className="font-archivo font-bold text-[15.5px] text-ink">Packs de crédits IA</div>
+        <div className="font-archivo font-bold text-[15.5px] text-ink">{tx("Packs de crédits IA")}</div>
         <p className="text-[13px] text-muted">
-          Les packs que {buyerLabel} achètent. Un seul type de crédit : chaque action IA en consomme
-          1, une génération de programme le nombre réglé plus bas. Le prix se calcule tout seul à
-          partir de ton prix de revente ({(unitCents / 100).toFixed(2)} € le crédit) ; tu peux
-          l&apos;ajuster pour offrir une remise de volume.
-        </p>
+          {tx("Les packs que")} {buyerLabel} {tx("achètent. Un seul type de crédit : chaque action IA en consomme 1, une génération de programme le nombre réglé plus bas. Le prix se calcule tout seul à partir de ton prix de revente (")}{(unitCents / 100).toFixed(2)} {tx("€ le crédit) ; tu peux l'ajuster pour offrir une remise de volume.")}</p>
       </div>
 
       {packs.length ? (
@@ -175,7 +169,7 @@ function PacksManager({
                         </form>
                         <form action={removeCreditPack}>
                           <input type="hidden" name="id" value={p.id} />
-                          <button type="submit" className="tap text-[12px] text-muted hover:text-[#C4471A]">Suppr.</button>
+                          <button type="submit" className="tap text-[12px] text-muted hover:text-[#C4471A]">{tx("Suppr.")}</button>
                         </form>
                       </div>
                     </td>
@@ -186,7 +180,7 @@ function PacksManager({
           </table>
         </div>
       ) : (
-        <p className="text-[13px] text-muted-2">Aucun pack pour l&apos;instant. Ajoutes-en un ci-dessous.</p>
+        <p className="text-[13px] text-muted-2">{tx("Aucun pack pour l'instant. Ajoutes-en un ci-dessous.")}</p>
       )}
 
       <PackForm addAction={addAction} adding={adding} error={addState.error} unitCents={unitCents} costPerCredit={costPerCredit} />
@@ -216,6 +210,7 @@ function PackForm({
   unitCents: number;
   costPerCredit: number;
 }) {
+  const tx = usePhrase();
   const [credits, setCredits] = useState("");
   // Prix saisi à la main ; `null` = on suit le prix conseillé.
   const [customPrice, setCustomPrice] = useState<string | null>(null);
@@ -241,11 +236,11 @@ function PackForm({
     <form action={addAction} className="flex flex-col gap-3 rounded-control border border-line-4 bg-surface-2 p-4">
       <div className="grid items-start gap-3 sm:grid-cols-3">
         <label className="flex flex-col gap-1.5">
-          <MonoLabel>Nom</MonoLabel>
-          <input name="name" placeholder="Pack Découverte" className={FIELD} />
+          <MonoLabel>{tx("Nom")}</MonoLabel>
+          <input name="name" placeholder={tx("Pack Découverte")} className={FIELD} />
         </label>
         <label className="flex flex-col gap-1.5">
-          <MonoLabel>Crédits IA</MonoLabel>
+          <MonoLabel>{tx("Crédits IA")}</MonoLabel>
           <input
             name="credits"
             type="number"
@@ -256,14 +251,14 @@ function PackForm({
             onChange={(e) => changeCredits(e.target.value)}
             className={FIELD}
           />
-          <span className="text-[11.5px] text-muted-2">à {(unitCents / 100).toFixed(2)} € pièce</span>
+          <span className="text-[11.5px] text-muted-2">à {(unitCents / 100).toFixed(2)} {tx("€ pièce")}</span>
         </label>
         <label className="flex flex-col gap-1.5">
-          <MonoLabel>Prix de vente (€)</MonoLabel>
+          <MonoLabel>{tx("Prix de vente (€)")}</MonoLabel>
           <input
             name="price_euros"
             inputMode="decimal"
-            placeholder="calculé"
+            placeholder={tx("calculé")}
             value={price}
             onChange={(e) => setCustomPrice(e.target.value)}
             className={FIELD}
@@ -274,10 +269,9 @@ function PackForm({
               onClick={() => setCustomPrice(null)}
               className="tap self-start text-left text-[11.5px] text-muted underline decoration-line-4 underline-offset-2 hover:text-ink"
             >
-              Conseillé : {suggested} €. Revenir au calcul.
-            </button>
+              {tx("Conseillé :")} {suggested} {tx("€. Revenir au calcul.")}</button>
           ) : (
-            <span className="text-[11.5px] text-muted-2">calculé, modifiable</span>
+            <span className="text-[11.5px] text-muted-2">{tx("calculé, modifiable")}</span>
           )}
         </label>
       </div>
@@ -285,14 +279,14 @@ function PackForm({
       {n > 0 ? (
         <div className="flex flex-col gap-1 rounded-control border border-line-4 bg-surface px-3.5 py-3 text-[13px]">
           <div className="text-body">
-            <span className="font-semibold text-ink">{creditPackContents(n)}</span> vendus{" "}
+            <span className="font-semibold text-ink">{creditPackContents(n)}</span> {tx("vendus")}{" "}
             {(priceCents / 100).toFixed(2)} €
             {edited && suggestedCents > 0 ? (
-              <span className="text-muted-2"> (remise de {((suggestedCents - priceCents) / 100).toFixed(2)} € sur le prix conseillé)</span>
+              <span className="text-muted-2"> {tx("(remise de")} {((suggestedCents - priceCents) / 100).toFixed(2)} {tx("€ sur le prix conseillé)")}</span>
             ) : null}
           </div>
           <div className="text-muted">
-            Prix de revient : ≈ {cost.toFixed(2)} € <span aria-hidden>→</span>{" "}
+            {tx("Prix de revient : ≈")} {cost.toFixed(2)} € <span aria-hidden>→</span>{" "}
             <span className={marginEur < 0 ? "font-semibold text-[#C4471A]" : "font-semibold text-brand"}>
               {marginEur < 0 ? "perte de " : "marge de "}
               {Math.abs(marginEur).toFixed(2)} €{marginEur > 0 ? ` (${marginPct} %)` : ""}
@@ -301,13 +295,12 @@ function PackForm({
         </div>
       ) : (
         <p className="text-[13px] text-muted-2">
-          Renseigne un nombre de crédits : le prix de vente et le prix de revient s&apos;affichent ici.
-        </p>
+          {tx("Renseigne un nombre de crédits : le prix de vente et le prix de revient s'affichent ici.")}</p>
       )}
 
       {error ? <Alert>{error}</Alert> : null}
       <div>
-        <Button type="submit" loading={adding} className="h-10">Ajouter le pack</Button>
+        <Button type="submit" loading={adding} className="h-10">{tx("Ajouter le pack")}</Button>
       </div>
     </form>
   );

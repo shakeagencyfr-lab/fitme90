@@ -1,4 +1,7 @@
 import type { Viewport } from "next";
+import { LocaleProvider } from "@/components/locale-provider";
+import { setRequestLocale } from "@/lib/i18n/request";
+import { resolveLocale, tenantLocale } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { publicResellerBySlug } from "@/lib/reseller";
 import { ResellerOnyx } from "@/components/landing-templates/reseller-onyx";
@@ -29,9 +32,15 @@ export default async function ResellerLandingPage({ params }: { params: Promise<
   if (!data) notFound();
 
   const { reseller, plans } = data;
-  return reseller.landingTemplate === "lumen" ? (
-    <ResellerLumen reseller={reseller} plans={plans} />
-  ) : (
-    <ResellerOnyx reseller={reseller} plans={plans} />
+  const locale = await resolveLocale(await tenantLocale(reseller.id));
+  setRequestLocale(locale);
+  return (
+    <LocaleProvider locale={locale}>
+      {reseller.landingTemplate === "lumen" ? (
+        <ResellerLumen reseller={reseller} plans={plans} />
+      ) : (
+        <ResellerOnyx reseller={reseller} plans={plans} />
+      )}
+    </LocaleProvider>
   );
 }

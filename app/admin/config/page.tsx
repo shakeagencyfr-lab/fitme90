@@ -1,4 +1,5 @@
 import { readCoachConfig } from "@/lib/methodology";
+import { tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { CoachConfigForm } from "@/components/coach-config-form";
 import { clientUsesCredits, programCreditCost } from "@/lib/credits";
@@ -19,13 +20,9 @@ export default async function AdminConfigPage() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          Configuration de l&apos;IA
-        </h1>
+          {tx("Configuration de l'IA")}</h1>
         <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
-          Choisis comment l&apos;IA génère les programmes : sur la base
-          evidence-based de référence, ou en suivant ta propre méthode de coach.
-          Le changement s&apos;applique aux <span className="text-body">prochaines</span> générations.
-        </p>
+          {tx("Choisis comment l'IA génère les programmes : sur la base evidence-based de référence, ou en suivant ta propre méthode de coach. Le changement s'applique aux")} <span className="text-body">{tx("prochaines")}</span> {tx("générations.")}</p>
       </div>
 
       <CoachConfigForm

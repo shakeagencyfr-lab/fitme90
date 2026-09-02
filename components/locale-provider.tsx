@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
-import { makeT, DICTS, type Locale, type TFn } from "@/lib/i18n";
+import { makeT, DICTS, translatePhrase, type Locale, type TFn } from "@/lib/i18n";
 
 // Locale des composants client : posée par le layout (serveur), lue par
 // `useT()`. Sans provider (page hors layout), on retombe sur le français.
@@ -29,4 +29,10 @@ export function useT(): TFn {
 /** Dictionnaire complet de la locale courante (pour les listes, ex. jours). */
 export function useDict() {
   return DICTS[useLocale()];
+}
+
+/** Traduction par phrase (dashboards) pour les composants client. */
+export function usePhrase(): (text: string) => string {
+  const locale = useLocale();
+  return useMemo(() => (text: string) => translatePhrase(locale, text), [locale]);
 }

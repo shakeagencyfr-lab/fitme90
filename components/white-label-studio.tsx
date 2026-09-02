@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BrandingForm } from "@/components/branding-form";
@@ -45,6 +47,7 @@ export function WhiteLabelStudio({
   domainLocked = false,
   customDomainInfo,
 }: Props) {
+  const tx = usePhrase();
   const router = useRouter();
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
 
@@ -63,11 +66,9 @@ export function WhiteLabelStudio({
               <rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" />
             </svg>
             <div>
-              <div className="font-archivo text-[14.5px] font-bold text-ink">Domaine personnalisé</div>
+              <div className="font-archivo text-[14.5px] font-bold text-ink">{tx("Domaine personnalisé")}</div>
               <p className="mt-0.5 text-[12.5px] leading-[1.55] text-muted">
-                Débloque l&apos;option <span className="text-body">marque blanche</span> (domaine perso
-                + e-mails) auprès de ton revendeur pour brancher ton propre domaine.
-              </p>
+                {tx("Débloque l'option")} <span className="text-body">{tx("marque blanche")}</span> {tx("(domaine perso + e-mails) auprès de ton revendeur pour brancher ton propre domaine.")}</p>
             </div>
           </div>
         ) : (
@@ -80,7 +81,7 @@ export function WhiteLabelStudio({
         <div className="flex flex-col gap-3 rounded-card border border-line bg-surface p-3.5">
           <div className="flex items-center justify-between gap-2 px-1">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">Aperçu live</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">{tx("Aperçu live")}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="flex rounded-control border border-line-4 p-0.5">
@@ -102,8 +103,8 @@ export function WhiteLabelStudio({
               <button
                 type="button"
                 onClick={() => router.refresh()}
-                aria-label="Rafraîchir l'aperçu"
-                title="Rafraîchir l'aperçu"
+                aria-label={tx("Rafraîchir l'aperçu")}
+                title={tx("Rafraîchir l'aperçu")}
                 className="tap flex size-8 items-center justify-center rounded-control border border-line-4 text-muted hover:border-ink hover:text-ink"
               >
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -118,7 +119,7 @@ export function WhiteLabelStudio({
               <iframe
                 key={`${device}-${previewVersion}`}
                 src={src}
-                title="Aperçu de la page publique"
+                title={tx("Aperçu de la page publique")}
                 className={[
                   "h-[600px] border-0 bg-white transition-[width] duration-300",
                   device === "mobile" ? "w-[390px]" : "w-full",
@@ -128,8 +129,7 @@ export function WhiteLabelStudio({
             </div>
           ) : (
             <div className="flex h-[300px] items-center justify-center rounded-control border border-dashed border-line-4 px-6 text-center text-[13px] text-muted-2">
-              Choisis d&apos;abord ton adresse personnalisée pour prévisualiser ta page.
-            </div>
+              {tx("Choisis d'abord ton adresse personnalisée pour prévisualiser ta page.")}</div>
           )}
 
           {previewUrl ? (
@@ -139,8 +139,7 @@ export function WhiteLabelStudio({
               rel="noreferrer"
               className="tap inline-flex h-10 items-center justify-center gap-1.5 rounded-btn border border-line-4 bg-surface px-4 text-[13.5px] font-semibold text-ink hover:border-ink"
             >
-              Ouvrir dans un nouvel onglet ↗
-            </a>
+              {tx("Ouvrir dans un nouvel onglet ↗")}</a>
           ) : null}
         </div>
       </div>

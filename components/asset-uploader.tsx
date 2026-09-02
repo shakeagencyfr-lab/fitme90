@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { uploadAsset, removeAsset } from "@/app/admin/actions";
@@ -54,6 +56,7 @@ async function compressImage(file: File, maxDim: number): Promise<File> {
 // N'utilise pas de <form> : appelle directement l'action serveur, ce qui évite
 // aussi le bug de <form> imbriqué qui cassait l'upload du portrait.
 export function AssetUploader({ kind, label, hint, currentUrl, round }: Props) {
+  const tx = usePhrase();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
@@ -112,8 +115,7 @@ export function AssetUploader({ kind, label, hint, currentUrl, round }: Props) {
           </label>
           {currentUrl ? (
             <button type="button" onClick={onRemove} disabled={pending} className="text-[12px] text-muted-2 underline hover:text-ink disabled:opacity-50">
-              Retirer
-            </button>
+              {tx("Retirer")}</button>
           ) : null}
         </div>
       </div>

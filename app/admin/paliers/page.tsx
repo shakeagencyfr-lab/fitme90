@@ -1,4 +1,5 @@
 import { getAdminOrNull } from "@/lib/admin";
+import { tx } from "@/lib/i18n/request";
 import { listPlans, MAX_PLANS_PER_TENANT, type Plan } from "@/lib/plans";
 import { formatEuros } from "@/lib/config";
 import { PlanForm } from "@/components/plan-form";
@@ -27,23 +28,18 @@ export default async function AdminPlansPage() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          Paliers
-        </h1>
+          {tx("Paliers")}</h1>
         <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
-          Les formules d&apos;abonnement que tu proposes aux comptes que tu héberges (revendeurs, coachs
-          ou salles selon ton niveau). Chaque palier fixe un prix récurrent et un nombre de clients
-          inclus ; le 1er client reste offert pour démarrer. Des frais de mise en place one-shot peuvent
-          s&apos;ajouter pour les salles.
-        </p>
+          {tx("Les formules d'abonnement que tu proposes aux comptes que tu héberges (revendeurs, coachs ou salles selon ton niveau). Chaque palier fixe un prix récurrent et un nombre de clients inclus ; le 1er client reste offert pour démarrer. Des frais de mise en place one-shot peuvent s'ajouter pour les salles.")}</p>
       </div>
 
       {!tenantId ? (
-        <Alert>Aucun compte (tenant) n&apos;est rattaché à ton profil.</Alert>
+        <Alert>{tx("Aucun compte (tenant) n'est rattaché à ton profil.")}</Alert>
       ) : (
         <div className="flex flex-col gap-3">
-          <div className="font-archivo font-bold text-[17px] text-ink">Mes paliers</div>
+          <div className="font-archivo font-bold text-[17px] text-ink">{tx("Mes paliers")}</div>
           {plans.length === 0 ? (
-            <Alert tone="info">Aucun palier pour l&apos;instant. Crée ta première formule ci-dessous.</Alert>
+            <Alert tone="info">{tx("Aucun palier pour l'instant. Crée ta première formule ci-dessous.")}</Alert>
           ) : (
             plans.map((p) => (
               <Card key={p.id} className="flex flex-wrap items-center justify-between gap-3">
@@ -52,8 +48,7 @@ export default async function AdminPlansPage() {
                     <span className="font-archivo font-bold text-[16px] text-ink">{p.name}</span>
                     {!p.is_active ? (
                       <span className="rounded-pill border border-line-4 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">
-                        Inactif
-                      </span>
+                        {tx("Inactif")}</span>
                     ) : null}
                     <span className="rounded-pill bg-brand/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-brand">
                       {clientsLabel(p)}
@@ -82,8 +77,7 @@ export default async function AdminPlansPage() {
                       type="submit"
                       className="tap rounded-btn border border-alert-line bg-alert px-3.5 py-2 text-[13px] font-semibold text-alert-ink hover:border-brand"
                     >
-                      Supprimer
-                    </button>
+                      {tx("Supprimer")}</button>
                   </form>
                 </div>
               </Card>

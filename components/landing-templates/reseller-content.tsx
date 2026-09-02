@@ -2,6 +2,7 @@
 
 import type { Plan } from "@/lib/plans";
 import { formatEuros } from "@/lib/config";
+import { tx } from "@/lib/i18n/request";
 
 export const MARQUEE = [
   "Marque blanche", "Coach IA 24/7", "Programmes sur-mesure", "Nutrition auto", "Chat VIP",
@@ -111,7 +112,7 @@ export function Ic({ name, className }: { name: string; className?: string }) {
 
 export function priceLine(p: Plan): string {
   const parts: string[] = [];
-  if (p.price_month_cents != null) parts.push(`${formatEuros(p.price_month_cents)}/mois`);
-  if (p.price_year_cents != null) parts.push(`${formatEuros(p.price_year_cents)}/an`);
+  if (p.price_month_cents != null) parts.push(`${formatEuros(p.price_month_cents)}${tx("/mois")}`);
+  if (p.price_year_cents != null) parts.push(`${formatEuros(p.price_year_cents)}${tx("/an")}`);
   return parts.join(" · ");
 }

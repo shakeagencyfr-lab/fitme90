@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Alert } from "@/components/ui";
@@ -18,6 +20,7 @@ export function PlanChangeButton({
   /** Un abonnement est déjà actif → le bouton « change » plutôt que « souscrit ». */
   hasActiveSub: boolean;
 }) {
+  const tx = usePhrase();
   const router = useRouter();
   const [busy, setBusy] = useState<"month" | "year" | null>(null);
   const [error, setError] = useState("");
@@ -53,7 +56,7 @@ export function PlanChangeButton({
   return (
     <div className="flex flex-col gap-2">
       {error ? <Alert>{error}</Alert> : null}
-      {done ? <Alert tone="info">Offre mise à jour. Le prorata est appliqué sur ta prochaine facture.</Alert> : null}
+      {done ? <Alert tone="info">{tx("Offre mise à jour. Le prorata est appliqué sur ta prochaine facture.")}</Alert> : null}
       <div className="flex flex-wrap gap-2">
         {monthLabel ? (
           <Button onClick={() => choose("month")} loading={busy === "month"} className="h-11">

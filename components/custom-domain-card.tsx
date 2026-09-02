@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveCustomDomain, recheckCustomDomain, type DomainState } from "@/app/admin/actions";
@@ -21,6 +23,7 @@ function Pill({ tone, children }: { tone: "ok" | "warn" | "muted"; children: Rea
 }
 
 function Row({ k, v }: { k: string; v: string }) {
+  const tx = usePhrase();
   const [copied, setCopied] = useState(false);
   async function copy() {
     try {
@@ -34,7 +37,7 @@ function Row({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-line-2 py-2 last:border-0">
       <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">{k}</span>
-      <button type="button" onClick={copy} className="tap font-mono text-[13px] text-ink hover:text-brand" title="Copier">
+      <button type="button" onClick={copy} className="tap font-mono text-[13px] text-ink hover:text-brand" title={tx("Copier")}>
         {v} <span className="text-[11px] text-muted-2">{copied ? "copié ✓" : "copier"}</span>
       </button>
     </div>
@@ -42,6 +45,7 @@ function Row({ k, v }: { k: string; v: string }) {
 }
 
 export function CustomDomainCard({ info }: { info: CustomDomainInfo }) {
+  const tx = usePhrase();
   const router = useRouter();
   const [state, action, pending] = useActionState(saveCustomDomain, {} as DomainState);
   const [value, setValue] = useState(info.domain ?? "");
@@ -58,14 +62,13 @@ export function CustomDomainCard({ info }: { info: CustomDomainInfo }) {
   return (
     <Card className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="font-archivo font-bold text-[17px] text-ink">Domaine personnalisé</div>
-        <Pill tone="muted">Premium</Pill>
-        {info.domain ? live ? <Pill tone="ok">En ligne</Pill> : <Pill tone="warn">En attente DNS</Pill> : null}
+        <div className="font-archivo font-bold text-[17px] text-ink">{tx("Domaine personnalisé")}</div>
+        <Pill tone="muted">{tx("Premium")}</Pill>
+        {info.domain ? live ? <Pill tone="ok">{tx("En ligne")}</Pill> : <Pill tone="warn">{tx("En attente DNS")}</Pill> : null}
       </div>
       <p className="text-[13.5px] leading-[1.6] text-muted">
-        Sers ta page publique et l&apos;espace de tes clients sur <span className="font-medium text-body">ton propre nom de domaine</span>{" "}
-        (ex <span className="font-mono text-body">coaching-tonnom.com</span>) : marque blanche totale, aucune mention de la plateforme dans l&apos;adresse.
-      </p>
+        {tx("Sers ta page publique et l'espace de tes clients sur")} <span className="font-medium text-body">{tx("ton propre nom de domaine")}</span>{" "}
+        {tx("(ex")} <span className="font-mono text-body">{tx("coaching-tonnom.com")}</span>{tx(") : marque blanche totale, aucune mention de la plateforme dans l'adresse.")}</p>
 
       <form action={action} className="flex flex-col gap-3">
         <div className="flex flex-wrap items-stretch gap-2">
@@ -73,7 +76,7 @@ export function CustomDomainCard({ info }: { info: CustomDomainInfo }) {
             name="domain"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="coaching-tonnom.com"
+            placeholder={tx("coaching-tonnom.com")}
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
@@ -106,8 +109,7 @@ export function CustomDomainCard({ info }: { info: CustomDomainInfo }) {
                 })
               }
             >
-              Vérifier maintenant
-            </Button>
+              {tx("Vérifier maintenant")}</Button>
           </div>
           {!live ? (
             <div className="flex flex-col">
@@ -118,7 +120,7 @@ export function CustomDomainCard({ info }: { info: CustomDomainInfo }) {
           ) : null}
           {needsVercelTxt && info.vercel?.verification ? (
             <div className="flex flex-col gap-1">
-              <div className="text-[13px] font-semibold text-ink">2. Vérification de propriété demandée par l&apos;hébergeur :</div>
+              <div className="text-[13px] font-semibold text-ink">{tx("2. Vérification de propriété demandée par l'hébergeur :")}</div>
               {info.vercel.verification.map((v) => (
                 <div key={v.value} className="flex flex-col">
                   <Row k="Type" v={v.type} />

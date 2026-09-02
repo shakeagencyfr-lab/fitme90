@@ -1,4 +1,8 @@
 import type { CSSProperties } from "react";
+import { LocaleProvider } from "@/components/locale-provider";
+import { setRequestLocale } from "@/lib/i18n/request";
+import { resolveLocale } from "@/lib/i18n/server";
+import { tx } from "@/lib/i18n/request";
 import Link from "next/link";
 import { Wordmark } from "@/components/brand";
 import { Reveal } from "@/components/reveal";
@@ -55,6 +59,8 @@ const FAQ = [
 ];
 
 export default async function RevendeursPage() {
+  const locale = await resolveLocale(null);
+  setRequestLocale(locale);
   // Personnalisation depuis « Marque blanche » (plateforme) : logo, couleur,
   // titre et accroche du hero. Le reste de la page reste fixe.
   const pid = await platformTenantId();
@@ -77,6 +83,7 @@ export default async function RevendeursPage() {
   `;
 
   return (
+    <LocaleProvider locale={locale}>
     <div
       id="top"
       className="relative min-h-dvh overflow-hidden scroll-smooth bg-[#080a0c] pb-[76px] text-white [scrollbar-color:#333_#080a0c] sm:pb-0"
@@ -102,10 +109,10 @@ export default async function RevendeursPage() {
           </Link>
           <nav className="hidden items-center gap-7 md:flex">
             {[["#marche", "Le marché"], ["#simulateur", "Simulateur"], ["#modele", "Rémunération"], ["#faq", "FAQ"]].map(([h, l]) => (
-              <a key={h} href={h} className="text-[14px] font-medium text-white/60 transition-colors hover:text-white">{l}</a>
+              <a key={h} href={h} className="text-[14px] font-medium text-white/60 transition-colors hover:text-white">{tx(l)}</a>
             ))}
           </nav>
-          <Link href={signup} className="tap inline-flex h-10 items-center gap-1.5 rounded-btn bg-brand px-4 text-[14px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">Devenir revendeur</Link>
+          <Link href={signup} className="tap inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-btn bg-brand px-3.5 text-[13.5px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">{tx("Devenir revendeur")}</Link>
         </div>
       </header>
 
@@ -113,33 +120,32 @@ export default async function RevendeursPage() {
       <section className="relative z-10 mx-auto grid w-full max-w-[1160px] items-center gap-12 px-5 py-16 sm:px-8 sm:py-24 lg:grid-cols-[1.08fr_0.92fr]">
         <div>
           <span className="rv-up inline-flex items-center gap-2 rounded-pill border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12.5px] font-medium text-white/75">
-            <span className="size-1.5 rounded-full bg-brand" style={{ animation: "rvPulse 2s ease-in-out infinite" }} /> Programme revendeur · Marque blanche totale
-          </span>
+            <span className="size-1.5 rounded-full bg-brand" style={{ animation: "rvPulse 2s ease-in-out infinite" }} /> {tx("Programme revendeur · Marque blanche totale")}</span>
           <h1 className="rv-up mt-5 font-archivo text-[clamp(34px,6.8vw,62px)] font-extrabold leading-[1.02] tracking-[-0.035em]" style={{ animationDelay: "80ms" }}>
             {heroHeadline ? (
               <span className="bg-gradient-to-br from-white to-white/75 bg-clip-text text-transparent">{heroHeadline}</span>
             ) : (
               <>
-                <span className="bg-gradient-to-br from-white to-white/70 bg-clip-text text-transparent">Lance ton SaaS de coaching</span> <span className="text-brand">boosté par l&apos;IA.</span>
+                <span className="bg-gradient-to-br from-white to-white/70 bg-clip-text text-transparent">{tx("Lance ton SaaS de coaching")}</span> <span className="text-brand">{tx("boosté par l'IA.")}</span>
               </>
             )}
           </h1>
           <p className="rv-up mt-5 max-w-[58ch] text-[16.5px] leading-[1.7] text-white/70" style={{ animationDelay: "160ms" }}>
             {heroTagline ?? (
               <>
-                Deviens l&apos;éditeur de ta propre plateforme de coaching sportif, en marque blanche totale. Tu revends aux coachs et aux salles, tu fixes tes prix, tu encaisses. Nous gérons la technologie et l&apos;IA. <span className="text-white/90">Démarrage gratuit.</span>
+                {tx("Deviens l'éditeur de ta propre plateforme de coaching sportif, en marque blanche totale. Tu revends aux coachs et aux salles, tu fixes tes prix, tu encaisses. Nous gérons la technologie et l'IA.")} <span className="text-white/90">{tx("Démarrage gratuit.")}</span>
               </>
             )}
           </p>
           <div className="rv-up mt-8 flex flex-wrap items-center gap-3" style={{ animationDelay: "240ms" }}>
             <Link href={signup} className="tap group inline-flex items-center justify-center gap-2 rounded-btn bg-brand px-7 py-4 text-[15.5px] font-semibold text-white shadow-[0_10px_40px_-8px_var(--color-brand)] transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">
-              Créer mon espace revendeur <LIcon name="arrow" className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              {tx("Créer mon espace revendeur")} <LIcon name="arrow" className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
-            <a href="#simulateur" className="tap inline-flex items-center justify-center rounded-btn border border-white/15 px-6 py-4 text-[15px] font-semibold text-white/80 transition-colors hover:border-white/40 hover:text-white">Simuler mes revenus</a>
+            <a href="#simulateur" className="tap inline-flex items-center justify-center rounded-btn border border-white/15 px-6 py-4 text-[15px] font-semibold text-white/80 transition-colors hover:border-white/40 hover:text-white">{tx("Simuler mes revenus")}</a>
           </div>
           <div className="rv-up mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-white/55" style={{ animationDelay: "320ms" }}>
             {["Démarrage gratuit", "Aucun développement", "Ta marque, ton Stripe"].map((t) => (
-              <span key={t} className="inline-flex items-center gap-1.5"><LIcon name="check" className="h-4 w-4 text-brand" /> {t}</span>
+              <span key={t} className="inline-flex items-center gap-1.5"><LIcon name="check" className="h-4 w-4 text-brand" /> {tx(t)}</span>
             ))}
           </div>
         </div>
@@ -147,7 +153,7 @@ export default async function RevendeursPage() {
         {/* Visuel : chaîne de valeur */}
         <div className="rv-up relative mx-auto w-full max-w-[400px]" style={{ animationDelay: "220ms" }}>
           <div className="rv-float rounded-[28px] border border-white/12 bg-white/[0.04] p-5 shadow-[0_30px_80px_-20px_rgba(0,0,0,.7)] backdrop-blur-xl">
-            <div className="mb-3 text-center font-mono text-[10.5px] uppercase tracking-[0.14em] text-white/45">Ta chaîne de revenus</div>
+            <div className="mb-3 text-center font-mono text-[10.5px] uppercase tracking-[0.14em] text-white/45">{tx("Ta chaîne de revenus")}</div>
             {[
               { icon: "layers", t: "Toi (revendeur)", d: "Tu encaisses les abonnements des coachs", hi: true },
               { icon: "user", t: "Tes coachs & salles", d: "Ils paient ton abonnement, vendent à leurs clients" },
@@ -157,8 +163,8 @@ export default async function RevendeursPage() {
                 <div className={`flex items-center gap-3 rounded-2xl border p-3.5 ${r.hi ? "border-brand/35 bg-brand/[0.08]" : "border-white/10 bg-white/[0.03]"}`}>
                   <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${r.hi ? "bg-brand text-white" : "bg-white/8 text-brand"}`}><LIcon name={r.icon} className="h-5 w-5" /></span>
                   <div>
-                    <div className="text-[13.5px] font-semibold text-white">{r.t}</div>
-                    <div className="text-[11.5px] leading-snug text-white/50">{r.d}</div>
+                    <div className="text-[13.5px] font-semibold text-white">{tx(r.t)}</div>
+                    <div className="text-[11.5px] leading-snug text-white/50">{tx(r.d)}</div>
                   </div>
                 </div>
                 {i < 2 ? <div className="mx-auto my-1 h-4 w-px bg-white/15" /> : null}
@@ -166,8 +172,8 @@ export default async function RevendeursPage() {
             ))}
           </div>
           <div className="pointer-events-none absolute -bottom-5 -right-4 rounded-2xl border border-white/12 bg-[#0c0f12]/90 px-4 py-3 shadow-xl backdrop-blur-xl" style={{ animation: "rvFloat 6s ease-in-out infinite", animationDelay: "1.4s" }}>
-            <div className="font-archivo text-[15px] font-extrabold leading-none text-white">Revenus récurrents</div>
-            <div className="mt-0.5 text-[11px] text-white/50">chaque mois, en pilote auto</div>
+            <div className="font-archivo text-[15px] font-extrabold leading-none text-white">{tx("Revenus récurrents")}</div>
+            <div className="mt-0.5 text-[11px] text-white/50">{tx("chaque mois, en pilote auto")}</div>
           </div>
         </div>
       </section>
@@ -176,7 +182,7 @@ export default async function RevendeursPage() {
       <div className="relative z-10 overflow-hidden border-y border-white/10 bg-white/[0.02] py-4">
         <div className="rv-marquee flex w-max items-center gap-4">
           {[...MARQUEE, ...MARQUEE].map((m, i) => (
-            <span key={i} className="inline-flex items-center gap-4 text-[15px] font-semibold text-white/45"><span className="size-1.5 rounded-full bg-brand" /> {m}</span>
+            <span key={i} className="inline-flex items-center gap-4 text-[15px] font-semibold text-white/45"><span className="size-1.5 rounded-full bg-brand" /> {tx(m)}</span>
           ))}
         </div>
       </div>
@@ -184,35 +190,35 @@ export default async function RevendeursPage() {
       {/* Le marché */}
       <section id="marche" className="relative z-10 mx-auto w-full max-w-[1160px] px-5 py-20 sm:px-8 sm:py-28">
         <Reveal className="mx-auto max-w-[720px] text-center">
-          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">Le marché</span>
-          <h2 className="mt-4 font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">Le bon produit, au bon moment</h2>
-          <p className="mt-5 text-[16px] leading-[1.7] text-white/65">Fitness, bien-être et logiciel : trois vagues qui convergent. Positionne-toi comme éditeur au cœur de cette croissance, sans en supporter la complexité technique.</p>
+          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">{tx("Le marché")}</span>
+          <h2 className="mt-4 font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">{tx("Le bon produit, au bon moment")}</h2>
+          <p className="mt-5 text-[16px] leading-[1.7] text-white/65">{tx("Fitness, bien-être et logiciel : trois vagues qui convergent. Positionne-toi comme éditeur au cœur de cette croissance, sans en supporter la complexité technique.")}</p>
         </Reveal>
         <div className="mt-12 grid gap-4 md:grid-cols-3">
           {MARKET.map((c, i) => (
             <Reveal key={c.t} delay={i * 90} className="rounded-[22px] border border-white/10 bg-white/[0.03] p-6">
               <span className="flex size-12 items-center justify-center rounded-2xl bg-brand/12 text-brand"><LIcon name={c.icon} className="h-6 w-6" /></span>
-              <h3 className="mt-4 font-archivo text-[19px] font-bold">{c.t}</h3>
-              <p className="mt-2 text-[14.5px] leading-[1.6] text-white/60">{c.d}</p>
+              <h3 className="mt-4 font-archivo text-[19px] font-bold">{tx(c.t)}</h3>
+              <p className="mt-2 text-[14.5px] leading-[1.6] text-white/60">{tx(c.d)}</p>
             </Reveal>
           ))}
         </div>
-        <p className="mt-6 text-center text-[12px] text-white/35">Tendances de marché générales, à titre indicatif.</p>
+        <p className="mt-6 text-center text-[12px] text-white/35">{tx("Tendances de marché générales, à titre indicatif.")}</p>
       </section>
 
       {/* Pourquoi */}
       <section className="relative z-10 border-y border-white/10 bg-white/[0.02]">
         <div className="mx-auto w-full max-w-[1160px] px-5 py-20 sm:px-8 sm:py-28">
           <Reveal className="max-w-[620px]">
-            <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">Pourquoi revendre</span>
-            <h2 className="mt-4 font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">Le business model le plus scalable qui soit</h2>
+            <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">{tx("Pourquoi revendre")}</span>
+            <h2 className="mt-4 font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">{tx("Le business model le plus scalable qui soit")}</h2>
           </Reveal>
           <div className="mt-12 grid gap-4 md:grid-cols-3">
             {WHY.map((c, i) => (
               <Reveal key={c.t} delay={i * 90} className="group rounded-[22px] border border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent p-6 transition-all hover:-translate-y-1 hover:border-brand/40">
                 <span className="flex size-12 items-center justify-center rounded-2xl bg-brand/12 text-brand transition-colors group-hover:bg-brand/20"><LIcon name={c.icon} className="h-6 w-6" /></span>
-                <h3 className="mt-4 font-archivo text-[19px] font-bold">{c.t}</h3>
-                <p className="mt-2 text-[14.5px] leading-[1.6] text-white/60">{c.d}</p>
+                <h3 className="mt-4 font-archivo text-[19px] font-bold">{tx(c.t)}</h3>
+                <p className="mt-2 text-[14.5px] leading-[1.6] text-white/60">{tx(c.d)}</p>
               </Reveal>
             ))}
           </div>
@@ -222,16 +228,16 @@ export default async function RevendeursPage() {
       {/* Étapes */}
       <section className="relative z-10 mx-auto w-full max-w-[1160px] px-5 py-20 sm:px-8 sm:py-28">
         <Reveal className="text-center">
-          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">En 3 étapes</span>
-          <h2 className="mx-auto mt-4 max-w-[620px] font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">Ton activité de revendeur, lancée aujourd&apos;hui</h2>
+          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">{tx("En 3 étapes")}</span>
+          <h2 className="mx-auto mt-4 max-w-[620px] font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">{tx("Ton activité de revendeur, lancée aujourd'hui")}</h2>
         </Reveal>
         <div className="relative mt-12 grid gap-4 md:grid-cols-3">
           <div className="pointer-events-none absolute left-[16%] right-[16%] top-9 hidden h-px bg-gradient-to-r from-brand/50 via-brand/20 to-brand/50 md:block" />
           {STEPS.map((s, i) => (
             <Reveal key={s.n} delay={i * 100} className="relative rounded-[22px] border border-white/10 bg-[#0c0f12] p-7">
               <span className="font-archivo text-[42px] font-extrabold leading-none text-brand/25">{s.n}</span>
-              <h3 className="mt-3 font-archivo text-[19px] font-bold">{s.t}</h3>
-              <p className="mt-2 text-[14.5px] leading-[1.6] text-white/60">{s.d}</p>
+              <h3 className="mt-3 font-archivo text-[19px] font-bold">{tx(s.t)}</h3>
+              <p className="mt-2 text-[14.5px] leading-[1.6] text-white/60">{tx(s.d)}</p>
             </Reveal>
           ))}
         </div>
@@ -241,15 +247,15 @@ export default async function RevendeursPage() {
       <section id="simulateur" className="relative z-10 border-y border-white/10 bg-white/[0.02]">
         <div className="mx-auto w-full max-w-[1160px] px-5 py-20 sm:px-8 sm:py-28">
           <Reveal className="mx-auto max-w-[680px] text-center">
-            <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">Simulateur</span>
-            <h2 className="mt-4 font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">Estime tes revenus de revendeur</h2>
-            <p className="mt-4 text-[16px] leading-[1.7] text-white/65">Combien de coachs vas-tu recruter, et à quel abonnement mensuel ? Le revenu récurrent s&apos;affiche en direct.</p>
+            <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">{tx("Simulateur")}</span>
+            <h2 className="mt-4 font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">{tx("Estime tes revenus de revendeur")}</h2>
+            <p className="mt-4 text-[16px] leading-[1.7] text-white/65">{tx("Combien de coachs vas-tu recruter, et à quel abonnement mensuel ? Le revenu récurrent s'affiche en direct.")}</p>
           </Reveal>
           <Reveal delay={100} className="mt-12">
             <RevenueSimulator
               countLabel="Nombre de coachs / salles"
               countUnit="coachs"
-              priceLabel="Abonnement mensuel par coach"
+              priceLabel={tx("Abonnement mensuel par coach")}
               countMin={1}
               countMax={200}
               countDefault={15}
@@ -257,7 +263,7 @@ export default async function RevendeursPage() {
               priceMax={300}
               priceDefault={49}
               note="Revenu brut illustratif. Ta marge = ce revenu moins ton abonnement plateforme. À toi de fixer prix et volume."
-              aiNote="Coût IA : en BYOK, chaque coach branche sa propre clé et paie son IA (≈ 1 à 2 €/client actif/mois) — toi, revendeur, tu n'as aucun coût IA. En mode « revendeur IA », tu peux au contraire fournir l'IA et la revendre avec ta marge."
+              aiNote="Coût IA : en BYOK, chaque coach branche sa propre clé et paie son IA (≈ 1 à 2 €/client actif/mois). Toi, revendeur, tu n'as aucun coût IA. En mode « revendeur IA », tu peux au contraire fournir l'IA et la revendre avec ta marge."
             />
           </Reveal>
         </div>
@@ -266,9 +272,9 @@ export default async function RevendeursPage() {
       {/* Rémunération / possibilités */}
       <section id="modele" className="relative z-10 mx-auto w-full max-w-[1160px] px-5 py-20 sm:px-8 sm:py-28">
         <Reveal className="max-w-[680px]">
-          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">Rémunération</span>
-          <h2 className="mt-4 font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">Toi seul décides de tes prix et de tes marges</h2>
-          <p className="mt-4 text-[16px] leading-[1.7] text-white/65">Tu es libre. Abonnements mensuels ou annuels, paliers par nombre de clients, frais de mise en place pour les salles, codes promo : tu construis ton offre comme tu le sens.</p>
+          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">{tx("Rémunération")}</span>
+          <h2 className="mt-4 font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">{tx("Toi seul décides de tes prix et de tes marges")}</h2>
+          <p className="mt-4 text-[16px] leading-[1.7] text-white/65">{tx("Tu es libre. Abonnements mensuels ou annuels, paliers par nombre de clients, frais de mise en place pour les salles, codes promo : tu construis ton offre comme tu le sens.")}</p>
         </Reveal>
         <div className="mt-10 grid gap-4 md:grid-cols-2">
           {[
@@ -279,7 +285,7 @@ export default async function RevendeursPage() {
           ].map((c, i) => (
             <Reveal key={c.t} delay={(i % 2) * 90} className="flex gap-4 rounded-[22px] border border-white/10 bg-white/[0.03] p-6">
               <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-brand/12 text-brand"><LIcon name={c.icon} className="h-5 w-5" /></span>
-              <div><h3 className="font-archivo text-[17px] font-bold">{c.t}</h3><p className="mt-1.5 text-[14px] leading-[1.6] text-white/60">{c.d}</p></div>
+              <div><h3 className="font-archivo text-[17px] font-bold">{tx(c.t)}</h3><p className="mt-1.5 text-[14px] leading-[1.6] text-white/60">{tx(c.d)}</p></div>
             </Reveal>
           ))}
         </div>
@@ -287,17 +293,17 @@ export default async function RevendeursPage() {
         {/* Scénarios illustratifs */}
         <Reveal delay={120} className="mt-8 overflow-hidden rounded-[22px] border border-white/12 bg-white/[0.02]">
           <div className="grid grid-cols-4 gap-2 border-b border-white/10 px-5 py-3 font-mono text-[10.5px] uppercase tracking-[0.1em] text-white/45">
-            <span>Scénario</span><span>Coachs</span><span>Prix / coach</span><span className="text-right">Revenu / mois</span>
+            <span>{tx("Scénario")}</span><span>{tx("Coachs")}</span><span>{tx("Prix / coach")}</span><span className="text-right">{tx("Revenu / mois")}</span>
           </div>
           {[["Lancement", 10, 39], ["Croissance", 30, 49], ["Réseau établi", 80, 59]].map(([label, n, p]) => (
             <div key={label as string} className="grid grid-cols-4 items-center gap-2 border-b border-white/5 px-5 py-3.5 text-[14px] last:border-0">
-              <span className="font-semibold text-white/90">{label}</span>
+              <span className="font-semibold text-white/90">{tx(String(label))}</span>
               <span className="text-white/70">{n as number}</span>
               <span className="text-white/70">{p as number} €</span>
               <span className="text-right font-archivo text-[18px] font-extrabold text-brand tabular-nums">{((n as number) * (p as number)).toLocaleString("fr-FR")} €</span>
             </div>
           ))}
-          <div className="px-5 py-3 text-[12px] text-white/35">Exemples illustratifs de revenu brut mensuel. Chiffres à ajuster selon ta stratégie.</div>
+          <div className="px-5 py-3 text-[12px] text-white/35">{tx("Exemples illustratifs de revenu brut mensuel. Chiffres à ajuster selon ta stratégie.")}</div>
         </Reveal>
       </section>
 
@@ -305,15 +311,15 @@ export default async function RevendeursPage() {
       <section className="relative z-10 border-y border-white/10 bg-white/[0.02]">
         <div className="mx-auto w-full max-w-[1160px] px-5 py-20 sm:px-8 sm:py-28">
           <Reveal className="max-w-[620px]">
-            <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">Clé en main</span>
-            <h2 className="mt-4 font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">Ton kit de revendeur complet</h2>
+            <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">{tx("Clé en main")}</span>
+            <h2 className="mt-4 font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">{tx("Ton kit de revendeur complet")}</h2>
           </Reveal>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((f, i) => (
               <Reveal key={f.t} delay={(i % 3) * 80} className="group rounded-[22px] border border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent p-6 transition-all hover:-translate-y-1 hover:border-brand/40">
                 <span className="flex size-12 items-center justify-center rounded-2xl bg-brand/12 text-brand transition-colors group-hover:bg-brand/20"><LIcon name={f.icon} className="h-6 w-6" /></span>
-                <h3 className="mt-4 font-archivo text-[18px] font-bold">{f.t}</h3>
-                <p className="mt-2 text-[14px] leading-[1.6] text-white/60">{f.d}</p>
+                <h3 className="mt-4 font-archivo text-[18px] font-bold">{tx(f.t)}</h3>
+                <p className="mt-2 text-[14px] leading-[1.6] text-white/60">{tx(f.d)}</p>
               </Reveal>
             ))}
           </div>
@@ -323,18 +329,18 @@ export default async function RevendeursPage() {
       {/* FAQ */}
       <section id="faq" className="relative z-10 mx-auto w-full max-w-[820px] px-5 py-20 sm:px-8 sm:py-28">
         <Reveal className="text-center">
-          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">Questions</span>
-          <h2 className="mt-4 font-archivo text-[clamp(26px,4.5vw,40px)] font-extrabold tracking-[-0.025em]">Le programme revendeur en clair</h2>
+          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">{tx("Questions")}</span>
+          <h2 className="mt-4 font-archivo text-[clamp(26px,4.5vw,40px)] font-extrabold tracking-[-0.025em]">{tx("Le programme revendeur en clair")}</h2>
         </Reveal>
         <div className="mt-10 flex flex-col gap-3">
           {FAQ.map((item, i) => (
             <Reveal key={item.q} delay={i * 50}>
               <details className="group rounded-[18px] border border-white/10 bg-white/[0.03] px-5 py-4 transition-colors open:border-brand/30">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[15.5px] font-semibold text-white/90 [&::-webkit-details-marker]:hidden">
-                  {item.q}
+                  {tx(item.q)}
                   <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-white/15 text-white/60 transition-transform group-open:rotate-45"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg></span>
                 </summary>
-                <p className="mt-3 text-[14.5px] leading-[1.7] text-white/60">{item.a}</p>
+                <p className="mt-3 text-[14.5px] leading-[1.7] text-white/60">{tx(item.a)}</p>
               </details>
             </Reveal>
           ))}
@@ -346,9 +352,9 @@ export default async function RevendeursPage() {
         <Reveal className="relative overflow-hidden rounded-[28px] border border-white/12 p-10 text-center sm:p-16">
           <div className="pointer-events-none absolute inset-0" style={{ background: `radial-gradient(90% 120% at 50% 0%, color-mix(in srgb, ${accent} 30%, transparent), transparent 70%)` }} />
           <div className="relative">
-            <h2 className="mx-auto max-w-[720px] font-archivo text-[clamp(28px,5vw,46px)] font-extrabold leading-[1.05] tracking-[-0.03em]">Deviens éditeur de ta plateforme de coaching IA</h2>
-            <p className="mx-auto mt-4 max-w-[54ch] text-[16px] leading-[1.6] text-white/70">Démarrage gratuit, aucun développement, ta marque et ton Stripe. Le marché est là. Prends ta place.</p>
-            <Link href={signup} className="tap mt-8 inline-flex items-center justify-center gap-2 rounded-btn bg-brand px-8 py-4 text-[16px] font-semibold text-white shadow-[0_12px_44px_-8px_var(--color-brand)] transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">Créer mon espace revendeur <LIcon name="arrow" className="h-4 w-4" /></Link>
+            <h2 className="mx-auto max-w-[720px] font-archivo text-[clamp(28px,5vw,46px)] font-extrabold leading-[1.05] tracking-[-0.03em]">{tx("Deviens éditeur de ta plateforme de coaching IA")}</h2>
+            <p className="mx-auto mt-4 max-w-[54ch] text-[16px] leading-[1.6] text-white/70">{tx("Démarrage gratuit, aucun développement, ta marque et ton Stripe. Le marché est là. Prends ta place.")}</p>
+            <Link href={signup} className="tap mt-8 inline-flex items-center justify-center gap-2 rounded-btn bg-brand px-8 py-4 text-[16px] font-semibold text-white shadow-[0_12px_44px_-8px_var(--color-brand)] transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">{tx("Créer mon espace revendeur")} <LIcon name="arrow" className="h-4 w-4" /></Link>
           </div>
         </Reveal>
       </section>
@@ -364,15 +370,16 @@ export default async function RevendeursPage() {
               <Wordmark size={18} />
             )}
           </Link>
-          <p className="text-[12.5px] text-white/45">Programme revendeur My Fitness App — lance ton SaaS de coaching IA en marque blanche.</p>
-          <Link href="/" className="text-[13px] text-white/50 underline underline-offset-2 hover:text-white">Retour à l&apos;accueil</Link>
+          <p className="text-[12.5px] text-white/45">{tx("Programme revendeur My Fitness App — lance ton SaaS de coaching IA en marque blanche.")}</p>
+          <Link href="/" className="text-[13px] text-white/50 underline underline-offset-2 hover:text-white">{tx("Retour à l'accueil")}</Link>
         </div>
       </footer>
 
       {/* CTA collante mobile */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#080a0c]/92 px-4 py-3 backdrop-blur-xl sm:hidden">
-        <Link href={signup} className="tap flex w-full items-center justify-center gap-2 rounded-btn bg-brand py-3.5 text-[15px] font-semibold text-white active:scale-[0.98]">Devenir revendeur <LIcon name="arrow" className="h-4 w-4" /></Link>
+        <Link href={signup} className="tap flex w-full items-center justify-center gap-2 rounded-btn bg-brand py-3.5 text-[15px] font-semibold text-white active:scale-[0.98]">{tx("Devenir revendeur")} <LIcon name="arrow" className="h-4 w-4" /></Link>
       </div>
     </div>
+    </LocaleProvider>
   );
 }

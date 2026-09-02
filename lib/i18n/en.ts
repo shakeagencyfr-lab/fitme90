@@ -595,6 +595,20 @@ export const en: Shape<typeof fr> = {
     dateRange: "Pick a date between 30 days ago and 60 days from now.",
     noSub: "No active subscription.",
   },
+  pdf: {
+    save: "Save as PDF",
+    eyebrow: "Training plan",
+    title: "My program",
+    titleFor: "{name}'s program",
+    setsReps: "Sets × reps",
+    note: "Note",
+    cardio: "Cardio",
+    nutrition: "Nutrition targets",
+    protein: "Protein",
+    carbs: "Carbs",
+    fat: "Fat",
+    footer: "Document generated on {date}. Fitness guidance for healthy people, not a substitute for medical advice.",
+  },
   admin: {
     groups: { pilot: "Overview", sales: "Sales", content: "Content", settings: "Settings" },
     nav: {

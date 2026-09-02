@@ -1,5 +1,7 @@
 "use client";
 
+import { usePhrase } from "@/components/locale-provider";
+
 import { useMemo, useState } from "react";
 import { EXERCISE_LIBRARY, libraryFrames, normalizeExerciseName, type LibraryExercise } from "@/lib/exercise-library";
 import { MuscleIllustration } from "@/components/muscle-illustration";
@@ -33,17 +35,18 @@ function CatalogCard({ ex, onOpen }: { ex: LibraryExercise; onOpen: () => void }
 }
 
 function DetailModal({ ex, onClose }: { ex: LibraryExercise; onClose: () => void }) {
+  const tx = usePhrase();
   const [a, b] = libraryFrames(ex.key);
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center" role="dialog" aria-label={ex.name}>
-      <button aria-label="Fermer" onClick={onClose} className="absolute inset-0 bg-ink/40 backdrop-blur-[2px]" />
+      <button aria-label={tx("Fermer")} onClick={onClose} className="absolute inset-0 bg-ink/40 backdrop-blur-[2px]" />
       <div className="relative z-10 flex max-h-[88dvh] w-full max-w-[560px] flex-col overflow-hidden rounded-t-[16px] border border-line bg-surface shadow-xl sm:rounded-card">
         <div className="flex items-start justify-between gap-3 border-b border-line-2 px-5 py-4">
           <div className="flex flex-col gap-1">
             <h2 className="font-archivo font-extrabold text-[19px] leading-tight tracking-[-0.02em] text-ink">{ex.name}</h2>
             <span className="w-fit rounded-pill bg-brand/10 px-2.5 py-0.5 text-[12px] font-semibold text-brand">{ex.muscle}</span>
           </div>
-          <button onClick={onClose} aria-label="Fermer" className="tap -mr-1 flex size-9 shrink-0 items-center justify-center rounded-btn text-muted-2 hover:bg-surface-2 hover:text-ink">
+          <button onClick={onClose} aria-label={tx("Fermer")} className="tap -mr-1 flex size-9 shrink-0 items-center justify-center rounded-btn text-muted-2 hover:bg-surface-2 hover:text-ink">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>
@@ -61,7 +64,7 @@ function DetailModal({ ex, onClose }: { ex: LibraryExercise; onClose: () => void
             </div>
           )}
           <div className="flex flex-col gap-5 px-5 py-5">
-            <Section title="Comment faire">
+            <Section title={tx("Comment faire")}>
               <ol className="flex flex-col gap-2">
                 {ex.guide.steps.map((s, i) => (
                   <li key={i} className="flex gap-2.5 text-[14px] leading-snug text-body">
@@ -71,14 +74,14 @@ function DetailModal({ ex, onClose }: { ex: LibraryExercise; onClose: () => void
                 ))}
               </ol>
             </Section>
-            <Section title="Conseils clés">
+            <Section title={tx("Conseils clés")}>
               <ul className="flex flex-col gap-1.5">
                 {ex.guide.cues.map((c, i) => (
                   <li key={i} className="flex items-start gap-2 text-[13.5px] leading-snug text-body"><span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-brand" />{c}</li>
                 ))}
               </ul>
             </Section>
-            <Section title="Erreurs à éviter">
+            <Section title={tx("Erreurs à éviter")}>
               <ul className="flex flex-col gap-1.5">
                 {ex.guide.mistakes.map((m, i) => (
                   <li key={i} className="flex items-start gap-2 text-[13.5px] leading-snug text-body">
@@ -89,8 +92,7 @@ function DetailModal({ ex, onClose }: { ex: LibraryExercise; onClose: () => void
               </ul>
             </Section>
             <p className="border-t border-line-2 pt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">
-              Ressource My Fitness App · lecture seule
-            </p>
+              {tx("Ressource My Fitness App · lecture seule")}</p>
           </div>
         </div>
       </div>
@@ -108,6 +110,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export function ExerciseCatalog() {
+  const tx = usePhrase();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<LibraryExercise | null>(null);
 
@@ -131,21 +134,21 @@ export function ExerciseCatalog() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <div className="font-archivo font-bold text-[17px] text-ink">Bibliothèque par défaut</div>
-          <p className="text-[13px] text-muted">{total} exercices illustrés, appliqués automatiquement à tes clients (lecture seule).</p>
+          <div className="font-archivo font-bold text-[17px] text-ink">{tx("Bibliothèque par défaut")}</div>
+          <p className="text-[13px] text-muted">{total} {tx("exercices illustrés, appliqués automatiquement à tes clients (lecture seule).")}</p>
         </div>
         <input
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Rechercher un exercice…"
+          placeholder={tx("Rechercher un exercice…")}
           className="h-10 w-full max-w-[260px] rounded-control border border-line-4 bg-surface px-3.5 text-[14px] text-ink outline-none focus:border-ink"
         />
       </div>
 
       {groups.length === 0 ? (
         <p className="rounded-card border border-dashed border-line-4 bg-surface-2 px-5 py-6 text-center text-[13.5px] text-muted-2">
-          Aucun exercice ne correspond à « {q} ».
+          {tx("Aucun exercice ne correspond à «")} {q} ».
         </p>
       ) : (
         groups.map(([muscle, items]) => (

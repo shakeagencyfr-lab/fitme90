@@ -17,7 +17,7 @@ export function Questionnaire() {
   const locale = useLocale();
   const t = useT();
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<Answers>({});
+  const [answers, setAnswers] = useState<Answers>({ program_lang: locale === "en" ? "English" : "Français" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   // Situation de santé déclarée : décharge à signer (ne bloque plus l'accès).

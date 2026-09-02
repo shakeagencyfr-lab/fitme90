@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { listOffers, type Offer } from "@/lib/offers";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -58,13 +59,9 @@ export default async function AdminPlansPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1.5">
           <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
-            Plans
-          </h1>
+            {tx("Plans")}</h1>
           <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
-            Tes formules vendues aux clients, au même endroit : paiement unique OU abonnement, au
-            choix. Active des options par plan (Coach IA, Chat VIP). Jusqu&apos;à {MAX_OFFERS_PER_TENANT} plans
-            au total.
-          </p>
+            {tx("Tes formules vendues aux clients, au même endroit : paiement unique OU abonnement, au choix. Active des options par plan (Coach IA, Chat VIP). Jusqu'à")} {MAX_OFFERS_PER_TENANT} {tx("plans au total.")}</p>
         </div>
         {slug ? (
           <Link
@@ -72,19 +69,18 @@ export default async function AdminPlansPage() {
             target="_blank"
             className="tap inline-flex h-11 items-center rounded-btn border border-line-4 bg-surface px-5 font-plex font-semibold text-[14px] text-ink hover:border-ink"
           >
-            Voir ma page ↗
-          </Link>
+            {tx("Voir ma page ↗")}</Link>
         ) : null}
       </div>
 
       {!tenantId ? (
-        <Alert>Aucun compte (tenant) n&apos;est rattaché à ton profil.</Alert>
+        <Alert>{tx("Aucun compte (tenant) n'est rattaché à ton profil.")}</Alert>
       ) : (
         <>
           <div className="flex flex-col gap-3">
-            <div className="font-archivo font-bold text-[17px] text-ink">Mes plans</div>
+            <div className="font-archivo font-bold text-[17px] text-ink">{tx("Mes plans")}</div>
             {offers.length === 0 ? (
-              <Alert tone="info">Aucun plan pour l&apos;instant. Crée ton premier plan ci-dessous.</Alert>
+              <Alert tone="info">{tx("Aucun plan pour l'instant. Crée ton premier plan ci-dessous.")}</Alert>
             ) : (
               offers.map((o) => (
                 <Card key={o.id} className="flex flex-wrap items-center justify-between gap-3">
@@ -92,13 +88,13 @@ export default async function AdminPlansPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-archivo font-bold text-[16px] text-ink">{o.name}</span>
                       <Pill>{o.billing_type === "subscription" ? "Abonnement" : "Paiement unique"}</Pill>
-                      {!o.is_active ? <Pill>Inactif</Pill> : null}
+                      {!o.is_active ? <Pill>{tx("Inactif")}</Pill> : null}
                       {o.coach_ai ? (
                         <Pill tone="brand">
-                          Coach IA{o.coach_ai_daily_limit != null ? ` · ${o.coach_ai_daily_limit === 0 ? "illimité" : `${o.coach_ai_daily_limit}/jour`}` : ""}
+                          {tx("Coach IA")}{o.coach_ai_daily_limit != null ? ` · ${o.coach_ai_daily_limit === 0 ? "illimité" : `${o.coach_ai_daily_limit}/jour`}` : ""}
                         </Pill>
                       ) : null}
-                      {o.vip_chat ? <Pill tone="brand">Chat VIP</Pill> : null}
+                      {o.vip_chat ? <Pill tone="brand">{tx("Chat VIP")}</Pill> : null}
                     </div>
                     <span className="text-[13px] text-muted">
                       {o.billing_type === "subscription" ? "Sans durée fixe" : durationLabel(o.duration_months)}
@@ -118,8 +114,7 @@ export default async function AdminPlansPage() {
                     <form action={removeOffer}>
                       <input type="hidden" name="id" value={o.id} />
                       <button type="submit" className="tap rounded-btn border border-alert-line bg-alert px-3.5 py-2 text-[13px] font-semibold text-alert-ink hover:border-brand">
-                        Supprimer
-                      </button>
+                        {tx("Supprimer")}</button>
                     </form>
                   </div>
                 </Card>

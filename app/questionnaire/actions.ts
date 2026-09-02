@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+import { LOCALE_COOKIE } from "@/lib/i18n";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
 import { makeT } from "@/lib/i18n";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -79,6 +81,16 @@ export async function saveQuestionnaire(payload: {
       } else {
         profileUpdate[f.bind] = v;
       }
+    }
+  }
+  // Langue choisie pour le programme : profil (l'IA et le cron la lisent) + cookie.
+  const lang = answers.program_lang === "English" ? "en" : answers.program_lang === "Français" ? "fr" : null;
+  if (lang) {
+    profileUpdate.language = lang;
+    try {
+      (await cookies()).set(LOCALE_COOKIE, lang, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+    } catch {
+      /* hors contexte cookie : le profil suffit */
     }
   }
   if (Object.keys(profileUpdate).length) {

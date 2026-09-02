@@ -41,6 +41,7 @@ export const QUIZ: Section[] = [
     title: "Qui es-tu ?",
     intro: "Ces champs alimentent ton profil, ton IMC et tes zones cardiaques.",
     fields: [
+      { key: "program_lang", label: "Langue de ton programme", type: "choice", options: ["Français", "English"], help: "La langue de ton espace, de ton programme et de ton coach IA." },
       { key: "name", label: "Prénom", type: "text", placeholder: "Léa", bind: "name" },
       { key: "sex", label: "Sexe biologique", type: "choice", options: ["Femme", "Homme", "Autre"], bind: "sex" },
       { key: "age", label: "Âge", type: "number", placeholder: "34", bind: "age", help: "Sert à la FC max estimée (220 − âge)." },
@@ -140,7 +141,7 @@ export function describeAnswers(answers: Record<string, unknown>): string[] {
   const lines: string[] = [];
   for (const section of QUIZ) {
     for (const f of section.fields) {
-      if (f.type === "days") continue; // géré à part (train_days)
+      if (f.type === "days" || f.key === "program_lang") continue; // gérés à part
       const v = answers[f.key];
       if (v == null) continue;
       const text = Array.isArray(v) ? v.filter(Boolean).join(", ") : String(v).trim();

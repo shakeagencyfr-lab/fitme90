@@ -1,4 +1,5 @@
 import "server-only";
+import { tx } from "@/lib/i18n/request";
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tenantKeyStatus } from "@/lib/tenant";
@@ -60,9 +61,8 @@ export async function CoachOnboarding({ tenantId }: { tenantId: string }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-col gap-0.5">
           <span className="font-archivo font-extrabold text-[18px] leading-tight text-ink">
-            Bienvenue. Configure ton espace
-          </span>
-          <span className="text-[13px] text-muted">Trois étapes pour être prêt à vendre.</span>
+            {tx("Bienvenue. Configure ton espace")}</span>
+          <span className="text-[13px] text-muted">{tx("Trois étapes pour être prêt à vendre.")}</span>
         </div>
         <span className="rounded-pill bg-brand px-2.5 py-1 font-mono text-[11px] font-bold text-white">
           {doneCount}/{steps.length}
@@ -112,8 +112,7 @@ export async function CoachOnboarding({ tenantId }: { tenantId: string }) {
 
       {shareUrl ? (
         <p className="text-[12.5px] text-muted-2">
-          Ta page publique : <span className="font-mono text-muted">{shareUrl}</span> — partage-la à tes clients une fois prêt.
-        </p>
+          {tx("Ta page publique :")} <span className="font-mono text-muted">{shareUrl}</span> {tx("— partage-la à tes clients une fois prêt.")}</p>
       ) : null}
     </section>
   );

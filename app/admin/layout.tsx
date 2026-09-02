@@ -1,4 +1,7 @@
 import { notFound } from "next/navigation";
+import { LocaleProvider } from "@/components/locale-provider";
+import { setRequestLocale } from "@/lib/i18n/request";
+import { resolveLocale, tenantLocale } from "@/lib/i18n/server";
 import { getAdminOrNull } from "@/lib/admin";
 import { AdminShell } from "@/components/admin-shell";
 import { PwaInstall } from "@/components/pwa-install";
@@ -10,6 +13,7 @@ import { clientUsesCredits, getWallet, resellerSupply } from "@/lib/credits";
 import { parentDashboardBrand, platformBrand } from "@/lib/branding";
 import type { Metadata } from "next";
 import { CoachFreezeBanner } from "@/components/coach-freeze-banner";
+import { SupportReturnBar } from "@/components/support-return-bar";
 
 // Titre neutre : le dashboard est en marque blanche (marque du parent affichée
 // dans le bandeau). L'icône d'onglet est le favicon du parent (celui chargé
@@ -40,8 +44,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         parentDashboardBrand(tenantId),
         clientUsesCredits(tenantId),
       ])
-    : [[], 0, null, { frozen: false, status: null }, { costUsd: 0, calls: 0, sinceIso: "" }, null, false];
+    : [[], 0, null, { frozen: false, status: null, suspended: false }, { costUsd: 0, calls: 0, sinceIso: "" }, null, false];
   const kind = node?.kind ?? "coach";
+  // Langue du dashboard : choix de la personne (cookie), sinon langue du tenant.
+  const locale = await resolveLocale(await tenantLocale(tenantId));
+  setRequestLocale(locale);
 
   // En modèle crédits, la carte du bandeau montre le solde restant plutôt qu'une
   // conso en dollars : ce coach ne paie pas Anthropic, il dépense des crédits.
@@ -50,7 +57,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const wallet = bal ? { credits: bal.credits } : null;
 
   return (
-    <>
+    <LocaleProvider locale={locale}>
+      <SupportReturnBar />
       <AdminShell
         notifs={notifs}
         unread={unread}
@@ -63,11 +71,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         brandLogoUrl={parentBrand?.logoUrl ?? null}
         brandColor={parentBrand?.brandColor ?? null}
       >
-        {freeze.frozen ? <CoachFreezeBanner /> : null}
+        {freeze.frozen ? <CoachFreezeBanner suspended={freeze.suspended} /> : null}
         {children}
       </AdminShell>
       {/* Invite à installer l'app (Android : invite native ; iOS : marche à suivre). */}
       <PwaInstall />
-    </>
+    </LocaleProvider>
   );
 }
