@@ -11,6 +11,7 @@ import { stripeForTenant } from "@/lib/coach-payments";
 // Tables indexées par utilisateur (mêmes que la suppression d'un client).
 const USER_TABLES: [string, string][] = [
   ["ai_calls", "user_id"],
+  ["client_memory", "user_id"],
   ["client_recipes", "user_id"],
   ["coach_messages", "user_id"],
   ["coach_conversations", "user_id"],

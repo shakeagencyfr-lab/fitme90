@@ -17,6 +17,7 @@ import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
 import { missedDays } from "@/lib/streak";
 import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan } from "@/lib/program";
 import { coachAgenda, coachPlanView, logsDigest, type CoachLog } from "@/lib/coach-context";
+import { addMemoryNote, readMemory, renderMemory } from "@/lib/coach-memory";
 import { blockPosition } from "@/lib/block-logic";
 import { CYCLES_PER_BLOCK } from "@/lib/config";
 import { revalidatePath } from "next/cache";
@@ -218,6 +219,8 @@ export async function POST(req: NextRequest) {
       : `jour ${d}`;
 
   const coachName = await readCoachName(ctx.profile?.tenant_id ?? null);
+  // Mémoire longue : rendue dans le bloc STABLE, donc mise en cache.
+  const memoryBlock = renderMemory(await readMemory(ctx.userId));
   // Langue du client : le coach répond dedans (cookie > profil > tenant).
   const locale = await resolveLocale(await userLocale(ctx.userId));
   const dateLoc = locale === "en" ? "en-GB" : "fr-FR";
@@ -234,7 +237,7 @@ ${aiLanguageInstruction(locale)}
 PROFIL DU CLIENT :
 ${profileLines.length ? profileLines.join("\n") : "Non renseigné."}
 Jours d'entraînement : ${quiz?.train_days?.join(", ") || "non précisés"}.
-
+${memoryBlock ? `\n${memoryBlock}\n` : ""}
 PROGRAMME (JSON, cycle en cours détaillé) :
 ${JSON.stringify(coachPlanView((program?.plan as Plan | undefined) ?? null, ctx.access.day))}`;
 
@@ -354,6 +357,22 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
               "Nouvel objectif calorique par jour d'entraînement (kcal), entre 1200 et 5000, si le client veut manger plus ou moins.",
           },
         },
+      },
+    },
+    {
+      name: "memoriser",
+      description:
+        "Mémorise un fait DURABLE sur le client, pour t'en souvenir dans toutes tes conversations futures. À utiliser quand tu apprends quelque chose de stable et utile au coaching : une préférence (« il préfère s'entraîner le matin »), une contrainte de vie (« il part en déplacement deux semaines en octobre »), un aliment détesté, un objectif personnel, un antécédent sportif. NE PAS utiliser pour une blessure ou une contrainte physique qui doit modifier les séances : utilise « adapter_programme ». NE PAS utiliser pour ce qui est déjà dans le profil, ni pour un état passager (fatigue du jour, humeur), ni pour ce que le client vient de dire dans cette conversation et qui n'a pas vocation à durer.",
+      input_schema: {
+        type: "object",
+        properties: {
+          fait: {
+            type: "string",
+            description:
+              "Le fait à retenir, formulé court et à la troisième personne (ex : « préfère s'entraîner le matin avant le travail »).",
+          },
+        },
+        required: ["fait"],
       },
     },
   ];
@@ -546,6 +565,10 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     if (name === "changer_jours_entrainement") {
       const j = (input as { jours?: unknown }).jours;
       return runChangeDays(Array.isArray(j) ? j.map(String) : []);
+    }
+    if (name === "memoriser") {
+      const f = (input as { fait?: string }).fait ?? "";
+      return addMemoryNote(ctx!.userId, f);
     }
     if (name === "modifier_nutrition") {
       const i = input as {
