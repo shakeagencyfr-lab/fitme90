@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FROZEN_STATUSES } from "@/lib/freeze";
 import { tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -157,9 +158,9 @@ export default async function AdminNetworkPage({
                       <td className="px-4 py-3 font-semibold text-ink">
                         <span className="flex items-center gap-2">
                           {c.name}
-                          {c.suspendedAt ? (
+                          {c.suspendedAt || (c.subStatus && FROZEN_STATUSES.has(c.subStatus)) ? (
                             <span className="rounded-pill bg-[#C4471A]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[#C4471A]">
-                              {c.suspendedReason === "payment" ? "Impayé" : "Désactivé"}
+                              {c.suspendedAt ? tx("Désactivé") : tx("Impayé")}
                             </span>
                           ) : null}
                           {isPlatform ? (
