@@ -172,7 +172,12 @@ export default async function AdminResellerAiPage() {
 
       {/* En crédits plateforme, la fourniture est fixée : pas de choix BYOK / provider. */}
       {!buysFromPlatform ? (
-        <ResellerAiModeForm initialMode={mode} initialLimit={limit} keyConfigured={key.configured} />
+        <ResellerAiModeForm
+          initialMode={mode}
+          initialLimit={limit}
+          keyConfigured={key.configured}
+          absorbsCost={resellerModel === "subscription"}
+        />
       ) : null}
 
       <ResellerCreditPricingForm

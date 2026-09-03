@@ -99,6 +99,7 @@ export default async function WhiteLabelPage({
         siteHost={SITE_HOST}
         rootDomain={ROOT_DOMAIN}
         previewUrl={previewUrl}
+        kind={kind}
         domainLocked={domainLocked}
         previewVersion={previewToken([
           template, branding.brandColor, branding.headline, branding.tagline,
