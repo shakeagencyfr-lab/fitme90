@@ -471,7 +471,7 @@ export const RESERVED_PATH_SEGMENTS = new Set([
   "app", "admin", "api", "auth", "c", "r", "revendeurs", "generation", "questionnaire", "salle",
   "plan-pdf", "dev",
   "connexion", "inscription", "inscription-coach", "inscription-revendeur", "verifie-tes-mails", "mot-de-passe-oublie",
-  "reinitialiser", "cgv", "confidentialite", "mentions-legales",
+  "reinitialiser", "cgv", "confidentialite", "mentions-legales", "desabonnement",
   "_next", "icons", "favicon.ico", "manifest.webmanifest", "sw.js",
   "robots.txt", "sitemap.xml",
 ]);

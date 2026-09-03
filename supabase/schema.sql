@@ -793,3 +793,23 @@ create index if not exists gift_codes_used_by_idx on public.gift_codes (used_by)
 create index if not exists tenants_plan_idx on public.tenants (plan_id);
 create index if not exists support_access_actor_idx on public.support_access_log (actor_tenant_id);
 create index if not exists support_access_target_idx on public.support_access_log (target_tenant_id);
+
+-- =====================================================================
+-- 9. RELANCES DES PROSPECTS
+-- =====================================================================
+
+-- Le mini-programme gratuit capte des adresses, et rien ne les relançait :
+-- l'e-mail partait une fois et le prospect retombait dans le silence.
+alter table public.prospects add column if not exists followup_sent smallint not null default 0;
+alter table public.prospects add column if not exists followup_at timestamptz;
+-- Désabonnement explicite, distinct du statut « ignoré » qui est une décision
+-- du coach : ici c'est le prospect qui a demandé à ne plus rien recevoir.
+alter table public.prospects add column if not exists unsubscribed_at timestamptz;
+
+create index if not exists prospects_followup_idx
+  on public.prospects (followup_sent, created_at)
+  where unsubscribed_at is null;
+
+-- Désactivé par défaut : on n'envoie jamais d'e-mail au nom d'un coach sans
+-- qu'il l'ait demandé.
+alter table public.coach_config add column if not exists prospect_followup_enabled boolean not null default false;

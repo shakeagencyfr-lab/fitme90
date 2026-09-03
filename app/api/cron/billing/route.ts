@@ -4,6 +4,7 @@ import { syncAllTenantSubscriptions } from "@/lib/tenant-billing";
 import { autoAppendBlocks } from "@/lib/blocks";
 import { purgeLapsedClients } from "@/lib/lapsed";
 import { reconcileTenantPayments } from "@/lib/coach-payments";
+import { runProspectFollowups } from "@/lib/prospect-followup-send";
 import { dispatchScheduledPushes } from "@/lib/scheduled-push";
 import { vapidReady } from "@/lib/push";
 
@@ -39,9 +40,12 @@ export async function GET(req: Request) {
   // Abonnements des comptes à leur parent (Lot C·3b) : renouvellements +
   // défaut de paiement -> retour au palier gratuit.
   const { synced: tenantSynced, downgraded: tenantDowngraded } = await syncAllTenantSubscriptions();
+  // Relances des prospects du lead magnet, chez les coachs qui les ont
+  // activées. Une adresse captée puis jamais recontactée ne vaut rien.
+  const followups = await runProspectFollowups();
   const blocks = await autoAppendBlocks();
   // 3) Suppression des comptes clients en impayé prolongé (> 14 j). DRY-RUN tant
   //    que ENABLE_ACCOUNT_PURGE≠"1" : on compte sans supprimer.
   const purge = await purgeLapsedClients();
-  return NextResponse.json({ reconciled, synced, restricted, tenantSynced, tenantDowngraded, blocks, purge, broadcast });
+  return NextResponse.json({ reconciled, followups, synced, restricted, tenantSynced, tenantDowngraded, blocks, purge, broadcast });
 }

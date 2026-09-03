@@ -2,11 +2,23 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { setLeadMagnetEnabled, type LeadMagnetState } from "@/app/admin/actions";
+import { setLeadMagnetEnabled, setProspectFollowupEnabled, type LeadMagnetState } from "@/app/admin/actions";
 
-export function LeadMagnetToggle({ enabled }: { enabled: boolean }) {
+/** Les deux réglages de l'écran Prospects partagent le même interrupteur. */
+const ACTIONS = {
+  lead_magnet_enabled: setLeadMagnetEnabled,
+  prospect_followup_enabled: setProspectFollowupEnabled,
+} as const;
+
+export function LeadMagnetToggle({
+  enabled,
+  name = "lead_magnet_enabled",
+}: {
+  enabled: boolean;
+  name?: keyof typeof ACTIONS;
+}) {
   const router = useRouter();
-  const [state, action] = useActionState(setLeadMagnetEnabled, {} as LeadMagnetState);
+  const [state, action] = useActionState(ACTIONS[name], {} as LeadMagnetState);
   const [on, setOn] = useState(enabled);
 
   useEffect(() => {
@@ -19,7 +31,7 @@ export function LeadMagnetToggle({ enabled }: { enabled: boolean }) {
       <label className="flex cursor-pointer items-center gap-3">
         <input
           type="checkbox"
-          name="lead_magnet_enabled"
+          name={name}
           checked={on}
           onChange={(e) => { setOn(e.target.checked); e.currentTarget.form?.requestSubmit(); }}
           className="peer sr-only"

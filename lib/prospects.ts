@@ -110,3 +110,15 @@ export async function deleteProspect(tenantId: string, id: string): Promise<void
   const admin = createAdminClient();
   await admin.from("prospects").delete().eq("id", id).eq("tenant_id", tenantId);
 }
+
+/** Les relances automatiques sont-elles activées pour ce tenant ? */
+export async function prospectFollowupEnabled(tenantId: string | null): Promise<boolean> {
+  if (!tenantId) return false;
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("coach_config")
+    .select("prospect_followup_enabled")
+    .eq("tenant_id", tenantId)
+    .maybeSingle<{ prospect_followup_enabled: boolean | null }>();
+  return !!data?.prospect_followup_enabled;
+}
