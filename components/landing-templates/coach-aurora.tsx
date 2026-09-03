@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { LangSwitch } from "@/components/lang-switch";
+import { MobileNav } from "@/components/landing-templates/mobile-nav";
 import Link from "next/link";
 import { type Offer, type PublicTenant } from "@/lib/offers";
 import { formatEuros, DEFAULT_BRAND_COLOR } from "@/lib/config";
@@ -15,6 +16,7 @@ import {
   SplitWords,
   Counter,
   Tilt,
+  ScrollMarquee,
 } from "@/components/landing-templates/scroll-fx";
 import { LeadBand } from "@/components/landing-templates/lead-band";
 import { AuthorEngine } from "@/components/landing-templates/author-engine";
@@ -192,7 +194,22 @@ export function CoachAurora({ tenant, offers, leadMagnet = false, locale = "fr" 
           </nav>
           <div className="flex items-center gap-3">
             <span className="hidden h-5 w-px bg-ink/10 md:block" aria-hidden />
-            <LangSwitch compact />
+            <MobileNav
+              className="md:hidden"
+              brand={<Brand tenant={tenant} imgClass="h-10" textClass="text-[17px]" />}
+              tone="light"
+              bg="#faf8f4"
+              radius={999}
+              langLabel={locale === "en" ? "Language" : "Langue"}
+              links={[
+                { href: "#auteur", label: L.navMethod },
+                { href: "#offres", label: L.navPrograms },
+                { href: "#faq", label: L.navFaq },
+              ]}
+              login={{ href: `/connexion?c=${tenant.slug}`, label: L.login }}
+              cta={offers.length > 0 ? { href: "#offres", label: L.seePrograms } : undefined}
+            />
+            <span className="hidden md:block"><LangSwitch compact /></span>
             <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-ink/55 transition-colors hover:text-ink sm:inline">{L.login}</Link>
             {offers.length > 0 ? (
               <a href="#offres" className="press tap hidden h-10 shrink-0 items-center whitespace-nowrap rounded-full bg-ink px-5 text-[13.5px] font-semibold text-[#faf8f4] transition-opacity hover:opacity-85 sm:inline-flex">
@@ -260,6 +277,16 @@ export function CoachAurora({ tenant, offers, leadMagnet = false, locale = "fr" 
             ))}
           </div>
         </section>
+
+        {/* Bandeau : avance seul, lentement, dans le sens de la lecture inverse */}
+        <div className="border-y border-ink/8 bg-ink/[0.02] py-3.5">
+          <ScrollMarquee
+            items={[...L.heroChecks, ...L.stats.map((st) => st.l)]}
+            seconds={46}
+            reverse
+            className="font-mono text-[12px] uppercase tracking-[0.2em] text-ink/35"
+          />
+        </div>
 
         {/* ── Traversée horizontale n°1 : la méthode, en frise lente ── */}
         <section id="methode" className="relative scroll-mt-24">

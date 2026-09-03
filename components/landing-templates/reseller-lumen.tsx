@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { LangSwitch } from "@/components/lang-switch";
+import { MobileNav } from "@/components/landing-templates/mobile-nav";
 import { tx } from "@/lib/i18n/request";
 import Link from "next/link";
 import { CoachMark } from "@/components/brand";
@@ -101,7 +102,23 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
             ))}
           </nav>
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <LangSwitch compact />
+            <MobileNav
+              className="md:hidden"
+              brand={<CoachMark brand={{ name: reseller.name, logoUrl: reseller.logoUrl }} size={20} imgClass="h-9" />}
+              tone="light"
+              bg="#f6f4ef"
+              radius={12}
+              langLabel={tx("Langue")}
+              links={[
+                { href: "#apercu", label: tx("Aperçu") },
+                { href: "#simulateur", label: tx("Simulateur") },
+                { href: "#formules", label: tx("Tarifs") },
+                { href: "#faq", label: tx("FAQ") },
+              ]}
+              login={{ href: login, label: tx("Connexion") }}
+              cta={{ href: signup, label: tx("Démarrer gratuitement") }}
+            />
+            <span className="hidden md:block"><LangSwitch compact /></span>
             <Link href={login} className="tap hidden h-10 items-center rounded-btn px-3 text-[14px] font-semibold text-ink/70 transition-colors hover:text-ink sm:inline-flex sm:px-4">{tx("Connexion")}</Link>
             <Link href={signup} className="tap inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-btn bg-brand px-3.5 text-[13.5px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98] sm:px-4 sm:text-[14px]"><span className="sm:hidden">{tx("Démarrer")}</span><span className="hidden sm:inline">{tx("Démarrer gratuitement")}</span></Link>
           </div>

@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { LangSwitch } from "@/components/lang-switch";
+import { MobileNav } from "@/components/landing-templates/mobile-nav";
 import Link from "next/link";
 import { type Offer, type PublicTenant } from "@/lib/offers";
 import { formatEuros, DEFAULT_BRAND_COLOR } from "@/lib/config";
@@ -224,7 +225,22 @@ export function CoachSage({ tenant, offers, leadMagnet = false, locale = "fr" }:
           </nav>
           <div className="flex items-center gap-3">
             <span className="hidden h-5 w-px bg-ink/12 md:block" aria-hidden />
-            <LangSwitch compact />
+            <MobileNav
+              className="md:hidden"
+              brand={<Brand tenant={tenant} imgClass="h-10" />}
+              tone="light"
+              bg="#f4f1ea"
+              radius={999}
+              langLabel={locale === "en" ? "Language" : "Langue"}
+              links={[
+                { href: "#auteur", label: L.navMethod },
+                { href: "#offres", label: L.navPrograms },
+                { href: "#faq", label: L.navFaq },
+              ]}
+              login={{ href: `/connexion?c=${tenant.slug}`, label: L.login }}
+              cta={offers.length > 0 ? { href: "#offres", label: L.seePrograms } : undefined}
+            />
+            <span className="hidden md:block"><LangSwitch compact /></span>
             <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-ink/60 transition-colors hover:text-ink sm:inline">
               {L.login}
             </Link>

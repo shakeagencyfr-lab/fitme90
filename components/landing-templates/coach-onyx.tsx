@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { LangSwitch } from "@/components/lang-switch";
+import { MobileNav } from "@/components/landing-templates/mobile-nav";
 import Link from "next/link";
 import { type Offer, type PublicTenant } from "@/lib/offers";
 import { formatEuros, DEFAULT_BRAND_COLOR } from "@/lib/config";
@@ -153,7 +154,22 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false, locale = "fr" }:
           </nav>
           <div className="flex items-center gap-3">
             <span className="hidden h-5 w-px bg-white/15 md:block" aria-hidden />
-            <LangSwitch compact tone="dark" />
+            <MobileNav
+              className="md:hidden"
+              brand={<Brand tenant={tenant} imgClass="h-11" />}
+              tone="dark"
+              bg="#0a0b0c"
+              radius={12}
+              langLabel={locale === "en" ? "Language" : "Langue"}
+              links={[
+                { href: "#auteur", label: L.navMethod },
+                { href: "#offres", label: L.navPrograms },
+                { href: "#faq", label: L.navFaq },
+              ]}
+              login={{ href: `/connexion?c=${tenant.slug}`, label: L.login }}
+              cta={offers.length > 0 ? { href: "#offres", label: L.seePrograms } : undefined}
+            />
+            <span className="hidden md:block"><LangSwitch compact tone="dark" /></span>
             <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-white/70 transition-colors hover:text-white sm:inline">
               {L.login}
             </Link>
