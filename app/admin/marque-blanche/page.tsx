@@ -4,7 +4,7 @@ import { customDomainInfo } from "@/lib/custom-domain";
 import { tenantBranding } from "@/lib/branding";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tenantNode } from "@/lib/hierarchy";
-import { asLandingTemplate } from "@/lib/offers";
+import { asLandingTemplate, asBusinessType } from "@/lib/offers";
 import { DEFAULT_BRAND_COLOR, ROOT_DOMAIN, SITE_HOST } from "@/lib/config";
 import { WhiteLabelStudio } from "@/components/white-label-studio";
 import { WhitelabelPanel } from "@/components/whitelabel-panel";
@@ -55,9 +55,9 @@ export default async function WhiteLabelPage({
     tenantNode(tenantId),
     admin
       .from("tenants")
-      .select("slug, name, subdomain, custom_domain, landing_template")
+      .select("slug, name, subdomain, custom_domain, landing_template, business_type")
       .eq("id", tenantId)
-      .maybeSingle<{ slug: string; name: string; subdomain: string | null; custom_domain: string | null; landing_template: string | null }>(),
+      .maybeSingle<{ slug: string; name: string; subdomain: string | null; custom_domain: string | null; landing_template: string | null; business_type: string | null }>(),
   ]);
 
   const kind = node?.kind ?? "coach";
@@ -71,6 +71,9 @@ export default async function WhiteLabelPage({
     : (slug ? `/c/${slug}` : null);
   // La plateforme (landing principale) n'est pas pilotée par template.
   const template = kind === "platform" ? null : asLandingTemplate(t?.landing_template);
+  // La plateforme ne vend pas de programme à un client final : la question
+  // « coach ou salle ? » ne se pose pas à cet étage.
+  const businessType = kind === "platform" ? null : asBusinessType(t?.business_type);
 
   // Marque blanche (coach uniquement) : état de l'upsell + SMTP. Le domaine perso
   // est verrouillé tant que l'upsell est proposé par le revendeur mais pas activé.
@@ -100,12 +103,13 @@ export default async function WhiteLabelPage({
         rootDomain={ROOT_DOMAIN}
         previewUrl={previewUrl}
         kind={kind}
+        businessType={businessType}
         domainLocked={domainLocked}
         previewVersion={previewToken([
           template, branding.brandColor, branding.headline, branding.tagline,
           branding.logoUrl, branding.faviconUrl,
           String(branding.aboutEnabled), branding.aboutTitle, branding.aboutText, branding.aboutPhotoUrl,
-          t?.subdomain, t?.custom_domain,
+          t?.subdomain, t?.custom_domain, t?.business_type,
         ])}
       />
 

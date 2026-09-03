@@ -63,6 +63,18 @@ export async function listOffers(tenantId: string): Promise<Offer[]> {
 }
 
 export type LandingTemplate = "onyx" | "lumen" | "volt" | "sage";
+
+/**
+ * Nature du commerce. Choisit le DISCOURS de la landing publique : un coach
+ * indépendant vend sa signature, une salle vend son équipe et son parc de
+ * machines. Aucun effet sur les droits ni la facturation.
+ */
+export type BusinessType = "coach" | "gym";
+export const BUSINESS_TYPES: readonly BusinessType[] = ["coach", "gym"] as const;
+
+export function asBusinessType(v: string | null | undefined): BusinessType {
+  return v === "gym" ? "gym" : "coach";
+}
 export const LANDING_TEMPLATES: readonly LandingTemplate[] = ["onyx", "lumen", "volt", "sage"] as const;
 
 /** Normalise la valeur stockée en une clé de template connue (défaut onyx). */
@@ -81,6 +93,7 @@ export interface PublicTenant {
   logoUrl: string | null;
   faviconUrl: string | null;
   landingTemplate: LandingTemplate;
+  businessType: BusinessType;
   aboutEnabled: boolean;
   aboutTitle: string | null;
   aboutText: string | null;
@@ -106,7 +119,7 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
   const query = admin
     .from("tenants")
     .select(
-      "id, name, slug, brand_color, tagline, headline, logo_url, favicon_url, landing_template, about_enabled, about_title, about_text, about_photo_url",
+      "id, name, slug, brand_color, tagline, headline, logo_url, favicon_url, landing_template, business_type, about_enabled, about_title, about_text, about_photo_url",
     );
   const { data: tenant } = await (safe
     ? query.or(`slug.eq.${key},subdomain.eq.${key}`)
@@ -123,6 +136,7 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
       logo_url: string | null;
       favicon_url: string | null;
       landing_template: string | null;
+      business_type: string | null;
       about_enabled: boolean | null;
       about_title: string | null;
       about_text: string | null;
@@ -165,6 +179,7 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
       logoUrl: tenant.logo_url,
       faviconUrl: tenant.favicon_url,
       landingTemplate: asLandingTemplate(tenant.landing_template),
+      businessType: asBusinessType(tenant.business_type),
       aboutEnabled: !!tenant.about_enabled,
       aboutTitle: tenant.about_title,
       aboutText: tenant.about_text,

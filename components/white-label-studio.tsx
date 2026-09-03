@@ -6,11 +6,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BrandingForm } from "@/components/branding-form";
 import { TemplateSelector } from "@/components/template-selector";
+import { BusinessTypeForm } from "@/components/business-type-form";
 import { SubdomainForm } from "@/components/subdomain-form";
 import { CustomDomainCard } from "@/components/custom-domain-card";
 import type { CustomDomainInfo } from "@/lib/custom-domain";
 import type { Branding } from "@/lib/branding";
-import type { LandingTemplate } from "@/lib/offers";
+import type { BusinessType, LandingTemplate } from "@/lib/offers";
 
 interface Props {
   branding: Branding;
@@ -29,6 +30,9 @@ interface Props {
   customDomainInfo: CustomDomainInfo;
   /** Étage configuré : décide de ce que l'adresse personnalisée sert vraiment. */
   kind: "platform" | "reseller" | "coach";
+  /** Coach indépendant ou salle : choisit le discours de la page publique.
+   *  null au niveau plateforme, qui n'a pas de page de vente client. */
+  businessType: BusinessType | null;
 }
 
 // Studio « marque blanche » : configuration à gauche, aperçu live à droite.
@@ -49,6 +53,7 @@ export function WhiteLabelStudio({
   domainLocked = false,
   customDomainInfo,
   kind,
+  businessType,
 }: Props) {
   const tx = usePhrase();
   const router = useRouter();
@@ -61,6 +66,7 @@ export function WhiteLabelStudio({
       {/* Colonne configuration */}
       <div className="flex flex-col gap-5">
         <BrandingForm branding={branding} namePlaceholder={namePlaceholder} />
+        {businessType ? <BusinessTypeForm current={businessType} /> : null}
         {template ? <TemplateSelector current={template} accent={accent} /> : null}
         <SubdomainForm current={subdomain} slug={slug} siteHost={siteHost} rootDomain={rootDomain} kind={kind} />
         {domainLocked ? (

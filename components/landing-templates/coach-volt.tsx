@@ -6,7 +6,8 @@ import { formatEuros, DEFAULT_BRAND_COLOR } from "@/lib/config";
 import { S } from "@/components/landing-icons";
 import { SubscriptionPrice } from "@/components/subscription-price";
 import { Reveal } from "@/components/reveal";
-import { offerCardCopy, landingCopy, type LandingCopy } from "@/components/landing-templates/coach-copy";
+import { AuthorEngine } from "@/components/landing-templates/author-engine";
+import { offerCardCopy, landingCopy, type LandingCopy, type Audience } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
 
 // Template « Volt » : énergique, contrasté, angles nets et titres en capitales.
@@ -79,10 +80,10 @@ function VoltAppCard({ name, L }: { name: string; L: LandingCopy }) {
   );
 }
 
-function OfferCard({ offer, offers, slug, chargesEnabled, locale }: { offer: Offer; offers: Offer[]; slug: string; chargesEnabled: boolean; locale: Locale }) {
+function OfferCard({ offer, offers, slug, chargesEnabled, locale, audience }: { offer: Offer; offers: Offer[]; slug: string; chargesEnabled: boolean; locale: Locale; audience: Audience }) {
   const isSub = offer.billing_type === "subscription";
   const copy = offerCardCopy(offer, offers, makeT(locale));
-  const L = landingCopy(locale);
+  const L = landingCopy(locale, audience);
   const featured = copy.featured;
   return (
     <article className={`relative flex flex-col gap-5 rounded-[6px] border p-7 transition-all duration-300 hover:-translate-y-1 ${featured ? "border-ink bg-white" : "border-ink/15 bg-white hover:border-brand/30"}`}>
@@ -160,7 +161,8 @@ function ShotFrame({ children }: { children: React.ReactNode }) {
 }
 
 export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }: { tenant: PublicTenant; offers: Offer[]; leadMagnet?: boolean; locale?: Locale }) {
-  const L = landingCopy(locale);
+  // Coach indépendant ou salle : deux discours distincts pour un même design.
+  const L = landingCopy(locale, tenant.businessType);
   const accent = tenant.brandColor || DEFAULT_BRAND_COLOR;
   const title = tenant.headline || tenant.name;
   const tagline =
@@ -390,6 +392,9 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
           </div>
         </section>
 
+        {/* Qui signe le programme, et ce que le moteur apporte */}
+        <AuthorEngine L={L} name={tenant.name} tone="light" />
+
         {/* Est-ce pour toi */}
         <section className="scroll-mt-24 border-t border-ink/15 bg-white">
           <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(56px,8vw,100px)] sm:px-8">
@@ -485,7 +490,7 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
                 }`}
               >
                 {offers.map((o) => (
-                  <OfferCard key={o.id} offer={o} offers={offers} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} locale={locale} />
+                  <OfferCard key={o.id} offer={o} offers={offers} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} locale={locale} audience={tenant.businessType} />
                 ))}
               </div>
             )}

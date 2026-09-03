@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { suspendTenant, reactivateTenant, giftCredits, deleteTenantTree, setResellerSupply } from "@/lib/network-admin";
 import { setSupportReturn, readSupportReturn, clearSupportReturn } from "@/lib/support-return";
-import { LANDING_TEMPLATES } from "@/lib/offers";
+import { LANDING_TEMPLATES, BUSINESS_TYPES } from "@/lib/offers";
 import { whitelabelEnabled } from "@/lib/whitelabel";
 import { sendEmail } from "@/lib/email";
 import { setTenantCustomDomain } from "@/lib/custom-domain";
@@ -235,6 +235,26 @@ export async function saveLandingTemplate(_prev: TemplateState, formData: FormDa
   const { error } = await admin
     .from("tenants")
     .update({ landing_template: template })
+    .eq("id", ctx.profile.tenant_id);
+  if (error) return { error: "Enregistrement impossible." };
+  revalidatePath("/admin/marque-blanche");
+  return { ok: true };
+}
+
+/**
+ * Nature du commerce : coach indépendant ou salle. Ne touche ni aux droits ni
+ * à la facturation, seulement au DISCOURS de la landing publique (une salle ne
+ * vend pas la même chose qu'un coach : voir landing-templates/coach-copy.ts).
+ */
+export async function saveBusinessType(_prev: TemplateState, formData: FormData): Promise<TemplateState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const raw = String(formData.get("business_type") ?? "");
+  if (!(BUSINESS_TYPES as readonly string[]).includes(raw)) return { error: "Type d'activité inconnu." };
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("tenants")
+    .update({ business_type: raw })
     .eq("id", ctx.profile.tenant_id);
   if (error) return { error: "Enregistrement impossible." };
   revalidatePath("/admin/marque-blanche");
