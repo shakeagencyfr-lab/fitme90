@@ -20,6 +20,10 @@ export async function submitLeadMagnet(_prev: LeadState, formData: FormData): Pr
   const level = String(formData.get("level") ?? "");
   const equipment = String(formData.get("equipment") ?? "");
   const days = Number(formData.get("days") ?? 3);
+  // Poids facultatif. Hors bornes ou vide : on ne transmet rien, et le document
+  // n'annonce pas de cible protéines plutôt que d'en inventer une.
+  const rawWeight = Number(formData.get("weight"));
+  const weight = Number.isFinite(rawWeight) && rawWeight >= 35 && rawWeight <= 250 ? Math.round(rawWeight) : null;
 
   if (!name) return { error: "Indique ton prénom." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Indique une adresse e-mail valide." };
@@ -29,5 +33,6 @@ export async function submitLeadMagnet(_prev: LeadState, formData: FormData): Pr
   await createProspect(lm.tenantId, { name, email, goal, level, days, equipment });
 
   const q = new URLSearchParams({ n: name.slice(0, 40), g: goal, l: level, e: equipment, d: String(Math.max(2, Math.min(4, days))) });
+  if (weight) q.set("w", String(weight));
   redirect(`/c/${lm.slug}/decouverte/resultat?${q.toString()}`);
 }

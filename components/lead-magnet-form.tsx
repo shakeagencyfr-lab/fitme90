@@ -53,6 +53,23 @@ export function LeadMagnetForm({ slug }: { slug: string }) {
             {EQUIPMENTS.map((e) => <option key={e} value={e}>{EQUIP_LABEL[e]}</option>)}
           </select>
         </label>
+        {/* Facultatif, et dit comme tel : sert uniquement à chiffrer la cible
+            protéines. Sans lui, on n'annonce aucun chiffre plutôt qu'un chiffre
+            moyen qui ne veut rien dire. */}
+        <label className="flex flex-col gap-1.5 sm:col-span-2">
+          <span className={label}>{tx("Ton poids (facultatif)")}</span>
+          <input
+            name="weight"
+            type="number"
+            inputMode="numeric"
+            min={35}
+            max={250}
+            placeholder={tx("Ex : 72")}
+            className={field}
+          />
+          <span className="text-[12px] leading-snug text-muted-2">
+            {tx("Uniquement pour calculer ta cible de protéines en grammes. Laisse vide si tu préfères.")}</span>
+        </label>
       </div>
 
       <label className="flex cursor-pointer items-start gap-2.5 text-[13px] leading-[1.5] text-body">

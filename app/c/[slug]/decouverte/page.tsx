@@ -18,10 +18,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
+// Annoncer le contenu réel plutôt que « une semaine d'entraînement ». Ce qui
+// fait la différence entre un lead magnet qu'on garde et un PDF qu'on ferme,
+// ce sont ces détails-là : l'échauffement, la charge, le remplacement.
 const BENEFITS = [
-  "Une semaine d'entraînement prête à suivre",
-  "Adaptée à ton objectif, ton niveau et ton matériel",
-  "À télécharger en PDF, gratuitement",
+  "Une semaine complète, jour par jour, repos compris",
+  "L'échauffement, la charge à viser et la consigne technique de chaque exercice",
+  "Quoi faire si une machine est prise",
+  "Comment progresser la semaine suivante",
+  "Une journée type, une liste de courses et ta cible de protéines",
+  "Un tableau de suivi à imprimer",
 ];
 
 export default async function DecouvertePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -59,8 +65,8 @@ export default async function DecouvertePage({ params }: { params: Promise<{ slu
             Ton mini-programme gratuit
           </h1>
           <p className="max-w-[46ch] text-[16px] leading-[1.6] text-muted">
-            Réponds à 4 questions et reçois immédiatement une semaine d&apos;entraînement calibrée pour toi.
-            Un avant-goût concret de la méthode, sans engagement.
+            Réponds à cinq questions et reçois immédiatement un document complet, prêt à imprimer.
+            Pas une liste d&apos;exercices : un plan de semaine qu&apos;on peut suivre seul, sans engagement.
           </p>
           <ul className="flex flex-col gap-2.5 pt-1">
             {BENEFITS.map((b) => (
