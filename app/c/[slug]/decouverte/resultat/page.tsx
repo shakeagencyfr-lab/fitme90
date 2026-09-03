@@ -15,7 +15,7 @@ export default async function ResultatPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ n?: string; g?: string; l?: string; e?: string; d?: string }>;
+  searchParams: Promise<{ n?: string; g?: string; l?: string; e?: string; d?: string; w?: string }>;
 }) {
   const { slug } = await params;
   const sp = await searchParams;
@@ -29,7 +29,12 @@ export default async function ResultatPage({
   const days = Math.max(2, Math.min(4, Number(sp.d ?? 3) || 3));
   const firstName = (sp.n ?? "").slice(0, 40);
 
-  const prog = buildMiniProgram({ goal, level, days, equipment });
+  // Poids facultatif : sert uniquement à chiffrer la cible protéines. Une
+  // valeur absurde est ignorée plutôt que d'imprimer un chiffre faux.
+  const w = Number(sp.w);
+  const weightKg = Number.isFinite(w) && w >= 35 && w <= 250 ? w : null;
+
+  const prog = buildMiniProgram({ goal, level, days, equipment, weightKg });
 
   return (
     <div
@@ -65,57 +70,194 @@ export default async function ResultatPage({
           {firstName ? `Bravo ${firstName} ! ` : "Bravo ! "}{prog.intro}
         </p>
 
+        {/* Le calendrier d'abord : sans lui, personne ne sait quand faire quoi */}
+        <section className="mt-8 break-inside-avoid">
+          <h2 className="font-mono text-[10px] uppercase tracking-[0.16em] text-brand">Ta semaine</h2>
+          <div className="mt-3 overflow-hidden rounded-card border border-line">
+            {prog.weekPlan.map((d, i) => (
+              <div
+                key={d.label}
+                className={`flex items-baseline gap-3 px-4 py-2.5 ${i > 0 ? "border-t border-line-2" : ""} ${d.kind === "session" ? "bg-brand/[0.06]" : "bg-surface"}`}
+              >
+                <span className="w-[76px] shrink-0 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-2">{d.label}</span>
+                <span className={`w-[74px] shrink-0 font-archivo text-[13.5px] font-bold ${d.kind === "session" ? "text-brand" : "text-muted-2"}`}>
+                  {d.title}
+                </span>
+                <span className="flex-1 text-[13px] leading-snug text-body">{d.note}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Choisir sa charge : la question qui bloque tout le monde en salle */}
+        <section className="mt-6 break-inside-avoid rounded-card border border-line bg-surface p-5">
+          <h2 className="font-archivo text-[16px] font-bold text-ink">Quelle charge mettre ?</h2>
+          <ul className="mt-2.5 flex flex-col gap-2">
+            {prog.loadGuide.map((g) => (
+              <li key={g} className="flex items-start gap-2.5 text-[13.5px] leading-[1.55] text-body">
+                <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-brand" />
+                {g}
+              </li>
+            ))}
+          </ul>
+        </section>
+
         {/* Séances */}
-        <div className="mt-8 flex flex-col gap-6">
+        <div className="mt-6 flex flex-col gap-6">
           {prog.sessions.map((s) => (
             <section key={s.title} className="break-inside-avoid rounded-card border border-line bg-surface p-5">
               <div className="mb-3 flex items-baseline justify-between gap-2 border-b border-line-2 pb-2">
                 <h2 className="font-archivo text-[18px] font-bold tracking-[-0.01em] text-ink">{s.title}</h2>
                 <span className="text-[12.5px] text-muted-2">{s.focus}</span>
               </div>
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">
-                    <th className="pb-1.5 font-medium">Exercice</th>
-                    <th className="pb-1.5 pl-2 font-medium">Séries</th>
-                    <th className="pb-1.5 pl-2 font-medium">Reps</th>
-                    <th className="pb-1.5 pl-2 font-medium">Repos</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {s.exercises.map((e) => (
-                    <tr key={e.name} className="border-t border-line-2 text-[13.5px] text-body">
-                      <td className="py-2 pr-2 font-medium text-ink">{e.name}</td>
-                      <td className="py-2 pl-2 tabular-nums">{e.sets}</td>
-                      <td className="py-2 pl-2">{e.reps}</td>
-                      <td className="py-2 pl-2">{e.rest}</td>
-                    </tr>
+
+              <div className="mb-4 rounded-control border border-line-2 bg-surface-2 px-3.5 py-3">
+                <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">Échauffement, 5 à 8 min</div>
+                <ul className="mt-1.5 flex flex-col gap-1">
+                  {s.warmup.map((w) => (
+                    <li key={w} className="text-[12.5px] leading-snug text-body">{w}</li>
                   ))}
-                </tbody>
-              </table>
+                </ul>
+              </div>
+
+              <div className="flex flex-col divide-y divide-line-2">
+                {s.exercises.map((e) => (
+                  <div key={e.name} className="py-3 first:pt-0">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                      <span className="font-archivo text-[14.5px] font-semibold text-ink">{e.name}</span>
+                      <span className="font-mono text-[12px] tabular-nums text-body">
+                        {e.sets} × {e.reps} <span className="text-muted-2">· repos {e.rest}</span>
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[12.5px] leading-snug text-muted">{e.cue}</p>
+                    <p className="mt-0.5 text-[12px] leading-snug text-muted-2">
+                      <span className="font-medium">Si c&apos;est pris ou impossible :</span> {e.alt}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {s.finisher ? (
+                <p className="mt-3 rounded-control border border-brand/25 bg-brand/[0.06] px-3.5 py-2.5 text-[12.5px] leading-snug text-body">
+                  <span className="font-semibold text-ink">Pour finir : </span>{s.finisher}
+                </p>
+              ) : null}
             </section>
           ))}
         </div>
 
-        {/* Nutrition + conseils */}
+        {/* Tableau de suivi : c'est lui qui rend l'impression utile */}
+        <section className="mt-6 break-inside-avoid rounded-card border border-line bg-surface p-5">
+          <h2 className="font-archivo text-[16px] font-bold text-ink">Note tes charges</h2>
+          <p className="mt-1 text-[13px] leading-snug text-muted">
+            Sans trace écrite, tu ne sauras pas quoi faire la semaine suivante. Remplis au stylo, séance après séance.
+          </p>
+          <table className="mt-3 w-full border-collapse text-left">
+            <thead>
+              <tr className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">
+                <th className="pb-1.5 font-medium">Exercice</th>
+                <th className="w-[22%] pb-1.5 pl-2 font-medium">Charge</th>
+                <th className="w-[22%] pb-1.5 pl-2 font-medium">Reps faites</th>
+                <th className="w-[16%] pb-1.5 pl-2 font-medium">Ressenti</th>
+              </tr>
+            </thead>
+            <tbody>
+              {prog.sessions[0].exercises.map((e) => (
+                <tr key={e.name} className="border-t border-line-2 text-[13px] text-body">
+                  <td className="py-2.5 pr-2 font-medium text-ink">{e.name}</td>
+                  <td className="py-2.5 pl-2 text-muted-2">.........</td>
+                  <td className="py-2.5 pl-2 text-muted-2">.........</td>
+                  <td className="py-2.5 pl-2 text-muted-2">.....</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+
+        {/* Progression + cardio */}
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div className="break-inside-avoid rounded-card border border-line bg-surface p-5">
-            <h3 className="mb-2 font-archivo text-[15px] font-bold text-ink">Nutrition</h3>
+          <section className="break-inside-avoid rounded-card border border-line bg-surface p-5">
+            <h3 className="mb-2 font-archivo text-[15px] font-bold text-ink">La semaine suivante</h3>
             <ul className="flex flex-col gap-1.5">
-              {prog.nutrition.map((n) => (
-                <li key={n} className="flex items-start gap-2 text-[13px] leading-snug text-body"><span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-brand" />{n}</li>
+              {prog.progression.map((t) => (
+                <li key={t} className="flex items-start gap-2 text-[13px] leading-snug text-body">
+                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-brand" />{t}
+                </li>
               ))}
             </ul>
-          </div>
-          <div className="break-inside-avoid rounded-card border border-line bg-surface p-5">
-            <h3 className="mb-2 font-archivo text-[15px] font-bold text-ink">Conseils</h3>
-            <ul className="flex flex-col gap-1.5">
-              {prog.tips.map((t) => (
-                <li key={t} className="flex items-start gap-2 text-[13px] leading-snug text-body"><span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-brand" />{t}</li>
-              ))}
-            </ul>
-          </div>
+          </section>
+          {prog.cardio ? (
+            <section className="break-inside-avoid rounded-card border border-line bg-surface p-5">
+              <h3 className="mb-2 font-archivo text-[15px] font-bold text-ink">{prog.cardio.title}</h3>
+              <p className="text-[13px] leading-[1.6] text-body">{prog.cardio.body}</p>
+            </section>
+          ) : null}
         </div>
+
+        {/* Nutrition : chiffrée et applicable, pas des principes */}
+        <section className="mt-6 break-inside-avoid rounded-card border border-line bg-surface p-5">
+          <h2 className="font-archivo text-[16px] font-bold text-ink">Nutrition</h2>
+          {prog.nutrition.proteinTarget ? (
+            <p className="mt-2 rounded-control border border-brand/25 bg-brand/[0.06] px-3.5 py-2.5 text-[13.5px] font-semibold text-ink">
+              {prog.nutrition.proteinTarget}
+            </p>
+          ) : null}
+          <p className="mt-2 text-[13px] leading-[1.6] text-body">{prog.nutrition.calorieHint}</p>
+
+          <ul className="mt-3 flex flex-col gap-1.5">
+            {prog.nutrition.rules.map((n) => (
+              <li key={n} className="flex items-start gap-2 text-[13px] leading-snug text-body">
+                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-brand" />{n}
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <h3 className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">Une journée type</h3>
+              <div className="mt-2 flex flex-col divide-y divide-line-2">
+                {prog.nutrition.sampleDay.map((m) => (
+                  <div key={m.meal} className="py-2 first:pt-0">
+                    <div className="font-archivo text-[13px] font-semibold text-ink">{m.meal}</div>
+                    <div className="text-[12.5px] leading-snug text-muted">{m.example}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h3 className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">Liste de courses</h3>
+              <ul className="mt-2 flex flex-wrap gap-1.5">
+                {prog.nutrition.shopping.map((it) => (
+                  <li key={it} className="rounded-pill border border-line-2 px-2.5 py-1 text-[12px] text-body">{it}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* Conseils */}
+        <section className="mt-6 break-inside-avoid rounded-card border border-line bg-surface p-5">
+          <h2 className="mb-2 font-archivo text-[16px] font-bold text-ink">Quatre règles qui font la différence</h2>
+          <ul className="flex flex-col gap-1.5">
+            {prog.tips.map((t) => (
+              <li key={t} className="flex items-start gap-2 text-[13px] leading-snug text-body">
+                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-brand" />{t}
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* Ce que le programme complet ajoute. Dit honnêtement, pas survendu. */}
+        <section className="mt-6 break-inside-avoid rounded-card border border-line-2 bg-surface-2 p-5">
+          <h2 className="mb-2 font-archivo text-[16px] font-bold text-ink">Et ensuite ?</h2>
+          <ul className="flex flex-col gap-1.5">
+            {prog.next.map((t) => (
+              <li key={t} className="flex items-start gap-2 text-[13px] leading-snug text-body">
+                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-brand" />{t}
+              </li>
+            ))}
+          </ul>
+        </section>
 
         {/* CTA (masqué à l'impression) */}
         <div className="no-print mt-8 flex flex-col items-center gap-3 rounded-card border border-brand/30 bg-brand/[0.06] p-6 text-center">

@@ -8,7 +8,12 @@ import { LOCALES, type Locale } from "@/lib/i18n";
 
 // Bascule FR / EN, compacte : deux pastilles. Le choix est un cookie (et le
 // profil si la personne est connectée) ; la page se recharge côté serveur.
-export function LangSwitch({ className = "", compact = false }: { className?: string; compact?: boolean }) {
+/**
+ * `tone="dark"` : les landings sombres figent leur encre mais PAS les surfaces
+ * du thème. Sans ce réglage, la bascule s'affichait en pastille blanche sur un
+ * en-tête noir, comme un morceau d'interface collé par erreur.
+ */
+export function LangSwitch({ className = "", compact = false, tone = "auto" }: { className?: string; compact?: boolean; tone?: "auto" | "dark" }) {
   const ctxLocale = useLocale();
   // État local optimiste : le provider racine peut se rafraîchir un peu après
   // la page ; la pastille active suit tout de suite le choix.
@@ -32,7 +37,8 @@ export function LangSwitch({ className = "", compact = false }: { className?: st
       role="group"
       aria-label="Language"
       className={[
-        "inline-flex items-center rounded-pill border border-line-4 bg-surface p-0.5 font-mono text-[10.5px] uppercase tracking-[0.08em]",
+        "inline-flex items-center rounded-pill border p-0.5 font-mono text-[10.5px] uppercase tracking-[0.08em]",
+        tone === "dark" ? "border-white/20 bg-white/[0.06]" : "border-line-4 bg-surface",
         pending ? "opacity-60" : "",
         className,
       ].join(" ")}
@@ -46,7 +52,13 @@ export function LangSwitch({ className = "", compact = false }: { className?: st
           className={[
             "tap rounded-pill transition-colors",
             compact ? "px-2 py-1" : "px-2.5 py-1.5",
-            l === current ? "bg-fill text-fillfg" : "text-muted-2 hover:text-ink",
+            tone === "dark"
+              ? l === current
+                ? "bg-white text-[#0b0c0e]"
+                : "text-white/50 hover:text-white"
+              : l === current
+                ? "bg-fill text-fillfg"
+                : "text-muted-2 hover:text-ink",
           ].join(" ")}
         >
           {l}

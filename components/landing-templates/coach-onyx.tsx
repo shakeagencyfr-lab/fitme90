@@ -7,7 +7,8 @@ import { GridScan, AppPreview, MacroOrbit } from "@/components/landing-visuals";
 import { S } from "@/components/landing-icons";
 import { SubscriptionPrice } from "@/components/subscription-price";
 import { Reveal } from "@/components/reveal";
-import { offerCardCopy, landingCopy } from "@/components/landing-templates/coach-copy";
+import { AuthorEngine } from "@/components/landing-templates/author-engine";
+import { offerCardCopy, landingCopy, type Audience } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
 
 // Template « Onyx » : design sombre premium (design historique de la landing
@@ -32,10 +33,10 @@ function Brand({ tenant, imgClass = "h-11", textClass = "text-[20px]" }: { tenan
   return <span className={`font-archivo ${textClass} font-extrabold tracking-[-0.02em] text-white`}>{tenant.name}</span>;
 }
 
-function OfferCard({ offer, offers, slug, chargesEnabled, locale }: { offer: Offer; offers: Offer[]; slug: string; chargesEnabled: boolean; locale: Locale }) {
+function OfferCard({ offer, offers, slug, chargesEnabled, locale, audience }: { offer: Offer; offers: Offer[]; slug: string; chargesEnabled: boolean; locale: Locale; audience: Audience }) {
   const isSub = offer.billing_type === "subscription";
   const copy = offerCardCopy(offer, offers, makeT(locale));
-  const L = landingCopy(locale);
+  const L = landingCopy(locale, audience);
   return (
     <article
       className={[
@@ -106,7 +107,8 @@ function OfferCard({ offer, offers, slug, chargesEnabled, locale }: { offer: Off
 }
 
 export function CoachOnyx({ tenant, offers, leadMagnet = false, locale = "fr" }: { tenant: PublicTenant; offers: Offer[]; leadMagnet?: boolean; locale?: Locale }) {
-  const L = landingCopy(locale);
+  // Coach indépendant ou salle : deux discours distincts pour un même design.
+  const L = landingCopy(locale, tenant.businessType);
   const accent = tenant.brandColor || DEFAULT_BRAND_COLOR;
   const title = tenant.headline || tenant.name;
   const tagline =
@@ -138,7 +140,7 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false, locale = "fr" }:
         <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
           <Link href="#top" className="flex items-center"><Brand tenant={tenant} imgClass="h-11 sm:h-14" /></Link>
           <div className="flex items-center gap-3">
-            <LangSwitch compact className="border-white/20 bg-white/5 text-white/70" />
+            <LangSwitch compact tone="dark" />
             <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-white/70 transition-colors hover:text-white sm:inline">
               {L.login}
             </Link>
@@ -306,6 +308,9 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false, locale = "fr" }:
           </div>
         </section>
 
+        {/* Qui signe le programme, et ce que le moteur apporte */}
+        <AuthorEngine L={L} name={tenant.name} tone="dark" />
+
         {/* Est-ce pour toi */}
         <section className="scroll-mt-24 border-t border-white/10 bg-white/[0.015]">
           <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(64px,9vw,110px)] sm:px-8">
@@ -401,7 +406,7 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false, locale = "fr" }:
                 }`}
               >
                 {offers.map((o) => (
-                  <OfferCard key={o.id} offer={o} offers={offers} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} locale={locale} />
+                  <OfferCard key={o.id} offer={o} offers={offers} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} locale={locale} audience={tenant.businessType} />
                 ))}
               </div>
             )}

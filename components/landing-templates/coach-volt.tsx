@@ -5,20 +5,36 @@ import { type Offer, type PublicTenant } from "@/lib/offers";
 import { formatEuros, DEFAULT_BRAND_COLOR } from "@/lib/config";
 import { S } from "@/components/landing-icons";
 import { SubscriptionPrice } from "@/components/subscription-price";
-import { Reveal } from "@/components/reveal";
-import { offerCardCopy, landingCopy, type LandingCopy } from "@/components/landing-templates/coach-copy";
+import { Reveal, RevealGroup } from "@/components/reveal";
+import { Rail, Marquee } from "@/components/landing-templates/rail";
+import { AuthorEngine } from "@/components/landing-templates/author-engine";
+import { offerCardCopy, landingCopy, type LandingCopy, type Audience } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
 
-// Template « Volt » : énergique, contrasté, angles nets et titres en capitales.
-// Rendu par app/c/[slug] quand tenant.landingTemplate === "volt".
+// Template « Volt » : sombre, contrasté, tranchant.
+//
+// Il partageait auparavant la structure de Lumen à quelques bordures près, ce
+// qui lui donnait l'air d'une variante de couleur plutôt que d'un design. Ici
+// la STRUCTURE change :
+//   - une bande de mots-clés qui défile, entre le hero et le reste
+//   - les fonctionnalités et les programmes en RAILS HORIZONTAUX au milieu
+//     d'une page qui, elle, défile verticalement
+//   - des blocs pleine largeur en alternance plutôt que des grilles de cartes
+//   - des chiffres surdimensionnés et des angles droits
+//
+// Le fond est figé en sombre : la landing publique ne doit pas basculer si le
+// visiteur a activé le thème clair de l'application.
 
-const eyebrow = "font-mono text-[11px] uppercase tracking-[0.18em] text-brand";
+const INK = "#e9eaec";
+const BG = "#0b0c0e";
+const PANEL = "#111316";
+
 const sectionTitle =
-  "font-archivo font-extrabold tracking-[-0.03em] text-ink text-[clamp(28px,5vw,48px)] leading-[1.04] text-balance uppercase";
+  "font-archivo font-extrabold uppercase tracking-[-0.02em] text-[clamp(28px,5vw,52px)] leading-[0.98] text-balance";
 
-function Eyebrow({ children }: { children: React.ReactNode }) {
+function Tag({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-[4px] bg-ink px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.16em] text-white">
+    <span className="inline-flex items-center gap-2 bg-brand px-3 py-1.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-white">
       {children}
     </span>
   );
@@ -29,49 +45,49 @@ function Brand({ tenant, imgClass = "h-11", textClass = "text-[20px]" }: { tenan
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={tenant.logoUrl} alt={tenant.name} className={`${imgClass} w-auto max-w-[260px] object-contain`} />;
   }
-  return <span className={`font-archivo ${textClass} font-extrabold tracking-[-0.02em] text-ink`}>{tenant.name}</span>;
+  return <span className={`font-archivo ${textClass} font-extrabold uppercase tracking-[-0.01em] text-white`}>{tenant.name}</span>;
 }
 
-// Maquette « produit » claire pour le hero (aperçu de l'espace client).
+// Maquette de l'espace client, version sombre.
 function VoltAppCard({ name, L }: { name: string; L: LandingCopy }) {
   return (
     <div className="relative mx-auto w-full max-w-[380px]">
-      <div className="rounded-[6px] border border-ink/15 bg-white p-4">
-        <div className="rounded-[6px] bg-[#faf8f5] p-4">
+      <div className="border border-white/12 bg-[#141619] p-4">
+        <div className="border border-white/8 bg-[#0e1013] p-4">
           <div className="flex items-center justify-between">
-            <span className="font-archivo text-[13px] font-bold tracking-[-0.01em] text-ink">{name}</span>
-            <span className="flex size-8 items-center justify-center rounded-full bg-brand/12 text-brand"><S.spark className="h-4 w-4" /></span>
+            <span className="font-archivo text-[13px] font-bold uppercase tracking-[-0.01em] text-white">{name}</span>
+            <span className="flex size-8 items-center justify-center bg-brand/20 text-brand"><S.spark className="h-4 w-4" /></span>
           </div>
-          <div className="mt-4 rounded-2xl border border-ink/15 bg-white p-3.5">
-            <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.12em] text-ink/45">
+          <div className="mt-4 border border-white/10 bg-[#141619] p-3.5">
+            <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.14em] text-white/40">
               <span>{L.mockSession}</span><span className="text-brand">{L.mockDay}</span>
             </div>
             <ul className="mt-2.5 flex flex-col gap-2">
               {[["Développé couché", "4 × 8"], ["Tirage vertical", "4 × 10"], ["Élévations latérales", "3 × 15"]].map(([ex, sr], i) => (
-                <li key={ex} className="flex items-center gap-2.5 text-[13px] text-ink/80">
-                  <span className={`flex size-5 items-center justify-center rounded-md ${i < 2 ? "bg-brand text-white" : "border border-ink/25 text-transparent"}`}><S.check className="h-3 w-3" /></span>
+                <li key={ex} className="flex items-center gap-2.5 text-[13px] text-white/80">
+                  <span className={`flex size-5 items-center justify-center ${i < 2 ? "bg-brand text-white" : "border border-white/20 text-transparent"}`}><S.check className="h-3 w-3" /></span>
                   <span className="flex-1">{ex}</span>
-                  <span className="font-mono text-[11px] text-ink/45">{sr}</span>
+                  <span className="font-mono text-[11px] text-white/35">{sr}</span>
                 </li>
               ))}
             </ul>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2">
             {[["Prot.", "156 g"], ["Gluc.", "210 g"], ["Lip.", "62 g"]].map(([k, v]) => (
-              <div key={k} className="rounded-xl border border-ink/15 bg-white p-2.5 text-center">
-                <div className="font-archivo text-[15px] font-extrabold text-ink">{v}</div>
-                <div className="text-[10px] text-ink/45">{k}</div>
+              <div key={k} className="border border-white/10 bg-[#141619] p-2.5 text-center">
+                <div className="font-archivo text-[15px] font-extrabold text-white">{v}</div>
+                <div className="text-[10px] text-white/35">{k}</div>
               </div>
             ))}
           </div>
         </div>
       </div>
-      <div className="pointer-events-none absolute -bottom-4 -left-4 rounded-2xl border border-ink/15 bg-white px-4 py-3">
+      <div className="pointer-events-none absolute -bottom-5 -left-5 border border-white/12 bg-[#141619] px-4 py-3">
         <div className="flex items-center gap-2.5">
-          <span className="flex size-9 items-center justify-center rounded-full bg-brand/12 text-brand"><S.chat className="h-5 w-5" /></span>
+          <span className="flex size-9 items-center justify-center bg-brand/20 text-brand"><S.chat className="h-5 w-5" /></span>
           <div>
-            <div className="font-archivo text-[14px] font-extrabold leading-none text-ink">{L.mockCoach}</div>
-            <div className="mt-0.5 text-[11px] text-ink/50">{L.mockCoachSub}</div>
+            <div className="font-archivo text-[14px] font-extrabold uppercase leading-none text-white">{L.mockCoach}</div>
+            <div className="mt-0.5 text-[11px] text-white/45">{L.mockCoachSub}</div>
           </div>
         </div>
       </div>
@@ -79,22 +95,22 @@ function VoltAppCard({ name, L }: { name: string; L: LandingCopy }) {
   );
 }
 
-function OfferCard({ offer, offers, slug, chargesEnabled, locale }: { offer: Offer; offers: Offer[]; slug: string; chargesEnabled: boolean; locale: Locale }) {
+function OfferCard({ offer, offers, slug, chargesEnabled, locale, audience }: { offer: Offer; offers: Offer[]; slug: string; chargesEnabled: boolean; locale: Locale; audience: Audience }) {
   const isSub = offer.billing_type === "subscription";
   const copy = offerCardCopy(offer, offers, makeT(locale));
-  const L = landingCopy(locale);
+  const L = landingCopy(locale, audience);
   const featured = copy.featured;
   return (
-    <article className={`relative flex flex-col gap-5 rounded-[6px] border p-7 transition-all duration-300 hover:-translate-y-1 ${featured ? "border-ink bg-white" : "border-ink/15 bg-white hover:border-brand/30"}`}>
+    <article className={`lift relative flex h-full flex-col gap-5 border p-7 ${featured ? "border-brand bg-[#15171a]" : "border-white/12 bg-[#111316]"}`}>
       {featured ? (
-        <span className="absolute -top-3 left-6 rounded-pill bg-brand px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-white">
+        <span className="absolute -top-3 left-6 bg-brand px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-white">
           {L.mostChosen}
         </span>
       ) : null}
       <div className="flex flex-col gap-1.5">
-        <span className={eyebrow}>{copy.eyebrow}</span>
-        <h3 className="font-archivo text-[22px] font-bold leading-tight tracking-[-0.02em] text-ink">{offer.name}</h3>
-        {copy.pitch ? <p className="text-[14px] leading-[1.5] text-ink/60">{copy.pitch}</p> : null}
+        <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-brand">{copy.eyebrow}</span>
+        <h3 className="font-archivo text-[22px] font-extrabold uppercase leading-tight tracking-[-0.02em] text-white">{offer.name}</h3>
+        {copy.pitch ? <p className="text-[14px] leading-[1.5] text-white/55">{copy.pitch}</p> : null}
       </div>
 
       {isSub ? (
@@ -104,27 +120,27 @@ function OfferCard({ offer, offers, slug, chargesEnabled, locale }: { offer: Off
           priceMonthCents={offer.price_month_cents}
           priceYearCents={offer.price_year_cents}
           chargesEnabled={chargesEnabled}
-          variant="light"
+          variant="dark"
         />
       ) : (
         <div className="flex flex-col gap-1">
           <div className="flex items-end gap-2">
-            <span className="font-archivo text-[clamp(40px,7vw,56px)] font-extrabold leading-none tracking-[-0.03em] text-ink">
+            <span className="font-archivo text-[clamp(40px,7vw,56px)] font-extrabold leading-none tracking-[-0.04em] text-white">
               {formatEuros(offer.price_cents)}
             </span>
-            <span className="pb-2 text-[13px] text-ink/50">{L.oneTime}</span>
+            <span className="pb-2 font-mono text-[11px] uppercase tracking-[0.12em] text-white/40">{L.oneTime}</span>
           </div>
           {copy.perMonthCents > 0 ? (
-            <span className="text-[13px] text-ink/55">
+            <span className="text-[13px] text-white/50">
               {L.perMonthOn(formatEuros(copy.perMonthCents), offer.duration_months)}
             </span>
           ) : null}
         </div>
       )}
 
-      <ul className="flex flex-col gap-2 border-t border-ink/15 pt-4">
+      <ul className="flex flex-1 flex-col gap-2 border-t border-white/12 pt-4">
         {copy.bullets.map((it) => (
-          <li key={it} className="flex items-start gap-2.5 text-[14px] leading-[1.5] text-ink/75">
+          <li key={it} className="flex items-start gap-2.5 text-[14px] leading-[1.5] text-white/70">
             <S.check className="mt-0.5 h-4.5 w-4.5 shrink-0 text-brand" />
             {it}
           </li>
@@ -135,13 +151,13 @@ function OfferCard({ offer, offers, slug, chargesEnabled, locale }: { offer: Off
         (chargesEnabled ? (
           <Link
             href={`/inscription?c=${slug}&offer=${offer.id}`}
-            className="tap inline-flex h-[52px] w-full items-center justify-center gap-2 whitespace-nowrap rounded-[6px] bg-brand px-5 text-[15px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]"
+            className="press tap inline-flex h-[52px] w-full items-center justify-center gap-2 whitespace-nowrap bg-brand px-5 font-archivo text-[15px] font-bold uppercase tracking-[0.02em] text-white hover:bg-brand-hover"
           >
             {L.choose}
             <S.arrow className="h-4.5 w-4.5 shrink-0" />
           </Link>
         ) : (
-          <span className="inline-flex h-[52px] items-center justify-center rounded-[6px] border border-ink/20 px-6 text-[14px] text-ink/40">
+          <span className="inline-flex h-[52px] items-center justify-center border border-white/12 px-6 text-[14px] text-white/35">
             {L.soon}
           </span>
         ))}
@@ -149,57 +165,77 @@ function OfferCard({ offer, offers, slug, chargesEnabled, locale }: { offer: Off
   );
 }
 
-// Petite illustration claire réutilisable (encadré tramé + libellé).
-function ShotFrame({ children }: { children: React.ReactNode }) {
+/** Bloc pleine largeur en deux colonnes, alterné gauche/droite. */
+function Split({
+  tag,
+  title,
+  body,
+  bullets,
+  flip = false,
+  children,
+}: {
+  tag: string;
+  title: string;
+  body: string;
+  bullets: string[];
+  flip?: boolean;
+  children?: React.ReactNode;
+}) {
   return (
-    <div className="relative overflow-hidden rounded-[6px] border border-ink/15 bg-white p-6">
-      <div className="pointer-events-none absolute inset-0 opacity-[0.5]" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, rgba(20,15,10,.06) 1px, transparent 0)", backgroundSize: "22px 22px" }} />
-      <div className="relative">{children}</div>
+    <div className={`grid items-center gap-10 lg:grid-cols-2 ${flip ? "lg:[&>*:first-child]:order-2" : ""}`}>
+      <Reveal className="flex flex-col gap-5" direction={flip ? "right" : "left"}>
+        <Tag>{tag}</Tag>
+        <h2 className={`${sectionTitle} text-white`}>{title}</h2>
+        <p className="max-w-[52ch] text-[16px] leading-[1.65] text-white/60">{body}</p>
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {bullets.map((b) => (
+            <li key={b} className="flex items-start gap-2.5 text-[14px] leading-[1.5] text-white/70">
+              <S.check className="mt-0.5 h-4.5 w-4.5 shrink-0 text-brand" />
+              {b}
+            </li>
+          ))}
+        </ul>
+      </Reveal>
+      <Reveal direction={flip ? "left" : "right"}>{children}</Reveal>
     </div>
   );
 }
 
 export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }: { tenant: PublicTenant; offers: Offer[]; leadMagnet?: boolean; locale?: Locale }) {
-  const L = landingCopy(locale);
+  // Coach indépendant ou salle : deux discours distincts pour un même design.
+  const L = landingCopy(locale, tenant.businessType);
   const accent = tenant.brandColor || DEFAULT_BRAND_COLOR;
   const title = tenant.headline || tenant.name;
-  const tagline =
-    tenant.tagline ||
-    L.defaultTagline;
+  const tagline = tenant.tagline || L.defaultTagline;
+  const marquee = [...L.heroChecks, ...L.stats.map((s) => s.l)];
 
   return (
     <div
-      className="min-h-dvh scroll-smooth bg-[#f6f4ef] pb-[76px] text-ink sm:pb-0"
+      className="min-h-dvh scroll-smooth pb-[76px] sm:pb-0"
       style={
         {
           ["--color-brand" as string]: accent,
-          ["--color-brand-hover" as string]: `color-mix(in srgb, ${accent} 85%, #000)`,
-          // Le template clair fige son encre : la landing publique ne doit pas
-          // basculer si le visiteur a activé le thème sombre de l'app.
-          ["--color-ink" as string]: "#1b1815",
+          ["--color-brand-hover" as string]: `color-mix(in srgb, ${accent} 85%, #fff)`,
+          ["--color-ink" as string]: INK,
+          background: BG,
+          color: INK,
         } as CSSProperties
       }
     >
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-        @keyframes lmUp { from { opacity:0; transform:translateY(20px) } to { opacity:1; transform:translateY(0) } }
-        .lm-up { animation: lmUp .85s cubic-bezier(.22,1,.36,1) both }
-      `,
-        }}
-      />
-
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-ink/15 bg-[#f6f4ef]/80 backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0b0c0e]/85 backdrop-blur-md">
+        <div className="mx-auto flex w-full max-w-[1240px] items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
           <Link href="#top" className="flex items-center"><Brand tenant={tenant} imgClass="h-11 sm:h-14" /></Link>
           <div className="flex items-center gap-3">
-            <LangSwitch compact />
-            <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-ink/70 transition-colors hover:text-ink sm:inline">
+            <a href="#auteur" className="underline-grow hidden font-mono text-[11px] uppercase tracking-[0.16em] text-white/55 hover:text-white lg:inline">
+              {L.authorChip}
+            </a>
+            <LangSwitch compact tone="dark" />
+            <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-white/60 transition-colors hover:text-white sm:inline">
               {L.login}
             </Link>
             {offers.length > 0 ? (
-              <a href="#offres" className="tap inline-flex h-10 items-center rounded-[6px] bg-brand px-4 text-[14px] font-semibold text-white hover:bg-brand-hover">
+              <a href="#offres" className="press tap inline-flex h-10 items-center bg-brand px-4 font-archivo text-[13px] font-bold uppercase tracking-[0.04em] text-white hover:bg-brand-hover">
                 {L.seePrograms}
               </a>
             ) : null}
@@ -208,322 +244,270 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
       </header>
 
       <main id="top">
-        {/* Hero */}
-        <section className="relative overflow-hidden">
-          <div className="pointer-events-none absolute -right-24 top-0 hidden h-full w-[26%] -skew-x-12 lg:block" style={{ background: `color-mix(in srgb, ${accent} 14%, transparent)` }} />
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-[6px] bg-brand" />
-          <div className="mx-auto grid w-full max-w-[1120px] items-center gap-12 px-5 pb-16 pt-[clamp(40px,7vw,84px)] sm:px-8 lg:grid-cols-[1.05fr_0.95fr]">
+        {/* Hero : titre surdimensionné, dalle de marque en diagonale */}
+        <section className="relative overflow-hidden border-b border-white/10">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-[10%] top-[-20%] h-[520px] w-[520px] rotate-12 opacity-[0.16]"
+            style={{ background: `linear-gradient(135deg, ${accent}, transparent 62%)` }}
+          />
+          <div className="mx-auto grid w-full max-w-[1240px] items-center gap-12 px-5 pb-16 pt-[clamp(40px,7vw,84px)] sm:px-8 lg:grid-cols-[1.1fr_0.9fr]">
             <div>
-              <span className="lm-up inline-block"><Eyebrow><S.spark className="h-3.5 w-3.5" /> {L.heroChip}</Eyebrow></span>
-              <h1 className="lm-up mt-5 max-w-[16ch] font-archivo text-[clamp(40px,8vw,84px)] font-extrabold uppercase leading-[0.9] tracking-[-0.045em] text-balance text-ink" style={{ animationDelay: "70ms" }}>
-                {title}
-              </h1>
-              <p className="lm-up mt-5 max-w-[54ch] text-[clamp(16px,2.2vw,19px)] leading-[1.6] text-ink/65" style={{ animationDelay: "140ms" }}>{tagline}</p>
-              <div className="lm-up mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap" style={{ animationDelay: "210ms" }}>
-                {offers.length > 0 ? (
-                  <a href="#offres" className="tap inline-flex h-[54px] items-center justify-center gap-2 rounded-[6px] bg-brand px-8 text-[16px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]">
-                    {L.seePrograms} <S.arrow className="h-4.5 w-4.5" />
+              <Reveal><Tag><S.spark className="h-3.5 w-3.5" /> {L.heroChip}</Tag></Reveal>
+              <Reveal delay={60}>
+                <h1 className="mt-5 max-w-[15ch] font-archivo text-[clamp(42px,8.6vw,88px)] font-extrabold uppercase leading-[0.92] tracking-[-0.045em] text-balance text-white">
+                  {title}
+                </h1>
+              </Reveal>
+              <Reveal delay={120}>
+                <p className="mt-6 max-w-[54ch] text-[clamp(16px,2.2vw,19px)] leading-[1.6] text-white/60">{tagline}</p>
+              </Reveal>
+              <Reveal delay={180}>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  {offers.length > 0 ? (
+                    <a href="#offres" className="press tap inline-flex h-[56px] items-center justify-center gap-2 bg-brand px-9 font-archivo text-[15px] font-bold uppercase tracking-[0.04em] text-white hover:bg-brand-hover">
+                      {L.seePrograms} <S.arrow className="h-4.5 w-4.5" />
+                    </a>
+                  ) : null}
+                  <a href="#auteur" className="press tap inline-flex h-[56px] items-center justify-center border border-white/20 px-9 font-archivo text-[15px] font-bold uppercase tracking-[0.04em] text-white transition-colors hover:border-white/50">
+                    {L.howItWorks}
                   </a>
-                ) : null}
-                <a href="#methode" className="tap inline-flex h-[54px] items-center justify-center rounded-[6px] border border-ink/25 bg-white px-8 text-[16px] font-semibold text-ink transition-colors duration-150 hover:border-ink/40">
-                  {L.howItWorks}
-                </a>
-              </div>
-              <div className="mt-7 flex flex-wrap gap-x-7 gap-y-3">
-                {L.heroChecks.map((t) => (
-                  <span key={t} className="inline-flex items-center gap-2 text-[13.5px] text-ink/60">
-                    <S.check className="h-4 w-4 text-brand" /> {t}
-                  </span>
-                ))}
-              </div>
+                </div>
+              </Reveal>
             </div>
-            <div className="lm-up" style={{ animationDelay: "180ms" }}><VoltAppCard name={tenant.name} L={L} /></div>
+            <Reveal delay={140} direction="scale"><VoltAppCard name={tenant.name} L={L} /></Reveal>
           </div>
         </section>
 
-        {/* Bandeau repères */}
-        <section className="border-y border-ink/15 bg-white">
-          <div className="mx-auto grid w-full max-w-[1120px] grid-cols-2 gap-y-6 px-5 py-8 sm:px-8 lg:grid-cols-4">
+        {/* Bande défilante : rythme la page sans rien demander au visiteur */}
+        <div className="border-b border-white/10 bg-[#0e1013]">
+          <Marquee items={marquee} />
+        </div>
+
+        {/* Repères chiffrés */}
+        <section className="border-b border-white/10">
+          <div className="mx-auto grid w-full max-w-[1240px] grid-cols-2 divide-white/10 px-5 sm:px-8 lg:grid-cols-4 lg:divide-x">
             {L.stats.map((s) => (
-              <div key={s.l} className="flex flex-col gap-1 px-2">
-                <div className="font-archivo text-[clamp(24px,4vw,34px)] font-extrabold leading-none tracking-[-0.03em] text-ink">{s.v}</div>
-                <div className="text-[13px] leading-[1.4] text-ink/55">{s.l}</div>
+              <div key={s.l} className="flex flex-col gap-2 py-9 lg:px-8 lg:first:pl-0 lg:last:pr-0">
+                <div className="font-archivo text-[clamp(22px,3.4vw,32px)] font-extrabold uppercase leading-none tracking-[-0.03em] text-white">{s.v}</div>
+                <div className="text-[13px] leading-[1.45] text-white/45">{s.l}</div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Fonctionnalités */}
-        <section className="scroll-mt-24">
-          <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(56px,8vw,100px)] sm:px-8">
-            <Reveal className="flex flex-col items-center gap-4 text-center">
-              <Eyebrow>{L.featuresChip}</Eyebrow>
-              <h2 className={sectionTitle}>{L.featuresTitle}</h2>
+        {/* Fonctionnalités : RAIL horizontal */}
+        <section className="scroll-mt-24 border-b border-white/10 py-[clamp(52px,7vw,88px)]">
+          <div className="mx-auto w-full max-w-[1240px] px-5 sm:px-8">
+            <Reveal className="flex flex-col gap-4">
+              <Tag>{L.featuresChip}</Tag>
+              <h2 className={`${sectionTitle} max-w-[18ch] text-white`}>{L.featuresTitle}</h2>
             </Reveal>
-            <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          </div>
+          <div className="mx-auto mt-10 w-full max-w-[1240px]">
+            <Rail tone="dark" hint={locale === "en" ? "Slide" : "Fais glisser"}>
               {L.features.map((f, i) => (
-                <div key={f.title} className={`flex flex-col gap-4 rounded-[6px] border p-6 transition-all duration-300 hover:-translate-y-1 ${i === 2 ? "border-brand/40 bg-brand/[0.05]" : "border-ink/15 bg-white hover:border-brand/25"}`}>
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-[6px] bg-brand/10 text-brand">
-                    <f.icon className="h-6 w-6" />
-                  </span>
-                  <h3 className="font-archivo text-[18px] font-bold leading-snug tracking-[-0.01em] text-ink">{f.title}</h3>
-                  <p className="text-[14px] leading-[1.6] text-ink/60">{f.body}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Analyse de la salle */}
-        <section className="border-t border-ink/15 bg-white">
-          <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(52px,7vw,90px)] sm:px-8 lg:grid-cols-2">
-            <div className="flex flex-col gap-5">
-              <Eyebrow><S.camera className="h-3.5 w-3.5" /> {L.gymChip}</Eyebrow>
-              <h2 className="font-archivo text-[clamp(26px,4vw,42px)] font-extrabold leading-[1.06] tracking-[-0.03em] text-ink">
-                {L.gymTitle}
-              </h2>
-              <p className="max-w-[52ch] text-[16px] leading-[1.65] text-ink/65">
-                {L.gymBody}
-              </p>
-              <ul className="flex flex-col gap-2.5 pt-1">
-                {L.gymBullets.map((b) => (
-                  <li key={b} className="flex items-center gap-3 text-[15px] text-ink/75">
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand" /> {b}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <ShotFrame>
-              <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.12em] text-ink/45">
-                <span>Matériel détecté</span><span className="text-brand">IA</span>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2.5">
-                {["Rack à squat", "Haltères 2–40 kg", "Poulie haute", "Banc réglable", "Barre EZ", "Kettlebells"].map((m) => (
-                  <span key={m} className="inline-flex items-center gap-2 rounded-xl border border-ink/15 bg-[#faf8f5] px-3 py-2.5 text-[13px] text-ink/80">
-                    <S.check className="h-4 w-4 shrink-0 text-brand" /> {m}
-                  </span>
-                ))}
-              </div>
-            </ShotFrame>
-          </div>
-        </section>
-
-        {/* Espace client */}
-        <section id="espace" className="scroll-mt-24">
-          <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(52px,7vw,90px)] sm:px-8 lg:grid-cols-2">
-            <div className="order-2 lg:order-1">
-              <ShotFrame>
-                <VoltAppCard name={tenant.name} L={L} />
-              </ShotFrame>
-            </div>
-            <div className="order-1 flex flex-col gap-5 lg:order-2">
-              <Eyebrow><S.grid className="h-3.5 w-3.5" /> {L.spaceChip}</Eyebrow>
-              <h2 className="font-archivo text-[clamp(26px,4vw,42px)] font-extrabold leading-[1.06] tracking-[-0.03em] text-ink">
-                {L.spaceTitle}
-              </h2>
-              <p className="max-w-[52ch] text-[16px] leading-[1.65] text-ink/65">
-                {L.spaceBody}
-              </p>
-              <ul className="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-2">
-                {L.spaceBullets.map((b) => (
-                  <li key={b} className="flex items-center gap-2.5 text-[14.5px] text-ink/75">
-                    <S.check className="h-4.5 w-4.5 shrink-0 text-brand" /> {b}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        {/* Nutrition */}
-        <section className="border-t border-ink/15 bg-white">
-          <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(52px,7vw,90px)] sm:px-8 lg:grid-cols-2">
-            <div className="flex flex-col gap-5">
-              <Eyebrow>{L.nutritionChip}</Eyebrow>
-              <h2 className="font-archivo text-[clamp(26px,4vw,42px)] font-extrabold leading-[1.06] tracking-[-0.03em] text-ink">
-                {L.nutritionTitle}
-              </h2>
-              <p className="max-w-[52ch] text-[16px] leading-[1.65] text-ink/65">
-                {L.nutritionBody}
-              </p>
-              <ul className="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-2">
-                {L.nutritionBullets.map((b) => (
-                  <li key={b} className="flex items-center gap-2.5 text-[14.5px] text-ink/75">
-                    <S.check className="h-4.5 w-4.5 shrink-0 text-brand" /> {b}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <ShotFrame>
-              <div className="flex items-center gap-3 rounded-2xl border border-brand/20 bg-brand/[0.06] p-4">
-                <span className="flex size-11 items-center justify-center rounded-xl bg-brand/15 text-brand"><S.heart className="h-6 w-6" /></span>
-                <div className="text-[14px] text-ink/80">Bowl poulet & patate douce<br /><span className="text-ink/45">642 kcal · 12 min</span></div>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2.5">
-                {[["Prot.", "42 g"], ["Gluc.", "58 g"], ["Lip.", "16 g"]].map(([k, v]) => (
-                  <div key={k} className="rounded-xl border border-ink/15 bg-[#faf8f5] p-3 text-center">
-                    <div className="font-archivo text-[17px] font-extrabold text-ink">{v}</div>
-                    <div className="text-[10px] text-ink/45">{k}</div>
+                <article
+                  key={f.title}
+                  className={`lift flex w-[260px] flex-col gap-4 border p-6 sm:w-[300px] ${i === 3 ? "border-brand bg-[#15171a]" : "border-white/12 bg-[#111316]"}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex h-11 w-11 items-center justify-center bg-brand/15 text-brand">
+                      <f.icon className="h-6 w-6" />
+                    </span>
+                    <span className="font-mono text-[11px] tracking-[0.16em] text-white/25">{String(i + 1).padStart(2, "0")}</span>
                   </div>
-                ))}
-              </div>
-            </ShotFrame>
+                  <h3 className="font-archivo text-[18px] font-extrabold uppercase leading-snug tracking-[-0.01em] text-white">{f.title}</h3>
+                  <p className="text-[14px] leading-[1.6] text-white/55">{f.body}</p>
+                </article>
+              ))}
+            </Rail>
           </div>
         </section>
 
-        {/* Comment ça marche */}
-        <section id="methode" className="scroll-mt-24">
-          <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(56px,8vw,100px)] sm:px-8">
-            <Reveal className="flex flex-col items-center gap-4 text-center">
-              <Eyebrow>Comment ça marche</Eyebrow>
-              <h2 className={sectionTitle}>{L.stepsTitle}</h2>
-            </Reveal>
-            <div className="mt-12 grid gap-4 md:grid-cols-3">
-              {L.steps.map((s) => (
-                <div key={s.k} className="flex flex-col gap-3 rounded-[6px] border border-ink/15 bg-white p-7">
-                  <div className="font-archivo text-[44px] font-extrabold leading-none tracking-[-0.04em] text-brand/25">{s.k}</div>
-                  <h3 className="font-archivo text-[19px] font-bold tracking-[-0.02em] text-ink">{s.title}</h3>
-                  <p className="text-[15px] leading-[1.6] text-ink/60">{s.body}</p>
+        {/* Trois blocs pleine largeur, alternés */}
+        <section id="espace" className="scroll-mt-24 border-b border-white/10">
+          <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-[clamp(56px,8vw,104px)] px-5 py-[clamp(56px,8vw,104px)] sm:px-8">
+            <Split tag={L.gymChip} title={L.gymTitle} body={L.gymBody} bullets={L.gymBullets}>
+              <div className="border border-white/12 bg-[#111316] p-6">
+                <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-brand">{L.gymScanLabel}</div>
+                <div className="mt-4 grid grid-cols-2 gap-2.5">
+                  {L.gymBullets.map((b) => (
+                    <div key={b} className="flex items-center gap-2 border border-white/10 bg-[#0e1013] px-3 py-2.5 text-[12.5px] text-white/70">
+                      <span className="size-1.5 shrink-0 bg-brand" />
+                      <span className="truncate">{b}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            </Split>
+
+            <Split tag={L.spaceChip} title={L.spaceTitle} body={L.spaceBody} bullets={L.spaceBullets} flip>
+              <VoltAppCard name={tenant.name} L={L} />
+            </Split>
+
+            <Split tag={L.nutritionChip} title={L.nutritionTitle} body={L.nutritionBody} bullets={L.nutritionBullets}>
+              <div className="border border-white/12 bg-[#111316] p-6">
+                <div className="grid grid-cols-3 gap-3">
+                  {[["156 g", "Protéines"], ["210 g", "Glucides"], ["62 g", "Lipides"]].map(([v, k]) => (
+                    <div key={k} className="border border-white/10 bg-[#0e1013] p-4 text-center">
+                      <div className="font-archivo text-[24px] font-extrabold leading-none text-white">{v}</div>
+                      <div className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-white/35">{k}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {L.nutritionBullets.slice(0, 4).map((b) => (
+                    <span key={b} className="border border-white/12 px-2.5 py-1 font-mono text-[10.5px] uppercase tracking-[0.12em] text-white/50">{b}</span>
+                  ))}
+                </div>
+              </div>
+            </Split>
           </div>
         </section>
+
+        {/* Étapes : chiffres surdimensionnés */}
+        <section id="methode" className="scroll-mt-24 border-b border-white/10 py-[clamp(56px,8vw,104px)]">
+          <div className="mx-auto w-full max-w-[1240px] px-5 sm:px-8">
+            <Reveal><h2 className={`${sectionTitle} max-w-[16ch] text-white`}>{L.stepsTitle}</h2></Reveal>
+            <RevealGroup className="mt-12 grid gap-px bg-white/10 md:grid-cols-3" step={90}>
+              {L.steps.map((s) => (
+                <div key={s.k} className="flex h-full flex-col gap-3 bg-[#0b0c0e] p-8">
+                  <div className="font-archivo text-[64px] font-extrabold leading-none tracking-[-0.05em] text-brand/30">{s.k}</div>
+                  <h3 className="font-archivo text-[19px] font-extrabold uppercase tracking-[-0.01em] text-white">{s.title}</h3>
+                  <p className="text-[15px] leading-[1.6] text-white/55">{s.body}</p>
+                </div>
+              ))}
+            </RevealGroup>
+          </div>
+        </section>
+
+        {/* Qui signe le programme, et ce que le moteur apporte */}
+        <AuthorEngine L={L} name={tenant.name} tone="dark" />
 
         {/* Est-ce pour toi */}
-        <section className="scroll-mt-24 border-t border-ink/15 bg-white">
-          <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(56px,8vw,100px)] sm:px-8">
-            <h2 className={`${sectionTitle} max-w-[16ch]`}>{L.forWhoTitle}</h2>
-            <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="scroll-mt-24 border-t border-white/10 py-[clamp(56px,8vw,104px)]">
+          <div className="mx-auto w-full max-w-[1240px] px-5 sm:px-8">
+            <Reveal><h2 className={`${sectionTitle} max-w-[16ch] text-white`}>{L.forWhoTitle}</h2></Reveal>
+            <RevealGroup className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3" step={60}>
               {L.forWho.map((w) => (
-                <div key={w.title} className="flex items-start gap-3 rounded-[6px] border border-ink/15 bg-[#faf8f5] p-5">
+                <div key={w.title} className="flex h-full items-start gap-3 border border-white/12 bg-[#111316] p-5">
                   <S.check className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
                   <div className="flex flex-col gap-1">
-                    <div className="font-archivo text-[15.5px] font-semibold leading-snug text-ink">{w.title}</div>
-                    <div className="text-[13.5px] leading-[1.55] text-ink/55">{w.body}</div>
+                    <div className="font-archivo text-[15.5px] font-semibold leading-snug text-white">{w.title}</div>
+                    <div className="text-[13.5px] leading-[1.55] text-white/50">{w.body}</div>
                   </div>
                 </div>
               ))}
-            </div>
+            </RevealGroup>
           </div>
         </section>
 
         {/* À propos (optionnel) */}
         {tenant.aboutEnabled && (tenant.aboutText || tenant.aboutPhotoUrl) ? (
-          <section className="scroll-mt-24">
-            <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(56px,8vw,100px)] sm:px-8 lg:grid-cols-[minmax(0,320px)_1fr]">
+          <section className="scroll-mt-24 border-t border-white/10">
+            <div className="mx-auto grid w-full max-w-[1240px] items-center gap-10 px-5 py-[clamp(56px,8vw,104px)] sm:px-8 lg:grid-cols-[minmax(0,320px)_1fr]">
               {tenant.aboutPhotoUrl ? (
-                <div className="mx-auto w-full max-w-[320px]">
+                <Reveal className="mx-auto w-full max-w-[320px]" direction="left">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={tenant.aboutPhotoUrl}
-                    alt={tenant.aboutTitle || tenant.name}
-                    className="aspect-square w-full rounded-[6px] border border-ink/15 object-cover"
-                  />
-                </div>
+                  <img src={tenant.aboutPhotoUrl} alt={tenant.aboutTitle || tenant.name} className="w-full border border-white/12 object-cover" />
+                </Reveal>
               ) : null}
-              <div className="flex flex-col gap-5">
-                <Eyebrow>{L.aboutChip}</Eyebrow>
-                <h2 className="font-archivo text-[clamp(26px,4vw,42px)] font-extrabold leading-[1.06] tracking-[-0.03em] text-ink">
-                  {tenant.aboutTitle || tenant.name}
-                </h2>
-                {tenant.aboutText ? (
-                  <div className="flex max-w-[60ch] flex-col gap-3 text-[16px] leading-[1.7] text-ink/70">
-                    {tenant.aboutText.split(/\n{2,}|\n/).filter(Boolean).map((para, i) => (
-                      <p key={i}>{para}</p>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
+              <Reveal className="flex flex-col gap-4" direction="right">
+                <Tag>{L.aboutChip}</Tag>
+                {tenant.aboutTitle ? <h2 className={`${sectionTitle} text-white`}>{tenant.aboutTitle}</h2> : null}
+                {tenant.aboutText ? <p className="max-w-[60ch] whitespace-pre-line text-[16px] leading-[1.7] text-white/60">{tenant.aboutText}</p> : null}
+              </Reveal>
             </div>
           </section>
         ) : null}
 
-        {/* Lead magnet : mini-programme gratuit */}
+        {/* Mini-programme offert */}
         {leadMagnet ? (
-          <section className="border-t border-ink/15">
-            <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(48px,7vw,80px)] sm:px-8">
-              <div className="relative overflow-hidden rounded-[6px] border border-brand/30 bg-gradient-to-br from-brand/[0.08] to-transparent p-8 sm:p-10">
-                <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-col gap-2">
-                    <Eyebrow><S.spark className="h-3.5 w-3.5" /> {L.leadChip}</Eyebrow>
-                    <h3 className="font-archivo text-[clamp(22px,3.5vw,30px)] font-extrabold leading-tight tracking-[-0.02em] text-ink">
+          <section className="border-t border-white/10">
+            <div className="mx-auto w-full max-w-[1240px] px-5 py-[clamp(48px,7vw,80px)] sm:px-8">
+              <Reveal className="relative overflow-hidden border border-brand bg-[#111316] p-8 sm:p-10" direction="scale">
+                <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-3">
+                    <Tag><S.spark className="h-3.5 w-3.5" /> {L.leadChip}</Tag>
+                    <h3 className="font-archivo text-[clamp(22px,3.5vw,32px)] font-extrabold uppercase leading-tight tracking-[-0.02em] text-white">
                       {L.leadTitle}
                     </h3>
-                    <p className="max-w-[52ch] text-[15px] leading-[1.6] text-ink/65">
-                      {L.leadBody}
-                    </p>
+                    <p className="max-w-[52ch] text-[15px] leading-[1.6] text-white/60">{L.leadBody}</p>
                   </div>
-                  <Link href={`/c/${tenant.slug}/decouverte`} className="tap inline-flex h-[52px] shrink-0 items-center justify-center gap-2 rounded-[6px] bg-brand px-7 text-[15px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">
+                  <Link href={`/c/${tenant.slug}/decouverte`} className="press tap inline-flex h-[54px] shrink-0 items-center justify-center gap-2 bg-brand px-8 font-archivo text-[15px] font-bold uppercase tracking-[0.04em] text-white hover:bg-brand-hover">
                     {L.leadCta} <S.arrow className="h-4.5 w-4.5" />
                   </Link>
                 </div>
-              </div>
+              </Reveal>
             </div>
           </section>
         ) : null}
 
-        {/* Offres */}
-        <section id="offres" className="scroll-mt-20 border-t border-ink/15 bg-white">
-          <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(56px,8vw,100px)] sm:px-8">
-            <Reveal className="flex flex-col items-center gap-4 text-center">
-              <Eyebrow>{L.programsChip}</Eyebrow>
-              <h2 className={sectionTitle}>{L.programsTitle}</h2>
+        {/* Programmes : rail horizontal dès trois offres, grille sinon */}
+        <section id="offres" className="scroll-mt-20 border-t border-white/10 bg-[#0e1013]">
+          <div className="mx-auto w-full max-w-[1240px] px-5 pt-[clamp(56px,8vw,104px)] sm:px-8">
+            <Reveal className="flex flex-col gap-4">
+              <Tag>{L.programsChip}</Tag>
+              <h2 className={`${sectionTitle} max-w-[16ch] text-white`}>{L.programsTitle}</h2>
             </Reveal>
-            {offers.length === 0 ? (
-              <div className="mx-auto mt-10 max-w-[520px] rounded-[6px] border border-ink/15 bg-[#faf8f5] p-6 text-center text-[15px] text-ink/60">
-                {L.noOffer}
-              </div>
-            ) : (
-              <div
-                className={`mx-auto mt-12 grid gap-5 ${
-                  offers.length === 1
-                    ? "max-w-[520px]"
-                    : offers.length === 2
-                      ? "max-w-[820px] sm:grid-cols-2"
-                      : "max-w-[1120px] sm:grid-cols-2 lg:grid-cols-3"
-                }`}
-              >
-                {offers.map((o) => (
-                  <OfferCard key={o.id} offer={o} offers={offers} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} locale={locale} />
-                ))}
-              </div>
-            )}
+          </div>
 
-            {tenant.chargesEnabled && offers.some((o) => o.billing_type !== "subscription") ? (
-              <div className="mx-auto mt-10 flex max-w-[560px] flex-col items-center gap-3 rounded-[6px] border border-ink/15 bg-[#faf8f5] p-7 text-center">
-                <div className="font-archivo text-[20px] font-bold tracking-[-0.02em] text-ink">
-                  {L.giftTitle}
-                </div>
-                <p className="text-[14px] leading-[1.55] text-ink/60">
-                  {L.giftBody}
-                </p>
+          {offers.length === 0 ? (
+            <div className="mx-auto w-full max-w-[1240px] px-5 py-16 sm:px-8">
+              <p className="border border-white/12 p-8 text-center text-[15px] text-white/50">{L.noOffer}</p>
+            </div>
+          ) : offers.length >= 3 ? (
+            <div className="mx-auto mt-10 w-full max-w-[1240px]">
+              <Rail tone="dark" hint={locale === "en" ? "Slide" : "Fais glisser"}>
+                {offers.map((o) => (
+                  <div key={o.id} className="w-[320px] sm:w-[360px]">
+                    <OfferCard offer={o} offers={offers} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} locale={locale} audience={tenant.businessType} />
+                  </div>
+                ))}
+              </Rail>
+            </div>
+          ) : (
+            <div className={`mx-auto mt-10 grid w-full gap-5 px-5 sm:px-8 ${offers.length === 1 ? "max-w-[560px]" : "max-w-[900px] sm:grid-cols-2"}`}>
+              {offers.map((o) => (
+                <OfferCard key={o.id} offer={o} offers={offers} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} locale={locale} audience={tenant.businessType} />
+              ))}
+            </div>
+          )}
+
+          {tenant.chargesEnabled && offers.some((o) => o.billing_type !== "subscription") ? (
+            <div className="mx-auto w-full max-w-[1240px] px-5 pb-[clamp(56px,8vw,104px)] pt-10 sm:px-8">
+              <div className="mx-auto flex max-w-[600px] flex-col items-center gap-3 border border-white/12 p-8 text-center">
+                <div className="font-archivo text-[20px] font-extrabold uppercase tracking-[-0.01em] text-white">{L.giftTitle}</div>
+                <p className="text-[14px] leading-[1.55] text-white/55">{L.giftBody}</p>
                 <Link
                   href={`/c/${tenant.slug}/offrir`}
-                  className="tap mt-1 inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-[6px] border border-brand bg-brand/10 px-6 text-[15px] font-semibold text-brand transition-colors hover:bg-brand/20"
+                  className="press tap mt-1 inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap border border-brand px-6 font-archivo text-[14px] font-bold uppercase tracking-[0.04em] text-brand hover:bg-brand hover:text-white"
                 >
-                  <S.spark className="h-4 w-4 text-brand" /> {L.giftCta}
+                  <S.spark className="h-4 w-4" /> {L.giftCta}
                 </Link>
               </div>
-            ) : null}
-          </div>
+            </div>
+          ) : (
+            <div className="pb-[clamp(56px,8vw,104px)]" />
+          )}
         </section>
 
         {/* FAQ */}
-        <section className="border-t border-ink/15">
-          <div className="mx-auto w-full max-w-[820px] px-5 py-[clamp(56px,8vw,100px)] sm:px-8">
-            <Reveal className="flex flex-col items-center gap-4 text-center">
-              <Eyebrow>{L.faqChip}</Eyebrow>
-              <h2 className={sectionTitle}>{L.faqTitle}</h2>
+        <section className="border-t border-white/10">
+          <div className="mx-auto w-full max-w-[860px] px-5 py-[clamp(56px,8vw,104px)] sm:px-8">
+            <Reveal className="flex flex-col gap-4">
+              <Tag>{L.faqChip}</Tag>
+              <h2 className={`${sectionTitle} text-white`}>{L.faqTitle}</h2>
             </Reveal>
-            <div className="mt-10 flex flex-col gap-3">
+            <div className="mt-10 flex flex-col">
               {L.faqs.map((f) => (
-                <details key={f.q} className="group rounded-[6px] border border-ink/15 bg-white px-5 py-4 open:border-brand/30">
-                  <summary className="tap flex cursor-pointer list-none items-center justify-between gap-4 font-archivo text-[15.5px] font-semibold leading-snug text-ink [&::-webkit-details-marker]:hidden">
+                <details key={f.q} className="group border-t border-white/10 py-4 last:border-b">
+                  <summary className="tap flex cursor-pointer list-none items-center justify-between gap-4 font-archivo text-[15.5px] font-semibold leading-snug text-white [&::-webkit-details-marker]:hidden">
                     {f.q}
-                    <S.chevron className="h-4.5 w-4.5 shrink-0 text-ink/40 transition-transform duration-200 group-open:rotate-180" />
+                    <S.chevron className="h-4.5 w-4.5 shrink-0 text-white/35 transition-transform duration-200 group-open:rotate-180" />
                   </summary>
-                  <div className="mt-3 text-[14px] leading-[1.65] text-ink/60">{f.a}</div>
+                  <div className="mt-3 text-[14px] leading-[1.65] text-white/55">{f.a}</div>
                 </details>
               ))}
             </div>
@@ -531,14 +515,18 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
         </section>
 
         {/* CTA final */}
-        <section className="relative overflow-hidden border-t border-ink/15 bg-white">
-          <div className="pointer-events-none absolute left-1/2 top-0 h-[320px] w-[720px] -translate-x-1/2 rounded-full blur-[130px]" style={{ background: `color-mix(in srgb, ${accent} 16%, transparent)` }} />
-          <div className="relative mx-auto flex w-full max-w-[1120px] flex-col items-center gap-7 px-5 py-[clamp(64px,10vw,120px)] text-center sm:px-8">
-            <h2 className="max-w-[18ch] font-archivo text-[clamp(30px,5.5vw,56px)] font-extrabold leading-[1.02] tracking-[-0.035em] text-balance text-ink">
+        <section className="relative overflow-hidden border-t border-white/10" style={{ background: PANEL }}>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-0 h-[320px] w-[760px] -translate-x-1/2 opacity-20 blur-[130px]"
+            style={{ background: accent }}
+          />
+          <div className="relative mx-auto flex w-full max-w-[1240px] flex-col items-center gap-7 px-5 py-[clamp(64px,10vw,124px)] text-center sm:px-8">
+            <h2 className="max-w-[17ch] font-archivo text-[clamp(32px,6vw,64px)] font-extrabold uppercase leading-[0.96] tracking-[-0.04em] text-balance text-white">
               {L.finalTitle}
             </h2>
             {offers.length > 0 ? (
-              <a href="#offres" className="tap inline-flex h-[56px] items-center justify-center gap-2 rounded-[6px] bg-brand px-9 text-[16px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]">
+              <a href="#offres" className="press tap inline-flex h-[58px] items-center justify-center gap-2 bg-brand px-10 font-archivo text-[16px] font-bold uppercase tracking-[0.04em] text-white hover:bg-brand-hover">
                 {L.seePrograms} <S.arrow className="h-5 w-5" />
               </a>
             ) : null}
@@ -547,28 +535,26 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-ink/15 bg-[#f6f4ef]">
-        <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 px-5 py-12 sm:px-8">
+      <footer className="border-t border-white/10">
+        <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-4 px-5 py-12 sm:px-8">
           <Brand tenant={tenant} imgClass="h-10" textClass="text-[18px]" />
-          <p className="max-w-[70ch] text-[13px] leading-[1.6] text-ink/50">
-            {L.legalNote}
-          </p>
-          <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-1 text-[13px] text-ink/50">
-            <Link href="/connexion" className="transition-colors hover:text-ink">{L.footerLogin}</Link>
-            <Link href="/mentions-legales" className="transition-colors hover:text-ink">{L.footerLegal}</Link>
-            <Link href="/confidentialite" className="transition-colors hover:text-ink">{L.footerPrivacy}</Link>
-            <Link href="/cgv" className="transition-colors hover:text-ink">{L.footerTerms}</Link>
+          <p className="max-w-[70ch] text-[13px] leading-[1.6] text-white/40">{L.legalNote}</p>
+          <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-1 text-[13px] text-white/40">
+            <Link href="/connexion" className="transition-colors hover:text-white">{L.footerLogin}</Link>
+            <Link href="/mentions-legales" className="transition-colors hover:text-white">{L.footerLegal}</Link>
+            <Link href="/confidentialite" className="transition-colors hover:text-white">{L.footerPrivacy}</Link>
+            <Link href="/cgv" className="transition-colors hover:text-white">{L.footerTerms}</Link>
           </nav>
-          <p className="pt-1 text-[12px] text-ink/35">
-            {L.poweredBy} <span className="font-archivo font-bold text-ink/60">My Fitness <span className="text-brand">App</span></span>.
+          <p className="pt-1 text-[12px] text-white/25">
+            {L.poweredBy} <span className="font-archivo font-bold text-white/50">My Fitness <span className="text-brand">App</span></span>.
           </p>
         </div>
       </footer>
 
       {/* CTA collante mobile */}
       {offers.length > 0 ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/15 bg-[#f6f4ef]/92 px-4 py-3 backdrop-blur-xl sm:hidden">
-          <a href="#offres" className="tap flex w-full items-center justify-center gap-2 rounded-[6px] bg-brand py-3.5 text-[15px] font-semibold text-white active:scale-[0.98]">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#0b0c0e]/92 px-4 py-3 backdrop-blur-xl sm:hidden">
+          <a href="#offres" className="press tap flex w-full items-center justify-center gap-2 bg-brand py-3.5 font-archivo text-[15px] font-bold uppercase tracking-[0.04em] text-white">
             {L.seePrograms} <S.arrow className="h-4 w-4" />
           </a>
         </div>

@@ -28,6 +28,7 @@ const DEMO_TENANT: PublicTenant = {
   logoUrl: null,
   faviconUrl: null,
   landingTemplate: "onyx",
+  businessType: "coach",
   aboutEnabled: true,
   aboutTitle: "Léa, coach diplômée d'État",
   aboutText: "Dix ans de coaching en salle et à distance. Ma méthode : de la technique propre, de la régularité, et une nutrition qui tient dans la vraie vie.",

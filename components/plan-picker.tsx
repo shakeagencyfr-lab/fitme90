@@ -137,7 +137,7 @@ export function PlanPicker({ plans, currentPlanId, hasActiveSub, currentLimit, u
               <Card
                 key={p.id}
                 className={[
-                  "flex flex-col gap-3.5",
+                  "lift flex flex-col gap-3.5",
                   current ? "border-brand/50" : isSuggested ? "border-brand/30" : "",
                 ].join(" ")}
               >

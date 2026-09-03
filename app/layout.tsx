@@ -80,6 +80,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       {/* Manifest en marque blanche : credentials pour transmettre la session. */}
       <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />
+      {/* Sans JavaScript, aucun observateur ne pose la classe `.is-in` : les
+          blocs révélés au scroll resteraient invisibles. On les rend visibles
+          d'office plutôt que de servir une page vide. */}
+      <noscript>
+        <style dangerouslySetInnerHTML={{ __html: ".reveal{opacity:1!important;transform:none!important}" }} />
+      </noscript>
       <body className="min-h-full flex flex-col bg-paper text-ink">
         {/* Applique le thème avant le premier rendu (évite le flash clair). */}
         <script

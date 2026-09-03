@@ -288,6 +288,113 @@ input:not([type="checkbox"]):not([type="radio"]) {
   to { opacity: 1; transform: none; }
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Couche de mouvement « premium ».
+
+   Trois principes :
+   1. Une seule courbe d'accélération partout, pour que tout l'écran
+      semble bouger d'un même geste.
+   2. On n'anime que `transform` et `opacity` : ce sont les deux seules
+      propriétés que le compositeur traite sans recalcul de mise en page.
+   3. Rien ne bouge pour qui a demandé moins de mouvement (bloc en fin
+      de fichier).
+   ───────────────────────────────────────────────────────────── */
+:root {
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 180ms;
+  --dur-base: 320ms;
+  --dur-slow: 620ms;
+}
+
+/* Révélation au scroll. L'élément part masqué et décalé ; la classe
+   `.is-in`, posée par components/reveal.tsx quand il entre dans le
+   champ, le ramène. `--d` échelonne les enfants d'un même bloc. */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity var(--dur-slow) var(--ease-out-soft) var(--d, 0ms),
+    transform var(--dur-slow) var(--ease-out-soft) var(--d, 0ms);
+  will-change: opacity, transform;
+}
+.reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+/* Variantes de direction, pour les sections qui arrivent par le côté. */
+.reveal-left { transform: translateX(-26px); }
+.reveal-right { transform: translateX(26px); }
+.reveal-scale { transform: scale(0.94); }
+.reveal-left.is-in,
+.reveal-right.is-in,
+.reveal-scale.is-in { transform: none; }
+
+/* Échelonnement automatique des enfants directs (grilles de cartes). */
+.stagger > * { transition-delay: calc(var(--step, 70ms) * var(--i, 0)); }
+
+/* Carte qui se soulève au survol. Réservée aux surfaces cliquables. */
+.lift {
+  transition:
+    transform var(--dur-base) var(--ease-out-soft),
+    box-shadow var(--dur-base) var(--ease-out-soft),
+    border-color var(--dur-fast) linear;
+}
+@media (hover: hover) {
+  .lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 34px -18px rgba(23, 25, 27, 0.45);
+  }
+}
+
+/* Retour tactile : l'élément s'enfonce légèrement au clic. */
+.press { transition: transform var(--dur-fast) var(--ease-spring); }
+.press:active { transform: scale(0.97); }
+
+/* Entrée de page après navigation (voir components/page-transition.tsx). */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.page-in { animation: page-in var(--dur-base) var(--ease-out-soft) both; }
+
+/* Rail horizontal : la barre de défilement disparaît, le geste reste. */
+.rail-x {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.rail-x::-webkit-scrollbar { display: none; }
+.rail-x > * { scroll-snap-align: center; flex: 0 0 auto; }
+/* Aligne la première et la dernière carte sur le bord du contenu. */
+.rail-x-start > * { scroll-snap-align: start; }
+
+/* Dégradé de bord : signale qu'il reste du contenu à droite. */
+.rail-fade {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 48px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 48px), transparent 100%);
+}
+
+/* Bandeau défilant en continu. Deux copies côte à côte translatées de -100 %
+   de leur propre largeur : la boucle est invisible. */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+/* Soulignement animé (liens de navigation des landings). */
+.underline-grow {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size var(--dur-base) var(--ease-out-soft);
+}
+.underline-grow:hover { background-size: 100% 1px; }
+
 /* Réduction des animations selon la préférence système. */
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -300,4 +407,12 @@ input:not([type="checkbox"]):not([type="radio"]) {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  /* Sans cette règle, un élément révélé au scroll resterait invisible :
+     l'observateur est court-circuité et la classe .is-in n'arrive jamais. */
+  .reveal,
+  .reveal.is-in {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .lift:hover { transform: none !important; }
 }

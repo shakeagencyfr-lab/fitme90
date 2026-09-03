@@ -4,8 +4,26 @@ import { productCopy } from "@/lib/i18n/products";
 import type { Offer } from "@/lib/offers";
 import { S } from "@/components/landing-icons";
 
-// Tous les textes des landings coach->client (onyx, lumen…) dans les deux
-// langues. Les templates ne diffèrent que par le design : ils lisent ce module.
+// Tous les textes des landings pro->client (onyx, lumen, volt, sage) dans les
+// deux langues. Les templates ne diffèrent que par le DESIGN : ils lisent ce
+// module, et rien d'autre ne doit contenir de phrase de vente.
+//
+// Deux axes indépendants :
+//   locale    fr | en
+//   audience  coach | gym
+//
+// L'audience n'est pas un détail de vocabulaire. Un coach indépendant vend SA
+// méthode et SA signature ; une salle vend son équipe, ses machines et la
+// continuité entre la séance en salle et le reste de la semaine. Les deux
+// promesses ne se disent pas avec les mêmes mots, d'où un jeu de remplacements
+// complet plutôt qu'un simple « coach » -> « salle ».
+//
+// Règle de fond, valable pour les deux audiences : LE PROFESSIONNEL EST LE
+// HÉROS. C'est le coach ou la salle qui conçoit les programmes. Le moteur IA
+// est un outil spécialisé dans la transformation physique qu'il pilote ; sa
+// plus-value est expliquée, jamais mise devant le pro.
+
+export type Audience = "coach" | "gym";
 
 export interface OfferCardCopy {
   eyebrow: string;
@@ -74,6 +92,18 @@ export interface LandingCopy {
   forWhoTitle: string;
   forWho: Feature[];
   aboutChip: string;
+  /** Qui signe le programme. Bloc mis en avant : c'est l'argument central. */
+  authorChip: string;
+  authorTitle: string;
+  authorBody: string;
+  authorPoints: Feature[];
+  authorSignature: (name: string) => string;
+  /** Ce que le moteur IA apporte, et ce qu'il n'est pas. */
+  engineChip: string;
+  engineTitle: string;
+  engineBody: string;
+  enginePoints: Feature[];
+  engineLimit: string;
   leadChip: string;
   leadTitle: string;
   leadBody: string;
@@ -107,16 +137,16 @@ export interface LandingCopy {
 
 const FR: Omit<LandingCopy, "features"> & { features: Feature[] } = {
   defaultTagline:
-    "Un programme conçu selon la méthode de ton coach, adapté à ta salle et à tes contraintes, et suivi au quotidien. Amplifié par une IA qu'il a entraînée sur sa façon de travailler.",
+    "Un programme conçu par ton coach, selon sa méthode, adapté à ta salle et à tes contraintes, et suivi au quotidien. Assisté par un moteur d'IA spécialisé dans la transformation physique.",
   login: "Se connecter",
   seePrograms: "Voir les programmes",
   howItWorks: "Comment ça marche",
   heroChip: "Coaching personnalisé",
-  heroChecks: ["Santé prise en compte", "Allergies & régimes", "Coach IA inclus"],
+  heroChecks: ["Programme signé par ton coach", "Santé et allergies prises en compte", "Suivi au quotidien"],
   stats: [
     { v: "Ton coach", l: "conçoit ta méthode" },
     { v: "100 %", l: "adapté à ta salle & ta santé" },
-    { v: "Assistant IA", l: "formé par ton coach, inclus" },
+    { v: "Moteur IA", l: "au service de sa méthode" },
     { v: "Sur mesure", l: "à l'unité ou en abonnement" },
   ],
   featuresChip: "Fonctionnalités",
@@ -125,13 +155,13 @@ const FR: Omit<LandingCopy, "features"> & { features: Feature[] } = {
     { title: "La méthode de ton coach", body: "Ton programme est bâti sur la méthode de ton coach : exercices, séries, charges et progressions, pensés par lui." },
     { title: "Analyse de ta salle", body: "Photographie tes machines : le plan n'utilise que le matériel réellement disponible." },
     { title: "100 % personnalisé", body: "Pathologies, allergies, régime, cadre religieux : chaque contrainte est prise en compte." },
-    { title: "Amplifié par l'IA", body: "Ton coach s'appuie sur une IA qu'il a entraînée sur sa façon de travailler pour bâtir ton plan plus vite et plus finement." },
+    { title: "Un moteur, pas un pilote", body: "Ton coach garde la main sur chaque décision. Le moteur IA lui sert à appliquer sa méthode à ton cas sans rien laisser passer." },
     { title: "Zones cardiaques précises", body: "Tes zones d'intensité calculées pour tirer le meilleur de chaque séance de cardio." },
     { title: "Espace client complet", body: "Séances interactives, calendrier, journal, courbe de poids : tout ton suivi au même endroit." },
     { title: "Outils d'entraînement", body: "Minuteur de repos intégré, journal série par série (kg × reps), progression et coches." },
     { title: "Un assistant formé par ton coach", body: "Un assistant disponible en continu, entraîné sur la méthode de ton coach. Il répond, motive et t'accompagne au quotidien." },
   ],
-  gymChip: "Analyse IA de ta salle",
+  gymChip: "Ta salle, ton matériel",
   gymTitle: "Ta salle analysée. Ton programme adapté.",
   gymBody: "Photographie ta salle : l'IA identifie le matériel disponible et s'assure que chaque exercice de ton programme est réalisable avec ce que tu as.",
   gymBullets: ["Haltères, barres, câbles, machines guidées", "Home-gym au matériel limité", "Salle communautaire ou hôtel", "Entraînement au poids du corps uniquement"],
@@ -160,6 +190,28 @@ const FR: Omit<LandingCopy, "features"> & { features: Feature[] } = {
     { title: "Repris après une pause", body: "Le cycle d'adaptation te remet en route sans te cramer." },
   ],
   aboutChip: "À propos",
+  authorChip: "Qui conçoit ton programme",
+  authorTitle: "Ton coach écrit ton programme. Pas un robot.",
+  authorBody:
+    "Les exercices, l'ordre des séances, les charges de départ, la vitesse de progression : tout vient de la méthode de ton coach, de ce qu'il a appris sur le terrain avec ses clients. Rien n'est tiré d'un catalogue générique.",
+  authorPoints: [
+    { title: "Sa méthode, écrite noir sur blanc", body: "Ton coach a consigné sa façon de travailler : ses principes, ses exercices de prédilection, ses progressions, ce qu'il refuse de faire faire. Ton programme s'y conforme." },
+    { title: "Ses choix, pas des moyennes", body: "Deux personnes avec le même objectif ne reçoivent pas le même plan. C'est le jugement de ton coach sur ton cas qui tranche." },
+    { title: "Il reste joignable", body: "Un programme n'est pas un PDF qu'on t'envoie et qu'on oublie. Ton coach suit ce que tu fais et ajuste." },
+  ],
+  authorSignature: (name) => `Programmes signés ${name}`,
+  engineChip: "Le moteur derrière",
+  engineTitle: "Un moteur spécialisé dans la transformation physique.",
+  engineBody:
+    "Pour appliquer sa méthode à ton cas précis, ton coach s'appuie sur un moteur d'IA entraîné pour une seule chose : bâtir des plans d'entraînement et de nutrition. Ce n'est pas un assistant générique à qui on demande la météo.",
+  enginePoints: [
+    { title: "Ce qui prenait des heures prend des minutes", body: "Croiser ton objectif, ton niveau, tes jours disponibles, ton matériel, tes contraintes de santé et tes interdits alimentaires : le moteur fait ce travail d'assemblage pour que ton coach passe son temps sur les décisions, pas sur la mise en forme." },
+    { title: "Rien n'est oublié en route", body: "Une allergie déclarée au questionnaire se retrouve dans chaque recette des douze semaines. Une épaule douloureuse écarte les exercices concernés dans tout le plan, pas seulement la première semaine." },
+    { title: "Ton plan continue d'apprendre", body: "Les charges que tu notes, les séances que tu sautes, ton poids qui bouge : le bloc suivant est reconstruit sur ce que tu as réellement fait, pas sur ce qui était prévu." },
+    { title: "Un interlocuteur à toute heure", body: "Le coach IA reprend la méthode de ton coach pour répondre à 23 h un dimanche, quand une machine est prise ou qu'un repas ne colle pas. Ton coach n'a pas à être debout pour ça." },
+  ],
+  engineLimit:
+    "Le moteur ne décide pas à la place de ton coach : il applique sa méthode. Et il ne remplace ni un avis médical, ni le regard d'un professionnel sur ta technique.",
   leadChip: "Offert",
   leadTitle: "Pas encore décidé ? Reçois ton mini-programme gratuit",
   leadBody: "Une semaine d'entraînement calibrée pour toi, à télécharger en PDF. Sans engagement.",
@@ -201,16 +253,16 @@ const FR: Omit<LandingCopy, "features"> & { features: Feature[] } = {
 
 const EN: Omit<LandingCopy, "features"> & { features: Feature[] } = {
   defaultTagline:
-    "A program built on your coach's method, adapted to your gym and your constraints, and followed day by day. Amplified by an AI trained on the way your coach works.",
+    "A program designed by your coach, on their method, adapted to your gym and your constraints, and followed day by day. Assisted by an AI engine built for physical transformation.",
   login: "Log in",
   seePrograms: "See the programs",
   howItWorks: "How it works",
   heroChip: "Personal coaching",
-  heroChecks: ["Health taken into account", "Allergies & diets", "AI coach included"],
+  heroChecks: ["Program signed by your coach", "Health and allergies accounted for", "Followed day by day"],
   stats: [
     { v: "Your coach", l: "designs your method" },
     { v: "100%", l: "adapted to your gym & your health" },
-    { v: "AI assistant", l: "trained by your coach, included" },
+    { v: "AI engine", l: "serving their method" },
     { v: "Tailored", l: "one-off or subscription" },
   ],
   featuresChip: "Features",
@@ -219,13 +271,13 @@ const EN: Omit<LandingCopy, "features"> & { features: Feature[] } = {
     { title: "Your coach's method", body: "Your program is built on your coach's method: exercises, sets, loads and progressions, designed by them." },
     { title: "Gym analysis", body: "Photograph your machines: the plan only uses the equipment you actually have." },
     { title: "100% personalised", body: "Conditions, allergies, diet, religious framework: every constraint is taken into account." },
-    { title: "Amplified by AI", body: "Your coach relies on an AI trained on the way they work to build your plan faster and finer." },
+    { title: "An engine, not a pilot", body: "Your coach keeps every decision. The AI engine is how they apply their method to your case without missing anything." },
     { title: "Precise heart-rate zones", body: "Your intensity zones calculated to get the most out of every cardio session." },
     { title: "Complete client space", body: "Interactive sessions, calendar, log, weight curve: all your tracking in one place." },
     { title: "Training tools", body: "Built-in rest timer, set-by-set log (kg × reps), progress and checkmarks." },
     { title: "An assistant trained by your coach", body: "An assistant available around the clock, trained on your coach's method. It answers, motivates and supports you every day." },
   ],
-  gymChip: "AI analysis of your gym",
+  gymChip: "Your gym, your equipment",
   gymTitle: "Your gym analysed. Your program adapted.",
   gymBody: "Photograph your gym: the AI identifies the available equipment and makes sure every exercise in your program can be done with what you have.",
   gymBullets: ["Dumbbells, bars, cables, guided machines", "Home gym with limited equipment", "Community or hotel gym", "Bodyweight-only training"],
@@ -254,6 +306,28 @@ const EN: Omit<LandingCopy, "features"> & { features: Feature[] } = {
     { title: "Back after a break", body: "The adaptation cycle gets you going again without burning you out." },
   ],
   aboutChip: "About",
+  authorChip: "Who designs your program",
+  authorTitle: "Your coach writes your program. Not a robot.",
+  authorBody:
+    "The exercises, the order of the sessions, the starting loads, the rate of progression: everything comes from your coach's method, from what they learned on the floor with their clients. Nothing is pulled from a generic catalogue.",
+  authorPoints: [
+    { title: "Their method, written down", body: "Your coach has recorded the way they work: their principles, their go-to exercises, their progressions, what they refuse to have you do. Your program follows it." },
+    { title: "Their calls, not averages", body: "Two people with the same goal do not get the same plan. Your coach's judgement on your case is what decides." },
+    { title: "They stay reachable", body: "A program is not a PDF you get sent and then forgotten. Your coach follows what you do and adjusts." },
+  ],
+  authorSignature: (name) => `Programs signed ${name}`,
+  engineChip: "The engine behind it",
+  engineTitle: "An engine built for one thing: physical transformation.",
+  engineBody:
+    "To apply their method to your specific case, your coach relies on an AI engine trained for a single purpose: building training and nutrition plans. It is not a general assistant you ask about the weather.",
+  enginePoints: [
+    { title: "What took hours takes minutes", body: "Cross-referencing your goal, your level, your available days, your equipment, your health constraints and your dietary rules: the engine does that assembly work so your coach spends their time on decisions, not on formatting." },
+    { title: "Nothing gets lost on the way", body: "An allergy declared in the questionnaire shows up in every recipe across the twelve weeks. A painful shoulder removes the relevant exercises from the whole plan, not just the first week." },
+    { title: "Your plan keeps learning", body: "The loads you log, the sessions you skip, your weight moving: the next block is rebuilt on what you actually did, not on what was planned." },
+    { title: "Someone to ask at any hour", body: "The AI coach applies your coach's method to answer at 11 pm on a Sunday, when a machine is taken or a meal does not fit. Your coach does not have to be awake for that." },
+  ],
+  engineLimit:
+    "The engine does not decide in your coach's place: it applies their method. And it replaces neither medical advice nor a professional's eye on your technique.",
   leadChip: "Free",
   leadTitle: "Not decided yet? Get your free mini-program",
   leadBody: "A week of training calibrated for you, to download as a PDF. No commitment.",
@@ -293,7 +367,174 @@ const EN: Omit<LandingCopy, "features"> & { features: Feature[] } = {
   mockDay: "Day 24",
 };
 
-export function landingCopy(locale: Locale): LandingCopy {
+// ─────────────────────────────────────────────────────────────
+// Variante SALLE.
+//
+// Une salle ne vend pas la même chose qu'un coach indépendant. Le coach vend
+// sa signature ; la salle vend ce que l'adhérent vit déjà sur place et ce qui
+// lui manque : savoir quoi faire en arrivant, et tenir entre deux visites.
+// Le parc de machines devient un argument (elles sont DANS le programme parce
+// que la salle sait exactement ce qu'elle possède), l'équipe de coachs devient
+// l'auteur, et l'abandon au bout de six semaines devient le problème résolu.
+//
+// Seules les clés qui changent sont redéfinies ; le reste vient du socle.
+// ─────────────────────────────────────────────────────────────
+type Overrides = Partial<Omit<LandingCopy, "features">> & { features?: Feature[] };
+
+const GYM_FR: Overrides = {
+  defaultTagline:
+    "Un programme construit par l'équipe de ta salle, avec les machines qui sont ici, et qui te suit aussi les jours où tu ne viens pas. Assisté par un moteur spécialisé dans la transformation physique.",
+  heroChip: "Programme inclus dans ton adhésion",
+  heroChecks: ["Bâti sur le matériel de la salle", "Suivi par l'équipe", "Aussi les jours sans venir"],
+  stats: [
+    { v: "Notre équipe", l: "conçoit ton programme" },
+    { v: "Nos machines", l: "celles que tu as sous la main" },
+    { v: "7 j / 7", l: "un plan même hors de la salle" },
+    { v: "Sans surcoût", l: "compris dans ton abonnement" },
+  ],
+  featuresTitle: "Ce que ton adhésion t'apporte en plus",
+  features: [
+    { title: "La méthode de la salle", body: "Nos coachs ont consigné leur façon de faire progresser : c'est elle qui construit ton plan, pas un modèle générique acheté ailleurs." },
+    { title: "Nos machines, pas celles d'un catalogue", body: "Le parc de la salle est connu au poste près. Ton programme n'envoie jamais sur un appareil que nous n'avons pas, ni sur celui qui est toujours pris à 18 h." },
+    { title: "Adapté à toi, pas au groupe", body: "Pathologies, allergies, régime, cadre religieux, horaires : ton plan tient compte de ta situation, pas de la moyenne des adhérents." },
+    { title: "Un moteur, pas un pilote", body: "L'équipe garde la main sur chaque décision. Le moteur IA lui sert à appliquer sa méthode à chaque adhérent sans rien laisser passer." },
+    { title: "Zones cardiaques précises", body: "Tes zones d'intensité calculées, pour que le cardio de la salle serve vraiment à quelque chose." },
+    { title: "Ton espace membre", body: "Séances interactives, calendrier, journal de charges, courbe de poids : ce que tu fais ici et ailleurs, au même endroit." },
+    { title: "Outils d'entraînement", body: "Minuteur de repos, journal série par série, progression visible : de quoi t'entraîner seul sans perdre le fil." },
+    { title: "Un interlocuteur hors des heures d'ouverture", body: "Le coach IA reprend la méthode de la salle et répond quand l'accueil est fermé, en déplacement ou en vacances." },
+  ],
+  gymChip: "Notre parc",
+  gymTitle: "Nos machines sont déjà dans ton programme.",
+  gymBody:
+    "Nous savons exactement ce que contient la salle. Ton plan est écrit avec ce matériel-là, et si tu t'entraînes ailleurs pendant une semaine, tu photographies l'endroit et le programme s'adapte.",
+  gymBullets: ["Le plateau de charges libres", "Les machines guidées", "L'espace cardio", "Et ta salle de vacances, en photo"],
+  spaceChip: "Espace membre",
+  spaceTitle: "Ton programme te suit hors de la salle.",
+  spaceBody:
+    "La plupart des abandons arrivent les semaines où l'on ne vient pas. Ton espace membre te dit quoi faire ce jour-là, en salle ou ailleurs, et garde la trace de ce que tu as fait.",
+  authorChip: "Qui conçoit ton programme",
+  authorTitle: "Les coachs de la salle. Pas un robot.",
+  authorBody:
+    "Les exercices, l'ordre des séances, les charges de départ, la vitesse de progression : tout vient de la méthode de notre équipe, de ce qu'elle voit fonctionner ici, sur ce plateau, avec nos adhérents.",
+  authorPoints: [
+    { title: "Une méthode maison", body: "Nos coachs ont écrit leur façon de travailler : leurs principes, leurs exercices de référence, leurs progressions, ce qu'ils refusent de faire faire. Ton programme s'y conforme." },
+    { title: "Des gens que tu peux croiser", body: "Ce ne sont pas des programmes achetés à un prestataire lointain. L'équipe qui les signe est celle que tu vois sur le plateau." },
+    { title: "Un relais entre deux passages", body: "Ce qu'un coach t'a corrigé en séance se retrouve dans ton plan de la semaine, au lieu de se perdre." },
+  ],
+  authorSignature: (name) => `Programmes signés par l'équipe ${name}`,
+  engineBody:
+    "Pour appliquer sa méthode à chaque adhérent, l'équipe s'appuie sur un moteur d'IA entraîné pour une seule chose : bâtir des plans d'entraînement et de nutrition. Ce n'est pas un assistant générique à qui on demande la météo.",
+  enginePoints: [
+    { title: "Un plan sur mesure pour chaque adhérent", body: "Écrire à la main un programme personnalisé par membre serait impossible à l'échelle d'une salle. Le moteur rend la chose faisable sans tomber dans le programme photocopié." },
+    { title: "Rien n'est oublié en route", body: "Une allergie déclarée à l'inscription se retrouve dans chaque recette des douze semaines. Une épaule douloureuse écarte les exercices concernés dans tout le plan." },
+    { title: "Ton plan continue d'apprendre", body: "Les charges que tu notes, les séances que tu sautes, ton poids qui bouge : le bloc suivant est reconstruit sur ce que tu as réellement fait." },
+    { title: "Disponible quand la salle est fermée", body: "Le coach IA reprend la méthode de l'équipe pour répondre à 23 h un dimanche, quand une machine est prise ou qu'un repas ne colle pas." },
+  ],
+  engineLimit:
+    "Le moteur ne décide pas à la place de nos coachs : il applique leur méthode. Et il ne remplace ni un avis médical, ni le regard d'un coach sur ta technique.",
+  stepsTitle: "3 étapes, dès aujourd'hui",
+  steps: [
+    { k: "01", title: "Réponds au questionnaire", body: "Objectifs, niveau, disponibilités, santé, allergies et préférences alimentaires. Dix minutes, une fois." },
+    { k: "02", title: "Ton plan est bâti sur notre parc", body: "Le matériel de la salle est déjà connu. Tu photographies seulement si tu t'entraînes ailleurs." },
+    { k: "03", title: "Entraîne-toi, ici et ailleurs", body: "Ton espace membre te dit quoi faire chaque jour, et note ce que tu fais." },
+  ],
+  forWhoTitle: "Pour quel adhérent ?",
+  forWho: [
+    { title: "Celui qui tourne en rond", body: "Tu viens régulièrement mais tu refais les mêmes machines depuis des mois. On te donne une progression écrite." },
+    { title: "Celui qui vient d'arriver", body: "Tu ne sais pas par où commencer sur le plateau. Le plan te dit quoi faire, dans quel ordre, avec quelle charge." },
+    { title: "Celui qui décroche l'hiver", body: "Les semaines où tu ne viens pas ne sont plus des semaines perdues : le plan te suit chez toi." },
+    { title: "Celui qui a une contrainte de santé", body: "Écran santé au départ, exercices adaptés, validation médecin au besoin." },
+    { title: "Celui qui voyage", body: "Une photo de la salle d'hôtel suffit pour adapter la semaine." },
+    { title: "Celui qui veut de la nutrition", body: "Pas seulement l'entraînement : calories, macros et recettes qui tiennent compte de tes contraintes." },
+  ],
+  leadTitle: "Pas encore adhérent ? Repars avec une semaine offerte",
+  leadBody: "Une semaine d'entraînement calibrée pour toi, à télécharger en PDF. Sans engagement, sans carte bancaire.",
+  programsTitle: "Nos formules",
+  finalTitle: "Ta salle. Ton programme. Dès la prochaine séance.",
+  giftTitle: "Envie d'offrir ?",
+  giftBody: "Offre un accompagnement à quelqu'un : tu paies, la personne reçoit un code à utiliser librement.",
+};
+
+const GYM_EN: Overrides = {
+  defaultTagline:
+    "A program built by your gym's team, around the machines that are here, and that follows you on the days you do not come in. Assisted by an engine built for physical transformation.",
+  heroChip: "Included in your membership",
+  heroChecks: ["Built on the gym's equipment", "Followed by the team", "Also on the days you skip"],
+  stats: [
+    { v: "Our team", l: "designs your program" },
+    { v: "Our machines", l: "the ones actually here" },
+    { v: "7 days a week", l: "a plan even outside the gym" },
+    { v: "No extra cost", l: "included in your membership" },
+  ],
+  featuresTitle: "What your membership adds",
+  features: [
+    { title: "The gym's method", body: "Our coaches wrote down how they make people progress: that is what builds your plan, not a generic template bought elsewhere." },
+    { title: "Our machines, not a catalogue's", body: "We know our floor piece by piece. Your program never sends you to a machine we do not have, nor to the one that is always taken at 6 pm." },
+    { title: "Fitted to you, not to the group", body: "Conditions, allergies, diet, religious framework, schedule: your plan accounts for your situation, not the average member's." },
+    { title: "An engine, not a pilot", body: "The team keeps every decision. The AI engine is how they apply their method to each member without missing anything." },
+    { title: "Precise heart-rate zones", body: "Your intensity zones calculated, so the cardio floor actually does something for you." },
+    { title: "Your member space", body: "Interactive sessions, calendar, load log, weight curve: what you do here and elsewhere, in one place." },
+    { title: "Training tools", body: "Rest timer, set-by-set log, visible progress: enough to train alone without losing the thread." },
+    { title: "Someone to ask outside opening hours", body: "The AI coach applies the gym's method and answers when the desk is closed, on the road or on holiday." },
+  ],
+  gymChip: "Our floor",
+  gymTitle: "Our machines are already in your program.",
+  gymBody:
+    "We know exactly what the gym holds. Your plan is written with that equipment, and if you train elsewhere for a week, you photograph the place and the program adapts.",
+  gymBullets: ["The free-weight floor", "The guided machines", "The cardio area", "And your holiday gym, from a photo"],
+  spaceChip: "Member space",
+  spaceTitle: "Your program follows you outside the gym.",
+  spaceBody:
+    "Most people drop out during the weeks they do not come in. Your member space tells you what to do that day, here or elsewhere, and keeps track of what you did.",
+  authorChip: "Who designs your program",
+  authorTitle: "The gym's coaches. Not a robot.",
+  authorBody:
+    "The exercises, the order of the sessions, the starting loads, the rate of progression: everything comes from our team's method, from what they see working here, on this floor, with our members.",
+  authorPoints: [
+    { title: "An in-house method", body: "Our coaches wrote down how they work: their principles, their reference exercises, their progressions, what they refuse to have you do. Your program follows it." },
+    { title: "People you can actually meet", body: "These are not programs bought from a distant supplier. The team signing them is the one you see on the floor." },
+    { title: "A relay between two visits", body: "What a coach corrected in a session shows up in your plan for the week, instead of being lost." },
+  ],
+  authorSignature: (name) => `Programs signed by the ${name} team`,
+  engineBody:
+    "To apply their method to every member, the team relies on an AI engine trained for a single purpose: building training and nutrition plans. It is not a general assistant you ask about the weather.",
+  enginePoints: [
+    { title: "A tailored plan for every member", body: "Hand-writing a personal program per member would be impossible at a gym's scale. The engine makes it feasible without falling back on the photocopied program." },
+    { title: "Nothing gets lost on the way", body: "An allergy declared at sign-up shows up in every recipe across the twelve weeks. A painful shoulder removes the relevant exercises from the whole plan." },
+    { title: "Your plan keeps learning", body: "The loads you log, the sessions you skip, your weight moving: the next block is rebuilt on what you actually did." },
+    { title: "Available when the gym is closed", body: "The AI coach applies the team's method to answer at 11 pm on a Sunday, when a machine is taken or a meal does not fit." },
+  ],
+  engineLimit:
+    "The engine does not decide in our coaches' place: it applies their method. And it replaces neither medical advice nor a coach's eye on your technique.",
+  stepsTitle: "3 steps, starting today",
+  steps: [
+    { k: "01", title: "Answer the questionnaire", body: "Goals, level, availability, health, allergies and food preferences. Ten minutes, once." },
+    { k: "02", title: "Your plan is built on our floor", body: "The gym's equipment is already known. You only photograph if you train elsewhere." },
+    { k: "03", title: "Train, here and elsewhere", body: "Your member space tells you what to do each day, and logs what you did." },
+  ],
+  forWhoTitle: "Which member is it for?",
+  forWho: [
+    { title: "The one going in circles", body: "You come in regularly but you have been doing the same machines for months. We give you a written progression." },
+    { title: "The one who just joined", body: "You do not know where to start on the floor. The plan tells you what to do, in which order, with which load." },
+    { title: "The one who drops off in winter", body: "The weeks you do not come in are no longer lost weeks: the plan follows you home." },
+    { title: "The one with a health constraint", body: "Health screening at the start, adapted exercises, doctor's approval when needed." },
+    { title: "The one who travels", body: "A photo of the hotel gym is enough to adapt the week." },
+    { title: "The one who wants nutrition too", body: "Not just training: calories, macros and recipes that respect your constraints." },
+  ],
+  leadTitle: "Not a member yet? Leave with a free week",
+  leadBody: "A week of training calibrated for you, to download as a PDF. No commitment, no card.",
+  programsTitle: "Our plans",
+  finalTitle: "Your gym. Your program. From the next session.",
+  giftTitle: "Want to gift it?",
+  giftBody: "Gift coaching to someone: you pay, they receive a code to use freely.",
+};
+
+export function landingCopy(locale: Locale, audience: Audience = "coach"): LandingCopy {
   const base = locale === "en" ? EN : FR;
-  return { ...base, features: base.features.map((f, i) => ({ ...f, icon: FEATURE_ICONS[i] })) };
+  const over = audience === "gym" ? (locale === "en" ? GYM_EN : GYM_FR) : null;
+  const merged = over ? { ...base, ...over } : base;
+  // Les icônes sont posées APRÈS la fusion : une variante qui redéfinit
+  // `features` fournit du texte, jamais des icônes, et l'ordre reste le même.
+  const features = (over?.features ?? base.features).map((f, i) => ({ ...f, icon: FEATURE_ICONS[i] }));
+  return { ...merged, features } as LandingCopy;
 }

@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode, type CSSProperties } from "react";
 import { Wordmark } from "@/components/brand";
 import { CoachBell } from "@/components/coach-bell";
+import { PageTransition } from "@/components/page-transition";
 import { signOutAction } from "@/app/(auth)/actions";
 import type { CoachNotif } from "@/lib/notifications";
 import type { TenantKind } from "@/lib/hierarchy";
@@ -90,35 +91,107 @@ function isActive(pathname: string, href: string): boolean {
   return href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
 }
 
-function NavList({ pathname, kind, onNavigate }: { pathname: string; kind: TenantKind; onNavigate?: () => void }) {
+function NavList({
+  pathname,
+  kind,
+  onNavigate,
+  collapsed = false,
+}: {
+  pathname: string;
+  kind: TenantKind;
+  onNavigate?: () => void;
+  /** Rail d'icônes : les libellés disparaissent, les titres de groupe aussi. */
+  collapsed?: boolean;
+}) {
   const tx = usePhrase();
+  const groups = groupsForKind(kind);
   return (
-    <nav className="flex flex-col gap-5">
-      {groupsForKind(kind).map((g) => (
-        <div key={tx(g.label)} className="flex flex-col gap-1">
-          <div className="px-3 pb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">{tx(g.label)}</div>
+    <nav className={collapsed ? "flex flex-col gap-2" : "flex flex-col gap-5"}>
+      {groups.map((g, gi) => (
+        <div key={tx(g.label)} className={collapsed ? "flex flex-col gap-1.5" : "flex flex-col gap-1"}>
+          {collapsed ? (
+            // Le titre de groupe ne tient pas sur 72 px : un filet le remplace
+            // et garde le rythme visuel des familles d'onglets.
+            gi > 0 ? <div className="mx-auto my-1 h-px w-7 bg-line" aria-hidden /> : null
+          ) : (
+            <div className="px-3 pb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">{tx(g.label)}</div>
+          )}
           {g.items.map((it) => {
             const on = isActive(pathname, it.href);
+            const label = tx(it.label);
             return (
               <Link
                 key={it.href}
                 href={it.href}
                 onClick={onNavigate}
                 aria-current={on ? "page" : undefined}
+                aria-label={collapsed ? label : undefined}
+                title={collapsed ? label : undefined}
                 className={[
-                  "tap group relative flex items-center gap-3 overflow-hidden rounded-control px-3.5 py-3 text-[15px] font-semibold transition-colors",
+                  "tap group relative flex items-center overflow-hidden rounded-control font-semibold transition-colors",
+                  collapsed ? "h-11 w-11 justify-center self-center" : "gap-3 px-3.5 py-3 text-[15px]",
                   on ? "bg-surface-2 text-ink" : "text-body-2 hover:bg-surface-2/70 hover:text-ink",
                 ].join(" ")}
               >
                 {on ? <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-brand" /> : null}
                 <span className={on ? "text-brand" : "text-muted-2 group-hover:text-ink"}>{it.icon}</span>
-                {tx(it.label)}
+                {collapsed ? null : label}
               </Link>
             );
           })}
         </div>
       ))}
     </nav>
+  );
+}
+
+/** Mémorise l'état replié du rail d'un écran à l'autre. */
+const RAIL_KEY = "admin-rail";
+
+function useRail(): [boolean, () => void] {
+  const [rail, setRail] = useState(false);
+  useEffect(() => {
+    // Lecture différée : le serveur ne connaît pas localStorage, lire pendant
+    // le rendu ferait diverger le HTML hydraté.
+    queueMicrotask(() => {
+      try {
+        setRail(localStorage.getItem(RAIL_KEY) === "1");
+      } catch {
+        /* stockage indisponible : on reste déployé */
+      }
+    });
+  }, []);
+  const toggle = () => {
+    setRail((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem(RAIL_KEY, next ? "1" : "0");
+      } catch {
+        /* stockage indisponible : la bascule vaut pour la session */
+      }
+      return next;
+    });
+  };
+  return [rail, toggle];
+}
+
+/** Bouton plier / déplier du rail (le « hamburger » sous le logo). */
+function RailToggle({ rail, onToggle }: { rail: boolean; onToggle: () => void }) {
+  const tx = usePhrase();
+  const label = rail ? tx("Déployer le menu") : tx("Replier le menu");
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={label}
+      aria-expanded={!rail}
+      title={label}
+      className="tap flex size-9 shrink-0 items-center justify-center rounded-control text-muted-2 transition-colors hover:bg-surface-2 hover:text-ink"
+    >
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden>
+        <path d="M4 7h16M4 12h16M4 17h16" />
+      </svg>
+    </button>
   );
 }
 
@@ -163,7 +236,7 @@ function ThemeIconButton() {
 }
 
 const CARD_CLASS =
-  "tap flex flex-col gap-1 rounded-control border border-line bg-surface-2 px-3.5 py-3 transition-colors hover:border-ink/40";
+  "tap lift flex flex-col gap-1 rounded-control border border-line bg-surface-2 px-3.5 py-3 hover:border-ink/40";
 const CARD_LABEL = "flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-2";
 const SPARK = (
   <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -174,6 +247,25 @@ const SPARK = (
 // Carte « conso IA du mois » (BYOK) : coût estimé cumulé depuis le 1er du mois.
 // En BYOK le coach paie sa propre facture Anthropic, donc ce qui l'intéresse
 // est un montant.
+/** Même information réduite à la largeur du rail : icône + chiffre, rien d'autre. */
+function RailCard({ href, title, value, alert = false }: { href: string; title: string; value: string; alert?: boolean }) {
+  return (
+    <Link
+      href={href}
+      title={title}
+      aria-label={title}
+      className="tap lift flex flex-col items-center gap-1 rounded-control border border-line bg-surface-2 px-1 py-2 hover:border-ink/40"
+    >
+      <span className="text-brand">{SPARK}</span>
+      <span
+        className={`font-archivo text-[12px] font-extrabold leading-none tabular-nums ${alert ? "text-[#C4471A]" : "text-ink"}`}
+      >
+        {value}
+      </span>
+    </Link>
+  );
+}
+
 function UsageCard({ costUsd, calls }: { costUsd: number; calls: number }) {
   const tx = usePhrase();
   return (
@@ -217,6 +309,26 @@ function WalletCard({ credits }: { credits: number }) {
   );
 }
 
+/**
+ * Marque réduite à une pastille carrée pour le rail : le logo s'il existe,
+ * sinon l'initiale sur un fond aux couleurs de la marque.
+ */
+function BrandTile({ name, logoUrl }: { name: string | null; logoUrl: string | null }) {
+  if (logoUrl) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={logoUrl} alt={name ?? ""} className="size-9 rounded-control object-contain" />;
+  }
+  const initial = (name ?? "My Fitness App").trim().charAt(0).toUpperCase();
+  return (
+    <span
+      aria-hidden
+      className="flex size-9 items-center justify-center rounded-control bg-brand font-archivo text-[17px] font-extrabold text-white"
+    >
+      {initial}
+    </span>
+  );
+}
+
 export function AdminShell({
   children,
   notifs,
@@ -248,12 +360,27 @@ export function AdminShell({
   const tx = usePhrase();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [rail, toggleRail] = useRail();
   // En modèle crédits, le solde remplace la conso en dollars : c'est le même
   // emplacement, mais le chiffre qui compte pour ce coach n'est pas le même.
   const usageCard = wallet ? (
     <WalletCard credits={wallet.credits} />
   ) : (
     <UsageCard costUsd={aiCostUsd} calls={aiCalls} />
+  );
+  const railUsageCard = wallet ? (
+    <RailCard
+      href="/admin/credits"
+      title={`${tx("Crédits · restants")} : ${wallet.credits}`}
+      value={String(wallet.credits)}
+      alert={wallet.credits <= 0}
+    />
+  ) : (
+    <RailCard
+      href="/admin/compte"
+      title={`${tx("Conso IA · ce mois")} : $${aiCostUsd.toFixed(2)}`}
+      value={`$${aiCostUsd.toFixed(2)}`}
+    />
   );
 
   // Accent du dashboard = couleur du parent (marque blanche complète). À défaut,
@@ -280,14 +407,8 @@ export function AdminShell({
     </div>
   );
 
-  const footer = (
-    <div className="flex items-center gap-2 border-t border-line pt-3">
-      <span className="min-w-0 flex-1 truncate text-[12px] text-muted-2" title={email}>
-        {email}
-      </span>
-      <ThemeIconButton />
-      <LangSwitch compact />
-      <form action={signOutAction}>
+  const signOutButton = (
+    <form action={signOutAction}>
         <button
           type="submit"
           aria-label={tx("Se déconnecter")}
@@ -299,24 +420,62 @@ export function AdminShell({
             <path d="M10 12h11m0 0-3-3m3 3-3 3" />
           </svg>
         </button>
-      </form>
+    </form>
+  );
+
+  // Déployé : l'adresse e-mail puis les trois boutons sur une ligne.
+  // Replié : les boutons empilés, l'adresse ne tiendrait pas sur 72 px.
+  const footer = (
+    <div className="flex items-center gap-2 border-t border-line pt-3">
+      <span className="min-w-0 flex-1 truncate text-[12px] text-muted-2" title={email}>
+        {email}
+      </span>
+      <ThemeIconButton />
+      <LangSwitch compact />
+      {signOutButton}
+    </div>
+  );
+
+  const railFooter = (
+    <div className="flex flex-col items-center gap-2 border-t border-line pt-3">
+      <ThemeIconButton />
+      {signOutButton}
     </div>
   );
 
   return (
     <div className="min-h-dvh bg-paper lg:flex" style={accentStyle}>
-      {/* ───────── Barre latérale (desktop ≥ lg) ───────── */}
-      <aside className="sticky top-0 hidden h-dvh w-[264px] shrink-0 flex-col gap-5 border-r border-line bg-surface px-4 py-5 lg:flex">
-        <div className="flex items-center justify-between gap-2">
-          {brandBadge}
-          <CoachBell notifs={notifs} unread={unread} align="left" />
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <NavList pathname={pathname} kind={kind} />
+      {/* ───────── Barre latérale (desktop ≥ lg) ─────────
+          Deux largeurs : déployée (264 px) ou rail d'icônes (76 px). La
+          bascule est mémorisée d'un écran à l'autre. */}
+      <aside
+        className={[
+          "sticky top-0 hidden h-dvh shrink-0 flex-col gap-5 border-r border-line bg-surface py-5 lg:flex",
+          "transition-[width,padding] duration-300 ease-out motion-reduce:transition-none",
+          rail ? "w-[76px] px-3" : "w-[264px] px-4",
+        ].join(" ")}
+      >
+        {rail ? (
+          <div className="flex flex-col items-center gap-2">
+            <BrandTile name={brandName} logoUrl={brandLogoUrl} />
+            <RailToggle rail={rail} onToggle={toggleRail} />
+            <CoachBell notifs={notifs} unread={unread} align="left" />
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-1">
+              <RailToggle rail={rail} onToggle={toggleRail} />
+              {brandBadge}
+            </div>
+            <CoachBell notifs={notifs} unread={unread} align="left" />
+          </div>
+        )}
+        <div className={rail ? "min-h-0 flex-1 overflow-y-auto overflow-x-hidden" : "min-h-0 flex-1 overflow-y-auto"}>
+          <NavList pathname={pathname} kind={kind} collapsed={rail} />
         </div>
         <div className="flex flex-col gap-3">
-          {usageCard}
-          {footer}
+          {rail ? railUsageCard : usageCard}
+          {rail ? railFooter : footer}
         </div>
       </aside>
 
@@ -364,7 +523,9 @@ export function AdminShell({
 
       {/* ───────── Contenu ───────── */}
       <main className="min-w-0 flex-1">
-        <div className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-8 sm:py-6">{children}</div>
+        <div className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-8 sm:py-6">
+          <PageTransition>{children}</PageTransition>
+        </div>
       </main>
     </div>
   );
