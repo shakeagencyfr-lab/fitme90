@@ -37,32 +37,47 @@ export function LangSwitch({ className = "", compact = false, tone = "auto" }: {
       role="group"
       aria-label="Language"
       className={[
-        "inline-flex items-center rounded-pill border p-0.5 font-mono text-[10.5px] uppercase tracking-[0.08em]",
-        tone === "dark" ? "border-white/20 bg-white/[0.06]" : "border-line-4 bg-surface",
+        "inline-flex items-center font-mono uppercase",
+        // Compact : deux libellés séparés d'un point, sans cadre ni pastille
+        // pleine. La version encadrée pesait autant que le bouton d'action et
+        // devenait le deuxième élément le plus visible de la barre, pour un
+        // réglage que presque personne ne touche.
+        compact ? "gap-1 text-[10px] tracking-[0.1em]" : "rounded-pill border p-0.5 text-[10.5px] tracking-[0.08em]",
+        compact ? "" : tone === "dark" ? "border-white/20 bg-white/[0.06]" : "border-line-4 bg-surface",
         pending ? "opacity-60" : "",
         className,
       ].join(" ")}
     >
-      {LOCALES.map((l) => (
+      {LOCALES.map((l, i) => (
+        <span key={l} className="inline-flex items-center">
+        {compact && i > 0 ? <span className="mx-0.5 text-muted-2/50" aria-hidden>·</span> : null}
         <button
-          key={l}
           type="button"
           onClick={() => pick(l)}
           aria-pressed={l === current}
           className={[
-            "tap rounded-pill transition-colors",
-            compact ? "px-2 py-1" : "px-2.5 py-1.5",
-            tone === "dark"
+            "tap transition-colors",
+            compact ? "px-0.5" : "rounded-pill px-2.5 py-1.5",
+            compact
               ? l === current
-                ? "bg-white text-[#0b0c0e]"
-                : "text-white/50 hover:text-white"
-              : l === current
-                ? "bg-fill text-fillfg"
-                : "text-muted-2 hover:text-ink",
+                ? tone === "dark"
+                  ? "font-semibold text-white"
+                  : "font-semibold text-ink"
+                : tone === "dark"
+                  ? "text-white/35 hover:text-white/70"
+                  : "text-muted-2 hover:text-ink"
+              : tone === "dark"
+                ? l === current
+                  ? "bg-white text-[#0b0c0e]"
+                  : "text-white/50 hover:text-white"
+                : l === current
+                  ? "bg-fill text-fillfg"
+                  : "text-muted-2 hover:text-ink",
           ].join(" ")}
         >
           {l}
         </button>
+        </span>
       ))}
     </div>
   );

@@ -7,6 +7,7 @@ import { S } from "@/components/landing-icons";
 import { SubscriptionPrice } from "@/components/subscription-price";
 import { Reveal, RevealGroup } from "@/components/reveal";
 import { Rail } from "@/components/landing-templates/rail";
+import { LeadBand } from "@/components/landing-templates/lead-band";
 import { AuthorEngine } from "@/components/landing-templates/author-engine";
 import { offerCardCopy, landingCopy, type LandingCopy, type Audience } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
@@ -210,10 +211,19 @@ export function CoachSage({ tenant, offers, leadMagnet = false, locale = "fr" }:
       <header className="sticky top-0 z-30 border-b border-ink/8 bg-[#f4f1ea]/85 backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-[1040px] items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <Link href="#top" className="flex items-center"><Brand tenant={tenant} imgClass="h-10 sm:h-12" /></Link>
-          <div className="flex items-center gap-4">
-            <a href="#auteur" className="underline-grow hidden font-mono text-[10.5px] uppercase tracking-[0.2em] text-ink/50 hover:text-ink lg:inline">
-              {L.authorChip}
-            </a>
+          <nav className="hidden items-center gap-6 md:flex">
+            {[
+              ["#auteur", L.navMethod],
+              ["#offres", L.navPrograms],
+              ["#faq", L.navFaq],
+            ].map(([href, label]) => (
+              <a key={href} href={href} className="underline-grow text-[14px] text-ink/60 transition-colors hover:text-ink">
+                {label}
+              </a>
+            ))}
+          </nav>
+          <div className="flex items-center gap-3">
+            <span className="hidden h-5 w-px bg-ink/12 md:block" aria-hidden />
             <LangSwitch compact />
             <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-ink/60 transition-colors hover:text-ink sm:inline">
               {L.login}
@@ -400,20 +410,12 @@ export function CoachSage({ tenant, offers, leadMagnet = false, locale = "fr" }:
         {/* Mini-programme offert */}
         {leadMagnet ? (
           <section className="border-t border-ink/10">
-            <div className="mx-auto w-full max-w-[1040px] px-5 py-[clamp(44px,6vw,76px)] sm:px-8">
-              <Reveal className="flex flex-col items-center gap-4 rounded-[32px] border border-brand/25 bg-white p-9 text-center sm:p-12" direction="scale">
-                <Label>{L.leadChip}</Label>
-                <h3 className={`${display} max-w-[20ch]`}>{L.leadTitle}</h3>
-                <p className="max-w-[52ch] text-[15.5px] leading-[1.7] text-ink/60">{L.leadBody}</p>
-                <Link href={`/c/${tenant.slug}/decouverte`} className="press tap mt-2 inline-flex h-[54px] items-center justify-center gap-2 rounded-full bg-brand px-8 text-[15px] font-semibold text-white hover:bg-brand-hover">
-                  {L.leadCta} <S.arrow className="h-4.5 w-4.5" />
-                </Link>
-              </Reveal>
+            <div className="mx-auto w-full max-w-[1040px] px-5 py-[clamp(40px,5.5vw,68px)] sm:px-8">
+              <LeadBand L={L} slug={tenant.slug} tone="light" radius="rounded-[30px]" ctaClass="rounded-full" />
             </div>
           </section>
         ) : null}
 
-        {/* Programmes */}
         <section id="offres" className="scroll-mt-20 border-t border-ink/10">
           <div className="mx-auto w-full max-w-[1040px] px-5 pt-[clamp(52px,7vw,92px)] sm:px-8">
             <Reveal className="flex flex-col items-center gap-4 text-center">
@@ -463,7 +465,7 @@ export function CoachSage({ tenant, offers, leadMagnet = false, locale = "fr" }:
         </section>
 
         {/* FAQ */}
-        <section className="border-t border-ink/10">
+        <section id="faq" className="scroll-mt-20 border-t border-ink/10">
           <div className="mx-auto w-full max-w-[760px] px-5 py-[clamp(52px,7vw,92px)] sm:px-8">
             <Reveal className="flex flex-col items-center gap-4 text-center">
               <Label>{L.faqChip}</Label>

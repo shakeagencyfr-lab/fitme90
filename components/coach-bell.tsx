@@ -40,10 +40,19 @@ export function CoachBell({
   notifs,
   unread,
   align = "right",
+  variant = "button",
 }: {
   notifs: CoachNotif[];
   unread: number;
   align?: "left" | "right";
+  /**
+   * button : pastille bordée (barre du haut mobile).
+   * icon   : icône nue au gabarit de la navigation (rail replié).
+   * row    : ligne pleine largeur « Notifications » + compteur, comme un onglet
+   *          de menu. Ce n'est PAS un lien : la liste s'ouvre en dessous, il
+   *          n'y a pas de page à visiter.
+   */
+  variant?: "button" | "icon" | "row";
 }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<CoachNotif[]>(notifs);
@@ -107,28 +116,58 @@ export function CoachBell({
     void markNotificationRead(n.id);
   }
 
+  const bellIcon = (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 4a5 5 0 0 0-5 5v3.5L5.5 15h13L17 12.5V9a5 5 0 0 0-5-5Z" />
+      <path d="M10 18a2 2 0 0 0 4 0" />
+    </svg>
+  );
+  const badge = count > 99 ? "99+" : String(count);
+  const toggle = () => {
+    setOpen((v) => !v);
+    void refresh();
+  };
+
   return (
     <div className="relative">
-      <button
-        type="button"
-        onClick={() => {
-          setOpen((v) => !v);
-          void refresh();
-        }}
-        aria-label="Notifications"
-        aria-expanded={open}
-        className="tap relative flex size-10 items-center justify-center rounded-btn border border-line-4 bg-surface text-body-2 hover:border-ink"
-      >
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M12 4a5 5 0 0 0-5 5v3.5L5.5 15h13L17 12.5V9a5 5 0 0 0-5-5Z" />
-          <path d="M10 18a2 2 0 0 0 4 0" />
-        </svg>
-        {count > 0 ? (
-          <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 font-mono text-[10px] font-bold leading-none text-white">
-            {count > 99 ? "99+" : count}
-          </span>
-        ) : null}
-      </button>
+      {variant === "row" ? (
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          className={[
+            "tap group flex w-full items-center gap-3 rounded-control px-3.5 py-3 text-[15px] font-semibold transition-colors",
+            open ? "bg-surface-2 text-ink" : "text-body-2 hover:bg-surface-2/70 hover:text-ink",
+          ].join(" ")}
+        >
+          <span className={open ? "text-brand" : "text-muted-2 group-hover:text-ink"}>{bellIcon}</span>
+          <span className="flex-1 text-left">Notifications</span>
+          {count > 0 ? (
+            <span className="flex h-[20px] min-w-[20px] shrink-0 items-center justify-center rounded-full bg-brand px-1.5 font-mono text-[10.5px] font-bold leading-none text-white">
+              {badge}
+            </span>
+          ) : null}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label="Notifications"
+          aria-expanded={open}
+          className={
+            variant === "icon"
+              ? "tap relative flex size-9 items-center justify-center rounded-control text-muted-2 transition-colors hover:bg-surface-2 hover:text-ink"
+              : "tap relative flex size-10 items-center justify-center rounded-btn border border-line-4 bg-surface text-body-2 hover:border-ink"
+          }
+        >
+          {bellIcon}
+          {count > 0 ? (
+            <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 font-mono text-[10px] font-bold leading-none text-white">
+              {badge}
+            </span>
+          ) : null}
+        </button>
+      )}
 
       {open ? (
         <>
