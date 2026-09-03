@@ -124,9 +124,12 @@ export const PLATFORM_FEE_BPS = Number(process.env.PLATFORM_FEE_BPS ?? 0) || 0;
 export function formatEuros(cents: number | null | undefined): string {
   if (cents == null) return "n.c.";
   const euros = cents / 100;
-  const s = Number.isInteger(euros)
-    ? String(euros)
-    : euros.toFixed(2).replace(".", ",");
+  // Les milliers sont séparés : sur un écran de totaux, « 8208 € » se relit
+  // deux fois avant d'être compris, « 8 208 € » se lit d'un coup.
+  const s = euros.toLocaleString("fr-FR", {
+    minimumFractionDigits: Number.isInteger(euros) ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
   return `${s} €`;
 }
 
@@ -368,19 +371,82 @@ export function creditPackContents(credits: number): string {
  * saturé chaque jour. C'est ce que le coach lit en cochant « Coach IA » sur son
  * offre : il sait ce que ce plan peut lui coûter, au pire.
  */
-export function planMaxCredits(input: { programDays: number; dailyQuota: number; programCredits: number }): {
+export function planMaxCredits(input: {
+  programDays: number;
+  dailyQuota: number;
+  programCredits: number;
+  /** Plafond de recettes par jour. Une recette coûte un crédit, comme un message. */
+  recipeQuota?: number;
+}): {
   generations: number;
   generationCredits: number;
   chatCredits: number;
+  recipeCredits: number;
   total: number;
 } {
   const days = Math.max(0, Math.trunc(input.programDays || 0));
   const quota = Math.max(0, Math.trunc(input.dailyQuota || 0));
+  const recipes = Math.max(0, Math.trunc(input.recipeQuota ?? 0));
   const perProgram = Math.max(0, Math.trunc(input.programCredits || 0));
   const generations = Math.max(1, Math.round(days / (BLOCK_MONTHS * DAYS_PER_MONTH)));
   const generationCredits = generations * perProgram;
   const chatCredits = quota * days;
-  return { generations, generationCredits, chatCredits, total: generationCredits + chatCredits };
+  const recipeCredits = recipes * days;
+  return {
+    generations,
+    generationCredits,
+    chatCredits,
+    recipeCredits,
+    total: generationCredits + chatCredits + recipeCredits,
+  };
+}
+
+export interface PlanMaxCost {
+  generations: number;
+  /** Coût des générations de programme, en euros. Toujours borné. */
+  programEur: number;
+  /** Messages du chat et alternatives d'exercice. `null` si le plafond est illimité. */
+  messagesEur: number | null;
+  /** Régénérations de recettes. `null` si le plafond est illimité. */
+  recipesEur: number | null;
+  /** Résumé de mémoire nocturne : jamais plafonné, mais borné par la durée. */
+  memoryEur: number;
+  /** Somme. `null` dès qu'un poste est illimité : le plan n'a alors pas de borne. */
+  totalEur: number | null;
+}
+
+/**
+ * Coût MAXIMUM d'un client sur un plan, en euros, pour un coach en BYOK.
+ *
+ * Le pendant de `planMaxCredits` pour qui paie Anthropic directement. Le coach
+ * lisait jusqu'ici un volume (« au pire 7 200 messages ») sans savoir ce que ce
+ * volume représente sur sa facture : c'est pourtant la seule chose qui décide
+ * s'il peut vendre ce plan à ce prix.
+ *
+ * C'est un PLAFOND, pas une prévision : il suppose un client qui sature son
+ * quota tous les jours jusqu'à la fin du plan, ce que personne ne fait. La
+ * dépense réelle observée tourne autour d'un dixième de ce chiffre.
+ */
+export function planMaxCostEur(input: {
+  programDays: number;
+  dailyQuota: number;
+  recipeQuota: number;
+}): PlanMaxCost {
+  const days = Math.max(0, Math.trunc(input.programDays || 0));
+  const quota = Math.max(0, Math.trunc(input.dailyQuota || 0));
+  const recipes = Math.max(0, Math.trunc(input.recipeQuota || 0));
+  const generations = Math.max(1, Math.round(days / (BLOCK_MONTHS * DAYS_PER_MONTH)));
+
+  const programEur = usdToEur(generations * AI_COST_PROGRAM_USD);
+  const memoryEur = usdToEur(days * AI_COST_MEMORY_USD);
+  // Un plafond à 0 veut dire « illimité » dans le formulaire d'offre : le poste
+  // n'a alors pas de borne haute, et le total non plus.
+  const messagesEur = quota > 0 ? usdToEur(quota * days * AI_COST_COACH_MSG_USD) : null;
+  const recipesEur = recipes > 0 ? usdToEur(recipes * days * AI_COST_RECIPE_USD) : null;
+  const totalEur =
+    messagesEur === null || recipesEur === null ? null : programEur + memoryEur + messagesEur + recipesEur;
+
+  return { generations, programEur, messagesEur, recipesEur, memoryEur, totalEur };
 }
 
 export const PRODUCT_NAME = "My Fitness App";

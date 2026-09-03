@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { LangSwitch } from "@/components/lang-switch";
+import { MobileNav } from "@/components/landing-templates/mobile-nav";
 import Link from "next/link";
 import { type Offer, type PublicTenant } from "@/lib/offers";
 import { formatEuros, DEFAULT_BRAND_COLOR } from "@/lib/config";
@@ -188,7 +189,22 @@ export function CoachKinetic({ tenant, offers, leadMagnet = false, locale = "fr"
           </nav>
           <div className="flex items-center gap-3">
             <span className="hidden h-5 w-px bg-white/15 md:block" aria-hidden />
-            <LangSwitch compact tone="dark" />
+            <MobileNav
+              className="md:hidden"
+              brand={<Brand tenant={tenant} imgClass="h-11" textClass="text-[17px]" />}
+              tone="dark"
+              bg="#08090b"
+              radius={12}
+              langLabel={locale === "en" ? "Language" : "Langue"}
+              links={[
+                { href: "#auteur", label: L.navMethod },
+                { href: "#offres", label: L.navPrograms },
+                { href: "#faq", label: L.navFaq },
+              ]}
+              login={{ href: `/connexion?c=${tenant.slug}`, label: L.login }}
+              cta={offers.length > 0 ? { href: "#offres", label: L.seePrograms } : undefined}
+            />
+            <span className="hidden md:block"><LangSwitch compact tone="dark" /></span>
             <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-white/60 transition-colors hover:text-white sm:inline">{L.login}</Link>
             {offers.length > 0 ? (
               <a href="#offres" className="press tap hidden h-10 shrink-0 items-center whitespace-nowrap rounded-btn bg-brand px-4 text-[14px] font-semibold text-white hover:bg-brand-hover sm:inline-flex">
@@ -240,7 +256,7 @@ export function CoachKinetic({ tenant, offers, leadMagnet = false, locale = "fr"
           </div>
         </section>
 
-        {/* Bandeau piloté par le défilement */}
+        {/* Bandeau : avance seul, à vitesse constante */}
         <div className="border-y border-white/10 bg-white/[0.02] py-4">
           <ScrollMarquee items={[...L.heroChecks, ...L.stats.map((s) => s.l)]} className="font-mono text-[12px] uppercase tracking-[0.2em] text-white/40" />
         </div>

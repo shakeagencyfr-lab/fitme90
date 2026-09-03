@@ -11,6 +11,7 @@ import {
   monthlyEquivalentCents,
   formatEuros,
   planMaxCredits,
+  planMaxCostEur,
   programDaysForMonths,
   type OfferDurationMonths,
 } from "@/lib/config";
@@ -51,9 +52,14 @@ export function OfferForm({
   const priceCents = Math.round((Number(price.replace(",", ".")) || 0) * 100);
   const perMonth = monthlyEquivalentCents(priceCents, months);
   const quotaN = Math.max(0, Math.trunc(Number(quota) || 0));
+  const recipesN = Math.max(0, Math.trunc(Number(recipes) || 0));
+  const planDays = programDaysForMonths(months);
   // Coût MAXIMUM du plan pour le coach : générations (une par bloc de 3 mois)
   // + quota journalier saturé chaque jour. Il ne paie que l'usage réel.
-  const max = planMaxCredits({ programDays: programDaysForMonths(months), dailyQuota: quotaN, programCredits });
+  const max = planMaxCredits({ programDays: planDays, dailyQuota: quotaN, programCredits, recipeQuota: recipesN });
+  // Le même plafond, converti en euros pour un coach en BYOK : c'est sur ce
+  // chiffre qu'il fixe son prix de vente, pas sur un nombre de messages.
+  const maxEur = planMaxCostEur({ programDays: planDays, dailyQuota: quotaN, recipeQuota: recipesN });
 
   if (atLimit) {
     return (
@@ -234,24 +240,66 @@ export function OfferForm({
               <span className="text-[12px] leading-relaxed text-muted-2">
                 {tx("Compté à part des messages : le modèle recettes produit des réponses plus longues, donc plus chères.")}</span>
             </label>
-            <div className="text-[13px] leading-[1.6] text-body">
+            <div className="flex flex-col gap-2 rounded-control border border-line-4 bg-surface-2 p-3">
               <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">{tx("Coût maximum de ce plan")}</span>
-              <div>
-                {creditMode ? (
-                  <>
-                    <span className="font-semibold text-ink">{max.total.toLocaleString("fr-FR")} {tx("crédits IA")}</span> {tx("au pire, si le client sature tout :")} {max.generations} {tx("génération")}{max.generations > 1 ? "s" : ""} {tx("de programme (")}{max.generationCredits} {tx("crédits)")}{quotaN > 0
-                      ? ` + ${quotaN} messages × ${programDaysForMonths(months)} jours (${max.chatCredits.toLocaleString("fr-FR")} crédits)`
-                      : " + un chat sans plafond"}
+              {creditMode ? (
+                /* Coach sous crédits IA : il ne voit jamais Anthropic, son
+                   plafond se lit dans la seule unité qu'il achète. */
+                <>
+                  <span className="font-archivo text-[22px] font-extrabold leading-none text-ink">
+                    {max.total.toLocaleString("fr-FR")} {tx("crédits IA")}
+                  </span>
+                  <span className="text-[12.5px] leading-[1.6] text-muted">
+                    {tx("Si le client sature tout, sur toute la durée du plan :")} {max.generations} {tx("génération")}
+                    {max.generations > 1 ? "s" : ""} {tx("de programme")} ({max.generationCredits.toLocaleString("fr-FR")}){" "}
+                    {quotaN > 0
+                      ? `+ ${max.chatCredits.toLocaleString("fr-FR")} ${tx("messages")}`
+                      : `+ ${tx("un chat sans plafond")}`}{" "}
+                    {recipesN > 0
+                      ? `+ ${max.recipeCredits.toLocaleString("fr-FR")} ${tx("recettes")}`
+                      : `+ ${tx("des recettes sans plafond")}`}
                     .
-                  </>
-                ) : quotaN > 0 ? (
-                  <>
-                    {tx("Au pire")} {max.chatCredits.toLocaleString("fr-FR")} {tx("messages sur")} {programDaysForMonths(months)} {tx("jours, plus")}{" "}
-                    {max.generations} {tx("génération")}{max.generations > 1 ? "s" : ""} {tx("de programme, sur ta propre clé Anthropic.")}</>
-                ) : (
-                  <>{tx("Sans plafond, le coût de ce plan n'est pas borné.")}</>
-                )}
-              </div>
+                  </span>
+                  {quotaN === 0 || recipesN === 0 ? (
+                    <span className="text-[12.5px] leading-[1.6] text-muted-2">
+                      {tx("Un plafond laissé à 0 ouvre la dépense : le total ci-dessus ne couvre alors que le reste.")}</span>
+                  ) : null}
+                </>
+              ) : (
+                /* Coach en BYOK : c'est sa propre clé Anthropic qui est
+                   débitée, donc des euros, pas des crédits. */
+                <>
+                  <span className="font-archivo text-[22px] font-extrabold leading-none text-ink">
+                    {maxEur.totalEur == null
+                      ? tx("Non borné")
+                      : `≈ ${formatEuros(Math.round(maxEur.totalEur * 100))}`}
+                    {maxEur.totalEur == null ? null : (
+                      <span className="ml-1.5 font-mono text-[11px] font-normal uppercase tracking-[0.08em] text-muted-2">
+                        {tx("par client")}
+                      </span>
+                    )}
+                  </span>
+                  {maxEur.totalEur == null ? (
+                    <span className="text-[12.5px] leading-[1.6] text-muted">
+                      {tx("Un plafond laissé à 0 (illimité) rend la dépense impossible à borner. Les générations de programme coûtent")}{" "}
+                      {`≈ ${formatEuros(Math.round((maxEur.programEur + maxEur.memoryEur) * 100))}`}, {tx("le reste dépend de l'usage du client.")}</span>
+                  ) : (
+                    <span className="text-[12.5px] leading-[1.6] text-muted">
+                      {tx("Sur ta propre clé Anthropic, si le client sature ses deux plafonds tous les jours pendant")} {planDays}{" "}
+                      {tx("jours :")} {max.generations} {tx("génération")}{max.generations > 1 ? "s" : ""}{" "}
+                      {`≈ ${formatEuros(Math.round(maxEur.programEur * 100))}`}, {max.chatCredits.toLocaleString("fr-FR")}{" "}
+                      {tx("messages")} {`≈ ${formatEuros(Math.round(maxEur.messagesEur! * 100))}`},{" "}
+                      {max.recipeCredits.toLocaleString("fr-FR")} {tx("recettes")}{" "}
+                      {`≈ ${formatEuros(Math.round(maxEur.recipesEur! * 100))}`}, {tx("mémoire")}{" "}
+                      {`≈ ${formatEuros(Math.round(maxEur.memoryEur * 100))}`}.
+                    </span>
+                  )}
+                  {maxEur.totalEur == null ? null : (
+                    <span className="text-[12.5px] leading-[1.6] text-muted-2">
+                      {tx("C'est un plafond de sécurité, pas une prévision : personne ne sature son quota tous les jours. La dépense réellement observée tourne autour d'un dixième de ce montant.")}</span>
+                  )}
+                </>
+              )}
             </div>
           </div>
         ) : null}

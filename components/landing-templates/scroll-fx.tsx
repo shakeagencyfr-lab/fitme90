@@ -429,29 +429,37 @@ export function Tilt({
 
 // ── Bandeau défilant piloté par le scroll ───────────────────────────────────
 /** Le texte glisse d'autant plus qu'on descend : le mouvement suit la lecture. */
-export function ScrollMarquee({ items, className = "" }: { items: string[]; className?: string }) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const inner = useRef<HTMLDivElement | null>(null);
-  const reduced = useReducedMotion();
-  useScrollTick(() => {
-    const el = ref.current;
-    const track = inner.current;
-    if (!el || !track) return;
-    const r = el.getBoundingClientRect();
-    const p = (window.innerHeight - r.top) / (window.innerHeight + r.height);
-    track.style.transform = `translate3d(${-p * 45}%,0,0)`;
-  }, !reduced);
-  const doubled = [...items, ...items, ...items];
+export function ScrollMarquee({
+  items,
+  className = "",
+  seconds = 34,
+  reverse = false,
+}: {
+  items: string[];
+  className?: string;
+  seconds?: number;
+  reverse?: boolean;
+}) {
+  // Deux pistes identiques côte à côte, chacune translatée de -100 % de sa
+  // propre largeur : quand la première a fini de sortir, la seconde occupe
+  // exactement sa place et la boucle ne se voit pas.
+  const track = (prefix: string) => (
+    <div
+      className={`auto-marquee ${reverse ? "auto-marquee-rev" : ""} flex shrink-0 items-center gap-10 whitespace-nowrap pr-10`}
+      style={{ ["--marquee-dur" as string]: `${seconds}s` }}
+    >
+      {items.map((t, i) => (
+        <span key={`${prefix}-${t}-${i}`} className="inline-flex items-center gap-10">
+          {t}
+          <span className="inline-block size-1.5 rounded-full bg-brand" />
+        </span>
+      ))}
+    </div>
+  );
   return (
-    <div ref={ref} aria-hidden className={`overflow-hidden ${className}`}>
-      <div ref={inner} className="flex w-max items-center gap-10 whitespace-nowrap will-change-transform">
-        {doubled.map((t, i) => (
-          <span key={`${t}-${i}`} className="inline-flex items-center gap-10">
-            {t}
-            <span className="inline-block size-1.5 rounded-full bg-brand" />
-          </span>
-        ))}
-      </div>
+    <div aria-hidden className={`flex overflow-hidden ${className}`}>
+      {track("a")}
+      {track("b")}
     </div>
   );
 }

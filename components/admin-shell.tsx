@@ -39,6 +39,9 @@ const GROUPS: { label: string; items: Item[] }[] = [
   {
     label: "Pilotage",
     items: [
+      // Écran de synthèse : le chiffre d'abord, le détail ensuite dans les
+      // onglets qui suivent.
+      { href: "/admin/tableau-de-bord", label: "Tableau de bord", icon: <I d="M4 13h6V4H4z||M14 20h6v-9h-6z||M4 20h6v-4H4z||M14 8h6V4h-6z" /> },
       { href: "/admin", label: "Clients", kinds: ["coach"], icon: <I d="M16 19a4 4 0 0 0-8 0||M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7||M20 19a3.5 3.5 0 0 0-4-3.4||M8 15.6A3.5 3.5 0 0 0 4 19" /> },
       { href: "/admin/prospects", label: "Prospects", kinds: ["coach"], icon: <I d="M15 19a4 4 0 0 0-8 0||M11 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7||M18 8v6||M21 11h-6" /> },
       { href: "/admin/reseau", label: "Mon réseau", kinds: ["platform", "reseller"], icon: <I d="M12 3v4||M6 21v-3a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v3||M12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4" /> },

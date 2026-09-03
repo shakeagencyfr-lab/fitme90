@@ -385,6 +385,30 @@ input:not([type="checkbox"]):not([type="radio"]) {
   to { transform: translateX(-100%); }
 }
 
+/* Le bandeau avance tout seul, à vitesse constante. Le piloter au scroll
+   donnait un mouvement haché : il s'arrêtait dès que le doigt s'arrêtait, et
+   repartait en arrière au moindre rebond de la page. */
+.auto-marquee {
+  animation: marquee var(--marquee-dur, 38s) linear infinite;
+  will-change: transform;
+}
+.auto-marquee-rev { animation-direction: reverse; }
+@media (prefers-reduced-motion: reduce) {
+  .auto-marquee { animation: none; }
+}
+
+/* Menu mobile des landings. Le voile se fond, le panneau descend, puis les
+   lignes arrivent l'une après l'autre (délai posé en style inline). */
+@keyframes nav-veil { from { opacity: 0; } to { opacity: 1; } }
+@keyframes nav-panel { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+@keyframes nav-row { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.nav-veil { animation: nav-veil var(--dur-base) var(--ease-out-soft) both; }
+.nav-panel { animation: nav-panel 420ms var(--ease-out-soft) both; }
+.nav-row { animation: nav-row 480ms var(--ease-out-soft) both; }
+@media (prefers-reduced-motion: reduce) {
+  .nav-veil, .nav-panel, .nav-row { animation: none; }
+}
+
 /* Soulignement animé (liens de navigation des landings). */
 .underline-grow {
   background-image: linear-gradient(currentColor, currentColor);
