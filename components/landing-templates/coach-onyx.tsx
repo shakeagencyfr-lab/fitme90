@@ -7,6 +7,7 @@ import { GridScan, AppPreview, MacroOrbit } from "@/components/landing-visuals";
 import { S } from "@/components/landing-icons";
 import { SubscriptionPrice } from "@/components/subscription-price";
 import { Reveal } from "@/components/reveal";
+import { LeadBand } from "@/components/landing-templates/lead-band";
 import { AuthorEngine } from "@/components/landing-templates/author-engine";
 import { offerCardCopy, landingCopy, type Audience } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
@@ -139,7 +140,19 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false, locale = "fr" }:
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0a0b0c]/80 backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
           <Link href="#top" className="flex items-center"><Brand tenant={tenant} imgClass="h-11 sm:h-14" /></Link>
+          <nav className="hidden items-center gap-6 md:flex">
+            {[
+              ["#auteur", L.navMethod],
+              ["#offres", L.navPrograms],
+              ["#faq", L.navFaq],
+            ].map(([href, label]) => (
+              <a key={href} href={href} className="underline-grow text-[14px] text-white/60 transition-colors hover:text-white">
+                {label}
+              </a>
+            ))}
+          </nav>
           <div className="flex items-center gap-3">
+            <span className="hidden h-5 w-px bg-white/15 md:block" aria-hidden />
             <LangSwitch compact tone="dark" />
             <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-white/70 transition-colors hover:text-white sm:inline">
               {L.login}
@@ -362,29 +375,13 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false, locale = "fr" }:
 
         {/* Lead magnet : mini-programme gratuit */}
         {leadMagnet ? (
-          <section className="border-t border-white/10">
-            <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(48px,7vw,80px)] sm:px-8">
-              <div className="relative overflow-hidden rounded-card-lg border border-brand/30 bg-gradient-to-br from-brand/[0.12] to-transparent p-8 sm:p-10">
-                <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-col gap-2">
-                    <Chip><S.spark className="h-3.5 w-3.5" /> {L.leadChip}</Chip>
-                    <h3 className="font-archivo text-[clamp(22px,3.5vw,30px)] font-extrabold leading-tight tracking-[-0.02em] text-white">
-                      {L.leadTitle}
-                    </h3>
-                    <p className="max-w-[52ch] text-[15px] leading-[1.6] text-white/65">
-                      {L.leadBody}
-                    </p>
-                  </div>
-                  <Link href={`/c/${tenant.slug}/decouverte`} className="tap inline-flex h-[52px] shrink-0 items-center justify-center gap-2 rounded-btn bg-brand px-7 text-[15px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">
-                    {L.leadCta} <S.arrow className="h-4.5 w-4.5" />
-                  </Link>
-                </div>
-              </div>
+          <section className="border-t border-white/8">
+            <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(44px,6vw,72px)] sm:px-8">
+              <LeadBand L={L} slug={tenant.slug} tone="dark" />
             </div>
           </section>
         ) : null}
 
-        {/* Offres */}
         <section id="offres" className="scroll-mt-20 border-t border-white/10 bg-white/[0.015]">
           <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(64px,9vw,110px)] sm:px-8">
             <Reveal className="flex flex-col items-center gap-4 text-center">
@@ -432,7 +429,7 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false, locale = "fr" }:
         </section>
 
         {/* FAQ */}
-        <section className="border-t border-white/10">
+        <section id="faq" className="scroll-mt-20 border-t border-white/10">
           <div className="mx-auto w-full max-w-[820px] px-5 py-[clamp(64px,9vw,110px)] sm:px-8">
             <Reveal className="flex flex-col items-center gap-4 text-center">
               <Chip>{L.faqChip}</Chip>

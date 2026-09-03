@@ -92,6 +92,15 @@ export interface LandingCopy {
   forWhoTitle: string;
   forWho: Feature[];
   aboutChip: string;
+  /** Libellés de la barre de navigation. Courts par obligation : un lien de
+   *  vingt-cinq caractères en capitales espacées ecrase tout le reste. */
+  navMethod: string;
+  navPrograms: string;
+  navFaq: string;
+  /** Ce que contient vraiment le mini-programme. C'est ce niveau de detail qui
+   *  decide si on laisse son adresse, pas la promesse generale. */
+  leadPoints: string[];
+  leadReassure: string;
   /** Qui signe le programme. Bloc mis en avant : c'est l'argument central. */
   authorChip: string;
   authorTitle: string;
@@ -212,9 +221,19 @@ const FR: Omit<LandingCopy, "features"> & { features: Feature[] } = {
   ],
   engineLimit:
     "Le moteur ne décide pas à la place de ton coach : il applique sa méthode. Et il ne remplace ni un avis médical, ni le regard d'un professionnel sur ta technique.",
+  navMethod: "La méthode",
+  navPrograms: "Programmes",
+  navFaq: "Questions",
+  leadPoints: [
+    "Une semaine complète, jour par jour",
+    "Charges à viser et consignes techniques",
+    "Nutrition chiffrée et liste de courses",
+    "Tableau de suivi à imprimer",
+  ],
+  leadReassure: "Sans engagement, sans carte bancaire",
   leadChip: "Offert",
-  leadTitle: "Pas encore décidé ? Reçois ton mini-programme gratuit",
-  leadBody: "Une semaine d'entraînement calibrée pour toi, à télécharger en PDF. Sans engagement.",
+  leadTitle: "Ta première semaine, offerte",
+  leadBody: "Un vrai plan à suivre, calibré sur ton objectif, ton niveau et ton matériel. Prêt à imprimer.",
   leadCta: "Recevoir mon programme",
   programsChip: "Programmes",
   programsTitle: "Choisis ton programme",
@@ -328,9 +347,19 @@ const EN: Omit<LandingCopy, "features"> & { features: Feature[] } = {
   ],
   engineLimit:
     "The engine does not decide in your coach's place: it applies their method. And it replaces neither medical advice nor a professional's eye on your technique.",
+  navMethod: "The method",
+  navPrograms: "Programs",
+  navFaq: "Questions",
+  leadPoints: [
+    "A full week, day by day",
+    "Loads to aim for and technique cues",
+    "Numbers-based nutrition and a shopping list",
+    "A tracking table to print",
+  ],
+  leadReassure: "No commitment, no card",
   leadChip: "Free",
-  leadTitle: "Not decided yet? Get your free mini-program",
-  leadBody: "A week of training calibrated for you, to download as a PDF. No commitment.",
+  leadTitle: "Your first week, on us",
+  leadBody: "A real plan to follow, calibrated on your goal, your level and your equipment. Ready to print.",
   leadCta: "Get my program",
   programsChip: "Programs",
   programsTitle: "Choose your program",
@@ -447,8 +476,8 @@ const GYM_FR: Overrides = {
     { title: "Celui qui voyage", body: "Une photo de la salle d'hôtel suffit pour adapter la semaine." },
     { title: "Celui qui veut de la nutrition", body: "Pas seulement l'entraînement : calories, macros et recettes qui tiennent compte de tes contraintes." },
   ],
-  leadTitle: "Pas encore adhérent ? Repars avec une semaine offerte",
-  leadBody: "Une semaine d'entraînement calibrée pour toi, à télécharger en PDF. Sans engagement, sans carte bancaire.",
+  leadTitle: "Repars avec une semaine offerte",
+  leadBody: "Un vrai plan à suivre, calibré sur ton objectif et sur le matériel que tu as. Prêt à imprimer.",
   programsTitle: "Nos formules",
   finalTitle: "Ta salle. Ton programme. Dès la prochaine séance.",
   giftTitle: "Envie d'offrir ?",
@@ -521,8 +550,8 @@ const GYM_EN: Overrides = {
     { title: "The one who travels", body: "A photo of the hotel gym is enough to adapt the week." },
     { title: "The one who wants nutrition too", body: "Not just training: calories, macros and recipes that respect your constraints." },
   ],
-  leadTitle: "Not a member yet? Leave with a free week",
-  leadBody: "A week of training calibrated for you, to download as a PDF. No commitment, no card.",
+  leadTitle: "Leave with a free week",
+  leadBody: "A real plan to follow, calibrated on your goal and on the equipment you have. Ready to print.",
   programsTitle: "Our plans",
   finalTitle: "Your gym. Your program. From the next session.",
   giftTitle: "Want to gift it?",

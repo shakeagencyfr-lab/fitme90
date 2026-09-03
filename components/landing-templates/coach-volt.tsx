@@ -7,6 +7,7 @@ import { S } from "@/components/landing-icons";
 import { SubscriptionPrice } from "@/components/subscription-price";
 import { Reveal, RevealGroup } from "@/components/reveal";
 import { Rail, Marquee } from "@/components/landing-templates/rail";
+import { LeadBand } from "@/components/landing-templates/lead-band";
 import { AuthorEngine } from "@/components/landing-templates/author-engine";
 import { offerCardCopy, landingCopy, type LandingCopy, type Audience } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
@@ -226,10 +227,19 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0b0c0e]/85 backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-[1240px] items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
           <Link href="#top" className="flex items-center"><Brand tenant={tenant} imgClass="h-11 sm:h-14" /></Link>
+          <nav className="hidden items-center gap-6 md:flex">
+            {[
+              ["#auteur", L.navMethod],
+              ["#offres", L.navPrograms],
+              ["#faq", L.navFaq],
+            ].map(([href, label]) => (
+              <a key={href} href={href} className="underline-grow font-archivo text-[13px] font-bold uppercase tracking-[0.06em] text-white/55 transition-colors hover:text-white">
+                {label}
+              </a>
+            ))}
+          </nav>
           <div className="flex items-center gap-3">
-            <a href="#auteur" className="underline-grow hidden font-mono text-[11px] uppercase tracking-[0.16em] text-white/55 hover:text-white lg:inline">
-              {L.authorChip}
-            </a>
+            <span className="hidden h-5 w-px bg-white/15 md:block" aria-hidden />
             <LangSwitch compact tone="dark" />
             <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-white/60 transition-colors hover:text-white sm:inline">
               {L.login}
@@ -425,26 +435,12 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
         {/* Mini-programme offert */}
         {leadMagnet ? (
           <section className="border-t border-white/10">
-            <div className="mx-auto w-full max-w-[1240px] px-5 py-[clamp(48px,7vw,80px)] sm:px-8">
-              <Reveal className="relative overflow-hidden border border-brand bg-[#111316] p-8 sm:p-10" direction="scale">
-                <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-col gap-3">
-                    <Tag><S.spark className="h-3.5 w-3.5" /> {L.leadChip}</Tag>
-                    <h3 className="font-archivo text-[clamp(22px,3.5vw,32px)] font-extrabold uppercase leading-tight tracking-[-0.02em] text-white">
-                      {L.leadTitle}
-                    </h3>
-                    <p className="max-w-[52ch] text-[15px] leading-[1.6] text-white/60">{L.leadBody}</p>
-                  </div>
-                  <Link href={`/c/${tenant.slug}/decouverte`} className="press tap inline-flex h-[54px] shrink-0 items-center justify-center gap-2 bg-brand px-8 font-archivo text-[15px] font-bold uppercase tracking-[0.04em] text-white hover:bg-brand-hover">
-                    {L.leadCta} <S.arrow className="h-4.5 w-4.5" />
-                  </Link>
-                </div>
-              </Reveal>
+            <div className="mx-auto w-full max-w-[1240px] px-5 py-[clamp(44px,6vw,72px)] sm:px-8">
+              <LeadBand L={L} slug={tenant.slug} tone="dark" radius="rounded-none" ctaClass="rounded-none" />
             </div>
           </section>
         ) : null}
 
-        {/* Programmes : rail horizontal dès trois offres, grille sinon */}
         <section id="offres" className="scroll-mt-20 border-t border-white/10 bg-[#0e1013]">
           <div className="mx-auto w-full max-w-[1240px] px-5 pt-[clamp(56px,8vw,104px)] sm:px-8">
             <Reveal className="flex flex-col gap-4">
@@ -494,7 +490,7 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
         </section>
 
         {/* FAQ */}
-        <section className="border-t border-white/10">
+        <section id="faq" className="scroll-mt-20 border-t border-white/10">
           <div className="mx-auto w-full max-w-[860px] px-5 py-[clamp(56px,8vw,104px)] sm:px-8">
             <Reveal className="flex flex-col gap-4">
               <Tag>{L.faqChip}</Tag>
