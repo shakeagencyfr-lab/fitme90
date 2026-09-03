@@ -142,6 +142,9 @@ create table if not exists public.offers (
   coach_ai boolean not null default true,
   -- Quota journalier d'actions IA par client pour CETTE offre (null = défaut du coach).
   coach_ai_daily_limit integer,
+  -- Régénérations de recettes / jour / client. Comme le quota de messages, il
+  -- se règle par offre (écran Plans) et non plus dans un écran de réglages.
+  recipe_ai_daily_limit integer,
   constraint offers_pkey primary key (id),
   constraint offers_billing_type_check check (billing_type = any (array['one_time','subscription'])),
   constraint offers_duration_months_check check (duration_months = any (array[1,2,3,6,9,12])),

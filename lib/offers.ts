@@ -22,6 +22,8 @@ export interface Offer {
   coach_ai: boolean;
   /** Quota journalier d'actions IA par client sur CE plan (null = réglage général du coach). */
   coach_ai_daily_limit: number | null;
+  /** Régénérations de recettes / jour / client (0 = illimité, null = défaut). */
+  recipe_ai_daily_limit: number | null;
   billing_type: BillingType;
   price_month_cents: number | null;
   price_year_cents: number | null;
@@ -29,7 +31,7 @@ export interface Offer {
 }
 
 const OFFER_COLS =
-  "id, tenant_id, name, duration_months, price_cents, currency, position, is_active, vip_chat, coach_ai, coach_ai_daily_limit, billing_type, price_month_cents, price_year_cents, created_at";
+  "id, tenant_id, name, duration_months, price_cents, currency, position, is_active, vip_chat, coach_ai, coach_ai_daily_limit, recipe_ai_daily_limit, billing_type, price_month_cents, price_year_cents, created_at";
 
 /** Prix d'une offre pour un intervalle donné (abonnement), en centimes. */
 export function subscriptionPrice(offer: Offer, interval: "month" | "year"): number | null {
@@ -232,6 +234,8 @@ export interface CreateOfferInput {
   coachAi?: boolean;
   /** Quota journalier d'actions IA par client (0 = illimité, null = défaut du coach). */
   coachAiDailyLimit?: number | null;
+  /** Régénérations de recettes / jour / client (0 = illimité, null = défaut). */
+  recipeAiDailyLimit?: number | null;
   billingType?: BillingType;
   /** Paiement unique */
   priceCents?: number | null;
@@ -284,6 +288,10 @@ export async function createOffer(tenantId: string, input: CreateOfferInput): Pr
     coach_ai_daily_limit:
       input.coachAi !== false && input.coachAiDailyLimit != null && Number.isFinite(input.coachAiDailyLimit)
         ? Math.max(0, Math.min(1000, Math.trunc(input.coachAiDailyLimit)))
+        : null,
+    recipe_ai_daily_limit:
+      input.coachAi !== false && input.recipeAiDailyLimit != null && Number.isFinite(input.recipeAiDailyLimit)
+        ? Math.max(0, Math.min(50, Math.trunc(input.recipeAiDailyLimit)))
         : null,
     position: count ?? 0,
   });

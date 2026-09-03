@@ -96,10 +96,33 @@ export async function coachAiDailyLimit(tenantId: string | null, userId?: string
   return tighter(coachLimit, Math.max(0, parent.ai_client_daily_limit ?? 0));
 }
 
-/** Plafond journalier de régénérations de recettes par client (0 = illimité). */
-export async function recipeAiDailyLimit(tenantId: string | null): Promise<number> {
+/**
+ * Plafond journalier de régénérations de recettes par client (0 = illimité).
+ * Porté par l'OFFRE du client, comme le quota de messages ; à défaut, l'ancien
+ * réglage global du coach, puis la constante.
+ */
+export async function recipeAiDailyLimit(tenantId: string | null, userId?: string | null): Promise<number> {
   if (!tenantId) return DEFAULT_RECIPE_AI_DAILY_LIMIT;
   const admin = createAdminClient();
+
+  if (userId) {
+    const { data: prof } = await admin
+      .from("profiles")
+      .select("selected_offer_id")
+      .eq("id", userId)
+      .maybeSingle<{ selected_offer_id: string | null }>();
+    if (prof?.selected_offer_id) {
+      const { data: offer } = await admin
+        .from("offers")
+        .select("recipe_ai_daily_limit")
+        .eq("id", prof.selected_offer_id)
+        .maybeSingle<{ recipe_ai_daily_limit: number | null }>();
+      if (offer?.recipe_ai_daily_limit != null) return Math.max(0, offer.recipe_ai_daily_limit);
+    }
+  }
+
+  // Repli : valeur historique du coach, conservée pour ne rien casser sur les
+  // comptes réglés avant que le plafond ne passe dans l'offre.
   const { data } = await admin
     .from("coach_config")
     .select("recipe_ai_daily_limit")
@@ -145,5 +168,5 @@ export async function checkCoachAiBudget(userId: string, tenantId: string | null
 
 /** Budget des régénérations de recettes du jour pour un client (route "recipes"). */
 export async function checkRecipeAiBudget(userId: string, tenantId: string | null): Promise<BudgetState> {
-  return checkRouteBudget(userId, "recipes", await recipeAiDailyLimit(tenantId));
+  return checkRouteBudget(userId, "recipes", await recipeAiDailyLimit(tenantId, userId));
 }

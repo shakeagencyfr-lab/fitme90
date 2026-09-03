@@ -82,23 +82,11 @@ export async function saveCoachConfig(
     .trim()
     .slice(0, 40);
 
-  // Plafond journalier du CHAT Coach IA par client. 0 = illimité.
-  const rawLimit = String(formData.get("coach_ai_daily_limit") ?? "").trim();
-  let dailyLimit = 60;
-  if (rawLimit) {
-    const n = Number(rawLimit);
-    if (Number.isInteger(n) && n >= 0 && n <= 1000) dailyLimit = n;
-  }
-
-  // Plafond journalier des régénérations de recettes par client (modèle plus
-  // cher, borné séparément). 0 = illimité. Défaut 1.
-  const rawRecipe = String(formData.get("recipe_ai_daily_limit") ?? "").trim();
-  let recipeLimit = 1;
-  if (rawRecipe) {
-    const n = Number(rawRecipe);
-    if (Number.isInteger(n) && n >= 0 && n <= 100) recipeLimit = n;
-  }
-
+  // Les deux plafonds journaliers (messages, recettes) se règlent désormais PAR
+  // OFFRE, dans l'écran Plans. On ne les écrit plus ici : les colonnes restent
+  // en base comme repli pour les comptes réglés avant ce changement, et les
+  // écraser avec des valeurs par défaut à chaque enregistrement de méthodologie
+  // aurait modifié le comportement sans que personne ne le demande.
   const admin = createAdminClient();
   const { error } = await admin
     .from("coach_config")
@@ -108,8 +96,6 @@ export async function saveCoachConfig(
         generation_mode: mode,
         custom_methodology: custom,
         coach_name: coachName || null,
-        coach_ai_daily_limit: dailyLimit,
-        recipe_ai_daily_limit: recipeLimit,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "tenant_id" },
@@ -308,8 +294,13 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
   // Le Coach IA est inclus par défaut ; la case l'exclut si décochée.
   const coachAi = formData.get("coach_ai") === "on";
   // Quota journalier d'actions IA par client sur ce plan (vide = défaut du coach).
+  const recipesRaw = String(formData.get("recipe_ai_daily_limit") ?? "").trim();
+  const recipeAiDailyLimit = recipesRaw === "" ? null : Number(recipesRaw);
   const quotaRaw = String(formData.get("coach_ai_daily_limit") ?? "").trim();
   const coachAiDailyLimit = quotaRaw === "" ? null : Number(quotaRaw);
+  if (recipeAiDailyLimit != null && (!Number.isFinite(recipeAiDailyLimit) || recipeAiDailyLimit < 0)) {
+    return { error: "Plafond de recettes invalide." };
+  }
   if (coachAiDailyLimit != null && (!Number.isFinite(coachAiDailyLimit) || coachAiDailyLimit < 0)) {
     return { error: "Quota de messages invalide." };
   }
@@ -335,6 +326,7 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
     vipChat,
     coachAi,
     coachAiDailyLimit,
+    recipeAiDailyLimit,
     billingType,
     priceCents: price.cents,
     priceMonthCents: month.cents,

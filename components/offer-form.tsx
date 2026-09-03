@@ -26,6 +26,7 @@ export function OfferForm({
   programCredits,
   creditMode,
   defaultQuota,
+  defaultRecipes,
 }: {
   atLimit: boolean;
   /** Crédits IA consommés par une génération de programme (réglé par le fournisseur). */
@@ -34,6 +35,8 @@ export function OfferForm({
   creditMode: boolean;
   /** Quota par défaut de la configuration IA du coach. */
   defaultQuota: number;
+  /** Régénérations de recettes par défaut (ancien réglage global du coach). */
+  defaultRecipes: number;
 }) {
   const tx = usePhrase();
   const [state, action, pending] = useActionState(addOffer, {} as OfferState);
@@ -42,6 +45,7 @@ export function OfferForm({
   const [price, setPrice] = useState("");
   const [coachAi, setCoachAi] = useState(true);
   const [quota, setQuota] = useState(String(defaultQuota));
+  const [recipes, setRecipes] = useState(String(defaultRecipes));
   const isSub = billing === "subscription";
   const product = PRODUCTS[months];
   const priceCents = Math.round((Number(price.replace(",", ".")) || 0) * 100);
@@ -212,6 +216,23 @@ export function OfferForm({
               />
               <span className="text-[12px] leading-relaxed text-muted-2">
                 {tx("Messages du chat et alternatives d'exercice. Le compteur du client se remet à ce quota chaque jour à minuit, rien ne s'accumule. Tu n'es débité que de ce qu'il utilise vraiment.")}</span>
+            </label>
+            {/* Le plafond recettes vivait dans un écran de réglages à part. Il
+                se décide ici, avec le reste de ce que l'offre inclut. */}
+            <label className="flex flex-col gap-1.5">
+              <MonoLabel>{tx("Recettes régénérées par jour et par client (0 = illimité)")}</MonoLabel>
+              <input
+                name="recipe_ai_daily_limit"
+                type="number"
+                min={0}
+                max={50}
+                inputMode="numeric"
+                value={recipes}
+                onChange={(e) => setRecipes(e.target.value)}
+                className="w-full max-w-[160px] rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
+              />
+              <span className="text-[12px] leading-relaxed text-muted-2">
+                {tx("Compté à part des messages : le modèle recettes produit des réponses plus longues, donc plus chères.")}</span>
             </label>
             <div className="text-[13px] leading-[1.6] text-body">
               <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">{tx("Coût maximum de ce plan")}</span>

@@ -14,6 +14,7 @@ const offer = (o: Partial<Offer>): Offer => ({
   vip_chat: false,
   coach_ai: true,
   coach_ai_daily_limit: null,
+    recipe_ai_daily_limit: null,
   billing_type: "one_time",
   price_month_cents: null,
   price_year_cents: null,
