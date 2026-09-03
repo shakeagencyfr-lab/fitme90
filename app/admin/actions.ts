@@ -11,6 +11,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isServedInstant } from "@/lib/push-windows";
 import { getAdminOrNull } from "@/lib/admin";
 import { tenantNode } from "@/lib/hierarchy";
 import { createChildTenantAccount } from "@/lib/admin-provision";
@@ -752,6 +753,10 @@ export async function scheduleBroadcast(_prev: NotifState, formData: FormData): 
   if (!title || !body) return { error: "Titre et message sont obligatoires." };
   const at = new Date(when);
   if (Number.isNaN(at.getTime()) || at.getTime() < Date.now()) return { error: "Choisis une date future." };
+  // Dernier verrou : le formulaire ne propose que les créneaux servis, mais un
+  // POST forgé pourrait viser 21 h 15. L'accepter enregistrerait une promesse
+  // que le dispatcher ne tiendrait pas.
+  if (!isServedInstant(at)) return { error: "Ce créneau d'envoi n'existe pas. Choisis-en un dans la liste." };
   const tenantId = ctx.profile?.tenant_id;
   if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
   const filter = readFilter(formData);

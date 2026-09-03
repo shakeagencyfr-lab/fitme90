@@ -4,6 +4,8 @@ import { CoachOnyx } from "@/components/landing-templates/coach-onyx";
 import { CoachLumen } from "@/components/landing-templates/coach-lumen";
 import { CoachVolt } from "@/components/landing-templates/coach-volt";
 import { CoachSage } from "@/components/landing-templates/coach-sage";
+import { CoachKinetic } from "@/components/landing-templates/coach-kinetic";
+import { CoachAurora } from "@/components/landing-templates/coach-aurora";
 import { asLocale } from "@/lib/i18n";
 import { LocaleProvider } from "@/components/locale-provider";
 import { setRequestLocale } from "@/lib/i18n/request";
@@ -116,15 +118,25 @@ export default async function LandingPreviewPage({
       </LocaleProvider>
     );
   }
+  setRequestLocale(locale);
   const props = { tenant: { ...DEMO_TENANT, landingTemplate: asLandingTemplate(template) }, offers: DEMO_OFFERS, leadMagnet: true, locale };
-  switch (asLandingTemplate(template)) {
-    case "lumen":
-      return <CoachLumen {...props} />;
-    case "volt":
-      return <CoachVolt {...props} />;
-    case "sage":
-      return <CoachSage {...props} />;
-    default:
-      return <CoachOnyx {...props} />;
-  }
+  const page = (() => {
+    switch (asLandingTemplate(template)) {
+      case "lumen":
+        return <CoachLumen {...props} />;
+      case "volt":
+        return <CoachVolt {...props} />;
+      case "sage":
+        return <CoachSage {...props} />;
+      case "kinetic":
+        return <CoachKinetic {...props} />;
+      case "aurora":
+        return <CoachAurora {...props} />;
+      default:
+        return <CoachOnyx {...props} />;
+    }
+  })();
+  // Comme la vraie page publique : sans ce fournisseur, la bascule de langue
+  // s'affiche sur la locale par défaut au lieu de celle rendue.
+  return <LocaleProvider locale={locale}>{page}</LocaleProvider>;
 }
