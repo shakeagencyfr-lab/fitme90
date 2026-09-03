@@ -76,9 +76,9 @@ function SegmentFilters() {
           ))}
         </select>
         <select name="filter_phase" value={phase} onChange={(e) => setPhase(e.target.value)} className={selectClass}>
-          <option value={tx("all")}>{tx("Phase : tous")}</option>
-          <option value={tx("active")}>{tx("Programme en cours")}</option>
-          <option value={tx("paid")}>{tx("Ont payé")}</option>
+          <option value="all">{tx("Phase : tous")}</option>
+          <option value="active">{tx("Programme en cours")}</option>
+          <option value="paid">{tx("Ont payé")}</option>
         </select>
       </div>
       <p className="text-[12.5px] text-muted">
@@ -94,50 +94,65 @@ function SegmentFilters() {
 
 export function NotifAdmin({ scheduled }: { scheduled: Scheduled[] }) {
   const tx = usePhrase();
+  const [scheduleMode, setScheduleMode] = useState(false);
   const [nState, nAction, nPending] = useActionState(sendBroadcastNow, {} as NotifState);
   const [sState, sAction, sPending] = useActionState(scheduleBroadcast, {} as NotifState);
+  const state = scheduleMode ? sState : nState;
+  const pending = scheduleMode ? sPending : nPending;
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
         <h1 className="font-archivo font-extrabold text-[26px] tracking-[-0.02em] text-ink">{tx("Notifications")}</h1>
         <p className="text-[14px] text-muted">
-          {tx("Envoie une notification push à tes clients abonnés (ceux qui ont activé les rappels). Tu peux viser tout le monde ou un segment précis (sexe, objectif, phase), l'envoyer maintenant ou la programmer.")}</p>
+          {tx("Envoie une notification push à tes clients abonnés (ceux qui ont activé les rappels). Tu peux viser tout le monde ou un segment précis, l'envoyer tout de suite ou la programmer.")}</p>
       </div>
 
-      {/* Envoi immédiat */}
+      {/* Carte unique : les deux formulaires dupliquaient titre, message, lien
+          et segment. La case « Programmer » choisit simplement la destination. */}
       <Card className="flex flex-col gap-3">
-        <MonoLabel>{tx("Envoyer maintenant")}</MonoLabel>
-        <form action={nAction} className="flex flex-col gap-3">
+        <MonoLabel>{scheduleMode ? tx("Programmer une notification") : tx("Envoyer une notification")}</MonoLabel>
+        <form action={scheduleMode ? sAction : nAction} className="flex flex-col gap-3">
           <Field name="title" label={tx("Titre")} placeholder={tx("Nouvelle recette dispo")} className="h-11" />
           <TextArea name="body" label={tx("Message")} placeholder={tx("Va voir la nouvelle recette dans l'onglet Nutrition.")} rows={2} />
           <Field name="url" label={tx("Lien à ouvrir (optionnel)")} placeholder={tx("/app/nutrition")} className="h-11" />
           <SegmentFilters />
-          {nState.error ? <Alert>{nState.error}</Alert> : null}
-          {nState.ok ? (
+
+          <label className="tap flex items-start gap-2.5 rounded-control border border-line-3 bg-surface-2 p-3.5">
+            <input
+              type="checkbox"
+              checked={scheduleMode}
+              onChange={(e) => setScheduleMode(e.target.checked)}
+              className="mt-0.5 size-4 accent-brand"
+            />
+            <span className="flex flex-col gap-0.5">
+              <span className="font-semibold text-[14px] text-ink">{tx("Programmer l'envoi")}</span>
+              <span className="text-[12px] text-muted-2">
+                {tx("Décoché, la notification part immédiatement.")}</span>
+            </span>
+          </label>
+
+          {scheduleMode ? (
+            <>
+              <Field name="send_at" label={tx("Date et heure d'envoi")} type="datetime-local" className="h-11" />
+              <p className="text-[12px] leading-relaxed text-muted-2">
+                {tx("Le serveur vide la file toutes les heures : la notification part à l'heure pleine qui suit la date choisie.")}</p>
+            </>
+          ) : null}
+
+          {state.error ? <Alert>{state.error}</Alert> : null}
+          {state.ok ? (
             <Alert tone="info">
-              {tx("Envoyée à")} {nState.sent} {tx("appareil(s)")}{nState.audience ? ` (${nState.audience} client(s) ciblé(s))` : ""}.
+              {scheduleMode
+                ? tx("Notification programmée.")
+                : `${tx("Envoyée à")} ${state.sent} ${tx("appareil(s)")}${state.audience ? ` (${state.audience} client(s) ciblé(s))` : ""}.`}
             </Alert>
           ) : null}
-          <Button type="submit" loading={nPending} className="self-start h-11">{tx("Envoyer maintenant")}</Button>
-        </form>
-      </Card>
 
-      {/* Programmation */}
-      <Card className="flex flex-col gap-3">
-        <MonoLabel>{tx("Programmer")}</MonoLabel>
-        <form action={sAction} className="flex flex-col gap-3">
-          <Field name="title" label={tx("Titre")} placeholder={tx("Rappel pesée du dimanche")} className="h-11" />
-          <TextArea name="body" label={tx("Message")} placeholder={tx("N'oublie pas ta pesée hebdo ce matin.")} rows={2} />
-          <Field name="url" label={tx("Lien à ouvrir (optionnel)")} placeholder={tx("/app/evolution")} className="h-11" />
-          <Field name="send_at" label={tx("Date et heure d'envoi")} type="datetime-local" className="h-11" />
-          <SegmentFilters />
-          {sState.error ? <Alert>{sState.error}</Alert> : null}
-          {sState.ok ? <Alert tone="info">{tx("Notification programmée.")}</Alert> : null}
-          <Button type="submit" variant="outline" loading={sPending} className="self-start h-11">{tx("Programmer")}</Button>
+          <Button type="submit" loading={pending} className="self-start h-11">
+            {scheduleMode ? tx("Programmer") : tx("Envoyer maintenant")}
+          </Button>
         </form>
-        <p className="text-[12px] text-muted-2">
-          {tx("Envoi géré une fois par jour par le serveur : la notification part le jour prévu, à peu près à l'heure du traitement quotidien (plan actuel). Pour une heure précise, un plan Vercel supérieur sera nécessaire.")}</p>
       </Card>
 
       {/* Programmées en attente */}

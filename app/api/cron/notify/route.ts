@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendPush, broadcastPushToUsers, vapidReady, type StoredSub, type PushPayload } from "@/lib/push";
-import { resolveAudience } from "@/lib/audience";
+import { sendPush, vapidReady, type StoredSub, type PushPayload } from "@/lib/push";
+import { dispatchScheduledPushes } from "@/lib/scheduled-push";
 import { programDay } from "@/lib/access";
 import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
 import { missedDays } from "@/lib/streak";
@@ -41,41 +41,9 @@ export async function GET(req: Request) {
   const db = createAdminClient();
   const now = new Date();
 
-  // Notifications programmées par le coach devenues dues. Diffusion à tous, ou
-  // CIBLÉE si un segment (sexe/objectif/phase) a été enregistré.
-  const { data: due } = await db
-    .from("scheduled_pushes")
-    .select("id, tenant_id, title, body, url, filter_sex, filter_goal, filter_phase")
-    .is("sent_at", null)
-    .lte("send_at", now.toISOString())
-    .returns<
-      {
-        id: string;
-        tenant_id: string | null;
-        title: string;
-        body: string;
-        url: string;
-        filter_sex: string | null;
-        filter_goal: string | null;
-        filter_phase: string | null;
-      }[]
-    >();
-  let broadcastSent = 0;
-  for (const s of due ?? []) {
-    const payload = { title: s.title, body: s.body, url: s.url, tag: "coach-broadcast" };
-    const phase = s.filter_phase === "active" || s.filter_phase === "paid" ? s.filter_phase : "all";
-    // Cloisonné au tenant du coach : la diffusion (même sans filtre) ne touche
-    // que SES clients, jamais ceux d'un autre coach.
-    const { userIds } = await resolveAudience(
-      { sex: s.filter_sex ?? "", goal: s.filter_goal ?? "", phase },
-      s.tenant_id,
-    );
-    if (userIds.length) {
-      const r = await broadcastPushToUsers(userIds, payload);
-      broadcastSent += r.sent;
-    }
-    await db.from("scheduled_pushes").update({ sent_at: new Date().toISOString() }).eq("id", s.id);
-  }
+  // Notifications programmées : même dispatcher que /api/cron/push, qui tourne
+  // beaucoup plus souvent. La passe quotidienne sert de filet de rattrapage.
+  const { sent: broadcastSent } = await dispatchScheduledPushes(now);
 
   const { data: subs } = await db
     .from("push_subscriptions")

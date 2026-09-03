@@ -125,6 +125,7 @@ export default async function AdminPlansPage() {
               programCredits={programCredits}
               creditMode={creditMode}
               defaultQuota={cfg?.coach_ai_daily_limit ?? 60}
+              defaultRecipes={cfg?.recipe_ai_daily_limit ?? 1}
             />
           </div>
 
