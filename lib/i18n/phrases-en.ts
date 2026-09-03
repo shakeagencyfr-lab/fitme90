@@ -981,4 +981,5 @@ export const PHRASES_EN: Record<string, string> = {
   "À traiter": "Needs action",
   "Langue": "Language",
   "FAQ": "FAQ",
+  "remboursés, déjà déduits.": "refunded, already deducted.",
 };

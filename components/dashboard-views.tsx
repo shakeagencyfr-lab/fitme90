@@ -79,7 +79,17 @@ export function CoachView({ d }: { d: CoachDashboard }) {
         <KeyFigure
           label={tx("Encaissé depuis le début")}
           value={euros(d.revenue.lifetimeCents)}
-          hint={tx("Ventes uniques, hors abonnements.")}
+          hint={
+            <>
+              {tx("Ventes uniques, hors abonnements.")}
+              {d.revenue.refundedCents > 0 ? (
+                <>
+                  {" "}
+                  {euros(d.revenue.refundedCents)} {tx("remboursés, déjà déduits.")}
+                </>
+              ) : null}
+            </>
+          }
         />
       </div>
 

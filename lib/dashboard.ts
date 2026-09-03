@@ -4,13 +4,17 @@ import { tenantCapacity, type TenantCapacity } from "@/lib/entitlements";
 import { listChildTenants } from "@/lib/hierarchy";
 import { tenantMonthlyAiUsage, resellerMonthlyAiUsage } from "@/lib/ai-cost";
 import { getWallet } from "@/lib/credits";
+import { tenantOrders } from "@/lib/orders";
 import {
   lastMonths,
   monthKey,
   mrrCents,
   oneTimeCents,
-  salesSeries,
   offerTally,
+  mergedSeries,
+  ledgerOneTimeCents,
+  ledgerRefundedCents,
+  ledgerStartMonth,
   conversionRate,
   networkMrrCents,
   planTally,
@@ -19,6 +23,7 @@ import {
   type SaleRow,
   type AccountRow,
   type MonthPoint,
+  type LedgerRow,
   type OfferTally,
   type PlanTally,
   type Attention,
@@ -40,6 +45,10 @@ export interface CoachDashboard {
     mrrCents: number;
     thisMonthCents: number;
     prevMonthCents: number;
+    /** Encaissements annulés depuis le début, d'après le journal. */
+    refundedCents: number;
+    /** Mois à partir duquel les chiffres viennent du journal. null = aucun. */
+    ledgerFrom: string | null;
   };
   subs: { live: number; pastDue: number; canceled: number };
   prospects: { total: number; thisMonth: number; conversionPct: number };
@@ -98,7 +107,7 @@ export async function coachDashboard(tenantId: string, now: Date = new Date()): 
   const thisMonth = months[months.length - 1];
   const prevMonth = months[months.length - 2];
 
-  const [{ data: profiles }, { data: offers }, { data: prospects }, capacity, ai, wallet] = await Promise.all([
+  const [{ data: profiles }, { data: offers }, { data: prospects }, capacity, ai, wallet, orders] = await Promise.all([
     admin
       .from("profiles")
       .select("created_at, paid, selected_offer_id, selected_interval, subscription_interval, subscription_status")
@@ -114,9 +123,23 @@ export async function coachDashboard(tenantId: string, now: Date = new Date()): 
     tenantCapacity(tenantId),
     tenantMonthlyAiUsage(tenantId),
     getWallet(tenantId),
+    tenantOrders(tenantId),
   ]);
 
   const rows = toSaleRows(profiles ?? [], offers ?? []);
+  const ledger: LedgerRow[] = orders.map((o) => ({
+    paidAt: o.paid_at,
+    kind: o.kind === "subscription" ? "subscription" : "one_time",
+    amountCents: o.amount_cents,
+    status: o.status,
+    offerName: o.offer_name,
+  }));
+  const ledgerFrom = ledgerStartMonth(ledger);
+  // Le journal prime là où il couvre. `since` désigne un mois pour lequel il
+  // fait foi : avant sa première vente, il ne dit rien et la reconstruction
+  // reste la seule source.
+  const oneTimeFor = (m: string) =>
+    ledgerFrom != null && m >= ledgerFrom ? ledgerOneTimeCents(ledger, m) : oneTimeCents(rows, m);
   const paid = rows.filter((r) => r.paid);
   const mrr = mrrCents(rows);
   const inMonth = (iso: string, m: string) => monthKey(new Date(iso)) === m;
@@ -131,12 +154,22 @@ export async function coachDashboard(tenantId: string, now: Date = new Date()): 
     },
     capacity,
     revenue: {
-      lifetimeCents: oneTimeCents(rows),
+      // Le cumul mêle les deux sources : le journal depuis qu'il existe, la
+      // reconstruction pour ce qui le précède.
+      lifetimeCents:
+        ledgerFrom == null
+          ? oneTimeCents(rows)
+          : ledgerOneTimeCents(ledger) +
+            rows
+              .filter((r) => r.paid && r.billingType !== "subscription" && monthKey(new Date(r.createdAt)) < ledgerFrom)
+              .reduce((n, r) => n + (r.priceCents ?? 0), 0),
       mrrCents: mrr,
       // Le mois courant additionne l'encaissement unique du mois et le loyer
       // récurrent, qui tombe lui aussi ce mois-ci.
-      thisMonthCents: oneTimeCents(rows, thisMonth) + mrr,
-      prevMonthCents: oneTimeCents(rows, prevMonth) + mrr,
+      thisMonthCents: oneTimeFor(thisMonth) + mrr,
+      prevMonthCents: oneTimeFor(prevMonth) + mrr,
+      refundedCents: ledgerRefundedCents(ledger),
+      ledgerFrom,
     },
     subs: {
       live: rows.filter((r) => r.billingType === "subscription" && subIsLive(r.subStatus)).length,
@@ -149,7 +182,7 @@ export async function coachDashboard(tenantId: string, now: Date = new Date()): 
       conversionPct: conversionRate((prospects ?? []).length, paid.length),
     },
     offers: offerTally(rows).slice(0, 5),
-    months: salesSeries(rows, months),
+    months: mergedSeries(rows, ledger, months),
     ai: { byokUsd: ai.costUsd, calls: ai.calls, credits: wallet.credits > 0 ? wallet.credits : null },
   };
 }

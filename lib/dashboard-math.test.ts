@@ -11,8 +11,13 @@ import {
   planTally,
   attentionList,
   trendPct,
+  ledgerOneTimeCents,
+  ledgerRefundedCents,
+  ledgerStartMonth,
+  mergedSeries,
   type SaleRow,
   type AccountRow,
+  type LedgerRow,
 } from "./dashboard-math";
 
 function sale(p: Partial<SaleRow>): SaleRow {
@@ -189,5 +194,64 @@ describe("tendance", () => {
   it("chiffre la hausse et la baisse", () => {
     expect(trendPct(150, 100)).toBe(50);
     expect(trendPct(50, 100)).toBe(-50);
+  });
+});
+
+// ─────────────────────────── Journal des ventes ───────────────────────────
+
+function led(p: Partial<LedgerRow>): LedgerRow {
+  return { paidAt: "2026-09-10T12:00:00.000Z", kind: "one_time", amountCents: 14900, status: "paid", offerName: "Transformation 3 mois", ...p };
+}
+
+describe("journal des ventes", () => {
+  it("ne compte plus une vente remboursée", () => {
+    const rows = [led({}), led({ status: "refunded" })];
+    expect(ledgerOneTimeCents(rows)).toBe(14900);
+    expect(ledgerRefundedCents(rows)).toBe(14900);
+  });
+
+  it("sépare les mois sur la date d'encaissement, pas d'inscription", () => {
+    const rows = [led({ paidAt: "2026-08-30T23:30:00.000Z", amountCents: 100 }), led({ paidAt: "2026-09-01T00:30:00.000Z", amountCents: 200 })];
+    expect(ledgerOneTimeCents(rows, "2026-08")).toBe(100);
+    expect(ledgerOneTimeCents(rows, "2026-09")).toBe(200);
+  });
+
+  it("ne mélange pas les abonnements avec les ventes uniques", () => {
+    expect(ledgerOneTimeCents([led({ kind: "subscription", amountCents: 4900 })])).toBe(0);
+  });
+
+  it("situe le début du journal, et rend null s'il est vide", () => {
+    expect(ledgerStartMonth([led({ paidAt: "2026-07-02T00:00:00.000Z" }), led({})])).toBe("2026-07");
+    expect(ledgerStartMonth([])).toBeNull();
+  });
+});
+
+describe("bascule du journal sur la reconstruction", () => {
+  const months = ["2026-06", "2026-07", "2026-08", "2026-09"];
+
+  it("lit le journal à partir de sa première vente, la reconstruction avant", () => {
+    // Une vente reconstruite en juin (avant le journal) et une au journal en
+    // septembre : les deux doivent apparaître, chacune depuis sa source.
+    const sales = [
+      sale({ createdAt: "2026-06-10T00:00:00.000Z", priceCents: 9900 }),
+      sale({ createdAt: "2026-09-10T00:00:00.000Z", priceCents: 9900 }),
+    ];
+    const ledger = [led({ paidAt: "2026-09-12T00:00:00.000Z", amountCents: 12000 })];
+    const s = mergedSeries(sales, ledger, months);
+    expect(s[0].oneTimeCents).toBe(9900); // juin : reconstruction
+    expect(s[3].oneTimeCents).toBe(12000); // septembre : montant réellement encaissé
+  });
+
+  it("s'en tient à la reconstruction tant que le journal est vide", () => {
+    const sales = [sale({ createdAt: "2026-08-10T00:00:00.000Z", priceCents: 5000 })];
+    expect(mergedSeries(sales, [], months)[2].oneTimeCents).toBe(5000);
+  });
+
+  it("compte les clients depuis les comptes, jamais depuis le journal", () => {
+    // Deux encaissements pour un seul client (achat puis complément) ne font
+    // pas deux clients.
+    const sales = [sale({ createdAt: "2026-09-02T00:00:00.000Z" })];
+    const ledger = [led({ paidAt: "2026-09-02T00:00:00.000Z" }), led({ paidAt: "2026-09-20T00:00:00.000Z" })];
+    expect(mergedSeries(sales, ledger, months)[3].clients).toBe(1);
   });
 });
