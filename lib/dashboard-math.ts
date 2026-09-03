@@ -1,11 +1,17 @@
 /**
  * Arithmétique du tableau de bord, sans base de données.
  *
- * Il n'existe pas de table « ventes » : une vente se reconstitue depuis le
- * client (sa date d'inscription, l'offre qu'il a choisie, l'état de son
- * abonnement). Tout ce raisonnement vit ici, en fonctions pures, pour qu'il
- * soit vérifiable ligne à ligne par des tests plutôt que par une capture
- * d'écran du dashboard.
+ * Deux sources cohabitent le temps que la première rattrape la seconde. Le
+ * JOURNAL (`orders`) dit ce qui a réellement été encaissé, mais il ne remonte
+ * pas avant sa création. La RECONSTRUCTION déduit une vente du client (sa date
+ * d'inscription, l'offre choisie, l'état de son abonnement) : elle couvre tout
+ * l'historique, au prix de trois approximations connues (la date d'achat vaut
+ * la date d'inscription, un changement d'offre réécrit le passé, un
+ * remboursement n'existe pas). On lit le journal là où il couvre, la
+ * reconstruction avant.
+ *
+ * Tout ce raisonnement vit ici, en fonctions pures, pour qu'il soit vérifiable
+ * ligne à ligne par des tests plutôt que par une capture d'écran du dashboard.
  *
  * Deux natures de revenu, à ne jamais additionner sans le dire :
  *   - la vente UNIQUE est encaissée une fois, le mois de l'achat ;
@@ -197,4 +203,66 @@ export function attentionList(rows: readonly (AccountRow & { name: string })[]):
 export function trendPct(current: number, previous: number): number | null {
   if (previous <= 0) return null;
   return Math.round(((current - previous) / previous) * 100);
+}
+
+// ─────────────────────────── Journal des ventes ───────────────────────────
+
+/**
+ * Une ligne du journal (table `orders`). Contrairement à `SaleRow`, qui se
+ * déduit du client et change avec lui, celle-ci est figée : elle dit ce qui a
+ * été encaissé, quand, et si ça a été remboursé depuis.
+ */
+export interface LedgerRow {
+  paidAt: string;
+  kind: BillingType;
+  amountCents: number;
+  status: "paid" | "refunded" | string;
+  offerName: string | null;
+}
+
+/** Encaissements uniques du journal. Un remboursement ne compte plus. */
+export function ledgerOneTimeCents(rows: readonly LedgerRow[], month?: string): number {
+  return rows
+    .filter((r) => r.status === "paid" && r.kind !== "subscription")
+    .filter((r) => (month ? monthKey(new Date(r.paidAt)) === month : true))
+    .reduce((n, r) => n + r.amountCents, 0);
+}
+
+/** Total remboursé, tous mois confondus. */
+export function ledgerRefundedCents(rows: readonly LedgerRow[]): number {
+  return rows.filter((r) => r.status === "refunded").reduce((n, r) => n + r.amountCents, 0);
+}
+
+/** Mois de la plus ancienne vente enregistrée, ou `null` si le journal est vide. */
+export function ledgerStartMonth(rows: readonly LedgerRow[]): string | null {
+  const months = rows.map((r) => monthKey(new Date(r.paidAt))).sort();
+  return months[0] ?? null;
+}
+
+/**
+ * Série mensuelle des ventes uniques, en deux régimes.
+ *
+ * Le journal ne remonte pas plus loin que sa première ligne : les mois
+ * antérieurs n'y figurent pas, et les afficher à zéro laisserait croire à une
+ * activité nulle. On lit donc le journal à partir du mois de sa première
+ * vente, et on garde la reconstruction depuis les clients pour ce qui précède.
+ * Le jour où le journal couvre tout l'historique, la reconstruction ne sert
+ * plus et peut disparaître.
+ */
+export function mergedSeries(
+  sales: readonly SaleRow[],
+  ledger: readonly LedgerRow[],
+  months: readonly string[],
+): MonthPoint[] {
+  const start = ledgerStartMonth(ledger);
+  return months.map((month) => {
+    const fromLedger = start != null && month >= start;
+    return {
+      month,
+      // Le nombre de clients acquis reste tiré des comptes : le journal
+      // compte des encaissements, pas des personnes.
+      clients: sales.filter((r) => r.paid && monthKey(new Date(r.createdAt)) === month).length,
+      oneTimeCents: fromLedger ? ledgerOneTimeCents(ledger, month) : oneTimeCents(sales, month),
+    };
+  });
 }

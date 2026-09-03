@@ -923,6 +923,29 @@ export async function setLeadMagnetEnabled(_prev: LeadMagnetState, formData: For
   return { ok: true };
 }
 
+/**
+ * Active/désactive les relances automatiques des prospects.
+ *
+ * Désactivé par défaut, et jamais activé à la place du coach : ces messages
+ * partent en son nom, depuis son serveur d'envoi quand il en a un, et c'est sa
+ * réputation d'expéditeur qui est en jeu.
+ */
+export async function setProspectFollowupEnabled(_prev: LeadMagnetState, formData: FormData): Promise<LeadMagnetState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const enabled = formData.get("prospect_followup_enabled") === "on";
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("coach_config")
+    .upsert(
+      { tenant_id: ctx.profile.tenant_id, prospect_followup_enabled: enabled, updated_at: new Date().toISOString() },
+      { onConflict: "tenant_id" },
+    );
+  if (error) return { error: "Enregistrement impossible." };
+  revalidatePath("/admin/prospects");
+  return { ok: true };
+}
+
 /** Met à jour le statut d'un prospect (form action directe). */
 export async function updateProspectStatus(formData: FormData): Promise<void> {
   const ctx = await getAdminOrNull();

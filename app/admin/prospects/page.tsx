@@ -2,7 +2,7 @@ import Link from "next/link";
 import { tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { listProspects, leadMagnetEnabled } from "@/lib/prospects";
+import { listProspects, leadMagnetEnabled, prospectFollowupEnabled } from "@/lib/prospects";
 import { GOAL_LABEL, LEVEL_LABEL, EQUIP_LABEL, isGoal, isLevel, isEquipment } from "@/lib/lead-magnet";
 import { SITE_URL } from "@/lib/config";
 import { LeadMagnetToggle } from "@/components/lead-magnet-toggle";
@@ -35,9 +35,10 @@ export default async function AdminProspectsPage() {
     );
   }
 
-  const [prospects, enabled, { data: t }] = await Promise.all([
+  const [prospects, enabled, followups, { data: t }] = await Promise.all([
     listProspects(tenantId),
     leadMagnetEnabled(tenantId),
+    prospectFollowupEnabled(tenantId),
     createAdminClient().from("tenants").select("slug").eq("id", tenantId).maybeSingle<{ slug: string }>(),
   ]);
   const slug = t?.slug ?? null;
@@ -61,6 +62,16 @@ export default async function AdminProspectsPage() {
           </div>
           <LeadMagnetToggle enabled={enabled} />
         </div>
+        {enabled ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-2 pt-4">
+            <div className="flex max-w-[52ch] flex-col gap-0.5">
+              <div className="font-archivo font-bold text-[15px] text-ink">{tx("Relancer automatiquement")}</div>
+              <p className="text-[13px] leading-[1.6] text-muted">
+                {tx("Trois e-mails espacés après le téléchargement : un conseil à J+3, un bilan de la semaine à J+8, une dernière proposition à J+17. Envoyés à ta marque, avec un lien de désabonnement. On s'arrête dès qu'un prospect devient client.")}</p>
+            </div>
+            <LeadMagnetToggle enabled={followups} name="prospect_followup_enabled" />
+          </div>
+        ) : null}
         {enabled && link ? (
           <div className="flex flex-col gap-1.5">
             <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">{tx("Lien direct à partager")}</span>
