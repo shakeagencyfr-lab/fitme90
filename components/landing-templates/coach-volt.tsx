@@ -230,7 +230,7 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
             <a href="#auteur" className="underline-grow hidden font-mono text-[11px] uppercase tracking-[0.16em] text-white/55 hover:text-white lg:inline">
               {L.authorChip}
             </a>
-            <LangSwitch compact />
+            <LangSwitch compact tone="dark" />
             <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-white/60 transition-colors hover:text-white sm:inline">
               {L.login}
             </Link>

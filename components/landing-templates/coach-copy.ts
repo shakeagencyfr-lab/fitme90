@@ -137,7 +137,7 @@ export interface LandingCopy {
 
 const FR: Omit<LandingCopy, "features"> & { features: Feature[] } = {
   defaultTagline:
-    "Un programme conçu selon la méthode de ton coach, adapté à ta salle et à tes contraintes, et suivi au quotidien. Amplifié par une IA qu'il a entraînée sur sa façon de travailler.",
+    "Un programme conçu par ton coach, selon sa méthode, adapté à ta salle et à tes contraintes, et suivi au quotidien. Assisté par un moteur d'IA spécialisé dans la transformation physique.",
   login: "Se connecter",
   seePrograms: "Voir les programmes",
   howItWorks: "Comment ça marche",
@@ -253,7 +253,7 @@ const FR: Omit<LandingCopy, "features"> & { features: Feature[] } = {
 
 const EN: Omit<LandingCopy, "features"> & { features: Feature[] } = {
   defaultTagline:
-    "A program built on your coach's method, adapted to your gym and your constraints, and followed day by day. Amplified by an AI trained on the way your coach works.",
+    "A program designed by your coach, on their method, adapted to your gym and your constraints, and followed day by day. Assisted by an AI engine built for physical transformation.",
   login: "Log in",
   seePrograms: "See the programs",
   howItWorks: "How it works",

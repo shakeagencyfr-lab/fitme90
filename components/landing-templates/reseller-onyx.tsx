@@ -107,7 +107,7 @@ export function ResellerOnyx({ reseller, plans }: { reseller: PublicReseller; pl
             ))}
           </nav>
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <LangSwitch compact className="border-white/20 bg-white/5 text-white/70" />
+            <LangSwitch compact tone="dark" />
             <Link href={login} className="tap hidden h-10 items-center rounded-btn px-3 text-[14px] font-semibold text-white/70 transition-colors hover:text-white sm:inline-flex sm:px-4">{tx("Connexion")}</Link>
             <Link href={signup} className="tap inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-btn bg-brand px-3.5 text-[13.5px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98] sm:px-4 sm:text-[14px]"><span className="sm:hidden">{tx("Démarrer")}</span><span className="hidden sm:inline">{tx("Démarrer gratuitement")}</span></Link>
           </div>
