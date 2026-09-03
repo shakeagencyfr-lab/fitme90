@@ -9,6 +9,7 @@ import { useEffect, useState, type ReactNode, type CSSProperties } from "react";
 import { Wordmark } from "@/components/brand";
 import { CoachBell } from "@/components/coach-bell";
 import { PageTransition } from "@/components/page-transition";
+import { AdminSearch, type SearchDest } from "@/components/admin-search";
 import { signOutAction } from "@/app/(auth)/actions";
 import type { CoachNotif } from "@/lib/notifications";
 import type { TenantKind } from "@/lib/hierarchy";
@@ -75,6 +76,9 @@ const GROUPS: { label: string; items: Item[] }[] = [
       { href: "/admin/abonnement", label: "Mon abonnement", kinds: ["coach", "reseller"], icon: <I d="M4 8a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z||M4 10h9||M15 13h2.5" /> },
       { href: "/admin/notifications", label: "Notifications", kinds: ["coach"], icon: <I d="M12 4a5 5 0 0 0-5 5v3.5L5.5 15h13L17 12.5V9a5 5 0 0 0-5-5||M10 18a2 2 0 0 0 4 0" /> },
       { href: "/admin/integrations", label: "Intégrations", icon: <I d="M9 7V4||M15 7V4||M7 7h10v4a5 5 0 0 1-10 0z||M12 16v4" /> },
+      // Nom de la plateforme, nom de la personne, mot de passe. L'entrée
+      // manquait : le nom choisi à la création n'était plus modifiable.
+      { href: "/admin/compte", label: "Mon compte", icon: <I d="M16 19a4 4 0 0 0-8 0||M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7||M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20" /> },
     ],
   },
 ];
@@ -85,6 +89,11 @@ function groupsForKind(kind: TenantKind): { label: string; items: Item[] }[] {
     label: g.label,
     items: g.items.filter((it) => !it.kinds || it.kinds.includes(kind)),
   })).filter((g) => g.items.length > 0);
+}
+
+/** Écrans indexés par la palette ⌘K, tirés du menu lui-même. */
+function searchDestinations(kind: TenantKind): SearchDest[] {
+  return groupsForKind(kind).flatMap((g) => g.items.map((it) => ({ href: it.href, label: it.label, group: g.label })));
 }
 
 function isActive(pathname: string, href: string): boolean {
@@ -412,6 +421,7 @@ export function AdminShell({
   const [peek, setPeek] = useState(false);
   // Largeur pleine : soit le menu est épinglé ouvert, soit on le survole.
   const wide = !rail || peek;
+  const dests = searchDestinations(kind);
 
   // Le survol n'a de sens qu'avec un vrai pointeur. Sur un écran tactile, un
   // simple effleurement déclenche mouseenter et laisserait le panneau déployé
@@ -544,23 +554,29 @@ export function AdminShell({
           ].join(" ")}
         >
           {wide ? (
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
                 {brandMark}
-                <div className="flex shrink-0 items-center gap-1">
-                  <CoachBell notifs={notifs} unread={unread} align="left" />
-                  {rail ? null : <CollapseButton onToggle={collapse} />}
-                </div>
+                {rail ? null : <CollapseButton onToggle={collapse} />}
               </div>
               {/* Pendant le coup d'oeil, la première ligne du menu propose de
                   garder le panneau ouvert : le geste est là où le regard est. */}
               {rail ? <PinButton onToggle={toggleRail} /> : null}
+              {/* Notifications et recherche sont des LIGNES de menu, pas des
+                  icônes tassées dans l'en-tête : le compteur de non-lus se lit
+                  d'un coup d'oeil et le champ de recherche montre son
+                  raccourci. */}
+              <CoachBell notifs={notifs} unread={unread} align="left" variant="row" />
+              <AdminSearch destinations={dests} kind={kind} />
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2">
               <BrandTile name={brandName} logoUrl={brandLogoUrl} />
               <ExpandButton onToggle={toggleRail} />
-              <CoachBell notifs={notifs} unread={unread} align="left" plain />
+              {/* Replié, la ligne redevient ce qu'elle peut être sur 76 px :
+                  une cloche et une loupe. */}
+              <CoachBell notifs={notifs} unread={unread} align="left" variant="icon" />
+              <AdminSearch destinations={dests} kind={kind} variant="icon" />
             </div>
           )}
 
@@ -606,6 +622,7 @@ export function AdminShell({
                 </svg>
               </button>
             </div>
+            <AdminSearch destinations={dests} kind={kind} />
             <div className="-mr-2 min-h-0 flex-1 overflow-y-auto pr-2">
               <NavList pathname={pathname} kind={kind} onNavigate={() => setOpen(false)} />
             </div>

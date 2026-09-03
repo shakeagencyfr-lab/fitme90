@@ -10,6 +10,7 @@ import { setTenantCustomDomain } from "@/lib/custom-domain";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { getAdminOrNull } from "@/lib/admin";
 import { tenantNode } from "@/lib/hierarchy";
 import { createChildTenantAccount } from "@/lib/admin-provision";
@@ -258,6 +259,74 @@ export async function saveBusinessType(_prev: TemplateState, formData: FormData)
     .eq("id", ctx.profile.tenant_id);
   if (error) return { error: "Enregistrement impossible." };
   revalidatePath("/admin/marque-blanche");
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ mon compte
+
+export interface AccountState {
+  ok?: boolean;
+  error?: string;
+}
+
+/**
+ * Nom de la plateforme (tenants.name). Il était figé à la création du compte
+ * et n'apparaissait nulle part dans le dashboard : impossible de corriger une
+ * faute de frappe une fois la landing en ligne.
+ *
+ * Ce nom voyage : landings publiques, e-mails, dashboards des comptes enfants.
+ * On revalide donc large plutôt que la seule page d'origine.
+ */
+export async function saveAccountBrandName(_prev: AccountState, formData: FormData): Promise<AccountState> {
+  const ctx = await getAdminOrNull();
+  const tenantId = ctx?.profile?.tenant_id;
+  if (!tenantId) return { error: "Accès refusé." };
+
+  const name = String(formData.get("brand_name") ?? "").trim().replace(/\s+/g, " ").slice(0, 60);
+  if (name.length < 2) return { error: "Le nom doit faire au moins 2 caractères." };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("tenants").update({ name }).eq("id", tenantId);
+  if (error) return { error: "Enregistrement impossible." };
+
+  revalidatePath("/admin/compte");
+  revalidatePath("/admin/marque-blanche");
+  revalidatePath("/admin", "layout");
+  return { ok: true };
+}
+
+/** Nom de la personne (profiles.name), affiché dans le dashboard et les e-mails. */
+export async function saveAccountFullName(_prev: AccountState, formData: FormData): Promise<AccountState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.userId) return { error: "Accès refusé." };
+
+  const name = String(formData.get("full_name") ?? "").trim().replace(/\s+/g, " ").slice(0, 80);
+  if (name.length < 2) return { error: "Indique ton nom (2 caractères minimum)." };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("profiles").update({ name }).eq("id", ctx.userId);
+  if (error) return { error: "Enregistrement impossible." };
+
+  revalidatePath("/admin/compte");
+  return { ok: true };
+}
+
+/**
+ * Mot de passe. Passe par le client de SESSION, pas par la clé de service :
+ * Supabase impose alors que la session soit valide, ce qui empêche de changer
+ * le mot de passe d'un autre compte même en falsifiant le formulaire.
+ */
+export async function saveAccountPassword(_prev: AccountState, formData: FormData): Promise<AccountState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+
+  const password = String(formData.get("password") ?? "");
+  if (password.length < 8) return { error: "8 caractères minimum." };
+  if (password !== String(formData.get("confirm") ?? "")) return { error: "Les deux mots de passe diffèrent." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) return { error: "Changement impossible. Reconnecte-toi et réessaie." };
   return { ok: true };
 }
 
