@@ -124,9 +124,12 @@ export const PLATFORM_FEE_BPS = Number(process.env.PLATFORM_FEE_BPS ?? 0) || 0;
 export function formatEuros(cents: number | null | undefined): string {
   if (cents == null) return "n.c.";
   const euros = cents / 100;
-  const s = Number.isInteger(euros)
-    ? String(euros)
-    : euros.toFixed(2).replace(".", ",");
+  // Les milliers sont séparés : sur un écran de totaux, « 8208 € » se relit
+  // deux fois avant d'être compris, « 8 208 € » se lit d'un coup.
+  const s = euros.toLocaleString("fr-FR", {
+    minimumFractionDigits: Number.isInteger(euros) ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
   return `${s} €`;
 }
 
