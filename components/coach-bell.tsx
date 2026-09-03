@@ -40,10 +40,13 @@ export function CoachBell({
   notifs,
   unread,
   align = "right",
+  plain = false,
 }: {
   notifs: CoachNotif[];
   unread: number;
   align?: "left" | "right";
+  /** Sans bordure, au gabarit des icônes voisines (rail replié du dashboard). */
+  plain?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<CoachNotif[]>(notifs);
@@ -117,7 +120,11 @@ export function CoachBell({
         }}
         aria-label="Notifications"
         aria-expanded={open}
-        className="tap relative flex size-10 items-center justify-center rounded-btn border border-line-4 bg-surface text-body-2 hover:border-ink"
+        className={
+          plain
+            ? "tap relative flex size-9 items-center justify-center rounded-control text-muted-2 transition-colors hover:bg-surface-2 hover:text-ink"
+            : "tap relative flex size-10 items-center justify-center rounded-btn border border-line-4 bg-surface text-body-2 hover:border-ink"
+        }
       >
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M12 4a5 5 0 0 0-5 5v3.5L5.5 15h13L17 12.5V9a5 5 0 0 0-5-5Z" />

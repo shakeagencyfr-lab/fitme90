@@ -175,22 +175,69 @@ function useRail(): [boolean, () => void] {
   return [rail, toggle];
 }
 
-/** Bouton plier / déplier du rail (le « hamburger » sous le logo). */
-function RailToggle({ rail, onToggle }: { rail: boolean; onToggle: () => void }) {
+const BURGER = (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden>
+    <path d="M4 7h16M4 12h16M4 17h16" />
+  </svg>
+);
+
+/**
+ * Replier : double chevron posé à DROITE de l'en-tête quand le menu est
+ * déployé. Le geste et sa direction se lisent au même endroit, comme sur le
+ * menu de référence.
+ */
+function CollapseButton({ onToggle }: { onToggle: () => void }) {
   const tx = usePhrase();
-  const label = rail ? tx("Déployer le menu") : tx("Replier le menu");
+  const label = tx("Replier le menu");
   return (
     <button
       type="button"
       onClick={onToggle}
       aria-label={label}
-      aria-expanded={!rail}
+      aria-expanded
       title={label}
       className="tap flex size-9 shrink-0 items-center justify-center rounded-control text-muted-2 transition-colors hover:bg-surface-2 hover:text-ink"
     >
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden>
-        <path d="M4 7h16M4 12h16M4 17h16" />
+      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M11 6l-5 6 5 6M18 6l-5 6 5 6" />
       </svg>
+    </button>
+  );
+}
+
+/** Déplier : hamburger centré sous la pastille de marque, en mode rail. */
+function ExpandButton({ onToggle }: { onToggle: () => void }) {
+  const tx = usePhrase();
+  const label = tx("Déployer le menu");
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={label}
+      aria-expanded={false}
+      title={label}
+      className="tap flex size-9 shrink-0 items-center justify-center rounded-control text-muted-2 transition-colors hover:bg-surface-2 hover:text-ink"
+    >
+      {BURGER}
+    </button>
+  );
+}
+
+/**
+ * Épingler : n'apparaît que pendant le survol d'un rail replié. Le rail se
+ * déploie alors PAR-DESSUS le contenu, sans le décaler ; ce bouton transforme
+ * ce coup d'oeil en état durable.
+ */
+function PinButton({ onToggle }: { onToggle: () => void }) {
+  const tx = usePhrase();
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="tap flex w-full items-center gap-3 rounded-control px-3.5 py-3 text-[15px] font-semibold text-body-2 transition-colors hover:bg-surface-2 hover:text-ink"
+    >
+      <span className="text-muted-2">{BURGER}</span>
+      {tx("Garder ouvert")}
     </button>
   );
 }
@@ -361,6 +408,26 @@ export function AdminShell({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [rail, toggleRail] = useRail();
+  // Survol d'un rail replié : on déploie le temps du regard, sans rien figer.
+  const [peek, setPeek] = useState(false);
+  // Largeur pleine : soit le menu est épinglé ouvert, soit on le survole.
+  const wide = !rail || peek;
+
+  // Le survol n'a de sens qu'avec un vrai pointeur. Sur un écran tactile, un
+  // simple effleurement déclenche mouseenter et laisserait le panneau déployé
+  // par-dessus le contenu sans moyen évident de le refermer.
+  const hoverPeek = (on: boolean) => {
+    if (typeof window !== "undefined" && !window.matchMedia("(hover: hover)").matches) return;
+    setPeek(on);
+  };
+
+  // Replier depuis le panneau déployé : le pointeur est encore dessus, donc
+  // sans cette remise à zéro le coup d'oeil reprendrait aussitôt la main et le
+  // clic n'aurait aucun effet visible.
+  const collapse = () => {
+    setPeek(false);
+    toggleRail();
+  };
   // En modèle crédits, le solde remplace la conso en dollars : c'est le même
   // emplacement, mais le chiffre qui compte pour ce coach n'est pas le même.
   const usageCard = wallet ? (
@@ -392,17 +459,27 @@ export function AdminShell({
       } as CSSProperties)
     : undefined;
 
-  const brandBadge = (
-    <div className="flex items-center gap-2.5">
+  // La marque seule. `min-w-0` + `truncate` : sur 264 px, un nom long doit se
+  // couper proprement au lieu de pousser la cloche par-dessus le logotype.
+  const brandMark = (
+    <span className="flex min-w-0 items-center">
       {brandLogoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={brandLogoUrl} alt={brandName ?? ""} className="h-6 w-auto max-w-[150px] object-contain" />
+        <img src={brandLogoUrl} alt={brandName ?? ""} className="h-6 w-auto max-w-[130px] object-contain" />
       ) : brandName ? (
-        <span className="font-archivo text-[19px] font-extrabold tracking-[-0.02em] text-ink">{brandName}</span>
+        <span className="truncate font-archivo text-[19px] font-extrabold tracking-[-0.02em] text-ink">{brandName}</span>
       ) : (
-        <Wordmark size={20} />
+        <Wordmark size={19} />
       )}
-      <span className="rounded-pill border border-line-4 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">
+    </span>
+  );
+
+  // Avec la pastille « Admin » : gardée pour le tiroir mobile, où la cloche
+  // n'est pas dans la même rangée et où la place ne manque pas.
+  const brandBadge = (
+    <div className="flex min-w-0 items-center gap-2.5">
+      {brandMark}
+      <span className="shrink-0 rounded-pill border border-line-4 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">
         {tx("Admin")}</span>
     </div>
   );
@@ -446,36 +523,55 @@ export function AdminShell({
   return (
     <div className="min-h-dvh bg-paper lg:flex" style={accentStyle}>
       {/* ───────── Barre latérale (desktop ≥ lg) ─────────
-          Deux largeurs : déployée (264 px) ou rail d'icônes (76 px). La
-          bascule est mémorisée d'un écran à l'autre. */}
-      <aside
-        className={[
-          "sticky top-0 hidden h-dvh shrink-0 flex-col gap-5 border-r border-line bg-surface py-5 lg:flex",
-          "transition-[width,padding] duration-300 ease-out motion-reduce:transition-none",
-          rail ? "w-[76px] px-3" : "w-[264px] px-4",
-        ].join(" ")}
-      >
-        {rail ? (
-          <div className="flex flex-col items-center gap-2">
-            <BrandTile name={brandName} logoUrl={brandLogoUrl} />
-            <RailToggle rail={rail} onToggle={toggleRail} />
-            <CoachBell notifs={notifs} unread={unread} align="left" />
-          </div>
-        ) : (
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-1">
-              <RailToggle rail={rail} onToggle={toggleRail} />
-              {brandBadge}
+          Trois états :
+            déployée   264 px, chevron « à droite pour replier
+            rail       76 px, icônes seules, hamburger sous la pastille
+            coup d'oeil  le rail survolé se déploie PAR-DESSUS le contenu, sans
+                       le décaler ; « Garder ouvert » fige ce coup d'oeil.
+          L'emprise de l'aside ne change pas pendant le coup d'oeil : c'est le
+          panneau intérieur, en position absolue, qui s'élargit. Sinon toute la
+          page se décalerait au moindre passage de souris. */}
+      <aside className={`sticky top-0 z-40 hidden h-dvh shrink-0 lg:block ${rail ? "w-[76px]" : "w-[264px]"}`}>
+        <div
+          onMouseEnter={() => hoverPeek(true)}
+          onMouseLeave={() => hoverPeek(false)}
+          className={[
+            "flex h-dvh flex-col gap-5 border-r border-line bg-surface py-5",
+            "transition-[width,padding] duration-300 ease-out motion-reduce:transition-none",
+            wide ? "w-[264px] px-4" : "w-[76px] px-3",
+            rail ? "absolute inset-y-0 left-0 z-40" : "",
+            rail && peek ? "shadow-[0_24px_60px_-18px_rgba(23,25,27,0.35)]" : "",
+          ].join(" ")}
+        >
+          {wide ? (
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between gap-2">
+                {brandMark}
+                <div className="flex shrink-0 items-center gap-1">
+                  <CoachBell notifs={notifs} unread={unread} align="left" />
+                  {rail ? null : <CollapseButton onToggle={collapse} />}
+                </div>
+              </div>
+              {/* Pendant le coup d'oeil, la première ligne du menu propose de
+                  garder le panneau ouvert : le geste est là où le regard est. */}
+              {rail ? <PinButton onToggle={toggleRail} /> : null}
             </div>
-            <CoachBell notifs={notifs} unread={unread} align="left" />
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <BrandTile name={brandName} logoUrl={brandLogoUrl} />
+              <ExpandButton onToggle={toggleRail} />
+              <CoachBell notifs={notifs} unread={unread} align="left" plain />
+            </div>
+          )}
+
+          <div className={wide ? "min-h-0 flex-1 overflow-y-auto" : "min-h-0 flex-1 overflow-y-auto overflow-x-hidden"}>
+            <NavList pathname={pathname} kind={kind} collapsed={!wide} />
           </div>
-        )}
-        <div className={rail ? "min-h-0 flex-1 overflow-y-auto overflow-x-hidden" : "min-h-0 flex-1 overflow-y-auto"}>
-          <NavList pathname={pathname} kind={kind} collapsed={rail} />
-        </div>
-        <div className="flex flex-col gap-3">
-          {rail ? railUsageCard : usageCard}
-          {rail ? railFooter : footer}
+
+          <div className="flex flex-col gap-3">
+            {wide ? usageCard : railUsageCard}
+            {wide ? footer : railFooter}
+          </div>
         </div>
       </aside>
 
