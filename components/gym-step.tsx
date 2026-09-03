@@ -3,6 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { compressImage, base64Of } from "@/lib/image";
+import {
+  MAX_GYM_PHOTOS,
+  GYM_PHOTOS_PER_BATCH,
+  GYM_PHOTO_MAX_PX,
+  GYM_PHOTO_QUALITY,
+} from "@/lib/config";
+import { confidenceLabel, equipmentKey } from "@/lib/equipment";
 import { saveEquipment, type EquipItem } from "@/app/salle/actions";
 import { Button, Alert, Card, MonoLabel, Field } from "@/components/ui";
 import { useLocale, useT } from "@/components/locale-provider";
@@ -40,51 +47,84 @@ export function GymStep({ nextHref = "/generation" }: { nextHref?: string }) {
   const locale = useLocale();
   const [items, setItems] = useState<(EquipItem & { on: boolean })[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [manual, setManual] = useState("");
 
+  // Fusion entre lots : « Presse à cuisses » et « presse a cuisses » vues sur
+  // deux photos différentes ne doivent donner qu'une seule ligne.
   function addItems(list: EquipItem[]) {
     setItems((cur) => {
-      const names = new Set(cur.map((i) => i.name.toLowerCase()));
-      const add = list
-        .filter((i) => !names.has(i.name.toLowerCase()))
-        .map((i) => ({ ...i, on: true }));
+      const seen = new Set(cur.map((i) => equipmentKey(i.name)));
+      const add: (EquipItem & { on: boolean })[] = [];
+      for (const i of list) {
+        const key = equipmentKey(i.name);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        add.push({ ...i, on: true });
+      }
       return [...cur, ...add];
     });
   }
 
+  /**
+   * Analyse les photos par LOTS. Trois raisons de ne pas tout envoyer d'un
+   * coup : le corps d'une requête serverless est plafonné (15 photos le
+   * dépassent), un lot qui échoue ne fait pas perdre les autres, et le modèle
+   * regarde mieux 4 photos que 15. Les résultats s'affichent au fil de l'eau.
+   */
   async function onPhotos(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []).slice(0, 3);
+    const files = Array.from(e.target.files ?? []).slice(0, MAX_GYM_PHOTOS);
     if (!files.length) return;
     setAnalyzing(true);
     setError("");
-    try {
-      const images = await Promise.all(
-        files.map(async (f) => {
-          const { dataUrl } = await compressImage(f, 900);
-          return { data: base64Of(dataUrl), media_type: "image/jpeg" as const };
-        }),
-      );
-      const res = await fetch("/api/analyze-gym", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ images }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t("gym.analyzeUnavailable"));
-      addItems(
-        (data.equipment as { name: string; confidence: string }[]).map((e2) => ({
-          name: e2.name,
-          confidence: e2.confidence,
-          source: "photo" as const,
-        })),
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("gym.analyzeUnavailable"));
-    } finally {
-      setAnalyzing(false);
+    setProgress({ done: 0, total: files.length });
+
+    const batches: File[][] = [];
+    for (let i = 0; i < files.length; i += GYM_PHOTOS_PER_BATCH) {
+      batches.push(files.slice(i, i + GYM_PHOTOS_PER_BATCH));
     }
+
+    let failed = 0;
+    let analysed = 0;
+    for (const batch of batches) {
+      try {
+        const images = await Promise.all(
+          batch.map(async (f) => {
+            const { dataUrl } = await compressImage(f, GYM_PHOTO_MAX_PX, GYM_PHOTO_QUALITY);
+            return { data: base64Of(dataUrl), media_type: "image/jpeg" as const };
+          }),
+        );
+        const res = await fetch("/api/analyze-gym", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ images }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || t("gym.analyzeUnavailable"));
+        addItems(
+          (data.equipment as { name: string; confidence: string }[]).map((e2) => ({
+            name: e2.name,
+            confidence: e2.confidence,
+            source: "photo" as const,
+          })),
+        );
+      } catch {
+        failed += 1;
+      }
+      analysed += batch.length;
+      setProgress({ done: analysed, total: files.length });
+    }
+
+    // Un lot raté sur cinq n'est pas un échec : on garde ce qui a été trouvé
+    // et on dit seulement ce qui manque.
+    if (failed === batches.length) setError(t("gym.analyzeUnavailable"));
+    else if (failed > 0) setError(t("gym.analyzePartial"));
+    setProgress(null);
+    setAnalyzing(false);
+    // Sans ça, resélectionner les mêmes fichiers ne déclencherait rien.
+    e.target.value = "";
   }
 
   function addManual() {
@@ -122,10 +162,15 @@ export function GymStep({ nextHref = "/generation" }: { nextHref?: string }) {
       {error ? <Alert>{error}</Alert> : null}
 
       <input type="file" accept="image/*" multiple id="gym-photos" className="hidden" onChange={onPhotos} />
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button onClick={() => document.getElementById("gym-photos")?.click()} loading={analyzing} variant="outline" className="h-12">
-          {analyzing ? t("gym.analyzing") : t("gym.analyze")}
+          {analyzing
+            ? progress
+              ? t("gym.analyzingCount", { done: progress.done, total: progress.total })
+              : t("gym.analyzing")
+            : t("gym.analyze")}
         </Button>
+        <span className="text-[12.5px] text-muted-2">{t("gym.photoHint", { max: MAX_GYM_PHOTOS })}</span>
       </div>
 
       <Card className="flex flex-col gap-3">
@@ -142,7 +187,9 @@ export function GymStep({ nextHref = "/generation" }: { nextHref?: string }) {
                 ].join(" ")}
               >
                 {it.name}
-                {it.confidence ? <span className="opacity-70"> · {it.confidence}</span> : null}
+                {confidenceLabel(it.confidence, locale) ? (
+                  <span className="opacity-70"> · {confidenceLabel(it.confidence, locale)}</span>
+                ) : null}
               </button>
             ))}
           </div>

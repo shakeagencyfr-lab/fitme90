@@ -145,7 +145,17 @@ export const PURGE_AFTER_DAYS = 14;
 export const LIMIT_GENERATE_TOTAL = 3; // par utilisateur, au total
 export const LIMIT_COACH_PER_DAY = 60; // messages par jour (défaut historique)
 export const LIMIT_RECIPES_PER_DAY = 20;
-export const LIMIT_ANALYZE_GYM_TOTAL = 10;
+// Photos de salle : le client peut en envoyer beaucoup, elles partent par
+// lots. Un lot de 4 tient largement sous la limite de corps de requête d'une
+// fonction serverless, là où 15 photos d'un coup la dépasseraient.
+export const MAX_GYM_PHOTOS = 15;
+export const GYM_PHOTOS_PER_BATCH = 4;
+/** Côté long des photos de salle. Le palier standard (Haiku) plafonne à 1568 jetons visuels. */
+export const GYM_PHOTO_MAX_PX = 1250;
+/** Qualité JPEG des photos de salle : la compression agressive dégrade la reconnaissance. */
+export const GYM_PHOTO_QUALITY = 0.92;
+/** Plafond total, en LOTS analysés sur la vie du compte (4 photos par lot). */
+export const LIMIT_ANALYZE_GYM_TOTAL = 40;
 
 // ── Estimations de coût IA (BYOK), en USD. MESURÉES sur la table `ai_calls`
 // après la mise en cache du prompt coach, puis arrondies vers le HAUT par
