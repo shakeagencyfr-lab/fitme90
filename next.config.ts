@@ -27,7 +27,11 @@ const csp = [
   `img-src 'self' data: blob: ${sb}`,
   `font-src 'self'`,
   `connect-src 'self' ${sb} ${sbWs} https://api.stripe.com`,
-  `frame-src https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com`,
+  // 'self' est indispensable : le studio marque blanche encadre la vraie page
+  // publique (meme origine) dans son apercu live. Sans lui, l'enfant autorise
+  // bien le framing (frame-ancestors 'self') mais le PARENT refuse de l'inserer
+  // et le navigateur affiche « Ce contenu est bloque ».
+  `frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com`,
   `form-action 'self' https://checkout.stripe.com`,
   `object-src 'none'`,
   `base-uri 'self'`,
