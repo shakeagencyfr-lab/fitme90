@@ -5,21 +5,36 @@ import { type Offer, type PublicTenant } from "@/lib/offers";
 import { formatEuros, DEFAULT_BRAND_COLOR } from "@/lib/config";
 import { S } from "@/components/landing-icons";
 import { SubscriptionPrice } from "@/components/subscription-price";
-import { Reveal } from "@/components/reveal";
+import { Reveal, RevealGroup } from "@/components/reveal";
+import { Rail } from "@/components/landing-templates/rail";
 import { AuthorEngine } from "@/components/landing-templates/author-engine";
 import { offerCardCopy, landingCopy, type LandingCopy, type Audience } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
 
-// Template « Sage » : doux, bien-être, titres serif et formes très arrondies.
-// Rendu par app/c/[slug] quand tenant.landingTemplate === "sage".
+// Template « Sage » : calme, éditorial, beaucoup d'air.
+//
+// Il n'était qu'un Lumen aux angles plus ronds. Le parti pris est maintenant
+// l'inverse de Volt : pas de cartes empilées, pas de dalles de couleur, mais
+// une mise en page de revue.
+//   - une colonne de texte étroite et centrée, à l'ancienne
+//   - des filets fins au lieu de boîtes : les listes respirent
+//   - un RAIL HORIZONTAL pour la méthode, lue comme une frise
+//   - un second rail pour les programmes quand il y en a plusieurs
+//   - la couleur de marque employée par touches, jamais en aplat plein écran
+//
+// Le fond est figé en clair, comme Lumen : la landing publique ne doit pas
+// basculer si le visiteur a activé le thème sombre de l'application.
 
-const eyebrow = "font-mono text-[11px] uppercase tracking-[0.18em] text-brand";
-const sectionTitle =
-  "font-serif font-semibold tracking-[-0.015em] text-ink text-[clamp(28px,5vw,48px)] leading-[1.04] text-balance";
+const PAPER = "#f4f1ea";
+const INK = "#23211d";
 
-function Eyebrow({ children }: { children: React.ReactNode }) {
+const display =
+  "font-archivo font-bold tracking-[-0.025em] text-ink text-[clamp(26px,4.4vw,44px)] leading-[1.08] text-balance";
+
+function Label({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-pill border border-brand/25 bg-brand/[0.07] px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] text-brand">
+    <span className="inline-flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-[0.22em] text-brand">
+      <span className="h-px w-6 bg-brand/50" aria-hidden />
       {children}
     </span>
   );
@@ -30,49 +45,49 @@ function Brand({ tenant, imgClass = "h-11", textClass = "text-[20px]" }: { tenan
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={tenant.logoUrl} alt={tenant.name} className={`${imgClass} w-auto max-w-[260px] object-contain`} />;
   }
-  return <span className={`font-serif ${textClass} font-semibold tracking-[-0.02em] text-ink`}>{tenant.name}</span>;
+  return <span className={`font-archivo ${textClass} font-bold tracking-[-0.02em] text-ink`}>{tenant.name}</span>;
 }
 
-// Maquette « produit » claire pour le hero (aperçu de l'espace client).
+// Maquette de l'espace client, très douce (pas d'ombre dure, coins généreux).
 function SageAppCard({ name, L }: { name: string; L: LandingCopy }) {
   return (
-    <div className="relative mx-auto w-full max-w-[380px]">
-      <div className="rounded-[32px] border border-[#e7dccd] bg-white p-4 shadow-[0_40px_90px_-30px_rgba(30,20,10,.35)]">
-        <div className="rounded-[32px] bg-[#faf8f5] p-4">
+    <div className="relative mx-auto w-full max-w-[360px]">
+      <div className="rounded-[34px] border border-ink/8 bg-white p-4 shadow-[0_50px_100px_-50px_rgba(35,33,29,.5)]">
+        <div className="rounded-[26px] bg-[#faf8f3] p-4">
           <div className="flex items-center justify-between">
-            <span className="font-serif text-[13px] font-bold tracking-[-0.01em] text-ink">{name}</span>
-            <span className="flex size-8 items-center justify-center rounded-full bg-brand/12 text-brand"><S.spark className="h-4 w-4" /></span>
+            <span className="font-archivo text-[13px] font-bold tracking-[-0.01em] text-ink">{name}</span>
+            <span className="flex size-8 items-center justify-center rounded-full bg-brand/10 text-brand"><S.spark className="h-4 w-4" /></span>
           </div>
-          <div className="mt-4 rounded-2xl border border-[#e7dccd] bg-white p-3.5">
-            <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.12em] text-ink/45">
+          <div className="mt-4 rounded-[20px] border border-ink/8 bg-white p-4">
+            <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.16em] text-ink/40">
               <span>{L.mockSession}</span><span className="text-brand">{L.mockDay}</span>
             </div>
-            <ul className="mt-2.5 flex flex-col gap-2">
+            <ul className="mt-3 flex flex-col divide-y divide-ink/6">
               {[["Développé couché", "4 × 8"], ["Tirage vertical", "4 × 10"], ["Élévations latérales", "3 × 15"]].map(([ex, sr], i) => (
-                <li key={ex} className="flex items-center gap-2.5 text-[13px] text-ink/80">
-                  <span className={`flex size-5 items-center justify-center rounded-md ${i < 2 ? "bg-brand text-white" : "border border-[#d9cbb8] text-transparent"}`}><S.check className="h-3 w-3" /></span>
+                <li key={ex} className="flex items-center gap-2.5 py-2.5 text-[13px] text-ink/75">
+                  <span className={`flex size-5 items-center justify-center rounded-full ${i < 2 ? "bg-brand text-white" : "border border-ink/15 text-transparent"}`}><S.check className="h-3 w-3" /></span>
                   <span className="flex-1">{ex}</span>
-                  <span className="font-mono text-[11px] text-ink/45">{sr}</span>
+                  <span className="font-mono text-[11px] text-ink/40">{sr}</span>
                 </li>
               ))}
             </ul>
           </div>
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="mt-3 flex divide-x divide-ink/8 rounded-[20px] border border-ink/8 bg-white">
             {[["Prot.", "156 g"], ["Gluc.", "210 g"], ["Lip.", "62 g"]].map(([k, v]) => (
-              <div key={k} className="rounded-xl border border-[#e7dccd] bg-white p-2.5 text-center">
-                <div className="font-serif text-[15px] font-semibold text-ink">{v}</div>
-                <div className="text-[10px] text-ink/45">{k}</div>
+              <div key={k} className="flex-1 py-3 text-center">
+                <div className="font-archivo text-[15px] font-bold text-ink">{v}</div>
+                <div className="text-[10px] text-ink/40">{k}</div>
               </div>
             ))}
           </div>
         </div>
       </div>
-      <div className="pointer-events-none absolute -bottom-4 -left-4 rounded-2xl border border-[#e7dccd] bg-white px-4 py-3 shadow-[0_20px_50px_-20px_rgba(30,20,10,.4)]">
+      <div className="pointer-events-none absolute -bottom-5 -left-3 rounded-full border border-ink/8 bg-white px-5 py-3 shadow-[0_24px_50px_-28px_rgba(35,33,29,.55)]">
         <div className="flex items-center gap-2.5">
-          <span className="flex size-9 items-center justify-center rounded-full bg-brand/12 text-brand"><S.chat className="h-5 w-5" /></span>
+          <span className="flex size-8 items-center justify-center rounded-full bg-brand/10 text-brand"><S.chat className="h-4.5 w-4.5" /></span>
           <div>
-            <div className="font-serif text-[14px] font-semibold leading-none text-ink">{L.mockCoach}</div>
-            <div className="mt-0.5 text-[11px] text-ink/50">{L.mockCoachSub}</div>
+            <div className="font-archivo text-[13.5px] font-bold leading-none text-ink">{L.mockCoach}</div>
+            <div className="mt-0.5 text-[11px] text-ink/45">{L.mockCoachSub}</div>
           </div>
         </div>
       </div>
@@ -86,16 +101,16 @@ function OfferCard({ offer, offers, slug, chargesEnabled, locale, audience }: { 
   const L = landingCopy(locale, audience);
   const featured = copy.featured;
   return (
-    <article className={`relative flex flex-col gap-5 rounded-[32px] border p-7 transition-all duration-300 hover:-translate-y-1 ${featured ? "border-brand/40 bg-white shadow-[0_30px_70px_-32px_rgba(30,20,10,.45)]" : "border-[#e7dccd] bg-white hover:border-brand/30"}`}>
+    <article className={`lift relative flex h-full flex-col gap-6 rounded-[30px] border bg-white p-8 ${featured ? "border-brand/40" : "border-ink/8"}`}>
       {featured ? (
-        <span className="absolute -top-3 left-6 rounded-pill bg-brand px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-white">
+        <span className="absolute -top-3 left-8 rounded-full bg-brand px-3.5 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-white">
           {L.mostChosen}
         </span>
       ) : null}
-      <div className="flex flex-col gap-1.5">
-        <span className={eyebrow}>{copy.eyebrow}</span>
-        <h3 className="font-serif text-[22px] font-bold leading-tight tracking-[-0.02em] text-ink">{offer.name}</h3>
-        {copy.pitch ? <p className="text-[14px] leading-[1.5] text-ink/60">{copy.pitch}</p> : null}
+      <div className="flex flex-col gap-2">
+        <Label>{copy.eyebrow}</Label>
+        <h3 className="font-archivo text-[23px] font-bold leading-tight tracking-[-0.02em] text-ink">{offer.name}</h3>
+        {copy.pitch ? <p className="text-[14.5px] leading-[1.6] text-ink/55">{copy.pitch}</p> : null}
       </div>
 
       {isSub ? (
@@ -110,22 +125,20 @@ function OfferCard({ offer, offers, slug, chargesEnabled, locale, audience }: { 
       ) : (
         <div className="flex flex-col gap-1">
           <div className="flex items-end gap-2">
-            <span className="font-serif text-[clamp(40px,7vw,56px)] font-semibold leading-none tracking-[-0.015em] text-ink">
+            <span className="font-archivo text-[clamp(38px,6.5vw,52px)] font-bold leading-none tracking-[-0.03em] text-ink">
               {formatEuros(offer.price_cents)}
             </span>
-            <span className="pb-2 text-[13px] text-ink/50">{L.oneTime}</span>
+            <span className="pb-2 text-[13px] text-ink/45">{L.oneTime}</span>
           </div>
           {copy.perMonthCents > 0 ? (
-            <span className="text-[13px] text-ink/55">
-              {L.perMonthOn(formatEuros(copy.perMonthCents), offer.duration_months)}
-            </span>
+            <span className="text-[13px] text-ink/50">{L.perMonthOn(formatEuros(copy.perMonthCents), offer.duration_months)}</span>
           ) : null}
         </div>
       )}
 
-      <ul className="flex flex-col gap-2 border-t border-[#e7dccd] pt-4">
+      <ul className="flex flex-1 flex-col divide-y divide-ink/6 border-t border-ink/8">
         {copy.bullets.map((it) => (
-          <li key={it} className="flex items-start gap-2.5 text-[14px] leading-[1.5] text-ink/75">
+          <li key={it} className="flex items-start gap-3 py-2.5 text-[14px] leading-[1.55] text-ink/70">
             <S.check className="mt-0.5 h-4.5 w-4.5 shrink-0 text-brand" />
             {it}
           </li>
@@ -136,13 +149,13 @@ function OfferCard({ offer, offers, slug, chargesEnabled, locale, audience }: { 
         (chargesEnabled ? (
           <Link
             href={`/inscription?c=${slug}&offer=${offer.id}`}
-            className="tap inline-flex h-[52px] w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-brand px-5 text-[15px] font-semibold text-white transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]"
+            className="press tap inline-flex h-[54px] w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-brand px-6 text-[15px] font-semibold text-white hover:bg-brand-hover"
           >
             {L.choose}
             <S.arrow className="h-4.5 w-4.5 shrink-0" />
           </Link>
         ) : (
-          <span className="inline-flex h-[52px] items-center justify-center rounded-full border border-[#dfd2c1] px-6 text-[14px] text-ink/40">
+          <span className="inline-flex h-[54px] items-center justify-center rounded-full border border-ink/10 px-6 text-[14px] text-ink/35">
             {L.soon}
           </span>
         ))}
@@ -150,12 +163,24 @@ function OfferCard({ offer, offers, slug, chargesEnabled, locale, audience }: { 
   );
 }
 
-// Petite illustration claire réutilisable (encadré tramé + libellé).
-function ShotFrame({ children }: { children: React.ReactNode }) {
+/** Deux colonnes, texte à gauche, liste en filets à droite. Aucune boîte. */
+function Editorial({ label, title, body, bullets, children }: { label: string; title: string; body: string; bullets: string[]; children?: React.ReactNode }) {
   return (
-    <div className="relative overflow-hidden rounded-[32px] border border-[#e7dccd] bg-white p-6 shadow-[0_30px_70px_-34px_rgba(30,20,10,.4)]">
-      <div className="pointer-events-none absolute inset-0 opacity-[0.5]" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, rgba(20,15,10,.06) 1px, transparent 0)", backgroundSize: "22px 22px" }} />
-      <div className="relative">{children}</div>
+    <div className="grid gap-10 border-t border-ink/10 pt-[clamp(40px,6vw,72px)] lg:grid-cols-[0.95fr_1.05fr]">
+      <Reveal className="flex flex-col gap-5" direction="left">
+        <Label>{label}</Label>
+        <h2 className={display}>{title}</h2>
+        <p className="max-w-[46ch] text-[16.5px] leading-[1.75] text-ink/60">{body}</p>
+        <ul className="mt-1 flex flex-col divide-y divide-ink/8 border-y border-ink/8">
+          {bullets.map((b) => (
+            <li key={b} className="flex items-center gap-3 py-3 text-[14.5px] text-ink/70">
+              <span className="size-1.5 shrink-0 rounded-full bg-brand" />
+              {b}
+            </li>
+          ))}
+        </ul>
+      </Reveal>
+      <Reveal className="flex items-center justify-center" direction="right">{children}</Reveal>
     </div>
   );
 }
@@ -165,43 +190,36 @@ export function CoachSage({ tenant, offers, leadMagnet = false, locale = "fr" }:
   const L = landingCopy(locale, tenant.businessType);
   const accent = tenant.brandColor || DEFAULT_BRAND_COLOR;
   const title = tenant.headline || tenant.name;
-  const tagline =
-    tenant.tagline ||
-    L.defaultTagline;
+  const tagline = tenant.tagline || L.defaultTagline;
+  const slide = locale === "en" ? "Slide" : "Fais glisser";
 
   return (
     <div
-      className="min-h-dvh scroll-smooth bg-[#f6f4ef] pb-[76px] text-ink sm:pb-0"
+      className="min-h-dvh scroll-smooth pb-[76px] sm:pb-0"
       style={
         {
           ["--color-brand" as string]: accent,
           ["--color-brand-hover" as string]: `color-mix(in srgb, ${accent} 85%, #000)`,
-          // Le template clair fige son encre : la landing publique ne doit pas
-          // basculer si le visiteur a activé le thème sombre de l'app.
-          ["--color-ink" as string]: "#1b1815",
+          ["--color-ink" as string]: INK,
+          background: PAPER,
+          color: INK,
         } as CSSProperties
       }
     >
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-        @keyframes lmUp { from { opacity:0; transform:translateY(20px) } to { opacity:1; transform:translateY(0) } }
-        .lm-up { animation: lmUp .85s cubic-bezier(.22,1,.36,1) both }
-      `,
-        }}
-      />
-
-      {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-[#e7dccd] bg-[#f6f4ef]/80 backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
-          <Link href="#top" className="flex items-center"><Brand tenant={tenant} imgClass="h-11 sm:h-14" /></Link>
-          <div className="flex items-center gap-3">
+      {/* Header : très léger, presque absent */}
+      <header className="sticky top-0 z-30 border-b border-ink/8 bg-[#f4f1ea]/85 backdrop-blur-md">
+        <div className="mx-auto flex w-full max-w-[1040px] items-center justify-between gap-4 px-5 py-4 sm:px-8">
+          <Link href="#top" className="flex items-center"><Brand tenant={tenant} imgClass="h-10 sm:h-12" /></Link>
+          <div className="flex items-center gap-4">
+            <a href="#auteur" className="underline-grow hidden font-mono text-[10.5px] uppercase tracking-[0.2em] text-ink/50 hover:text-ink lg:inline">
+              {L.authorChip}
+            </a>
             <LangSwitch compact />
-            <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-ink/70 transition-colors hover:text-ink sm:inline">
+            <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-ink/60 transition-colors hover:text-ink sm:inline">
               {L.login}
             </Link>
             {offers.length > 0 ? (
-              <a href="#offres" className="tap inline-flex h-10 items-center rounded-full bg-brand px-4 text-[14px] font-semibold text-white hover:bg-brand-hover">
+              <a href="#offres" className="press tap inline-flex h-10 items-center rounded-full bg-ink px-5 text-[13.5px] font-semibold text-[#f4f1ea] transition-opacity hover:opacity-85">
                 {L.seePrograms}
               </a>
             ) : null}
@@ -210,184 +228,135 @@ export function CoachSage({ tenant, offers, leadMagnet = false, locale = "fr" }:
       </header>
 
       <main id="top">
-        {/* Hero */}
+        {/* Hero : colonne centrée, mesure courte, maquette dessous */}
         <section className="relative overflow-hidden">
-          <div className="pointer-events-none absolute -right-32 -top-40 h-[460px] w-[460px] rounded-full blur-[120px]" style={{ background: `color-mix(in srgb, ${accent} 22%, transparent)` }} />
-          <div className="mx-auto grid w-full max-w-[1120px] items-center gap-12 px-5 pb-16 pt-[clamp(40px,7vw,84px)] sm:px-8 lg:grid-cols-[1.05fr_0.95fr]">
-            <div>
-              <span className="lm-up inline-block"><Eyebrow><S.spark className="h-3.5 w-3.5" /> {L.heroChip}</Eyebrow></span>
-              <h1 className="lm-up mt-5 max-w-[16ch] font-serif text-[clamp(40px,8vw,80px)] font-semibold leading-[0.96] tracking-[-0.015em] text-balance text-ink" style={{ animationDelay: "70ms" }}>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-[-30%] h-[560px] w-[860px] -translate-x-1/2 rounded-full blur-[140px]"
+            style={{ background: `color-mix(in srgb, ${accent} 13%, transparent)` }}
+          />
+          <div className="relative mx-auto flex w-full max-w-[1040px] flex-col items-center gap-7 px-5 pb-14 pt-[clamp(48px,8vw,104px)] text-center sm:px-8">
+            <Reveal><Label>{L.heroChip}</Label></Reveal>
+            <Reveal delay={70}>
+              <h1 className="max-w-[17ch] font-archivo text-[clamp(36px,7vw,72px)] font-bold leading-[1.02] tracking-[-0.035em] text-balance text-ink">
                 {title}
               </h1>
-              <p className="lm-up mt-5 max-w-[54ch] text-[clamp(16px,2.2vw,19px)] leading-[1.6] text-ink/65" style={{ animationDelay: "140ms" }}>{tagline}</p>
-              <div className="lm-up mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap" style={{ animationDelay: "210ms" }}>
+            </Reveal>
+            <Reveal delay={130}>
+              <p className="max-w-[58ch] text-[clamp(16px,2.1vw,19px)] leading-[1.75] text-ink/60">{tagline}</p>
+            </Reveal>
+            <Reveal delay={190}>
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
                 {offers.length > 0 ? (
-                  <a href="#offres" className="tap inline-flex h-[54px] items-center justify-center gap-2 rounded-full bg-brand px-8 text-[16px] font-semibold text-white shadow-[0_14px_40px_-12px_var(--color-brand)] transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]">
+                  <a href="#offres" className="press tap inline-flex h-[54px] items-center justify-center gap-2 rounded-full bg-brand px-9 text-[16px] font-semibold text-white hover:bg-brand-hover">
                     {L.seePrograms} <S.arrow className="h-4.5 w-4.5" />
                   </a>
                 ) : null}
-                <a href="#methode" className="tap inline-flex h-[54px] items-center justify-center rounded-full border border-[#d9cbb8] bg-white px-8 text-[16px] font-semibold text-ink transition-colors duration-150 hover:border-ink/40">
+                <a href="#auteur" className="press tap inline-flex h-[54px] items-center justify-center rounded-full border border-ink/15 px-9 text-[16px] font-semibold text-ink transition-colors hover:border-ink/45">
                   {L.howItWorks}
                 </a>
               </div>
-              <div className="mt-7 flex flex-wrap gap-x-7 gap-y-3">
-                {L.heroChecks.map((t) => (
-                  <span key={t} className="inline-flex items-center gap-2 text-[13.5px] text-ink/60">
-                    <S.check className="h-4 w-4 text-brand" /> {t}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div className="lm-up" style={{ animationDelay: "180ms" }}><SageAppCard name={tenant.name} L={L} /></div>
+            </Reveal>
+            <Reveal delay={240} className="flex flex-wrap justify-center gap-x-7 gap-y-2.5">
+              {L.heroChecks.map((t) => (
+                <span key={t} className="inline-flex items-center gap-2 text-[13.5px] text-ink/55">
+                  <S.check className="h-4 w-4 text-brand" /> {t}
+                </span>
+              ))}
+            </Reveal>
+            <Reveal delay={200} direction="scale" className="mt-6 w-full"><SageAppCard name={tenant.name} L={L} /></Reveal>
           </div>
         </section>
 
-        {/* Bandeau repères */}
-        <section className="border-y border-[#e7dccd] bg-white">
-          <div className="mx-auto grid w-full max-w-[1120px] grid-cols-2 gap-y-6 px-5 py-8 sm:px-8 lg:grid-cols-4">
+        {/* Repères, en filets */}
+        <section className="border-y border-ink/10">
+          <div className="mx-auto grid w-full max-w-[1040px] grid-cols-2 gap-y-8 px-5 py-10 sm:px-8 lg:grid-cols-4">
             {L.stats.map((s) => (
-              <div key={s.l} className="flex flex-col gap-1 px-2">
-                <div className="font-serif text-[clamp(24px,4vw,34px)] font-semibold leading-none tracking-[-0.015em] text-ink">{s.v}</div>
-                <div className="text-[13px] leading-[1.4] text-ink/55">{s.l}</div>
+              <div key={s.l} className="flex flex-col gap-1.5 px-1">
+                <div className="font-archivo text-[clamp(21px,3.2vw,29px)] font-bold leading-none tracking-[-0.025em] text-ink">{s.v}</div>
+                <div className="text-[13px] leading-[1.5] text-ink/50">{s.l}</div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Fonctionnalités */}
-        <section className="scroll-mt-24">
-          <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(56px,8vw,100px)] sm:px-8">
+        {/* Méthode : frise horizontale */}
+        <section id="methode" className="scroll-mt-24 py-[clamp(52px,7vw,92px)]">
+          <div className="mx-auto w-full max-w-[1040px] px-5 sm:px-8">
             <Reveal className="flex flex-col items-center gap-4 text-center">
-              <Eyebrow>{L.featuresChip}</Eyebrow>
-              <h2 className={sectionTitle}>{L.featuresTitle}</h2>
+              <Label>{L.howItWorks}</Label>
+              <h2 className={`${display} max-w-[18ch]`}>{L.stepsTitle}</h2>
             </Reveal>
-            <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {L.features.map((f, i) => (
-                <div key={f.title} className={`flex flex-col gap-4 rounded-[32px] border p-6 transition-all duration-300 hover:-translate-y-1 ${i === 2 ? "border-brand/40 bg-brand/[0.05]" : "border-[#e7dccd] bg-white hover:border-brand/25"}`}>
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-[20px] bg-brand/10 text-brand">
-                    <f.icon className="h-6 w-6" />
-                  </span>
-                  <h3 className="font-serif text-[18px] font-bold leading-snug tracking-[-0.01em] text-ink">{f.title}</h3>
-                  <p className="text-[14px] leading-[1.6] text-ink/60">{f.body}</p>
-                </div>
-              ))}
-            </div>
           </div>
-        </section>
-
-        {/* Analyse de la salle */}
-        <section className="border-t border-[#e7dccd] bg-white">
-          <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(52px,7vw,90px)] sm:px-8 lg:grid-cols-2">
-            <div className="flex flex-col gap-5">
-              <Eyebrow><S.camera className="h-3.5 w-3.5" /> {L.gymChip}</Eyebrow>
-              <h2 className="font-serif text-[clamp(26px,4vw,42px)] font-semibold leading-[1.06] tracking-[-0.015em] text-ink">
-                {L.gymTitle}
-              </h2>
-              <p className="max-w-[52ch] text-[16px] leading-[1.65] text-ink/65">
-                {L.gymBody}
-              </p>
-              <ul className="flex flex-col gap-2.5 pt-1">
-                {L.gymBullets.map((b) => (
-                  <li key={b} className="flex items-center gap-3 text-[15px] text-ink/75">
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand" /> {b}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <ShotFrame>
-              <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.12em] text-ink/45">
-                <span>Matériel détecté</span><span className="text-brand">IA</span>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2.5">
-                {["Rack à squat", "Haltères 2–40 kg", "Poulie haute", "Banc réglable", "Barre EZ", "Kettlebells"].map((m) => (
-                  <span key={m} className="inline-flex items-center gap-2 rounded-xl border border-[#e7dccd] bg-[#faf8f5] px-3 py-2.5 text-[13px] text-ink/80">
-                    <S.check className="h-4 w-4 shrink-0 text-brand" /> {m}
-                  </span>
-                ))}
-              </div>
-            </ShotFrame>
-          </div>
-        </section>
-
-        {/* Espace client */}
-        <section id="espace" className="scroll-mt-24">
-          <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(52px,7vw,90px)] sm:px-8 lg:grid-cols-2">
-            <div className="order-2 lg:order-1">
-              <ShotFrame>
-                <SageAppCard name={tenant.name} L={L} />
-              </ShotFrame>
-            </div>
-            <div className="order-1 flex flex-col gap-5 lg:order-2">
-              <Eyebrow><S.grid className="h-3.5 w-3.5" /> {L.spaceChip}</Eyebrow>
-              <h2 className="font-serif text-[clamp(26px,4vw,42px)] font-semibold leading-[1.06] tracking-[-0.015em] text-ink">
-                {L.spaceTitle}
-              </h2>
-              <p className="max-w-[52ch] text-[16px] leading-[1.65] text-ink/65">
-                {L.spaceBody}
-              </p>
-              <ul className="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-2">
-                {L.spaceBullets.map((b) => (
-                  <li key={b} className="flex items-center gap-2.5 text-[14.5px] text-ink/75">
-                    <S.check className="h-4.5 w-4.5 shrink-0 text-brand" /> {b}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        {/* Nutrition */}
-        <section className="border-t border-[#e7dccd] bg-white">
-          <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(52px,7vw,90px)] sm:px-8 lg:grid-cols-2">
-            <div className="flex flex-col gap-5">
-              <Eyebrow>{L.nutritionChip}</Eyebrow>
-              <h2 className="font-serif text-[clamp(26px,4vw,42px)] font-semibold leading-[1.06] tracking-[-0.015em] text-ink">
-                {L.nutritionTitle}
-              </h2>
-              <p className="max-w-[52ch] text-[16px] leading-[1.65] text-ink/65">
-                {L.nutritionBody}
-              </p>
-              <ul className="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-2">
-                {L.nutritionBullets.map((b) => (
-                  <li key={b} className="flex items-center gap-2.5 text-[14.5px] text-ink/75">
-                    <S.check className="h-4.5 w-4.5 shrink-0 text-brand" /> {b}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <ShotFrame>
-              <div className="flex items-center gap-3 rounded-2xl border border-brand/20 bg-brand/[0.06] p-4">
-                <span className="flex size-11 items-center justify-center rounded-xl bg-brand/15 text-brand"><S.heart className="h-6 w-6" /></span>
-                <div className="text-[14px] text-ink/80">Bowl poulet & patate douce<br /><span className="text-ink/45">642 kcal · 12 min</span></div>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2.5">
-                {[["Prot.", "42 g"], ["Gluc.", "58 g"], ["Lip.", "16 g"]].map(([k, v]) => (
-                  <div key={k} className="rounded-xl border border-[#e7dccd] bg-[#faf8f5] p-3 text-center">
-                    <div className="font-serif text-[17px] font-semibold text-ink">{v}</div>
-                    <div className="text-[10px] text-ink/45">{k}</div>
-                  </div>
-                ))}
-              </div>
-            </ShotFrame>
-          </div>
-        </section>
-
-        {/* Comment ça marche */}
-        <section id="methode" className="scroll-mt-24">
-          <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(56px,8vw,100px)] sm:px-8">
-            <Reveal className="flex flex-col items-center gap-4 text-center">
-              <Eyebrow>Comment ça marche</Eyebrow>
-              <h2 className={sectionTitle}>{L.stepsTitle}</h2>
-            </Reveal>
-            <div className="mt-12 grid gap-4 md:grid-cols-3">
+          <div className="mx-auto mt-10 w-full max-w-[1040px]">
+            <Rail hint={slide}>
               {L.steps.map((s) => (
-                <div key={s.k} className="flex flex-col gap-3 rounded-[32px] border border-[#e7dccd] bg-white p-7">
-                  <div className="font-serif text-[44px] font-semibold leading-none tracking-[-0.015em] text-brand/25">{s.k}</div>
-                  <h3 className="font-serif text-[19px] font-bold tracking-[-0.02em] text-ink">{s.title}</h3>
-                  <p className="text-[15px] leading-[1.6] text-ink/60">{s.body}</p>
+                <article key={s.k} className="flex w-[280px] flex-col gap-3 border-t-2 border-brand/40 pt-5 sm:w-[320px]">
+                  <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-brand">{s.k}</div>
+                  <h3 className="font-archivo text-[20px] font-bold leading-snug tracking-[-0.02em] text-ink">{s.title}</h3>
+                  <p className="text-[15px] leading-[1.7] text-ink/55">{s.body}</p>
+                </article>
+              ))}
+            </Rail>
+          </div>
+        </section>
+
+        {/* Fonctionnalités : deux colonnes, sans boîtes */}
+        <section className="scroll-mt-24 border-t border-ink/10 py-[clamp(52px,7vw,92px)]">
+          <div className="mx-auto w-full max-w-[1040px] px-5 sm:px-8">
+            <Reveal className="flex flex-col gap-4">
+              <Label>{L.featuresChip}</Label>
+              <h2 className={`${display} max-w-[18ch]`}>{L.featuresTitle}</h2>
+            </Reveal>
+            <RevealGroup className="mt-10 grid gap-x-12 gap-y-0 sm:grid-cols-2" step={55}>
+              {L.features.map((f) => (
+                <div key={f.title} className="flex h-full items-start gap-4 border-b border-ink/8 py-6">
+                  <span className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand/8 text-brand">
+                    <f.icon className="h-5 w-5" />
+                  </span>
+                  <div className="flex flex-col gap-1.5">
+                    <h3 className="font-archivo text-[17px] font-bold leading-snug tracking-[-0.01em] text-ink">{f.title}</h3>
+                    <p className="text-[14.5px] leading-[1.65] text-ink/55">{f.body}</p>
+                  </div>
                 </div>
               ))}
-            </div>
+            </RevealGroup>
+          </div>
+        </section>
+
+        {/* Trois blocs éditoriaux */}
+        <section id="espace" className="scroll-mt-24">
+          <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-[clamp(44px,6vw,80px)] px-5 pb-[clamp(52px,7vw,92px)] sm:px-8">
+            <Editorial label={L.gymChip} title={L.gymTitle} body={L.gymBody} bullets={L.gymBullets}>
+              <div className="w-full rounded-[28px] border border-ink/8 bg-white p-7">
+                <div className="font-mono text-[10.5px] uppercase tracking-[0.2em] text-brand">{L.gymScanLabel}</div>
+                <div className="mt-5 flex flex-col divide-y divide-ink/8">
+                  {L.gymBullets.map((b) => (
+                    <div key={b} className="flex items-center gap-3 py-3 text-[14px] text-ink/70">
+                      <S.check className="h-4.5 w-4.5 shrink-0 text-brand" />
+                      {b}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Editorial>
+
+            <Editorial label={L.spaceChip} title={L.spaceTitle} body={L.spaceBody} bullets={L.spaceBullets}>
+              <SageAppCard name={tenant.name} L={L} />
+            </Editorial>
+
+            <Editorial label={L.nutritionChip} title={L.nutritionTitle} body={L.nutritionBody} bullets={L.nutritionBullets}>
+              <div className="w-full rounded-[28px] border border-ink/8 bg-white p-7">
+                <div className="flex divide-x divide-ink/8">
+                  {[["156 g", "Protéines"], ["210 g", "Glucides"], ["62 g", "Lipides"]].map(([v, k]) => (
+                    <div key={k} className="flex-1 px-2 text-center">
+                      <div className="font-archivo text-[26px] font-bold leading-none tracking-[-0.02em] text-ink">{v}</div>
+                      <div className="mt-2 font-mono text-[10px] uppercase tracking-[0.16em] text-ink/40">{k}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Editorial>
           </div>
         </section>
 
@@ -395,139 +364,119 @@ export function CoachSage({ tenant, offers, leadMagnet = false, locale = "fr" }:
         <AuthorEngine L={L} name={tenant.name} tone="light" />
 
         {/* Est-ce pour toi */}
-        <section className="scroll-mt-24 border-t border-[#e7dccd] bg-white">
-          <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(56px,8vw,100px)] sm:px-8">
-            <h2 className={`${sectionTitle} max-w-[16ch]`}>{L.forWhoTitle}</h2>
-            <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="scroll-mt-24 border-t border-ink/10 py-[clamp(52px,7vw,92px)]">
+          <div className="mx-auto w-full max-w-[1040px] px-5 sm:px-8">
+            <Reveal><h2 className={`${display} max-w-[16ch]`}>{L.forWhoTitle}</h2></Reveal>
+            <RevealGroup className="mt-8 grid gap-x-12 sm:grid-cols-2" step={55}>
               {L.forWho.map((w) => (
-                <div key={w.title} className="flex items-start gap-3 rounded-[20px] border border-[#e7dccd] bg-[#faf8f5] p-5">
-                  <S.check className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
-                  <div className="flex flex-col gap-1">
-                    <div className="font-serif text-[15.5px] font-semibold leading-snug text-ink">{w.title}</div>
-                    <div className="text-[13.5px] leading-[1.55] text-ink/55">{w.body}</div>
-                  </div>
+                <div key={w.title} className="flex h-full flex-col gap-1.5 border-b border-ink/8 py-5">
+                  <div className="font-archivo text-[16px] font-semibold leading-snug text-ink">{w.title}</div>
+                  <div className="text-[14px] leading-[1.65] text-ink/55">{w.body}</div>
                 </div>
               ))}
-            </div>
+            </RevealGroup>
           </div>
         </section>
 
         {/* À propos (optionnel) */}
         {tenant.aboutEnabled && (tenant.aboutText || tenant.aboutPhotoUrl) ? (
-          <section className="scroll-mt-24">
-            <div className="mx-auto grid w-full max-w-[1120px] items-center gap-10 px-5 py-[clamp(56px,8vw,100px)] sm:px-8 lg:grid-cols-[minmax(0,320px)_1fr]">
+          <section className="scroll-mt-24 border-t border-ink/10">
+            <div className="mx-auto grid w-full max-w-[1040px] items-center gap-10 px-5 py-[clamp(52px,7vw,92px)] sm:px-8 lg:grid-cols-[minmax(0,300px)_1fr]">
               {tenant.aboutPhotoUrl ? (
-                <div className="mx-auto w-full max-w-[320px]">
+                <Reveal className="mx-auto w-full max-w-[300px]" direction="left">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={tenant.aboutPhotoUrl}
-                    alt={tenant.aboutTitle || tenant.name}
-                    className="aspect-square w-full rounded-[32px] border border-[#e7dccd] object-cover"
-                  />
-                </div>
+                  <img src={tenant.aboutPhotoUrl} alt={tenant.aboutTitle || tenant.name} className="w-full rounded-[28px] border border-ink/8 object-cover" />
+                </Reveal>
               ) : null}
-              <div className="flex flex-col gap-5">
-                <Eyebrow>{L.aboutChip}</Eyebrow>
-                <h2 className="font-serif text-[clamp(26px,4vw,42px)] font-semibold leading-[1.06] tracking-[-0.015em] text-ink">
-                  {tenant.aboutTitle || tenant.name}
-                </h2>
-                {tenant.aboutText ? (
-                  <div className="flex max-w-[60ch] flex-col gap-3 text-[16px] leading-[1.7] text-ink/70">
-                    {tenant.aboutText.split(/\n{2,}|\n/).filter(Boolean).map((para, i) => (
-                      <p key={i}>{para}</p>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
+              <Reveal className="flex flex-col gap-4" direction="right">
+                <Label>{L.aboutChip}</Label>
+                {tenant.aboutTitle ? <h2 className={display}>{tenant.aboutTitle}</h2> : null}
+                {tenant.aboutText ? <p className="max-w-[58ch] whitespace-pre-line text-[16.5px] leading-[1.8] text-ink/60">{tenant.aboutText}</p> : null}
+              </Reveal>
             </div>
           </section>
         ) : null}
 
-        {/* Lead magnet : mini-programme gratuit */}
+        {/* Mini-programme offert */}
         {leadMagnet ? (
-          <section className="border-t border-[#e7dccd]">
-            <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(48px,7vw,80px)] sm:px-8">
-              <div className="relative overflow-hidden rounded-[32px] border border-brand/30 bg-gradient-to-br from-brand/[0.08] to-transparent p-8 sm:p-10">
-                <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-col gap-2">
-                    <Eyebrow><S.spark className="h-3.5 w-3.5" /> {L.leadChip}</Eyebrow>
-                    <h3 className="font-serif text-[clamp(22px,3.5vw,30px)] font-semibold leading-tight tracking-[-0.02em] text-ink">
-                      {L.leadTitle}
-                    </h3>
-                    <p className="max-w-[52ch] text-[15px] leading-[1.6] text-ink/65">
-                      {L.leadBody}
-                    </p>
-                  </div>
-                  <Link href={`/c/${tenant.slug}/decouverte`} className="tap inline-flex h-[52px] shrink-0 items-center justify-center gap-2 rounded-full bg-brand px-7 text-[15px] font-semibold text-white shadow-[0_14px_40px_-12px_var(--color-brand)] transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">
-                    {L.leadCta} <S.arrow className="h-4.5 w-4.5" />
-                  </Link>
-                </div>
-              </div>
+          <section className="border-t border-ink/10">
+            <div className="mx-auto w-full max-w-[1040px] px-5 py-[clamp(44px,6vw,76px)] sm:px-8">
+              <Reveal className="flex flex-col items-center gap-4 rounded-[32px] border border-brand/25 bg-white p-9 text-center sm:p-12" direction="scale">
+                <Label>{L.leadChip}</Label>
+                <h3 className={`${display} max-w-[20ch]`}>{L.leadTitle}</h3>
+                <p className="max-w-[52ch] text-[15.5px] leading-[1.7] text-ink/60">{L.leadBody}</p>
+                <Link href={`/c/${tenant.slug}/decouverte`} className="press tap mt-2 inline-flex h-[54px] items-center justify-center gap-2 rounded-full bg-brand px-8 text-[15px] font-semibold text-white hover:bg-brand-hover">
+                  {L.leadCta} <S.arrow className="h-4.5 w-4.5" />
+                </Link>
+              </Reveal>
             </div>
           </section>
         ) : null}
 
-        {/* Offres */}
-        <section id="offres" className="scroll-mt-20 border-t border-[#e7dccd] bg-white">
-          <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(56px,8vw,100px)] sm:px-8">
+        {/* Programmes */}
+        <section id="offres" className="scroll-mt-20 border-t border-ink/10">
+          <div className="mx-auto w-full max-w-[1040px] px-5 pt-[clamp(52px,7vw,92px)] sm:px-8">
             <Reveal className="flex flex-col items-center gap-4 text-center">
-              <Eyebrow>{L.programsChip}</Eyebrow>
-              <h2 className={sectionTitle}>{L.programsTitle}</h2>
+              <Label>{L.programsChip}</Label>
+              <h2 className={`${display} max-w-[16ch]`}>{L.programsTitle}</h2>
             </Reveal>
-            {offers.length === 0 ? (
-              <div className="mx-auto mt-10 max-w-[520px] rounded-[32px] border border-[#e7dccd] bg-[#faf8f5] p-6 text-center text-[15px] text-ink/60">
-                {L.noOffer}
-              </div>
-            ) : (
-              <div
-                className={`mx-auto mt-12 grid gap-5 ${
-                  offers.length === 1
-                    ? "max-w-[520px]"
-                    : offers.length === 2
-                      ? "max-w-[820px] sm:grid-cols-2"
-                      : "max-w-[1120px] sm:grid-cols-2 lg:grid-cols-3"
-                }`}
-              >
-                {offers.map((o) => (
-                  <OfferCard key={o.id} offer={o} offers={offers} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} locale={locale} audience={tenant.businessType} />
-                ))}
-              </div>
-            )}
+          </div>
 
-            {tenant.chargesEnabled && offers.some((o) => o.billing_type !== "subscription") ? (
-              <div className="mx-auto mt-10 flex max-w-[560px] flex-col items-center gap-3 rounded-[32px] border border-[#e7dccd] bg-[#faf8f5] p-7 text-center">
-                <div className="font-serif text-[20px] font-bold tracking-[-0.02em] text-ink">
-                  {L.giftTitle}
-                </div>
-                <p className="text-[14px] leading-[1.55] text-ink/60">
-                  {L.giftBody}
-                </p>
+          {offers.length === 0 ? (
+            <div className="mx-auto w-full max-w-[1040px] px-5 py-14 sm:px-8">
+              <p className="rounded-[28px] border border-ink/10 p-8 text-center text-[15px] text-ink/50">{L.noOffer}</p>
+            </div>
+          ) : offers.length >= 3 ? (
+            <div className="mx-auto mt-10 w-full max-w-[1040px]">
+              <Rail hint={slide}>
+                {offers.map((o) => (
+                  <div key={o.id} className="w-[320px] sm:w-[360px]">
+                    <OfferCard offer={o} offers={offers} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} locale={locale} audience={tenant.businessType} />
+                  </div>
+                ))}
+              </Rail>
+            </div>
+          ) : (
+            <div className={`mx-auto mt-10 grid w-full gap-5 px-5 sm:px-8 ${offers.length === 1 ? "max-w-[520px]" : "max-w-[880px] sm:grid-cols-2"}`}>
+              {offers.map((o) => (
+                <OfferCard key={o.id} offer={o} offers={offers} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} locale={locale} audience={tenant.businessType} />
+              ))}
+            </div>
+          )}
+
+          {tenant.chargesEnabled && offers.some((o) => o.billing_type !== "subscription") ? (
+            <div className="mx-auto w-full max-w-[1040px] px-5 pb-[clamp(52px,7vw,92px)] pt-10 sm:px-8">
+              <div className="mx-auto flex max-w-[560px] flex-col items-center gap-3 rounded-[28px] border border-ink/10 bg-white p-8 text-center">
+                <div className="font-archivo text-[20px] font-bold tracking-[-0.02em] text-ink">{L.giftTitle}</div>
+                <p className="text-[14.5px] leading-[1.6] text-ink/55">{L.giftBody}</p>
                 <Link
                   href={`/c/${tenant.slug}/offrir`}
-                  className="tap mt-1 inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-brand bg-brand/10 px-6 text-[15px] font-semibold text-brand transition-colors hover:bg-brand/20"
+                  className="press tap mt-1 inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-brand px-6 text-[15px] font-semibold text-brand transition-colors hover:bg-brand hover:text-white"
                 >
-                  <S.spark className="h-4 w-4 text-brand" /> {L.giftCta}
+                  <S.spark className="h-4 w-4" /> {L.giftCta}
                 </Link>
               </div>
-            ) : null}
-          </div>
+            </div>
+          ) : (
+            <div className="pb-[clamp(52px,7vw,92px)]" />
+          )}
         </section>
 
         {/* FAQ */}
-        <section className="border-t border-[#e7dccd]">
-          <div className="mx-auto w-full max-w-[820px] px-5 py-[clamp(56px,8vw,100px)] sm:px-8">
+        <section className="border-t border-ink/10">
+          <div className="mx-auto w-full max-w-[760px] px-5 py-[clamp(52px,7vw,92px)] sm:px-8">
             <Reveal className="flex flex-col items-center gap-4 text-center">
-              <Eyebrow>{L.faqChip}</Eyebrow>
-              <h2 className={sectionTitle}>{L.faqTitle}</h2>
+              <Label>{L.faqChip}</Label>
+              <h2 className={display}>{L.faqTitle}</h2>
             </Reveal>
-            <div className="mt-10 flex flex-col gap-3">
+            <div className="mt-9 flex flex-col">
               {L.faqs.map((f) => (
-                <details key={f.q} className="group rounded-[20px] border border-[#e7dccd] bg-white px-5 py-4 open:border-brand/30">
-                  <summary className="tap flex cursor-pointer list-none items-center justify-between gap-4 font-serif text-[15.5px] font-semibold leading-snug text-ink [&::-webkit-details-marker]:hidden">
+                <details key={f.q} className="group border-t border-ink/10 py-4 last:border-b">
+                  <summary className="tap flex cursor-pointer list-none items-center justify-between gap-4 font-archivo text-[16px] font-semibold leading-snug text-ink [&::-webkit-details-marker]:hidden">
                     {f.q}
-                    <S.chevron className="h-4.5 w-4.5 shrink-0 text-ink/40 transition-transform duration-200 group-open:rotate-180" />
+                    <S.chevron className="h-4.5 w-4.5 shrink-0 text-ink/35 transition-transform duration-200 group-open:rotate-180" />
                   </summary>
-                  <div className="mt-3 text-[14px] leading-[1.65] text-ink/60">{f.a}</div>
+                  <div className="mt-3 text-[14.5px] leading-[1.75] text-ink/60">{f.a}</div>
                 </details>
               ))}
             </div>
@@ -535,14 +484,18 @@ export function CoachSage({ tenant, offers, leadMagnet = false, locale = "fr" }:
         </section>
 
         {/* CTA final */}
-        <section className="relative overflow-hidden border-t border-[#e7dccd] bg-white">
-          <div className="pointer-events-none absolute left-1/2 top-0 h-[320px] w-[720px] -translate-x-1/2 rounded-full blur-[130px]" style={{ background: `color-mix(in srgb, ${accent} 16%, transparent)` }} />
-          <div className="relative mx-auto flex w-full max-w-[1120px] flex-col items-center gap-7 px-5 py-[clamp(64px,10vw,120px)] text-center sm:px-8">
-            <h2 className="max-w-[18ch] font-serif text-[clamp(30px,5.5vw,56px)] font-semibold leading-[1.02] tracking-[-0.035em] text-balance text-ink">
+        <section className="relative overflow-hidden border-t border-ink/10 bg-white">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-0 h-[300px] w-[700px] -translate-x-1/2 rounded-full blur-[130px]"
+            style={{ background: `color-mix(in srgb, ${accent} 12%, transparent)` }}
+          />
+          <div className="relative mx-auto flex w-full max-w-[1040px] flex-col items-center gap-7 px-5 py-[clamp(60px,9vw,116px)] text-center sm:px-8">
+            <h2 className="max-w-[18ch] font-archivo text-[clamp(30px,5.4vw,56px)] font-bold leading-[1.04] tracking-[-0.03em] text-balance text-ink">
               {L.finalTitle}
             </h2>
             {offers.length > 0 ? (
-              <a href="#offres" className="tap inline-flex h-[56px] items-center justify-center gap-2 rounded-full bg-brand px-9 text-[16px] font-semibold text-white shadow-[0_14px_40px_-12px_var(--color-brand)] transition-[transform,background-color] duration-150 hover:bg-brand-hover active:scale-[0.98]">
+              <a href="#offres" className="press tap inline-flex h-[56px] items-center justify-center gap-2 rounded-full bg-brand px-10 text-[16px] font-semibold text-white hover:bg-brand-hover">
                 {L.seePrograms} <S.arrow className="h-5 w-5" />
               </a>
             ) : null}
@@ -551,28 +504,26 @@ export function CoachSage({ tenant, offers, leadMagnet = false, locale = "fr" }:
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-[#e7dccd] bg-[#f6f4ef]">
-        <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 px-5 py-12 sm:px-8">
+      <footer className="border-t border-ink/10">
+        <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-4 px-5 py-12 sm:px-8">
           <Brand tenant={tenant} imgClass="h-10" textClass="text-[18px]" />
-          <p className="max-w-[70ch] text-[13px] leading-[1.6] text-ink/50">
-            {L.legalNote}
-          </p>
-          <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-1 text-[13px] text-ink/50">
-            <Link href="/connexion" className="transition-colors hover:text-ink">{L.footerLogin}</Link>
-            <Link href="/mentions-legales" className="transition-colors hover:text-ink">{L.footerLegal}</Link>
-            <Link href="/confidentialite" className="transition-colors hover:text-ink">{L.footerPrivacy}</Link>
-            <Link href="/cgv" className="transition-colors hover:text-ink">{L.footerTerms}</Link>
+          <p className="max-w-[70ch] text-[13px] leading-[1.7] text-ink/45">{L.legalNote}</p>
+          <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-1 text-[13px] text-ink/45">
+            <Link href="/connexion" className="underline-grow transition-colors hover:text-ink">{L.footerLogin}</Link>
+            <Link href="/mentions-legales" className="underline-grow transition-colors hover:text-ink">{L.footerLegal}</Link>
+            <Link href="/confidentialite" className="underline-grow transition-colors hover:text-ink">{L.footerPrivacy}</Link>
+            <Link href="/cgv" className="underline-grow transition-colors hover:text-ink">{L.footerTerms}</Link>
           </nav>
-          <p className="pt-1 text-[12px] text-ink/35">
-            {L.poweredBy} <span className="font-serif font-bold text-ink/60">My Fitness <span className="text-brand">App</span></span>.
+          <p className="pt-1 text-[12px] text-ink/30">
+            {L.poweredBy} <span className="font-archivo font-bold text-ink/55">My Fitness <span className="text-brand">App</span></span>.
           </p>
         </div>
       </footer>
 
       {/* CTA collante mobile */}
       {offers.length > 0 ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e7dccd] bg-[#f6f4ef]/92 px-4 py-3 backdrop-blur-xl sm:hidden">
-          <a href="#offres" className="tap flex w-full items-center justify-center gap-2 rounded-full bg-brand py-3.5 text-[15px] font-semibold text-white active:scale-[0.98]">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-[#f4f1ea]/92 px-4 py-3 backdrop-blur-xl sm:hidden">
+          <a href="#offres" className="press tap flex w-full items-center justify-center gap-2 rounded-full bg-brand py-3.5 text-[15px] font-semibold text-white">
             {L.seePrograms} <S.arrow className="h-4 w-4" />
           </a>
         </div>

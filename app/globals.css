@@ -378,6 +378,13 @@ input:not([type="checkbox"]):not([type="radio"]) {
   mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 48px), transparent 100%);
 }
 
+/* Bandeau défilant en continu. Deux copies côte à côte translatées de -100 %
+   de leur propre largeur : la boucle est invisible. */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
 /* Soulignement animé (liens de navigation des landings). */
 .underline-grow {
   background-image: linear-gradient(currentColor, currentColor);
