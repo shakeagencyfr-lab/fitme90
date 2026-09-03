@@ -7,7 +7,7 @@
 -- clés étrangères, index, fonctions, RLS).
 --
 -- Modèle de sécurité : RLS activé partout. Les tables « données du client »
--- portent une policy `auth.uid() = user_id`. Toutes les autres sont
+-- portent une policy `(select auth.uid()) = user_id`. Toutes les autres sont
 -- SERVER-ONLY (RLS activé + droits révoqués à anon/authenticated) : seul le
 -- service_role y accède, via le code serveur.
 --
@@ -703,28 +703,93 @@ grant select, update on public.profiles to authenticated;
 grant select on public.tenants, public.offers to authenticated;
 
 -- =====================================================================
--- 6. POLICIES — accès client à ses propres données (auth.uid())
+-- 6. POLICIES — accès client à ses propres données ((select auth.uid()))
 -- =====================================================================
 
 -- Données personnelles : le client (authenticated) accède à ses lignes.
-create policy questionnaires_own on public.questionnaires for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy equipment_own on public.equipment for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy session_logs_own on public.session_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy weights_own on public.weights for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy measurements_own on public.measurements for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy photos_own on public.photos for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy shopping_checks_own on public.shopping_checks for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy push_subscriptions_own on public.push_subscriptions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy programs_own on public.programs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy coach_conversations_own on public.coach_conversations for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy coach_messages_own on public.coach_messages for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy questionnaires_own on public.questionnaires for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy equipment_own on public.equipment for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy session_logs_own on public.session_logs for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy weights_own on public.weights for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy measurements_own on public.measurements for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy photos_own on public.photos for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy shopping_checks_own on public.shopping_checks for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy push_subscriptions_own on public.push_subscriptions for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy programs_own on public.programs for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy coach_conversations_own on public.coach_conversations for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy coach_messages_own on public.coach_messages for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 
 -- Le client lit et met à jour SON profil.
-create policy profiles_select_own on public.profiles for select using (auth.uid() = id);
-create policy profiles_update_own on public.profiles for update using (auth.uid() = id) with check (auth.uid() = id);
+create policy profiles_select_own on public.profiles for select using ((select auth.uid()) = id);
+create policy profiles_update_own on public.profiles for update using ((select auth.uid()) = id) with check ((select auth.uid()) = id);
 
 -- Le client lit son tenant (son coach) et les offres de ce tenant (landing).
 create policy tenants_select_own on public.tenants for select
-  using (id in (select p.tenant_id from public.profiles p where p.id = auth.uid()));
+  using (id in (select p.tenant_id from public.profiles p where p.id = (select auth.uid())));
 create policy offers_select_own on public.offers for select
-  using (tenant_id in (select p.tenant_id from public.profiles p where p.id = auth.uid()));
+  using (tenant_id in (select p.tenant_id from public.profiles p where p.id = (select auth.uid())));
+
+-- =====================================================================
+-- 7. JOURNAL DES VENTES
+-- =====================================================================
+
+-- Une ligne par encaissement réellement constaté, figée au moment où il a
+-- lieu. Avant cette table le chiffre d'affaires se déduisait de `profiles` :
+-- la date d'achat valait la date d'inscription, un changement d'offre
+-- réécrivait le passé, et un remboursement n'apparaissait nulle part.
+create table if not exists public.orders (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.tenants(id) on delete cascade,
+  -- Le client peut être supprimé (RGPD) sans effacer la vente de la compta.
+  user_id uuid references public.profiles(id) on delete set null,
+  offer_id uuid references public.offers(id) on delete set null,
+  -- Nom figé au moment de la vente : le coach peut renommer son offre ensuite.
+  offer_name text,
+  kind text not null default 'one_time',
+  amount_cents integer not null default 0,
+  currency text not null default 'eur',
+  status text not null default 'paid',
+  -- Référence Stripe de la session. Rend l'écriture idempotente : le webhook
+  -- rejoue ses événements et la réconciliation repasse chaque nuit.
+  stripe_ref text not null,
+  -- Un remboursement arrive sous l'identifiant de l'INTENTION de paiement,
+  -- pas sous celui de la session : sans cette colonne il ne retrouve rien.
+  stripe_payment_intent text,
+  paid_at timestamptz not null default now(),
+  refunded_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists orders_tenant_ref_idx on public.orders (tenant_id, stripe_ref);
+create index if not exists orders_tenant_paid_idx on public.orders (tenant_id, paid_at desc);
+create index if not exists orders_user_idx on public.orders (user_id);
+create index if not exists orders_offer_idx on public.orders (offer_id);
+create index if not exists orders_payment_intent_idx on public.orders (stripe_payment_intent);
+
+-- Même posture que les autres tables de service : RLS actif, aucune policy,
+-- donc refus par défaut. Seule la clé service_role y accède.
+alter table public.orders enable row level security;
+
+-- =====================================================================
+-- 8. INDEX DE RATTACHEMENT
+-- =====================================================================
+
+-- `profiles.tenant_id` est la colonne de cloisonnement multi-tenant : elle
+-- filtre presque toutes les requêtes du produit. Les autres couvrent des clés
+-- étrangères parcourues à chaque ouverture d'écran client.
+create index if not exists profiles_tenant_idx on public.profiles (tenant_id);
+create index if not exists profiles_tenant_role_idx on public.profiles (tenant_id, role);
+create index if not exists profiles_selected_offer_idx on public.profiles (selected_offer_id);
+create index if not exists programs_user_idx on public.programs (user_id);
+create index if not exists questionnaires_user_idx on public.questionnaires (user_id);
+create index if not exists weights_user_idx on public.weights (user_id);
+create index if not exists measurements_user_idx on public.measurements (user_id);
+create index if not exists equipment_user_idx on public.equipment (user_id);
+create index if not exists photos_user_idx on public.photos (user_id);
+create index if not exists coach_messages_user_idx on public.coach_messages (user_id);
+create index if not exists coach_notifications_client_idx on public.coach_notifications (client_id);
+create index if not exists gift_codes_offer_idx on public.gift_codes (offer_id);
+create index if not exists gift_codes_used_by_idx on public.gift_codes (used_by);
+create index if not exists tenants_plan_idx on public.tenants (plan_id);
+create index if not exists support_access_actor_idx on public.support_access_log (actor_tenant_id);
+create index if not exists support_access_target_idx on public.support_access_log (target_tenant_id);
