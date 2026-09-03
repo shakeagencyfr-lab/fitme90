@@ -5,12 +5,15 @@ import { dispatchScheduledPushes } from "@/lib/scheduled-push";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// Dispatcher des notifications PROGRAMMÉES, séparé du cron quotidien.
+// Dispatcher des notifications PROGRAMMÉES. Ne fait QUE vider la file, il est
+// donc appelable aussi souvent qu'on veut sans renvoyer les rappels quotidiens.
 //
-// Il tournait dans /api/cron/notify, qui ne s'exécute qu'une fois par jour à
-// 07:00 UTC : une notification programmée pour 20 h partait le lendemain matin.
-// Ce point d'entrée ne fait que vider la file, il est donc appelable souvent
-// sans risque de renvoyer les rappels quotidiens.
+// Fréquence : le plan Hobby de Vercel n'accepte QUE des crons quotidiens. Une
+// expression horaire (0 * * * *) fait échouer le déploiement entier, pas juste
+// le cron. La file est donc vidée à chaque passage des quatre crons du jour
+// (02:30, 06:00, 07:00, 18:00 UTC), et le délai d'une notification programmée
+// est au pire de quelques heures. Passer à un envoi à l'heure dite demande le
+// plan Pro (crons à la minute) ou un ordonnanceur externe.
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (secret) {

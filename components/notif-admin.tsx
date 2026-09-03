@@ -136,7 +136,7 @@ export function NotifAdmin({ scheduled }: { scheduled: Scheduled[] }) {
             <>
               <Field name="send_at" label={tx("Date et heure d'envoi")} type="datetime-local" className="h-11" />
               <p className="text-[12px] leading-relaxed text-muted-2">
-                {tx("Le serveur vide la file toutes les heures : la notification part à l'heure pleine qui suit la date choisie.")}</p>
+                {tx("Le serveur vide la file quatre fois par jour : la notification part au premier passage qui suit la date choisie, avec quelques heures de décalage possible.")}</p>
             </>
           ) : null}
 

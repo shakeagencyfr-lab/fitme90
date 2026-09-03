@@ -5,9 +5,11 @@ import { resolveAudience } from "@/lib/audience";
 
 // Envoi des notifications programmées par le coach.
 //
-// Extrait du cron quotidien : celui-ci ne tourne qu'une fois par jour, donc une
-// notification programmée à 20 h attendait le lendemain matin. Ce dispatcher
-// est appelé bien plus souvent (voir vercel.json) et ne fait QUE ça.
+// Extrait du cron du soir : une notification programmée à 20 h attendait sinon
+// le rappel de 07:00 le lendemain matin. Ce dispatcher ne fait QUE vider la
+// file, il est donc appelé par TOUS les crons (voir vercel.json), ce qui donne
+// quatre fenêtres d'envoi par jour. Le plan Hobby interdit mieux : une
+// expression plus fréquente qu'une fois par jour fait échouer le déploiement.
 //
 // Idempotent : `sent_at` est posé après l'envoi, et la requête ne prend que les
 // lignes où il est nul. Deux exécutions concurrentes peuvent au pire envoyer un
