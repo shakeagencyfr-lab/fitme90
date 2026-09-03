@@ -27,6 +27,8 @@ interface Props {
   /** Domaine perso verrouillé (option marque blanche non débloquée) ? */
   domainLocked?: boolean;
   customDomainInfo: CustomDomainInfo;
+  /** Étage configuré : décide de ce que l'adresse personnalisée sert vraiment. */
+  kind: "platform" | "reseller" | "coach";
 }
 
 // Studio « marque blanche » : configuration à gauche, aperçu live à droite.
@@ -46,6 +48,7 @@ export function WhiteLabelStudio({
   previewVersion,
   domainLocked = false,
   customDomainInfo,
+  kind,
 }: Props) {
   const tx = usePhrase();
   const router = useRouter();
@@ -59,7 +62,7 @@ export function WhiteLabelStudio({
       <div className="flex flex-col gap-5">
         <BrandingForm branding={branding} namePlaceholder={namePlaceholder} />
         {template ? <TemplateSelector current={template} accent={accent} /> : null}
-        <SubdomainForm current={subdomain} slug={slug} siteHost={siteHost} rootDomain={rootDomain} />
+        <SubdomainForm current={subdomain} slug={slug} siteHost={siteHost} rootDomain={rootDomain} kind={kind} />
         {domainLocked ? (
           <div className="flex items-start gap-2.5 rounded-card border border-line bg-surface-2 p-4">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={1.8} className="mt-0.5 shrink-0 text-muted-2" aria-hidden>
@@ -82,6 +85,9 @@ export function WhiteLabelStudio({
           <div className="flex items-center justify-between gap-2 px-1">
             <div className="flex items-center gap-2">
               <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">{tx("Aperçu live")}</span>
+              {previewUrl ? (
+                <span className="rounded-pill bg-surface-2 px-2 py-0.5 font-mono text-[10px] text-muted-2">{previewUrl}</span>
+              ) : null}
             </div>
             <div className="flex items-center gap-1.5">
               <div className="flex rounded-control border border-line-4 p-0.5">

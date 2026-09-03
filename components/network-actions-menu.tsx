@@ -3,7 +3,8 @@
 
 import { usePhrase } from "@/components/locale-provider";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { networkAction, supportLoginAs, type NetworkState } from "@/app/admin/actions";
 import { Alert, Button } from "@/components/ui";
@@ -52,14 +53,67 @@ export function NetworkActionsMenu({ tenantId, name, ownerUserId, suspended, can
   const [dialog, setDialog] = useState<Dialog>(null);
   const [state, action, pending] = useActionState(networkAction, {} as NetworkState);
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  // Le menu est rendu dans un PORTAL : la table est dans un conteneur
+  // `overflow-x-auto`, qui découpait purement et simplement un menu positionné
+  // en absolu. En `fixed`, il échappe au découpage et peut s'ouvrir vers le
+  // haut quand le bas de l'écran est trop proche.
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [sheet, setSheet] = useState(false);
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (ref.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
     }
     document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
   }, []);
+
+  // Position calculée APRÈS rendu, quand la hauteur réelle du menu est connue :
+  // l'estimer d'après le nombre d'entrées se trompait dès qu'une entrée
+  // conditionnelle apparaissait.
+  useLayoutEffect(() => {
+    if (!open) {
+      setPos(null);
+      return;
+    }
+    function place() {
+      const btn = btnRef.current;
+      const menu = menuRef.current;
+      if (!btn || !menu) return;
+      // Sous 640 px, un menu ancré déborde de toute façon : feuille du bas.
+      if (window.innerWidth < 640) {
+        setSheet(true);
+        return;
+      }
+      setSheet(false);
+      const r = btn.getBoundingClientRect();
+      const h = menu.offsetHeight;
+      const w = menu.offsetWidth;
+      const below = window.innerHeight - r.bottom;
+      const top = below >= h + 12 ? r.bottom + 6 : Math.max(8, r.top - h - 6);
+      const left = Math.min(Math.max(8, r.right - w), window.innerWidth - w - 8);
+      setPos({ top, left });
+    }
+    place();
+    window.addEventListener("resize", place);
+    // La table défile horizontalement : sans ça le menu resterait en arrière.
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (state.ok) {
@@ -73,6 +127,7 @@ export function NetworkActionsMenu({ tenantId, name, ownerUserId, suspended, can
   return (
     <div ref={ref} className="relative inline-block text-left">
       <button
+        ref={btnRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
@@ -85,8 +140,31 @@ export function NetworkActionsMenu({ tenantId, name, ownerUserId, suspended, can
         </svg>
       </button>
 
-      {open ? (
-        <div role="menu" className="absolute right-0 z-30 mt-1.5 w-[240px] overflow-hidden rounded-card border border-line bg-surface py-1 shadow-[0_18px_50px_-20px_rgba(23,25,27,.35)]">
+      {open ? createPortal(
+        <>
+          {/* Voile : sur mobile il matérialise la feuille, sur bureau il ferme
+              au clic sans intercepter le scroll. */}
+          {sheet ? (
+            <button
+              type="button"
+              aria-label={tx("Fermer")}
+              onClick={() => setOpen(false)}
+              className="fixed inset-0 z-[70] bg-ink/40 backdrop-blur-[2px]"
+            />
+          ) : null}
+          <div
+            ref={menuRef}
+            role="menu"
+            style={sheet ? undefined : { top: pos?.top ?? -9999, left: pos?.left ?? -9999 }}
+            className={
+              sheet
+                ? "fixed inset-x-0 bottom-0 z-[71] max-h-[70dvh] overflow-y-auto rounded-t-card border-t border-line bg-surface pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2 shadow-[0_-18px_50px_-20px_rgba(23,25,27,.35)]"
+                : "fixed z-[71] w-[240px] overflow-hidden rounded-card border border-line bg-surface py-1 shadow-[0_18px_50px_-20px_rgba(23,25,27,.35)]"
+            }
+          >
+          {sheet ? (
+            <div className="mx-auto mb-1 h-1 w-10 rounded-full bg-line-4" aria-hidden />
+          ) : null}
           {ownerUserId ? (
             <form
               action={supportLoginAs}
@@ -122,7 +200,9 @@ export function NetworkActionsMenu({ tenantId, name, ownerUserId, suspended, can
           )}
           <button type="button" className={`${item} text-[#C4471A]`} onClick={() => { setOpen(false); setDialog("delete"); }}>
             <Icon d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" /> {tx("Supprimer le compte")}</button>
-        </div>
+          </div>
+        </>,
+        document.body,
       ) : null}
 
       {dialog ? (

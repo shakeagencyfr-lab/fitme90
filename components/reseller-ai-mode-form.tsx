@@ -13,11 +13,18 @@ interface Props {
   /** Le revendeur a-t-il branché sa clé Anthropic ? Sans clé, le mode
    *  « revendeur d'IA » n'est pas activable (BYOK forcé). */
   keyConfigured: boolean;
+  /**
+   * Le revendeur ABSORBE-t-il le coût IA ? Vrai en modèle abonnement : les
+   * coachs paient un forfait et la facture Anthropic est pour lui, donc son
+   * plafond est le seul garde-fou. En modèle crédits, le solde du coach borne
+   * déjà la dépense et le plafond n'est que du bruit à l'écran.
+   */
+  absorbsCost: boolean;
 }
 
 // Choix du mode de fourniture de l'IA du revendeur + plafond par client. Le
 // coût projeté (plafond atteint) s'affiche en direct pour piloter la marge.
-export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured }: Props) {
+export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured, absorbsCost }: Props) {
   const tx = usePhrase();
   const [state, action, saving] = useActionState(saveResellerAiMode, {} as ResellerAiState);
   const [mode, setMode] = useState<"byok" | "provider">(initialMode);
@@ -60,10 +67,10 @@ export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured }:
             {tx("Pour activer le mode")} <span className="font-semibold">{tx("revendeur d'IA")}</span>{tx(", branche d'abord ta clé Anthropic dans la section ci-dessous. Tant qu'aucune clé n'est enregistrée, tes coachs restent en BYOK (chacun sa clé).")}</Alert>
         ) : null}
 
-        {mode === "provider" ? (
+        {mode === "provider" && absorbsCost ? (
           <div className="flex flex-col gap-3 rounded-control border border-line-4 bg-surface-2 p-4">
             <label className="flex flex-col gap-1.5">
-              <MonoLabel>{tx("Plafond de messages Coach IA / jour / client (0 = illimité)")}</MonoLabel>
+              <MonoLabel>{tx("Plafond de sécurité : messages / jour / client (0 = illimité)")}</MonoLabel>
               <input
                 type="number"
                 name="ai_client_daily_limit"
@@ -73,8 +80,8 @@ export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured }:
                 onChange={(e) => setLimit(Math.max(0, Math.min(1000, Number(e.target.value) || 0)))}
                 className="w-40 rounded-control border border-line-4 bg-surface px-3.5 py-2.5 font-plex text-[14px] text-ink outline-none focus:border-ink"
               />
-              <span className="text-[12px] text-muted-2">
-                {tx("Recettes incluses. Ce plafond s'impose à tous les clients de tes coachs (le coach peut le baisser, jamais le dépasser).")}</span>
+              <span className="text-[12px] leading-relaxed text-muted-2">
+                {tx("Ce n'est pas le réglage du coach : lui fixe le quota de chaque offre, dans son propre espace. Celui-ci est le plafond que tu lui imposes, parce qu'en abonnement c'est TOI qui reçois la facture Anthropic. Le coach peut descendre en dessous, jamais au-dessus.")}</span>
             </label>
 
             <div className="flex flex-col gap-2 border-t border-line pt-3 text-[13px] text-body">
@@ -101,8 +108,14 @@ export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured }:
             </div>
           </div>
         ) : (
+          // Le champ reste soumis pour ne pas écraser la valeur en base quand
+          // il n'est pas affiché.
           <input type="hidden" name="ai_client_daily_limit" value={initialLimit} />
         )}
+        {mode === "provider" && !absorbsCost ? (
+          <p className="text-[12.5px] leading-relaxed text-muted-2">
+            {tx("En modèle crédits, pas de plafond à régler ici : le solde de crédits de chaque coach borne déjà ce que ses clients peuvent consommer, et chaque action lui est débitée.")}</p>
+        ) : null}
 
         {state.error ? <Alert>{state.error}</Alert> : null}
         {state.ok ? <Alert tone="info">{tx("Mode enregistré. Il s'applique dès maintenant.")}</Alert> : null}
