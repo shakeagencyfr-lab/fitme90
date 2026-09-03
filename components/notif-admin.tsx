@@ -11,6 +11,7 @@ import {
   type NotifState,
 } from "@/app/admin/actions";
 import { Card, Button, Alert, MonoLabel, Field, TextArea } from "@/components/ui";
+import { PUSH_WINDOWS, windowInstant, nextWindow } from "@/lib/push-windows";
 
 interface Scheduled {
   id: string;
@@ -92,6 +93,96 @@ function SegmentFilters() {
   );
 }
 
+/**
+ * Choix du moment d'envoi.
+ *
+ * Un champ d'heure libre laissait choisir 21 h 15 pour un envoi qui partirait
+ * en réalité au premier passage du dispatcher, soit 4 h 30 du matin. Le
+ * formulaire mentait. On ne propose donc QUE les créneaux réellement servis.
+ *
+ * Les heures des crons sont en UTC ; elles sont converties dans le fuseau du
+ * navigateur pour l'affichage, ce qui gère l'heure d'été sans y penser.
+ */
+function SlotPicker() {
+  const tx = usePhrase();
+  // Rendu serveur : « maintenant » diffère entre le serveur et le client, ce
+  // qui ferait diverger le HTML hydraté. On calcule donc au montage.
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    queueMicrotask(() => setNow(new Date()));
+  }, []);
+
+  const first = now ? nextWindow(now) : null;
+  const [date, setDate] = useState("");
+  const [slot, setSlot] = useState(0);
+
+  useEffect(() => {
+    if (!first) return;
+    queueMicrotask(() => {
+      setDate((d) => d || first.date);
+      setSlot((s) => (s ? s : PUSH_WINDOWS.findIndex((w) => w === first.window)));
+    });
+  }, [first]);
+
+  const chosen = date ? windowInstant(date, PUSH_WINDOWS[slot] ?? PUSH_WINDOWS[0]) : null;
+  const past = !!(chosen && now && chosen.getTime() <= now.getTime());
+  const todayISO = now ? new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10) : "";
+
+  function localTime(w: (typeof PUSH_WINDOWS)[number]): string {
+    const at = windowInstant(date || todayISO || "2026-01-01", w);
+    if (!at) return "";
+    return at.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  }
+
+  return (
+    <div className="flex flex-col gap-3 rounded-control border border-line-2 bg-surface-2 p-3.5">
+      <MonoLabel>{tx("Quand l'envoyer")}</MonoLabel>
+      {/* La valeur soumise est un instant complet : le serveur n'a rien à
+          recomposer, et aucune heure non servie ne peut lui parvenir. */}
+      <input type="hidden" name="send_at" value={chosen ? chosen.toISOString() : ""} />
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[13.5px] font-medium text-body-2">{tx("Jour")}</span>
+          <input
+            type="date"
+            value={date}
+            min={todayISO}
+            onChange={(e) => setDate(e.target.value)}
+            className={selectClass}
+          />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[13.5px] font-medium text-body-2">{tx("Créneau d'envoi")}</span>
+          <select value={slot} onChange={(e) => setSlot(Number(e.target.value))} className={selectClass}>
+            {PUSH_WINDOWS.map((w, i) => (
+              <option key={`${w.hour}:${w.minute}`} value={i}>
+                {localTime(w)} · {tx(w.role)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {past ? (
+        <Alert>{tx("Ce créneau est déjà passé. Choisis le suivant ou un autre jour.")}</Alert>
+      ) : chosen ? (
+        <p className="text-[12.5px] leading-[1.55] text-muted">
+          {tx("Départ le")}{" "}
+          <span className="font-semibold text-ink">
+            {chosen.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}{" "}
+            {tx("à")} {chosen.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+          </span>
+          .
+        </p>
+      ) : null}
+
+      <p className="text-[12px] leading-[1.55] text-muted-2">
+        {tx("Le serveur ne vide la file qu'à ces quatre moments de la journée. Les autres heures ne sont pas proposées parce qu'elles ne partiraient pas à l'heure dite.")}</p>
+    </div>
+  );
+}
+
 export function NotifAdmin({ scheduled }: { scheduled: Scheduled[] }) {
   const tx = usePhrase();
   const [scheduleMode, setScheduleMode] = useState(false);
@@ -132,13 +223,7 @@ export function NotifAdmin({ scheduled }: { scheduled: Scheduled[] }) {
             </span>
           </label>
 
-          {scheduleMode ? (
-            <>
-              <Field name="send_at" label={tx("Date et heure d'envoi")} type="datetime-local" className="h-11" />
-              <p className="text-[12px] leading-relaxed text-muted-2">
-                {tx("Le serveur vide la file quatre fois par jour : la notification part au premier passage qui suit la date choisie, avec quelques heures de décalage possible.")}</p>
-            </>
-          ) : null}
+          {scheduleMode ? <SlotPicker /> : null}
 
           {state.error ? <Alert>{state.error}</Alert> : null}
           {state.ok ? (

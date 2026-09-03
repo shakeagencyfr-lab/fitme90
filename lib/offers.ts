@@ -62,7 +62,12 @@ export async function listOffers(tenantId: string): Promise<Offer[]> {
   return (data ?? []) as Offer[];
 }
 
-export type LandingTemplate = "onyx" | "lumen" | "volt" | "sage";
+// Le registre des templates vit dans un module sans « server-only » : le
+// sélecteur côté client en a besoin à l'exécution. Réexporté ici pour ne pas
+// casser les imports existants.
+import { LANDING_TEMPLATES, PREMIUM_TEMPLATES, asLandingTemplate, type LandingTemplate } from "@/lib/landing-templates";
+export { LANDING_TEMPLATES, PREMIUM_TEMPLATES, asLandingTemplate };
+export type { LandingTemplate };
 
 /**
  * Nature du commerce. Choisit le DISCOURS de la landing publique : un coach
@@ -75,13 +80,6 @@ export const BUSINESS_TYPES: readonly BusinessType[] = ["coach", "gym"] as const
 export function asBusinessType(v: string | null | undefined): BusinessType {
   return v === "gym" ? "gym" : "coach";
 }
-export const LANDING_TEMPLATES: readonly LandingTemplate[] = ["onyx", "lumen", "volt", "sage"] as const;
-
-/** Normalise la valeur stockée en une clé de template connue (défaut onyx). */
-export function asLandingTemplate(v: string | null | undefined): LandingTemplate {
-  return (LANDING_TEMPLATES as readonly string[]).includes(v ?? "") ? (v as LandingTemplate) : "onyx";
-}
-
 export interface PublicTenant {
   id: string;
   name: string;

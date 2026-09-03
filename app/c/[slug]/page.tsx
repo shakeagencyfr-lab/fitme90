@@ -6,6 +6,8 @@ import { CoachOnyx } from "@/components/landing-templates/coach-onyx";
 import { CoachLumen } from "@/components/landing-templates/coach-lumen";
 import { CoachVolt } from "@/components/landing-templates/coach-volt";
 import { CoachSage } from "@/components/landing-templates/coach-sage";
+import { CoachKinetic } from "@/components/landing-templates/coach-kinetic";
+import { CoachAurora } from "@/components/landing-templates/coach-aurora";
 import { LocaleProvider } from "@/components/locale-provider";
 import { resolveLocale, tenantLocale } from "@/lib/i18n/server";
 
@@ -15,7 +17,7 @@ export const dynamic = "force-dynamic";
 export async function generateViewport({ params }: { params: Promise<{ slug: string }> }): Promise<Viewport> {
   const { slug } = await params;
   const template = await landingTemplateBySlug(slug);
-  const colors: Record<string, string> = { lumen: "#f6f4ef", volt: "#eeeee8", sage: "#f7f2ea" };
+  const colors: Record<string, string> = { lumen: "#f6f4ef", volt: "#eeeee8", sage: "#f7f2ea", aurora: "#faf8f4", kinetic: "#08090b" };
   return { themeColor: colors[template] ?? "#0a0b0c" };
 }
 
@@ -43,6 +45,8 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
     tenant.landingTemplate === "lumen" ? <CoachLumen {...props} />
     : tenant.landingTemplate === "volt" ? <CoachVolt {...props} />
     : tenant.landingTemplate === "sage" ? <CoachSage {...props} />
+    : tenant.landingTemplate === "kinetic" ? <CoachKinetic {...props} />
+    : tenant.landingTemplate === "aurora" ? <CoachAurora {...props} />
     : <CoachOnyx {...props} />;
   return <LocaleProvider locale={locale}>{page}</LocaleProvider>;
 }
