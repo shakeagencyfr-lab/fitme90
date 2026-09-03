@@ -5,6 +5,7 @@ import { resolveLocale } from "@/lib/i18n/server";
 import { tx } from "@/lib/i18n/request";
 import Link from "next/link";
 import { Wordmark } from "@/components/brand";
+import { MobileNav } from "@/components/mobile-nav";
 import { Reveal } from "@/components/reveal";
 import { RevenueSimulator } from "@/components/revenue-simulator";
 import { LIcon } from "@/components/landing-icon";
@@ -112,6 +113,22 @@ export default async function RevendeursPage() {
               <a key={h} href={h} className="text-[14px] font-medium text-white/60 transition-colors hover:text-white">{tx(l)}</a>
             ))}
           </nav>
+          <MobileNav
+            className="md:hidden"
+            tone="dark"
+            bg="#080a0c"
+            radius={12}
+            langLabel={tx("Langue")}
+            brand={<span className="text-white [&_span]:text-white"><Wordmark size={20} /></span>}
+            links={[
+              { href: "#marche", label: tx("Le marché") },
+              { href: "#simulateur", label: tx("Simulateur") },
+              { href: "#modele", label: tx("Rémunération") },
+              { href: "#faq", label: tx("FAQ") },
+            ]}
+            login={{ href: "/connexion", label: tx("Connexion") }}
+            cta={{ href: signup, label: tx("Devenir revendeur") }}
+          />
           {/* Masqué sous sm comme sur la landing plateforme : la barre collante
               du bas porte le même CTA. */}
           <Link href={signup} className="tap hidden h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-btn bg-brand px-3.5 text-[13.5px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98] sm:inline-flex">{tx("Devenir revendeur")}</Link>

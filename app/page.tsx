@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { LangSwitch } from "@/components/lang-switch";
+import { MobileNav } from "@/components/mobile-nav";
 import { LocaleProvider } from "@/components/locale-provider";
 import { setRequestLocale } from "@/lib/i18n/request";
 import { resolveLocale } from "@/lib/i18n/server";
@@ -145,7 +146,27 @@ export default async function Home() {
             ))}
           </nav>
           <div className="flex shrink-0 items-center gap-2">
-            <LangSwitch compact className="border-white/20 bg-white/5 text-white/70" />
+            <MobileNav
+              className="md:hidden"
+              tone="dark"
+              bg="#080a0c"
+              radius={12}
+              langLabel={tx("Langue")}
+              brand={<span className="text-white [&_span]:text-white"><Wordmark size={20} /></span>}
+              links={[
+                { href: "#apercu", label: tx("Aperçu") },
+                { href: "#simulateur", label: tx("Simulateur") },
+                { href: "#formules", label: tx("Tarifs") },
+                { href: "#faq", label: tx("FAQ") },
+              ]}
+              login={{ href: "/connexion", label: tx("Connexion") }}
+              cta={{ href: signup, label: tx("Démarrer gratuitement") }}
+            />
+            {/* La bascule de langue quitte la barre du haut sur téléphone :
+                elle vit dans le menu, où elle ne prend la place de rien. */}
+            <span className="hidden md:block">
+              <LangSwitch compact className="border-white/20 bg-white/5 text-white/70" />
+            </span>
             <Link href="/connexion" className="hidden text-[14px] font-medium text-white/60 transition-colors hover:text-white sm:inline">{tx("Connexion")}</Link>
             {/* Masqué sous sm : la barre collante du bas porte déjà ce CTA, et
                 le garder ici poussait le bouton hors de l'écran sur mobile. */}

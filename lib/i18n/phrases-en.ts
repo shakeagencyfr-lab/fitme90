@@ -979,4 +979,6 @@ export const PHRASES_EN: Record<string, string> = {
   "vente": "sale",
   "ventes": "sales",
   "À traiter": "Needs action",
+  "Langue": "Language",
+  "FAQ": "FAQ",
 };

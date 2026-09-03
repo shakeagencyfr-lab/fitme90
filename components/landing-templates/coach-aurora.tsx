@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { LangSwitch } from "@/components/lang-switch";
-import { MobileNav } from "@/components/landing-templates/mobile-nav";
+import { MobileNav } from "@/components/mobile-nav";
 import Link from "next/link";
 import { type Offer, type PublicTenant } from "@/lib/offers";
 import { formatEuros, DEFAULT_BRAND_COLOR } from "@/lib/config";

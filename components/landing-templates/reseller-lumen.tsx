@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { LangSwitch } from "@/components/lang-switch";
-import { MobileNav } from "@/components/landing-templates/mobile-nav";
+import { MobileNav } from "@/components/mobile-nav";
 import { tx } from "@/lib/i18n/request";
 import Link from "next/link";
 import { CoachMark } from "@/components/brand";
