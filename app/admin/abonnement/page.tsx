@@ -5,9 +5,9 @@ import { listPlans, type Plan } from "@/lib/plans";
 import { tenantCapacity } from "@/lib/entitlements";
 import { tenantBillingState, verifyPlanCheckout } from "@/lib/tenant-billing";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { formatEuros } from "@/lib/config";
 import { FROZEN_STATUSES } from "@/lib/freeze";
-import { PlanChangeButton } from "@/components/plan-change-button";
+import { PlanPicker } from "@/components/plan-picker";
+import { CapacityGauge } from "@/components/capacity-gauge";
 import { DeleteAccountCard } from "@/components/delete-account-card";
 import { cancelMyPlan, reactivateMyPlan, refreshMyBilling } from "@/app/admin/actions";
 import { Alert, Card, MonoLabel } from "@/components/ui";
@@ -16,16 +16,6 @@ const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }) : null;
 
 export const metadata = { title: "Mon abonnement, Admin My Fitness App" };
-
-function monthLabel(p: Plan): string | null {
-  return p.price_month_cents != null ? `${formatEuros(p.price_month_cents)}/mois` : null;
-}
-function yearLabel(p: Plan): string | null {
-  return p.price_year_cents != null ? `${formatEuros(p.price_year_cents)}/an` : null;
-}
-function capacityText(limit: number | null): string {
-  return limit == null ? "clients illimités" : `${limit} client${limit > 1 ? "s" : ""}`;
-}
 
 export default async function AdminBillingPage({
   searchParams,
@@ -115,15 +105,13 @@ export default async function AdminBillingPage({
               )}
             </div>
             {cap ? (
-              <p className="text-[13px] text-body">
-                {cap.unlimited
-                  ? `Clients illimités · ${cap.used} inscrit${cap.used > 1 ? "s" : ""}`
-                  : `${cap.used} / ${cap.limit} client${(cap.limit ?? 0) > 1 ? "s" : ""}`}
-              </p>
+              <div className="mt-1.5">
+                <CapacityGauge used={cap.used} limit={cap.limit} unlimited={cap.unlimited} />
+              </div>
             ) : null}
             {!hasActiveSub ? (
-              <p className="text-[12.5px] text-muted-2">
-                {tx("Tu es sur le palier gratuit (1er client offert). Choisis une offre ci-dessous pour accueillir plus de clients.")}</p>
+              <p className="text-[12.5px] leading-[1.55] text-muted-2">
+                {tx("Tu es sur le palier gratuit : une seule place client, offerte. Les offres ci-dessous ouvrent des places supplémentaires.")}</p>
             ) : billing?.cancelAtPeriodEnd ? (
               <div className="mt-1 flex flex-wrap items-center gap-3">
                 <span className="text-[12.5px] text-muted-2">
@@ -153,49 +141,14 @@ export default async function AdminBillingPage({
             <Alert tone="info">
               {parentName ? `${parentName} ne propose` : "Aucune offre proposée"} {tx("pas encore de formule payante. Reviens plus tard.")}</Alert>
           ) : (
-            <div className="flex flex-col gap-3">
-              <div className="font-archivo font-bold text-[17px] text-ink">
-                {parentName ? `Les offres de ${parentName}` : "Les offres disponibles"}
-              </div>
-              {sellable.map((p) => {
-                const current = billing?.planId === p.id && hasActiveSub;
-                return (
-                  <Card key={p.id} className={`flex flex-col gap-3 ${current ? "border-brand/40" : ""}`}>
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex flex-col gap-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="font-archivo font-bold text-[16px] text-ink">{p.name}</span>
-                          {current ? (
-                            <span className="rounded-pill bg-brand/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-brand">
-                              {tx("Ton offre")}</span>
-                          ) : null}
-                        </div>
-                        <span className="text-[13px] text-body">
-                          {capacityText(p.client_limit)}
-                          {p.setup_fee_cents > 0 ? ` · setup ${formatEuros(p.setup_fee_cents)} une fois` : ""}
-                        </span>
-                        <span className="text-[13px] text-muted">
-                          {[monthLabel(p), yearLabel(p)].filter(Boolean).join(" · ") || "Sur mesure"}
-                        </span>
-                      </div>
-                    </div>
-                    {current ? (
-                      <p className="text-[12.5px] text-muted-2">
-                        {tx("C'est ton offre en cours. Choisis une autre offre pour l'upgrader ou la downgrader (prorata automatique).")}</p>
-                    ) : (
-                      <PlanChangeButton
-                        planId={p.id}
-                        monthLabel={monthLabel(p)}
-                        yearLabel={yearLabel(p)}
-                        hasActiveSub={hasActiveSub}
-                      />
-                    )}
-                  </Card>
-                );
-              })}
-              <p className="text-[12.5px] text-muted-2">
-                {tx("Paiement sécurisé par Stripe. La facturation est gérée par le compte qui héberge le tien. Un changement d'offre ajuste ton abonnement en cours (prorata), sans nouveau paiement complet.")}</p>
-            </div>
+            <PlanPicker
+              plans={sellable}
+              currentPlanId={billing?.planId ?? null}
+              hasActiveSub={hasActiveSub}
+              currentLimit={cap?.unlimited ? null : (cap?.limit ?? null)}
+              used={cap?.used ?? 0}
+              sellerName={parentName}
+            />
           )}
 
           {/* Zone dangereuse : résiliation totale (coach uniquement) */}
