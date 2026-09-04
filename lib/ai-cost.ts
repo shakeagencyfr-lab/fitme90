@@ -50,14 +50,23 @@ export type CostRow = {
   input_tokens: number | null;
   output_tokens: number | null;
   cache_read_tokens: number | null;
+  /** Ecritures dans le cache 5 minutes. */
   cache_write_tokens: number | null;
+  /** Ecritures dans le cache 1 heure, facturees plus cher. */
+  cache_write_1h_tokens?: number | null;
 };
 
 // Tarifs du cache de prompt, en multiples du prix d'un token d'entrée : une
-// lecture coûte 10 %, une écriture 125 %. `input_tokens` renvoyé par l'API
-// EXCLUT déjà les tokens servis par le cache, les trois lignes s'additionnent.
+// lecture coûte 10 %, une écriture 125 % pour le cache court (5 minutes) et
+// 200 % pour le cache long (1 heure). `input_tokens` renvoyé par l'API EXCLUT
+// déjà les tokens servis par le cache : toutes ces lignes s'additionnent.
+//
+// Les deux durées sont comptées séparément parce qu'elles ne coûtent pas la
+// même chose. Les confondre sous-estimerait la facture de 60 % dès qu'une
+// route passe en cache long.
 const CACHE_READ_RATE = 0.1;
 const CACHE_WRITE_RATE = 1.25;
+const CACHE_WRITE_1H_RATE = 2;
 
 /** Coût d'un appel, poste par poste (USD). La somme vaut `rowCost`. */
 export interface CostParts {
@@ -80,7 +89,10 @@ export function costParts(r: CostRow): CostParts {
   const p = priceFor(r.model || modelForRoute(r.route));
   const input = ((r.input_tokens ?? 0) * p.in) / 1_000_000;
   const cacheRead = ((r.cache_read_tokens ?? 0) * p.in * CACHE_READ_RATE) / 1_000_000;
-  const cacheWrite = ((r.cache_write_tokens ?? 0) * p.in * CACHE_WRITE_RATE) / 1_000_000;
+  const cacheWrite =
+    ((r.cache_write_tokens ?? 0) * p.in * CACHE_WRITE_RATE +
+      (r.cache_write_1h_tokens ?? 0) * p.in * CACHE_WRITE_1H_RATE) /
+    1_000_000;
   const output = ((r.output_tokens ?? 0) * p.out) / 1_000_000;
   return { input, cacheRead, cacheWrite, output, total: input + cacheRead + cacheWrite + output };
 }
@@ -99,7 +111,7 @@ export async function aiCostForUsers(userIds: string[]): Promise<Map<string, num
   const admin = createAdminClient();
   const { data } = await admin
     .from("ai_calls")
-    .select("user_id, route, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens")
+    .select("user_id, route, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cache_write_1h_tokens")
     .in("user_id", userIds)
     .limit(100000)
     .returns<CostRow[]>();
@@ -128,7 +140,7 @@ export function formatUsd(n: number): string {
 }
 
 /** Premier jour du mois courant (UTC), en ISO. */
-function monthStartIso(now = new Date()): string {
+export function monthStartIso(now = new Date()): string {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
 }
 
@@ -157,7 +169,7 @@ export async function tenantMonthlyAiUsage(tenantId: string | null): Promise<Ten
 
   const { data } = await admin
     .from("ai_calls")
-    .select("user_id, route, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens")
+    .select("user_id, route, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cache_write_1h_tokens")
     .in("user_id", ids)
     .gte("created_at", since)
     .limit(100000)
@@ -206,7 +218,7 @@ export async function resellerMonthlyAiUsage(resellerTenantId: string | null): P
 
   const { data } = await admin
     .from("ai_calls")
-    .select("user_id, route, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens")
+    .select("user_id, route, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cache_write_1h_tokens")
     .in("user_id", ids)
     .gte("created_at", since)
     .limit(100000)

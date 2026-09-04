@@ -276,9 +276,23 @@ Le « weekPlan » du programme n'est qu'un gabarit de semaine indicatif : pour u
 SÉANCES VALIDÉES (les plus récentes d'abord) :
 ${logsDigest((logs ?? []) as CoachLog[])}`;
 
+  // Cache de prompt en DURÉE LONGUE (1 heure) plutôt que les 5 minutes par
+  // défaut. Une conversation avec un coach n'est pas une rafale : le client
+  // écrit, réfléchit, répond dix minutes plus tard. Avec 5 minutes, le cache
+  // avait expiré à chaque tour et on repayait l'écriture du contexte entier à
+  // chaque message. Une écriture longue coûte 200 % d'un token d'entrée au lieu
+  // de 125 %, mais elle n'a lieu qu'une fois par heure au lieu d'une fois par
+  // message espacé : au-delà du deuxième message, c'est gagnant.
+  //
+  // DEUX points de reprise, parce que les deux blocs ne changent pas au même
+  // rythme. Le premier (persona, profil, programme) tient des jours. Le second
+  // (date du jour, retards, séances validées) change quand le client valide une
+  // séance, mais reste stable pendant toute une conversation : le mettre en
+  // cache aussi évite de repayer 2 500 tokens à chaque message.
+  const longCache = { type: "ephemeral", ttl: "1h" } as const;
   const system: Anthropic.TextBlockParam[] = [
-    { type: "text", text: systemStable, cache_control: { type: "ephemeral" } },
-    { type: "text", text: systemVolatile },
+    { type: "text", text: systemStable, cache_control: longCache },
+    { type: "text", text: systemVolatile, cache_control: longCache },
   ];
 
   const userContent: Anthropic.ContentBlockParam[] = [];
@@ -380,7 +394,15 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     },
   ];
 
-  const totalUsage = { input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0 };
+  const totalUsage = {
+    input_tokens: 0,
+    output_tokens: 0,
+    cache_read_tokens: 0,
+    /** Écritures dans le cache court (5 min). */
+    cache_write_tokens: 0,
+    /** Écritures dans le cache long (1 h), facturées 200 % au lieu de 125 %. */
+    cache_write_1h_tokens: 0,
+  };
   // `adapted` : quelque chose a changé, il faut rafraîchir les pages du client.
   // `regenerated` : le modèle a réellement reconstruit un programme, ce qui est
   // le SEUL cas qui justifie de débiter des crédits de génération.
@@ -503,7 +525,15 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     totalUsage.input_tokens += m.usage.input_tokens;
     totalUsage.output_tokens += m.usage.output_tokens;
     totalUsage.cache_read_tokens += m.usage.cache_read_input_tokens ?? 0;
-    totalUsage.cache_write_tokens += m.usage.cache_creation_input_tokens ?? 0;
+    // L'API distingue les deux durées. On les sépare ici, sinon l'estimation de
+    // coût sous-évaluerait la facture de 60 % sur toutes les écritures longues.
+    const creation = m.usage.cache_creation;
+    if (creation) {
+      totalUsage.cache_write_tokens += creation.ephemeral_5m_input_tokens ?? 0;
+      totalUsage.cache_write_1h_tokens += creation.ephemeral_1h_input_tokens ?? 0;
+    } else {
+      totalUsage.cache_write_tokens += m.usage.cache_creation_input_tokens ?? 0;
+    }
     return m;
   }
 
@@ -560,10 +590,17 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     return `Programme régénéré en tenant compte de : « ${contrainte} ». Les exercices contre-indiqués ont été remplacés par des alternatives sûres. Confirme-le au client et invite-le à consulter si la douleur persiste.`;
   }
 
-  const convo: Anthropic.MessageParam[] = [
-    ...past.map((m) => ({ role: m.role, content: m.content })),
-    { role: "user" as const, content: userContent },
-  ];
+  // L'historique aussi est mis en cache, avec un point de reprise sur le
+  // DERNIER tour passé. Sans lui, les vingt-quatre messages précédents étaient
+  // renvoyés et refacturés plein tarif à chaque nouveau message, et la note
+  // grossissait avec la conversation. Avec, seul le tour courant est payé au
+  // prix fort ; le reste est relu à 10 %.
+  const passe: Anthropic.MessageParam[] = past.map((m, i) =>
+    i === past.length - 1
+      ? { role: m.role, content: [{ type: "text" as const, text: m.content, cache_control: longCache }] }
+      : { role: m.role, content: m.content },
+  );
+  const convo: Anthropic.MessageParam[] = [...passe, { role: "user" as const, content: userContent }];
 
   async function execTool(name: string, input: unknown): Promise<string> {
     if (name === "adapter_programme") {
