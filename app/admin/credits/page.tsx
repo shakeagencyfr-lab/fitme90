@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { billingParentId, tenantNode } from "@/lib/hierarchy";
-import { getWallet, listCreditPacks, clientUsesCredits, listLedger, programCreditCost, type LedgerEntry } from "@/lib/credits";
+import { getWallet, listCreditPacks, clientUsesCredits, listLedger, programCreditCost, realCreditCostCents, type LedgerEntry } from "@/lib/credits";
+import { CreditScale, CreditScaleNote } from "@/components/credit-scale";
 import { verifyPackCheckout } from "@/lib/credit-billing";
 import { BuyPackButton } from "@/components/buy-pack-button";
 import { Alert, Card, MonoLabel } from "@/components/ui";
@@ -66,12 +67,16 @@ export default async function AdminCreditsPage({
     .maybeSingle<{ ai_supply: string | null }>();
   const isReseller = node?.kind === "reseller";
   const buysFromPlatform = isReseller && t?.ai_supply === "platform_credits";
-  const [wallet, coachUsesCredits, supplierId, programCredits, ledger] = await Promise.all([
+  const [wallet, coachUsesCredits, supplierId, programCredits, ledger, unitCents] = await Promise.all([
     getWallet(tenantId),
     isReseller ? Promise.resolve(buysFromPlatform) : clientUsesCredits(tenantId),
     billingParentId(tenantId),
     programCreditCost(tenantId),
     listLedger(tenantId, 200),
+    // Ce qu'un crédit lui coûte VRAIMENT : la moyenne de ses achats, sinon le
+    // meilleur tarif qu'il obtiendrait aujourd'hui. Sans ce chiffre, un solde
+    // en crédits ne veut rien dire.
+    realCreditCostCents(tenantId),
   ]);
   const usesCredits = coachUsesCredits;
   const packs = supplierId ? (await listCreditPacks(supplierId)).filter((p) => p.is_active) : [];
@@ -83,10 +88,17 @@ export default async function AdminCreditsPage({
         <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
           {tx("Crédits IA")}</h1>
         <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
-          {tx("Un seul type de crédit. Chaque action IA (message du coach, recette, alternative d'exercice) en consomme 1 ; une génération de programme en consomme")} {programCredits}.
-          {isReseller ? " Tes coachs te les achètent, tu les achètes à la plateforme." : " Tu n'es débité que de ce que tes clients utilisent réellement."}
+          {tx("Un seul type de crédit, deux tarifs à retenir.")}{" "}
+          {isReseller
+            ? tx("Tes coachs te les achètent, tu les achètes à la plateforme.")
+            : tx("Tu n'es débité que de ce que tes clients utilisent réellement.")}
         </p>
       </div>
+
+      {/* Le barème avant tout le reste : un solde ne veut rien dire tant qu'on
+          ne sait pas ce que coûte une action. */}
+      <CreditScale programCredits={programCredits} unitCents={unitCents} />
+      <CreditScaleNote programCredits={programCredits} unitCents={unitCents} />
 
       {justCredited ? (
         <Alert tone="info">{tx("Paiement confirmé :")} {creditPackContents(justCredited)} {tx("ajoutés à ton solde.")}</Alert>
@@ -101,10 +113,24 @@ export default async function AdminCreditsPage({
           </span>
           <span className="text-[13px] text-muted">{tx("crédit")}{wallet.credits > 1 ? "s" : ""} IA</span>
         </div>
-        {wallet.credits < programCredits ? (
-          <p className="mt-2 text-[13px] text-muted">
-            {tx("Il en faut")} {programCredits} {tx("pour une génération de programme.")}</p>
-        ) : null}
+        {/* Traduit le solde en ce qu'il permet de FAIRE : « 596 crédits » ne
+            dit rien, « 596 actions ou 19 générations » se comprend. */}
+        <p className="mt-2 text-[13px] leading-[1.6] text-muted">
+          {wallet.credits < programCredits ? (
+            <>
+              {tx("Il en faut")} {programCredits} {tx("pour une génération de programme.")}
+            </>
+          ) : (
+            <>
+              {tx("De quoi couvrir")} <span className="text-body">{wallet.credits}</span>{" "}
+              {wallet.credits > 1 ? tx("actions") : tx("action")}, {tx("ou")}{" "}
+              <span className="text-body">{Math.floor(wallet.credits / Math.max(1, programCredits))}</span>{" "}
+              {Math.floor(wallet.credits / Math.max(1, programCredits)) > 1
+                ? tx("générations de programme")
+                : tx("génération de programme")}.
+            </>
+          )}
+        </p>
       </Card>
 
       {!usesCredits ? (
