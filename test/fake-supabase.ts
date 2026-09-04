@@ -22,11 +22,21 @@ export interface RecordedQuery {
   filters: RecordedFilter[];
 }
 
+/** Un fichier déposé dans le faux stockage. */
+export interface RecordedUpload {
+  bucket: string;
+  path: string;
+  contentType: string | undefined;
+  bytes: number;
+}
+
 export interface FakeAdmin {
   /** Toutes les requêtes vues depuis la création, dans l'ordre. */
   queries: RecordedQuery[];
   /** Les requêtes portant sur une table donnée. */
   on(table: string): RecordedQuery[];
+  /** Les fichiers déposés dans le stockage, dans l'ordre. */
+  uploads: RecordedUpload[];
   client: unknown;
 }
 
@@ -121,10 +131,29 @@ export function fakeAdmin(
     return chain;
   }
 
+  // Stockage : on note ce qui est déposé et on rend une adresse publique
+  // prévisible. Assez pour vérifier qu'un fichier part, et sous quel type.
+  const uploads: RecordedUpload[] = [];
+  const storage = {
+    from: (bucket: string) => ({
+      upload: async (path: string, body: unknown, opts?: { contentType?: string }) => {
+        uploads.push({
+          bucket,
+          path,
+          contentType: opts?.contentType,
+          bytes: body instanceof Uint8Array ? body.byteLength : 0,
+        });
+        return { data: { path }, error: null };
+      },
+      getPublicUrl: (path: string) => ({ data: { publicUrl: `https://stockage.test/${bucket}/${path}` } }),
+    }),
+  };
+
   return {
     queries,
+    uploads,
     on: (table: string) => queries.filter((q) => q.table === table),
-    client: { from: (table: string) => builder(table) },
+    client: { from: (table: string) => builder(table), storage },
   };
 }
 
