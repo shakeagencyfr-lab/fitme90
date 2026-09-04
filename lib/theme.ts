@@ -94,33 +94,6 @@ export const CARD_STYLES = {
 export type CardKey = keyof typeof CARD_STYLES;
 export const CARD_KEYS = Object.keys(CARD_STYLES) as CardKey[];
 
-/**
- * CE QU'ON PROPOSE, distinct de ce qui reste VALIDE.
- *
- * Onze fonds et quatre styles de carte, c'était trop pour une décision qui doit
- * se prendre en dix secondes : le coach comparait des nuances au lieu de
- * choisir une direction. Le sélecteur n'en montre plus que quatre et deux.
- *
- * Les autres clés restent acceptées et continuent de s'afficher : un compte qui
- * avait choisi « Zigzag » garde sa page telle quelle. Retirer une option d'un
- * menu ne doit jamais changer une page déjà publiée.
- */
-export const OFFERED_BACKGROUNDS: readonly BackgroundKey[] = ["plain", "sheen", "grid", "glow"];
-export const OFFERED_CARDS: readonly CardKey[] = ["paper", "flat"];
-
-/**
- * La liste à afficher : les options proposées, plus celle déjà retenue si elle
- * n'en fait pas partie. Sans ce complément, un coach verrait un sélecteur où
- * rien n'est coché et croirait avoir perdu son réglage.
- */
-export function backgroundChoices(current: BackgroundKey): BackgroundKey[] {
-  return OFFERED_BACKGROUNDS.includes(current) ? [...OFFERED_BACKGROUNDS] : [...OFFERED_BACKGROUNDS, current];
-}
-
-export function cardChoices(current: CardKey): CardKey[] {
-  return OFFERED_CARDS.includes(current) ? [...OFFERED_CARDS] : [...OFFERED_CARDS, current];
-}
-
 /** Rayons des coins. */
 export const CORNERS = {
   rounded: "Arrondis",
@@ -237,16 +210,6 @@ export interface StyleTheme {
  * d'un coup. C'est la porte d'entrée pour le coach qui n'a pas d'idée précise ;
  * les réglages fins restent accessibles ensuite.
  */
-/**
- * Les thèmes proposés en un clic, nommés par le TYPE DE SALLE qu'ils servent
- * plutôt que par une impression esthétique. « Nébuleuse » ou « Floraison » ne
- * disaient rien à un coach de force ; « Fonte » et « Ring » se choisissent sans
- * réfléchir.
- *
- * Chacun n'emploie que des fonds et des cartes qui figurent dans le sélecteur,
- * sans quoi cliquer un thème afficherait un réglage d'apparence introuvable
- * juste en dessous. Un test le verrouille.
- */
 export const STYLE_THEMES: readonly StyleTheme[] = [
   {
     key: "origine",
@@ -254,29 +217,29 @@ export const STYLE_THEMES: readonly StyleTheme[] = [
     patch: { primary: "#e0551f", accent: "#17191b", headingFont: "archivo", bodyFont: "plex", background: "plain", card: "paper", corners: "rounded" },
   },
   {
-    key: "fonte",
-    label: "Fonte",
-    patch: { primary: "#c62828", accent: "#141517", headingFont: "bricolage", bodyFont: "jakarta", background: "grid", card: "flat", corners: "sharp" },
+    key: "nebuleuse",
+    label: "Nébuleuse",
+    patch: { primary: "#5b5bd6", accent: "#1e1b3a", headingFont: "sora", bodyFont: "inter", background: "glow", card: "glass", corners: "rounded" },
   },
   {
-    key: "terrain",
-    label: "Terrain",
-    patch: { primary: "#1e7a45", accent: "#10221a", headingFont: "manrope", bodyFont: "manrope", background: "sheen", card: "paper", corners: "rounded" },
+    key: "floraison",
+    label: "Floraison",
+    patch: { primary: "#e0457b", accent: "#2a1220", headingFont: "fraunces", bodyFont: "inter", background: "sheen", card: "paper", corners: "soft" },
   },
   {
-    key: "cadence",
-    label: "Cadence",
-    patch: { primary: "#0e7490", accent: "#0b2530", headingFont: "grotesk", bodyFont: "inter", background: "grid", card: "flat", corners: "rounded" },
+    key: "braise",
+    label: "Braise",
+    patch: { primary: "#d94b1a", accent: "#2a1410", headingFont: "bricolage", bodyFont: "jakarta", background: "rays", card: "flat", corners: "soft" },
   },
   {
-    key: "studio",
-    label: "Studio",
-    patch: { primary: "#8a5a3c", accent: "#241c17", headingFont: "fraunces", bodyFont: "inter", background: "sheen", card: "paper", corners: "soft" },
+    key: "maree",
+    label: "Marée",
+    patch: { primary: "#0891b2", accent: "#0c2a33", headingFont: "manrope", bodyFont: "manrope", background: "lines", card: "hairline", corners: "rounded" },
   },
   {
-    key: "ring",
-    label: "Ring",
-    patch: { primary: "#8e1b3a", accent: "#16090f", headingFont: "archivo", bodyFont: "inter", background: "glow", card: "flat", corners: "sharp" },
+    key: "mono",
+    label: "Mono",
+    patch: { primary: "#475569", accent: "#0f172a", headingFont: "inter", bodyFont: "inter", background: "grid", card: "flat", corners: "sharp" },
   },
 ];
 
