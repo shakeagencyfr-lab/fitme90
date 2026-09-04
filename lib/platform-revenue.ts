@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { listChildTenants, type ChildTenant } from "@/lib/hierarchy";
 import { monthStartIso, rowCost, type CostRow } from "@/lib/ai-cost";
 import { usdToEur } from "@/lib/config";
+import { keyOwnerFor, type SupplyNode } from "@/lib/ai-supply";
 
 /**
  * Ce que rapporte la revente d'IA, pour la plateforme ou pour un revendeur.
@@ -92,10 +93,10 @@ export function totalsOf(lines: RevenueLine[]): RevenueTotals {
  *
  * La règle n'est pas « le revendeur est en crédits, donc la plateforme paie
  * tout son réseau » : `tenantAnthropicKey` essaie D'ABORD la clé du compte
- * lui-même. Un coach en clé perso sous un revendeur en crédits règle Anthropic
- * directement, et compter sa consommation dans la marge de la plateforme
- * afficherait une dépense jamais engagée. On reproduit donc ici la résolution
- * de `lib/tenant.ts`, à l'identique.
+ * lui-même. Un coach dont personne ne fournit l'IA règle Anthropic directement,
+ * et compter sa consommation dans la marge de la plateforme afficherait une
+ * dépense jamais engagée. La règle n'est pas réécrite ici : `keyOwnerFor` la
+ * porte, et c'est la même que celle qui choisit la clé et celle qui débite.
  */
 async function payeurParTenant(ids: string[]): Promise<Map<string, string | null>> {
   const admin = createAdminClient();
@@ -112,22 +113,21 @@ async function payeurParTenant(ids: string[]): Promise<Map<string, string | null
       .returns<{ tenant_id: string; anthropic_key_enc: string | null }[]>(),
   ]);
 
-  const parId = new Map((rows ?? []).map((r) => [r.id, r]));
   const aUneCle = new Set((secrets ?? []).filter((s) => !!s.anthropic_key_enc).map((s) => s.tenant_id));
+  const reseau = new Map<string, SupplyNode>(
+    (rows ?? []).map((r) => [
+      r.id,
+      {
+        id: r.id,
+        parentId: r.parent_id,
+        aiMode: r.ai_mode === "provider" ? "provider" : "byok",
+        aiSupply: r.ai_supply === "platform_credits" ? "platform_credits" : "byok",
+        hasOwnKey: aUneCle.has(r.id),
+      },
+    ]),
+  );
 
-  const resoudre = (id: string): string | null => {
-    // Sa propre clé prime, toujours.
-    if (aUneCle.has(id)) return id;
-    const moi = parId.get(id);
-    const parent = moi?.parent_id ? parId.get(moi.parent_id) : undefined;
-    // Un parent qui n'est pas fournisseur ne prête pas sa clé.
-    if (!parent || parent.ai_mode !== "provider") return null;
-    // Revendeur en crédits plateforme : c'est la clé de la plateforme qui tourne.
-    if (parent.ai_supply === "platform_credits") return parent.parent_id ?? null;
-    return parent.id;
-  };
-
-  return new Map(ids.map((id) => [id, resoudre(id)]));
+  return new Map(ids.map((id) => [id, keyOwnerFor(id, reseau)]));
 }
 
 /** Descendance complète d'un compte, sur la profondeur du produit. */

@@ -41,8 +41,9 @@ async function figures(children: ChildTenant[], sequences: Record<string, unknow
 describe("choix du chiffre", () => {
   it("montre un solde à un revendeur qui achète ses crédits", async () => {
     const m = await figures([enfant({ id: REVENDEUR, kind: "reseller", aiSupply: "platform_credits" })], {
-      // La première lecture de `tenants` est le modèle de revente de l'acteur.
-      tenants: [[{ reseller_model: "subscription" }]],
+      // La lecture de `tenants` porte les trois faits de facturation de
+      // l'acteur : fournit-il l'IA, à quel modèle, avec quelle source.
+      tenants: [[{ ai_mode: "provider", reseller_model: "subscription", ai_supply: "byok" }]],
       credit_wallets: [[{ tenant_id: REVENDEUR, credits: 420 }]],
     });
     expect(m.get(REVENDEUR)).toEqual({ mode: "credits", credits: 420, costUsd: null });
@@ -50,24 +51,36 @@ describe("choix du chiffre", () => {
 
   it("montre une dépense à un revendeur en clé perso", async () => {
     const m = await figures([enfant({ id: REVENDEUR, kind: "reseller", aiSupply: "byok" })], {
-      tenants: [[{ reseller_model: "subscription" }], []],
+      tenants: [[{ ai_mode: "provider", reseller_model: "subscription", ai_supply: "byok" }], []],
       profiles: [[]],
     });
     expect(m.get(REVENDEUR)?.mode).toBe("byok");
     expect(m.get(REVENDEUR)?.credits).toBeNull();
   });
 
+  it("ne montre un solde que si l'acteur FOURNIT vraiment l'IA", async () => {
+    // Modèle « crédits » mais coachs autonomes : chacun tourne sur sa clé, il
+    // n'y a aucun crédit à dépenser. Afficher un solde ici faisait dire à cet
+    // écran l'inverse du dashboard du coach.
+    const m = await figures([enfant({ id: COACH, kind: "coach" })], {
+      tenants: [[{ ai_mode: "byok", reseller_model: "credits", ai_supply: "byok" }]],
+      profiles: [[]],
+    });
+    expect(m.get(COACH)?.mode).toBe("byok");
+    expect(m.get(COACH)?.credits).toBeNull();
+  });
+
   it("suit le modèle de l'acteur pour ses coachs, pas leur propre réglage", async () => {
     // Un coach n'a pas de fourniture à lui : c'est son revendeur qui décide si
     // l'IA lui est vendue en crédits ou s'il branche sa propre clé.
     const enCredits = await figures([enfant({ id: COACH, kind: "coach" })], {
-      tenants: [[{ reseller_model: "credits" }]],
+      tenants: [[{ ai_mode: "provider", reseller_model: "credits", ai_supply: "byok" }]],
       credit_wallets: [[{ tenant_id: COACH, credits: 12 }]],
     });
     expect(enCredits.get(COACH)).toEqual({ mode: "credits", credits: 12, costUsd: null });
 
     const enByok = await figures([enfant({ id: COACH, kind: "coach" })], {
-      tenants: [[{ reseller_model: "subscription" }]],
+      tenants: [[{ ai_mode: "provider", reseller_model: "subscription", ai_supply: "byok" }]],
       profiles: [[]],
     });
     expect(enByok.get(COACH)?.mode).toBe("byok");
@@ -75,7 +88,7 @@ describe("choix du chiffre", () => {
 
   it("affiche zéro plutôt que rien quand le portefeuille n'existe pas encore", async () => {
     const m = await figures([enfant({ id: COACH, kind: "coach" })], {
-      tenants: [[{ reseller_model: "credits" }]],
+      tenants: [[{ ai_mode: "provider", reseller_model: "credits", ai_supply: "byok" }]],
       credit_wallets: [[]],
     });
     expect(m.get(COACH)?.credits).toBe(0);
@@ -90,7 +103,7 @@ describe("calcul de la dépense", () => {
 
   it("impute au coach la conso de ses propres clients", async () => {
     const m = await figures([enfant({ id: COACH, kind: "coach" })], {
-      tenants: [[{ reseller_model: "subscription" }]],
+      tenants: [[{ ai_mode: "provider", reseller_model: "subscription", ai_supply: "byok" }]],
       profiles: [[{ id: "u1", tenant_id: COACH }]],
       ai_calls: [[appel("u1"), appel("u1")]],
     });
@@ -109,7 +122,7 @@ describe("calcul de la dépense", () => {
 
   it("ne compte pas la conso d'un compte étranger au réseau", async () => {
     const m = await figures([enfant({ id: COACH, kind: "coach" })], {
-      tenants: [[{ reseller_model: "subscription" }]],
+      tenants: [[{ ai_mode: "provider", reseller_model: "subscription", ai_supply: "byok" }]],
       profiles: [[{ id: "u1", tenant_id: COACH }]],
       // Un appel d'un utilisateur qui n'a pas été retenu : il doit être ignoré.
       ai_calls: [[appel("inconnu")]],
