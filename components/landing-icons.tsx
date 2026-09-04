@@ -3,6 +3,15 @@
 export type IconProps = { className?: string };
 
 export const S = {
+  // Étoile de notation : PLEINE, contrairement aux autres. Une étoile en trait
+  // ne distingue pas assez « acquise » de « non acquise » dans une note sur
+  // cinq, qui est précisément ce qu'elle doit montrer d'un coup d'oeil. Elle se
+  // colore par `text-…`, donc l'état vide n'est qu'une teinte plus pâle.
+  star: (p: IconProps) => (
+    <svg viewBox="0 0 24 24" className={p.className} aria-hidden="true">
+      <path d="M12 3.6l2.6 5.3 5.8.85-4.2 4.1 1 5.75L12 16.9l-5.2 2.7 1-5.75-4.2-4.1 5.8-.85L12 3.6Z" fill="currentColor" />
+    </svg>
+  ),
   ai: (p: IconProps) => (
     <svg viewBox="0 0 24 24" fill="none" className={p.className} aria-hidden="true">
       <path d="M12 3a3 3 0 0 0-3 3 3 3 0 0 0-2 5.2A3 3 0 0 0 9 17a3 3 0 0 0 6 0 3 3 0 0 0 2-5.8A3 3 0 0 0 15 6a3 3 0 0 0-3-3Z" stroke="currentColor" strokeWidth="1.6" />

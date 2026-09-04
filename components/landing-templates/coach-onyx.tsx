@@ -9,6 +9,7 @@ import { S } from "@/components/landing-icons";
 import { SubscriptionPrice } from "@/components/subscription-price";
 import { Reveal } from "@/components/reveal";
 import { LeadBand } from "@/components/landing-templates/lead-band";
+import { TestimonialBand } from "@/components/landing-templates/testimonial-band";
 import { AuthorEngine } from "@/components/landing-templates/author-engine";
 import { offerCardCopy, landingCopy, type Audience } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
@@ -387,6 +388,23 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false, locale = "fr" }:
                   </div>
                 ) : null}
               </div>
+            </div>
+          </section>
+        ) : null}
+
+        {/* Ce que disent ses clients. Placé avant le mini-programme :
+            la preuve d'abord, la demande d'adresse ensuite. */}
+        {tenant.testimonials.length > 0 ? (
+          <section className="border-t border-white/10">
+            <div className="mx-auto w-full max-w-[1240px] px-5 py-[clamp(44px,6vw,72px)] sm:px-8">
+              <TestimonialBand
+                items={tenant.testimonials}
+                titre={L.testimonialsTitle}
+                rating={tenant.googleRating}
+                reviewsCount={tenant.googleReviewsCount}
+                mapsUrl={tenant.googleMapsUrl}
+                tone="dark"
+              />
             </div>
           </section>
         ) : null}

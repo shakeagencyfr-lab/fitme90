@@ -147,6 +147,7 @@ export async function applyGoogleImport(
   draft: ImportDraft,
   choix: ApplyChoices,
   fetcher: typeof fetch = fetch,
+  importId: string | null = null,
 ): Promise<ApplyResult> {
   const admin = createAdminClient();
   const applied = { infos: false, textes: false, photo: false, avis: 0 };
@@ -209,9 +210,64 @@ export async function applyGoogleImport(
     if (!error) applied.avis = retenus.length;
   }
 
-  // Journal : sert à retrouver ce qui a été importé et quand, sans avoir à
-  // rappeler SerpApi pour le savoir.
-  await admin.from("google_imports").insert({ tenant_id: tenantId, data_id: draft.dataId, payload: draft });
+  // Trace de ce qui a réellement été appliqué, et quand.
+  if (importId) {
+    await admin
+      .from("google_imports")
+      .update({ status: "applied", applied_at: new Date().toISOString() })
+      .eq("id", importId)
+      .eq("tenant_id", tenantId);
+  }
 
   return { ok: true, applied };
+}
+
+// ------------------------------------------------------------------ brouillon
+
+/**
+ * Met le brouillon de côté, entre la recherche et l'application.
+ *
+ * Il pourrait faire l'aller-retour par le navigateur du coach, mais alors ce
+ * qui reviendrait ne serait plus ce qu'on avait envoyé : il faudrait tout
+ * revalider, et une adresse d'image glissée dans le formulaire ferait appeler
+ * la machine qu'on lui désigne. Le garder ici coûte une ligne et supprime la
+ * question. Accessoirement, cela évite de redemander la fiche au service, qui
+ * facture chaque appel.
+ */
+export async function saveImportDraft(tenantId: string, draft: ImportDraft): Promise<string | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("google_imports")
+    .insert({ tenant_id: tenantId, data_id: draft.dataId, payload: draft, status: "preview" })
+    .select("id")
+    .maybeSingle<{ id: string }>();
+  return error ? null : (data?.id ?? null);
+}
+
+/**
+ * Relit un brouillon mis de côté.
+ *
+ * Le filtre par tenant n'est pas une précaution de style : l'identifiant vient
+ * du navigateur, et sans lui il suffirait d'en essayer un autre pour lire la
+ * fiche importée par un confrère.
+ */
+export async function readImportDraft(tenantId: string, importId: string): Promise<ImportDraft | null> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("google_imports")
+    .select("payload")
+    .eq("id", importId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle<{ payload: unknown }>();
+  const p = data?.payload;
+  if (!p || typeof p !== "object" || Array.isArray(p)) return null;
+  const draft = p as Partial<ImportDraft>;
+  // Forme minimale : sans nom ni identifiant, il n'y a rien à appliquer.
+  if (typeof draft.dataId !== "string" || typeof draft.name !== "string") return null;
+  return {
+    ...(draft as ImportDraft),
+    openingHours: Array.isArray(draft.openingHours) ? draft.openingHours : [],
+    photos: Array.isArray(draft.photos) ? draft.photos : [],
+    reviews: Array.isArray(draft.reviews) ? draft.reviews : [],
+  };
 }

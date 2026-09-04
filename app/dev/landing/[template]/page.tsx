@@ -40,6 +40,38 @@ const DEMO_TENANT: PublicTenant = {
   theme: DEFAULT_THEME,
   seoTitle: null,
   seoDescription: null,
+  // Avis fictifs, de longueurs volontairement inégales : c'est ainsi qu'ils
+  // arrivent d'une vraie fiche, et c'est là que la grille se casse si les
+  // cartes ne s'alignent pas par le bas.
+  testimonials: [
+    {
+      id: "a1",
+      author: "Marion T.",
+      body: "Trois mois et je passe enfin la barre des 40 kg au développé couché. Le suivi hebdomadaire fait toute la différence.",
+      rating: 5,
+      publishedLabel: "il y a 2 mois",
+      source: "google",
+    },
+    {
+      id: "a2",
+      author: "Karim B.",
+      body: "Sérieux et à l'écoute.",
+      rating: 5,
+      publishedLabel: "il y a 5 mois",
+      source: "google",
+    },
+    {
+      id: "a3",
+      author: "Sophie L.",
+      body: "J'avais arrêté trois fois avant. Là j'en suis à ma huitième semaine sans en manquer une seule, parce que le programme tient compte de mes horaires décalés et que je ne me retrouve jamais devant une séance impossible.",
+      rating: 4,
+      publishedLabel: "il y a 1 an",
+      source: "google",
+    },
+  ],
+  googleRating: 4.8,
+  googleReviewsCount: 214,
+  googleMapsUrl: "https://www.google.com/maps",
 };
 
 function offer(partial: Partial<Offer>): Offer {

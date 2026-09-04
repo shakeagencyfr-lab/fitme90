@@ -221,12 +221,54 @@ describe("application complète", () => {
     expect(r.applied.infos).toBe(true);
   });
 
-  it("garde une trace de l'import", async () => {
+  it("marque le brouillon comme appliqué", async () => {
     const { applyGoogleImport } = await lib();
-    await applyGoogleImport("t1", DRAFT, { infos: true, textes: false, photoUrl: null, avis: [] }, image());
-    const journal = fake.on("google_imports")[0];
-    const ligne = journal.filters.find((f) => f.op === "insert")!.value as Record<string, unknown>;
+    await applyGoogleImport("t1", DRAFT, { infos: true, textes: false, photoUrl: null, avis: [] }, image(), "imp1");
+    const maj = fake.on("google_imports").find((q) => q.filters.some((f) => f.op === "update"));
+    expect(eqValue(maj!, "id")).toBe("imp1");
+    expect(eqValue(maj!, "tenant_id")).toBe("t1");
+  });
+});
+
+describe("brouillon mis de côté", () => {
+  it("enregistre la fiche cherchée", async () => {
+    const { saveImportDraft } = await lib();
+    await saveImportDraft("t1", DRAFT);
+    const ligne = fake.on("google_imports")[0].filters.find((f) => f.op === "insert")!.value as Record<string, unknown>;
     expect(ligne.tenant_id).toBe("t1");
     expect(ligne.data_id).toBe(DRAFT.dataId);
+    expect(ligne.status).toBe("preview");
+  });
+
+  it("ne relit un brouillon que dans son propre compte", async () => {
+    // L'identifiant vient du navigateur : sans ce filtre, il suffirait d'en
+    // essayer un autre pour lire la fiche importée par un confrère.
+    vi.resetModules();
+    fake = fakeAdmin({ google_imports: [{ payload: DRAFT }] });
+    mockAdminModule(fake);
+    const { readImportDraft } = await import("./google-apply");
+    await readImportDraft("t1", "imp1");
+    const q = fake.on("google_imports")[0];
+    expect(eqValue(q, "id")).toBe("imp1");
+    expect(eqValue(q, "tenant_id")).toBe("t1");
+  });
+
+  it("refuse un brouillon informe plutôt que d'appliquer n'importe quoi", async () => {
+    vi.resetModules();
+    fake = fakeAdmin({ google_imports: [{ payload: { name: "Sans identifiant" } }] });
+    mockAdminModule(fake);
+    const { readImportDraft } = await import("./google-apply");
+    expect(await readImportDraft("t1", "imp1")).toBeNull();
+  });
+
+  it("comble les listes manquantes au lieu de laisser lever plus loin", async () => {
+    vi.resetModules();
+    fake = fakeAdmin({ google_imports: [{ payload: { dataId: "0x1:0x2", name: "Studio" } }] });
+    mockAdminModule(fake);
+    const { readImportDraft } = await import("./google-apply");
+    const d = await readImportDraft("t1", "imp1");
+    expect(d?.reviews).toEqual([]);
+    expect(d?.photos).toEqual([]);
+    expect(d?.openingHours).toEqual([]);
   });
 });
