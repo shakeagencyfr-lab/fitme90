@@ -128,7 +128,7 @@ export function formatUsd(n: number): string {
 }
 
 /** Premier jour du mois courant (UTC), en ISO. */
-function monthStartIso(now = new Date()): string {
+export function monthStartIso(now = new Date()): string {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
 }
 

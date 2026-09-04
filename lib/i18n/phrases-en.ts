@@ -1086,4 +1086,7 @@ export const PHRASES_EN: Record<string, string> = {
   "Ce compte a un abonnement payant en cours. Poser un palier ici le résilie : il ne sera plus prélevé.": "This account has a paid subscription running. Setting a tier here cancels it: it will no longer be charged.",
   "Palier offert": "Granted tier",
   "Ce palier t'a été offert : tu en as toute la capacité, sans rien payer et sans échéance. Celui qui te l'a posé peut le changer à tout moment.": "This tier was granted to you: you get its full capacity, with nothing to pay and no renewal date. Whoever set it can change it at any time.",
+  "IA": "AI",
+  "crédits": "credits",
+  "ce mois, clé perso": "this month, own key",
 };

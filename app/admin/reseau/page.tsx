@@ -10,6 +10,8 @@ import { CreateAccountForm } from "@/components/create-account-form";
 import { NetworkActionsMenu } from "@/components/network-actions-menu";
 import { canGiftCredits, supplyContexts } from "@/lib/network-admin";
 import { listPlans } from "@/lib/plans";
+import { networkAiFigures, type NetworkAi } from "@/lib/network-ai";
+import { formatUsd } from "@/lib/ai-cost";
 import { GRANTED_STATUS } from "@/lib/tenant-billing";
 
 export const metadata = { title: "Mon réseau, Admin My Fitness App" };
@@ -57,6 +59,11 @@ export default async function AdminNetworkPage({
   const planChoices = tenantId
     ? (await listPlans(tenantId)).map((p) => ({ id: p.id, name: p.name, clientLimit: p.client_limit }))
     : [];
+  // Chiffre IA de chaque compte : un solde de crédits pour ceux qui achètent
+  // leur IA, la dépense du mois pour ceux qui ont leur propre clé. Ce ne sont
+  // pas deux façons de dire la même chose : l'un annonce ce qu'il reste, l'autre
+  // ce qui a déjà été payé.
+  const aiFigures: Map<string, NetworkAi> = tenantId ? await networkAiFigures(tenantId, children) : new Map();
   const base = SITE_URL || "";
   const landingUrl = slug ? `${base}/r/${slug}` : null;
   // Un revendeur recrute des coachs (?r=<son slug>). La plateforme recrute des
@@ -162,7 +169,7 @@ export default async function AdminNetworkPage({
               <table className="w-full min-w-[560px] border-collapse text-[13.5px]">
                 <thead>
                   <tr className="border-b border-line text-left text-muted-2">
-                    {[isPlatform ? "Compte" : "Coach / salle", "Adresse", "Clients", "Abonnement", "Actions"].map((h) => (
+                    {[isPlatform ? "Compte" : "Coach / salle", "Adresse", "Clients", "IA", "Abonnement", "Actions"].map((h) => (
                       <th key={h} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.08em]">
                         {h}
                       </th>
@@ -226,6 +233,33 @@ export default async function AdminNetworkPage({
                           </span>
                         )}
                       </td>
+                      {/* Deux chiffres possibles, jamais les deux à la fois.
+                          Un compte qui achète ses crédits veut savoir ce qu'il
+                          lui reste ; un compte en clé perso, ce qu'il a déjà
+                          dépensé ce mois-ci chez Anthropic. */}
+                      <td className="px-4 py-3 tabular-nums">
+                        {(() => {
+                          const ai = aiFigures.get(c.id);
+                          if (!ai) return <span className="text-muted-2">{"\u2014"}</span>;
+                          return ai.mode === "credits" ? (
+                            <span className="flex flex-col leading-tight">
+                              <span className={ai.credits === 0 ? "font-semibold text-alert-ink" : "text-body"}>
+                                {ai.credits}
+                              </span>
+                              <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted-2">
+                                {ai.credits != null && ai.credits > 1 ? tx("crédits") : tx("crédit")}
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="flex flex-col leading-tight">
+                              <span className="text-body">{formatUsd(ai.costUsd ?? 0)}</span>
+                              <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted-2">
+                                {tx("ce mois, clé perso")}
+                              </span>
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td className="px-4 py-3">
                         {/* Trois états, pas deux : un palier OFFERT n'est ni un
                             abonnement payant ni le palier gratuit. */}
@@ -254,7 +288,7 @@ export default async function AdminNetworkPage({
                   ))}
                   {children.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-muted">
+                      <td colSpan={6} className="px-4 py-8 text-center text-muted">
                         {isPlatform
                           ? "Aucun compte rattaché pour l'instant. Partage un lien d'invitation ci-dessus."
                           : "Aucun coach pour l'instant. Partage ton lien d'invitation ci-dessus."}
