@@ -14,6 +14,12 @@ interface Payload {
   actorName: string;
   targetUserId: string;
   ts: number;
+  /** Écran de retour. Absent sur les cookies posés avant cette option. */
+  backTo?: string;
+  /** Nom de la personne assistée, pour que le bandeau le dise. */
+  targetName?: string;
+  /** « client » : un coach saisit pour son client, pas un opérateur dans un compte. */
+  kind?: "account" | "client";
 }
 
 function key(): string {

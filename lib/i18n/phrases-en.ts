@@ -998,4 +998,10 @@ export const PHRASES_EN: Record<string, string> = {
   "Dans tous les cas, bon entraînement.": "Either way, enjoy your training.",
   "Relancer automatiquement": "Follow up automatically",
   "Trois e-mails espacés après le téléchargement : un conseil à J+3, un bilan de la semaine à J+8, une dernière proposition à J+17. Envoyés à ta marque, avec un lien de désabonnement. On s'arrête dès qu'un prospect devient client.": "Three spaced-out emails after the download: a tip on day 3, a week review on day 8, a final offer on day 17. Sent under your brand, with an unsubscribe link. We stop as soon as a lead becomes a client.",
+  "Saisir pour ce client": "Enter data for this client",
+  "Terminer la saisie": "Done entering",
+  "Tu saisis pour": "Entering for",
+  "ce client": "this client",
+  "Ce client n'est pas rattaché à ton compte.": "This client is not attached to your account.",
+  "La connexion en saisie a échoué. Réessaie dans un instant.": "Could not switch to data entry. Try again in a moment.",
 };
