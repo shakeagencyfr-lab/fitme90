@@ -36,8 +36,8 @@ export function CreditScale({
 
   const lignes: { quoi: string; detail: string; credits: number }[] = [
     {
-      quoi: tx("Une action"),
-      detail: tx("message du Coach IA, recette, alternative d'exercice, analyse de photo"),
+      quoi: tx("Un message au Coach IA"),
+      detail: tx("recettes et alternatives d'exercice comprises, mais gratuites : elles sont calculées, pas générées"),
       credits: 1,
     },
     {

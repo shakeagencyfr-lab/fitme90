@@ -226,7 +226,7 @@ export function OfferForm({
         {coachAi ? (
           <div className="ml-3 flex flex-col gap-3 rounded-control border border-brand/30 bg-surface p-3.5">
             <label className="flex flex-col gap-1.5">
-              <MonoLabel>{tx("Actions IA par jour et par client (0 = illimité)")}</MonoLabel>
+              <MonoLabel>{tx("Échanges avec le Coach IA par jour et par client (0 = illimité)")}</MonoLabel>
               <input
                 name="coach_ai_daily_limit"
                 type="number"
@@ -237,15 +237,13 @@ export function OfferForm({
                 onChange={(e) => setQuota(e.target.value)}
                 className="w-full max-w-[160px] rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
               />
-              {/* Un seul nombre, et la liste de ce qu'il couvre. Il y avait
-                  deux réglages : le coach devait décider deux fois, et le
-                  client se heurtait à deux murs sans savoir lequel il
-                  approchait. */}
+              {/* Un seul nombre, et il ne compte que ce qui coûte. Les
+                  recettes et les alternatives d'exercice sont calculées sans
+                  IA : les faire entrer dans un plafond reviendrait à limiter
+                  quelque chose de gratuit. */}
               <span className="text-[12px] leading-relaxed text-muted-2">
-                {tx("Un seul compteur pour les trois actions du client :")}{" "}
-                <span className="text-body">{tx("message au Coach IA")}</span>,{" "}
-                <span className="text-body">{tx("recette régénérée")}</span>,{" "}
-                <span className="text-body">{tx("alternative à un exercice")}</span>.{" "}
+                {tx("Ce compteur ne couvre que ce qui appelle un modèle : un message au Coach IA, ou une photo d'aliments analysée.")}{" "}
+                <span className="text-body">{tx("Les recettes et les alternatives d'exercice sont calculées, donc gratuites et illimitées.")}</span>{" "}
                 {tx("Il se remet à ce quota chaque jour à minuit, rien ne s'accumule. Tu n'es débité que de ce que le client utilise vraiment, et il voit son solde dans l'app.")}
               </span>
             </label>
@@ -325,13 +323,13 @@ export function OfferForm({
                       {tx("mois du plan, sur ta propre clé Anthropic, si le client sature son quota tous les jours pendant")}{" "}
                       {planDays} {tx("jours :")} {max.generations} {tx("génération")}{max.generations > 1 ? "s" : ""}{" "}
                       {`≈ ${formatEuros(Math.round(maxEur.programEur * 100))}`}, {max.actionCredits.toLocaleString("fr-FR")}{" "}
-                      {tx("actions")} {`≈ ${formatEuros(Math.round(maxEur.actionsEur! * 100))}`}, {tx("mémoire")}{" "}
+                      {tx("messages")} {`≈ ${formatEuros(Math.round(maxEur.actionsEur! * 100))}`}, {tx("mémoire")}{" "}
                       {`≈ ${formatEuros(Math.round(maxEur.memoryEur * 100))}`}.
                     </span>
                   )}
                   {maxEur.totalEur == null ? null : (
                     <span className="text-[12.5px] leading-[1.6] text-muted-2">
-                      {tx("Les actions sont comptées au prix de la plus chère, la recette : rien n'empêche un client de passer son quota du jour à en régénérer.")}{" "}
+                      {tx("Les actions sont comptées au prix d'un message au Coach IA, la seule qui appelle encore un modèle.")}{" "}
                       {tx("C'est un plafond de sécurité, pas une prévision : la dépense réellement observée tourne autour d'un dixième de ce montant.")}</span>
                   )}
                 </>

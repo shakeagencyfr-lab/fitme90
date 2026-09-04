@@ -165,48 +165,53 @@ export const LIMIT_ANALYZE_GYM_TOTAL = 40;
 // prudence. Repères d'ordre de grandeur, pas une facture exacte.
 //
 // Tout tourne sur Haiku 4.5 ($1 / $5 le M) SAUF la génération de programme
-// (Opus 5, $5 / $25). Le prompt du coach est mis en cache : une lecture coûte
-// 10 % d'un token d'entrée, une écriture 125 %. D'où l'écart entre le premier
-// message d'une session, qui écrit le cache, et les suivants qui le lisent.
+// (Sonnet 5, $2 / $10). Le prompt du coach est mis en cache : une lecture
+// coûte 10 % d'un token d'entrée, une écriture 125 %. D'où l'écart entre le
+// premier message d'une session, qui écrit le cache, et les suivants.
+//
+// DEUX POSTES ONT DISPARU. Les recettes du jour et les alternatives
+// d'exercice ne passent plus par un modèle : elles sortent d'un catalogue et
+// d'un calcul (lib/recipe-engine.ts, lib/exercise-alternatives.ts). Elles ne
+// figurent donc plus ici, non pas parce qu'on a cessé de les mesurer, mais
+// parce qu'elles coûtent zéro.
 //
 // Mesures par appel :
 //   message coach, 1er d'une session  0,0097 $   (écriture du cache)
 //   message coach, suivants           0,0021 $   (lecture du cache)
 //   message déclenchant un outil      0,0048 $
-//   alternative d'exercice            0,0011 $
-//   régénération de recettes          0,0099 $
 //   adaptation du programme           0,0706 $   (1 crédit + 10 crédits)
-//   génération de programme (Opus)    0,3882 $
+//   génération de programme (Opus 5)  0,3882 $   (mesuré avant la bascule)
+//   génération de programme (Sonnet 5) 0,1553 $  (mêmes jetons, tarif / 2,5)
 //   résumé de mémoire (cron nocturne) 0,0029 $   par client actif et par jour
 /** Coût estimé d'UN message Coach IA. Moyenne d'une session réelle : une
  * écriture de cache pour deux à trois lectures. */
 export const AI_COST_COACH_MSG_USD = 0.005;
-/** Coût estimé d'UNE régénération de recettes (3 recettes détaillées). Son coût
- * vient de la SORTIE, que le cache ne réduit pas. */
-export const AI_COST_RECIPE_USD = 0.01;
-/** Coût estimé d'UNE action IA « simple » = 1 crédit. Aligné sur l'action
- * courante la PLUS chère (la recette), les autres coûtant moins. */
-export const AI_COST_ACTION_USD = 0.01;
-/** Coût estimé d'UNE génération de programme (Opus, livrable premium). */
-export const AI_COST_PROGRAM_USD = 0.4;
-/** Ancien alias (échange générique) — conservé pour compat, aligné sur le chat. */
+/**
+ * Coût estimé d'UNE action IA « simple » = 1 crédit.
+ *
+ * Il n'en reste qu'une : le message au Coach IA. La recette et l'alternative
+ * d'exercice, les deux autres actions du client, sont devenues gratuites, donc
+ * le crédit et le message se confondent désormais.
+ */
+export const AI_COST_ACTION_USD = AI_COST_COACH_MSG_USD;
+/** Coût estimé d'UNE génération de programme (Sonnet 5), arrondi au-dessus. */
+export const AI_COST_PROGRAM_USD = 0.16;
+/** Ancien alias (échange générique), conservé pour compat, aligné sur le chat. */
 export const AI_COST_PER_MSG_USD = AI_COST_COACH_MSG_USD;
 /** Coût IA d'onboarding d'un client (génération programme + analyse salle). */
-export const AI_COST_ONBOARDING_USD = 0.4;
+export const AI_COST_ONBOARDING_USD = 0.16;
 /**
- * Coût MOYEN d'un crédit consommé, mesuré sur le mix réel d'actions : environ
- * 208 messages de chat pour 26 recettes sur un mois type, plus la mémoire.
- * C'est la bonne base pour simuler une marge, alors que AI_COST_ACTION_USD
- * décrit l'action la PLUS chère prise isolément (la recette).
+ * Coût MOYEN d'un crédit consommé. Une seule action en consomme un, il n'y a
+ * donc plus de mix à pondérer : c'est le prix d'un message.
  */
-export const AI_COST_CREDIT_USD = 0.006;
+export const AI_COST_CREDIT_USD = AI_COST_COACH_MSG_USD;
 
 /** Coût de la mémoire longue : un résumé par client ACTIF et par jour (cron).
  * Non débité en crédits, c'est une charge système. */
 export const AI_COST_MEMORY_USD = 0.003;
 
 /** Coût IA récurrent estimé par client et par mois (usage typique modéré). */
-export const AI_COST_PER_CLIENT_MONTH_USD = 1.4;
+export const AI_COST_PER_CLIENT_MONTH_USD = 1.2;
 
 // Taux de conversion indicatif USD→EUR pour afficher un coût lisible en euros
 // (le tarif Anthropic est en USD, la revente du revendeur en EUR). Approx.
@@ -221,9 +226,6 @@ export function usdToEur(usd: number): number {
 export const AI_REALISTIC_MSG_PER_DAY = 8;
 /** Jours d'activité réelle par mois (un client n'utilise pas l'app tous les jours). */
 export const AI_REALISTIC_ACTIVE_DAYS = 26;
-/** Recettes régénérées / jour pour un client actif (comportement réel, ≠ plafond). */
-export const AI_REALISTIC_RECIPES_PER_DAY = 1;
-
 export interface AiCostEstimate {
   /** Usage réaliste d'un client actif, par mois. */
   realMonth: number;
@@ -241,26 +243,21 @@ export interface AiCostEstimate {
  *   30 jours. `null` si un plafond est sur « illimité » (0) : le coût n'est alors
  *   pas borné. `msgCap`/`recipeCap` : 0 = illimité.
  */
-export function estimateAiMonthlyCost(msgCap: number, recipeCap: number): AiCostEstimate {
+export function estimateAiMonthlyCost(msgCap: number): AiCostEstimate {
   const realMsgs = msgCap > 0 ? Math.min(msgCap, AI_REALISTIC_MSG_PER_DAY) : AI_REALISTIC_MSG_PER_DAY;
-  const realRecipes = recipeCap > 0 ? Math.min(recipeCap, AI_REALISTIC_RECIPES_PER_DAY) : AI_REALISTIC_RECIPES_PER_DAY;
-  const realMonth =
-    (realMsgs * AI_COST_COACH_MSG_USD + realRecipes * AI_COST_RECIPE_USD + AI_COST_MEMORY_USD) *
-    AI_REALISTIC_ACTIVE_DAYS;
-
-  // Borne haute seulement si les DEUX plafonds sont fixés (sinon dépense illimitée).
-  const bounded = msgCap > 0 && recipeCap > 0;
-  const ceilingMonth = bounded
-    ? (msgCap * AI_COST_COACH_MSG_USD + recipeCap * AI_COST_RECIPE_USD + AI_COST_MEMORY_USD) * 30
-    : null;
+  const realMonth = (realMsgs * AI_COST_COACH_MSG_USD + AI_COST_MEMORY_USD) * AI_REALISTIC_ACTIVE_DAYS;
+  // Sans plafond (0 = illimité), la dépense n'est pas bornée : on ne peut rien
+  // promettre au coach, et un chiffre inventé serait pire que pas de chiffre.
+  const ceilingMonth = msgCap > 0 ? (msgCap * AI_COST_COACH_MSG_USD + AI_COST_MEMORY_USD) * 30 : null;
   return { realMonth, ceilingMonth };
 }
 
 /**
- * Barème de débit, tel qu'appliqué par les routes IA. Toute action courante
- * (message du chat, recette régénérée, exercice alternatif, fiche) coûte 1
- * crédit IA ; une génération de programme coûte `DEFAULT_PROGRAM_CREDITS`
- * (réglable par le fournisseur).
+ * Barème de débit, tel qu'appliqué par les routes IA. Une action facturée
+ * (message du chat, fiche d'exercice rédigée) coûte 1 crédit IA ; une
+ * génération de programme coûte `DEFAULT_PROGRAM_CREDITS` (réglable par le
+ * fournisseur). Les recettes et les alternatives d'exercice ne débitent rien :
+ * elles ne passent par aucun modèle.
  */
 export const CREDITS_PER_AI_ACTION = 1;
 
@@ -280,21 +277,18 @@ export interface CreditUsageEstimate {
  * hypothèses d'usage, mais compté en crédits et non en dollars. Le coach n'a pas
  * de facture Anthropic dans ce modèle, il a un solde qui descend.
  */
-export function estimateAiMonthlyCredits(msgCap: number, recipeCap: number): CreditUsageEstimate {
+export function estimateAiMonthlyCredits(msgCap: number): CreditUsageEstimate {
   const realMsgs = msgCap > 0 ? Math.min(msgCap, AI_REALISTIC_MSG_PER_DAY) : AI_REALISTIC_MSG_PER_DAY;
-  const realRecipes = recipeCap > 0 ? Math.min(recipeCap, AI_REALISTIC_RECIPES_PER_DAY) : AI_REALISTIC_RECIPES_PER_DAY;
-  const realMonth = (realMsgs + realRecipes) * CREDITS_PER_AI_ACTION * AI_REALISTIC_ACTIVE_DAYS;
-
-  // Borne haute seulement si les DEUX plafonds sont fixés (sinon consommation illimitée).
-  const bounded = msgCap > 0 && recipeCap > 0;
-  const ceilingMonth = bounded ? (msgCap + recipeCap) * CREDITS_PER_AI_ACTION * 30 : null;
+  const realMonth = realMsgs * CREDITS_PER_AI_ACTION * AI_REALISTIC_ACTIVE_DAYS;
+  const ceilingMonth = msgCap > 0 ? msgCap * CREDITS_PER_AI_ACTION * 30 : null;
   return { realMonth, ceilingMonth };
 }
 
-// ── Revente de crédits IA. UN SEUL crédit : toute action IA (message, recette,
-// alternative, fiche) coûte 1 crédit ; une génération de programme en coûte N,
-// réglé par le fournisseur (défaut ci-dessous). Le fournisseur (revendeur ou
-// plateforme) fixe son prix de revente du crédit et voit son coût et sa marge.
+// ── Revente de crédits IA. UN SEUL crédit : toute action IA facturée (message
+// du chat, fiche d'exercice rédigée) coûte 1 crédit ; une génération de
+// programme en coûte N, réglé par le fournisseur (défaut ci-dessous). Le
+// fournisseur (revendeur ou plateforme) fixe son prix de revente du crédit et
+// voit son coût et sa marge.
 export const DEFAULT_AI_CREDIT_PRICE_CENTS = 40; // 0,40 € / crédit
 export const DEFAULT_PROGRAM_CREDITS = 10; // une génération de programme = 10 crédits
 
@@ -384,9 +378,9 @@ export function creditPackContents(credits: number): string {
  * saturé chaque jour. C'est ce que le coach lit en cochant « Coach IA » sur son
  * offre : il sait ce que ce plan peut lui coûter, au pire.
  *
- * Un seul quota couvre les trois actions du client (message, recette,
- * alternative d'exercice) : elles consomment un crédit chacune, il n'y a donc
- * rien à additionner séparément.
+ * Le quota ne compte plus que les messages au Coach IA : les recettes et les
+ * alternatives d'exercice sont calculées sans modèle, donc gratuites et hors
+ * plafond.
  */
 export function planMaxCredits(input: {
   programDays: number;
@@ -446,11 +440,10 @@ export function planMaxCostEur(input: {
 
   const programEur = usdToEur(generations * AI_COST_PROGRAM_USD);
   const memoryEur = usdToEur(days * AI_COST_MEMORY_USD);
-  // Le quota est unique et couvre trois actions de coûts différents. Un
-  // plafond se chiffre donc au prix de la PLUS CHÈRE, la recette : rien
-  // n'empêche un client de passer ses vingt actions du jour à régénérer des
-  // recettes, et un plafond qu'un usage réel peut dépasser n'en est pas un.
-  const actionsEur = quota > 0 ? usdToEur(quota * days * AI_COST_RECIPE_USD) : null;
+  // Le quota ne couvre plus qu'une action payante, le message au Coach IA :
+  // recettes et alternatives d'exercice sont calculées sans modèle. Le pire
+  // cas est donc « toutes les actions du quota sont des messages ».
+  const actionsEur = quota > 0 ? usdToEur(quota * days * AI_COST_COACH_MSG_USD) : null;
   // Un plafond à 0 veut dire « illimité » dans le formulaire d'offre : le plan
   // n'a alors pas de borne haute.
   const totalEur = actionsEur === null ? null : programEur + memoryEur + actionsEur;

@@ -3,18 +3,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 // QUOTA JOURNALIER d'actions IA par client.
 //
-// UN SEUL COMPTEUR, POUR TOUT.
+// UN SEUL COMPTEUR, ET IL NE COMPTE QUE CE QUI COÛTE.
 //
-// Il y en avait deux : les messages d'un côté, les recettes de l'autre. Le
-// coach devait donc régler deux nombres, et le client se heurtait à deux murs
-// différents sans jamais savoir lequel il approchait. Une seule limite couvre
-// désormais les trois actions que le client peut déclencher : parler au Coach
-// IA, régénérer une recette, demander une alternative à un exercice.
-//
-// Ce que ça coûte en clarté du côté du coût : une recette coûte plus cher
-// qu'un message, donc un quota unique se chiffre au prix de l'action la plus
-// chère. C'est le bon compromis : un plafond légèrement pessimiste vaut mieux
-// que deux réglages que personne ne comprend.
+// Il y a eu deux compteurs (messages d'un côté, recettes de l'autre), puis un
+// seul couvrant les trois actions du client. Il n'en reste que deux à
+// compter : le message au Coach IA, et la photo d'aliments analysée (un appel
+// de vision, le plus cher des deux). Les recettes du jour et les alternatives
+// d'exercice sont désormais CALCULÉES, sans appel à un modèle
+// (lib/recipe-engine.ts, lib/exercise-alternatives.ts) : elles ne coûtent
+// rien, donc les faire consommer un quota reviendrait à vendre du vide. Elles
+// sont libres et illimitées.
 //
 // Réglé par le coach PAR OFFRE, à défaut par sa configuration générale, et
 // plafonné par son revendeur quand celui-ci fournit l'IA. Le compteur se remet
@@ -27,9 +25,10 @@ export const DEFAULT_COACH_AI_DAILY_LIMIT = 60;
 /**
  * Les routes qui consomment le quota du client.
  *
- * Cette liste EST la définition de « une action IA ». Toute nouvelle route
- * déclenchée par un client doit y figurer, sans quoi elle échapperait au
- * plafond et donc à la facture que le coach croit maîtriser.
+ * Cette liste EST la définition de « une action IA facturée ». Toute nouvelle
+ * route CLIENTE QUI APPELLE UN MODÈLE doit y figurer, sans quoi elle
+ * échapperait au plafond et donc à la facture que le coach croit maîtriser. À
+ * l'inverse, une route qui ne fait que calculer n'a rien à y faire.
  */
 export const CLIENT_AI_ROUTES = ["coach", "recipes"] as const;
 
@@ -130,12 +129,11 @@ export interface BudgetState {
 }
 
 /**
- * Le quota du jour d'un client : TOUTES ses actions IA confondues.
+ * Le quota du jour d'un client : ses échanges avec le Coach IA.
  *
- * Le comptage porte sur l'ensemble des routes clientes, pas sur une seule.
- * C'est ce qui rend la promesse tenable : « 20 actions par jour » veut dire
- * vingt, quoi qu'on en fasse, et pas vingt d'un genre plus une poignée d'un
- * autre.
+ * La route « recipes » n'y compte plus que les photos d'aliments analysées :
+ * les recettes du jour, elles, ne passent par aucun modèle et n'écrivent donc
+ * plus rien dans `ai_calls`.
  */
 export async function checkClientAiBudget(userId: string, tenantId: string | null): Promise<BudgetState> {
   const limit = await coachAiDailyLimit(tenantId, userId);

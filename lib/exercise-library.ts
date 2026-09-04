@@ -59,7 +59,7 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     key: "squat",
     name: "Squat",
     muscle: "Cuisses et fessiers",
-    aliases: ["squat", "squat barre", "back squat", "squat poids du corps", "air squat", "squat gobelet", "goblet squat"],
+    aliases: ["squat", "squat barre", "back squat", "squat gobelet", "goblet squat"],
     guide: {
       steps: [
         "Barre sur le haut du dos (ou poids près de la poitrine), pieds largeur d'épaules, pointes légèrement ouvertes.",
@@ -75,7 +75,7 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     key: "squat-poids-du-corps",
     name: "Squat au poids du corps",
     muscle: "Cuisses et fessiers",
-    aliases: ["squat au poids du corps", "squat sans charge", "chaise", "squat chaise", "bodyweight squat"],
+    aliases: ["squat au poids du corps", "squat poids du corps", "squat sans charge", "air squat", "bodyweight squat"],
     guide: {
       steps: [
         "Debout, pieds largeur d'épaules, bras tendus devant toi pour l'équilibre.",
@@ -833,7 +833,7 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     key: "gainage-lateral",
     name: "Gainage latéral (planche latérale)",
     muscle: "Obliques",
-    aliases: ["gainage lateral", "planche laterale", "side plank", "gainage cote"],
+    aliases: ["gainage lateral planche laterale", "gainage lateral", "planche laterale", "side plank", "gainage cote"],
     noPhoto: true,
     guide: {
       steps: [
@@ -864,7 +864,7 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     key: "wall-sit",
     name: "Chaise (wall sit)",
     muscle: "Quadriceps",
-    aliases: ["wall sit", "chaise isometrique", "chaise contre le mur", "gainage cuisses"],
+    aliases: ["chaise wall sit", "wall sit", "chaise", "chaise isometrique", "chaise contre le mur", "gainage cuisses"],
     noPhoto: true,
     guide: {
       steps: [
@@ -987,7 +987,7 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     key: "extension-lombaire",
     name: "Extension lombaire (banc)",
     muscle: "Bas du dos et fessiers",
-    aliases: ["extension lombaire", "hyperextension", "banc a lombaires", "extensions dos", "back extension"],
+    aliases: ["extension lombaire banc", "extension lombaire", "hyperextension", "banc a lombaires", "extensions dos", "back extension"],
     guide: {
       steps: [
         "Cuisses sur le coussin du banc à 45°, chevilles calées, bras croisés sur la poitrine.",
@@ -1327,6 +1327,44 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
       cues: ["Foulée légère et fréquente", "1 à 2 % de pente pour simuler l'extérieur", "Bras relâchés"],
       mistakes: ["S'accrocher aux poignées en courant", "S'arrêter net sans retour au calme"],
     },
+  },
+  // Deux mouvements de dos à l'élastique. Ils existent pour une raison
+  // précise : sans eux, un client sans poulie, sans barre de traction et sans
+  // haltères n'avait AUCUN exercice de dos dans la bibliothèque, et le moteur
+  // d'alternatives ne pouvait rien lui proposer.
+  {
+    key: "rowing-elastique",
+    name: "Rowing élastique",
+    muscle: "Dos (milieu du dos)",
+    aliases: ["rowing elastique", "rowing bande", "tirage horizontal elastique", "band row", "rowing avec elastique"],
+    guide: {
+      steps: [
+        "Passe l'élastique autour d'un point fixe bas, une poignée dans chaque main, bras tendus.",
+        "Recule jusqu'à mettre l'élastique en tension, buste légèrement penché, dos droit.",
+        "Tire les coudes vers l'arrière le long du corps, serre les omoplates en fin de mouvement.",
+        "Reviens en contrôlant la tension, sans laisser l'élastique te ramener.",
+      ],
+      cues: ["Coudes près du corps", "Serre les omoplates en fin de tirage", "Buste immobile"],
+      mistakes: ["Tirer avec les bras seulement", "Arrondir le haut du dos", "Lâcher le retour"],
+    },
+    noPhoto: true,
+  },
+  {
+    key: "tirage-elastique",
+    name: "Tirage vertical élastique",
+    muscle: "Dos (grand dorsal)",
+    aliases: ["tirage elastique", "tirage vertical elastique", "lat pulldown elastique", "tirage nuque elastique", "band pulldown"],
+    guide: {
+      steps: [
+        "Fixe l'élastique en hauteur (porte, barre), une poignée dans chaque main, bras tendus au-dessus de la tête.",
+        "À genoux ou debout, gaine le ventre et garde le buste droit.",
+        "Tire les mains vers les épaules en amenant les coudes vers le bas et l'arrière.",
+        "Remonte lentement jusqu'à l'extension complète des bras.",
+      ],
+      cues: ["Descends les coudes, pas les mains", "Poitrine haute", "Amplitude complète en haut"],
+      mistakes: ["Se pencher en arrière pour tirer plus fort", "Hausser les épaules", "Retour trop rapide"],
+    },
+    noPhoto: true,
   },
 ];
 

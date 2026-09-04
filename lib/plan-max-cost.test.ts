@@ -5,7 +5,6 @@ import {
   programDaysForMonths,
   estimateAiMonthlyCost,
   usdToEur,
-  AI_COST_RECIPE_USD,
   AI_COST_COACH_MSG_USD,
 } from "./config";
 
@@ -23,13 +22,11 @@ describe("coût maximum d'un plan en euros (BYOK)", () => {
     expect(c.totalEur).toBeCloseTo(c.programEur + c.memoryEur + c.actionsEur!, 6);
   });
 
-  it("chiffre les actions au prix de la plus chère, la recette", () => {
-    // Le quota est unique : rien n'empêche un client de passer ses vingt
-    // actions du jour à régénérer des recettes. Un plafond qu'un usage réel
-    // peut dépasser n'en est pas un.
+  it("chiffre les actions au prix d'un message au Coach IA", () => {
+    // C'est la seule action du quota qui appelle encore un modèle : les
+    // recettes et les alternatives d'exercice sont calculées, donc gratuites.
     const c = planMaxCostEur({ programDays: days3, dailyQuota: 20 });
-    expect(c.actionsEur).toBeCloseTo(usdToEur(20 * days3 * AI_COST_RECIPE_USD), 6);
-    expect(AI_COST_RECIPE_USD).toBeGreaterThan(AI_COST_COACH_MSG_USD);
+    expect(c.actionsEur).toBeCloseTo(usdToEur(20 * days3 * AI_COST_COACH_MSG_USD), 6);
   });
 
   it("laisse le total ouvert quand le quota est illimité", () => {
@@ -55,7 +52,7 @@ describe("coût maximum d'un plan en euros (BYOK)", () => {
     // Le plafond doit majorer l'usage réel, sinon il ne protège de rien ; mais
     // s'il le majorait de 100x le coach refuserait un plan parfaitement sain.
     const c = planMaxCostEur({ programDays: days3, dailyQuota: 20 });
-    const reel = usdToEur(estimateAiMonthlyCost(0, 0).realMonth) * 3;
+    const reel = usdToEur(estimateAiMonthlyCost(0).realMonth) * 3;
     expect(c.totalEur!).toBeGreaterThan(reel);
     expect(c.totalEur!).toBeLessThan(reel * 60);
   });

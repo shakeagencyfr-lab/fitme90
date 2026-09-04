@@ -233,7 +233,6 @@ export default async function SeancePage({
         restSec={restSec}
         initialCardio={initialCardio}
         canAlternate={ctx.access.coachEnabled}
-        sessionTitle={s?.title ?? ""}
       />
     </div>
   );

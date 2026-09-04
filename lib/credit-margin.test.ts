@@ -33,17 +33,18 @@ describe("marges du crédit IA côté revendeur", () => {
     expect(actionCreditMargin(0).marginEur).toBeLessThan(0);
   });
 
-  it("chiffre la génération de programme sur son vrai coût Opus", () => {
-    // 10 crédits à 0,40 € couvrent largement les 0,39 $ de la génération.
+  it("chiffre la génération de programme sur son vrai coût Sonnet", () => {
+    // 10 crédits à 0,40 € couvrent très largement les 0,16 $ de la génération.
     const p = programGenerationMargin(10, 40);
     expect(p.priceEur).toBe(4);
     expect(p.marginPct).toBeGreaterThan(85);
-    // À 1 seul crédit, la marge fond : 0,40 € encaissés contre 0,37 € de coût
-    // Opus. C'est précisément ce que le revendeur doit voir avant de baisser
-    // le nombre de crédits d'une génération.
-    expect(programGenerationMargin(1, 40).marginPct).toBeLessThan(10);
-    // Et elle devient déficitaire dès que le crédit passe sous le coût Opus.
-    expect(programGenerationMargin(1, 30).marginEur).toBeLessThan(0);
+    // La bascule d'Opus vers Sonnet a rendu la génération rentable même à UN
+    // seul crédit, ce qui n'était pas le cas avant : 0,40 € encaissés contre
+    // 0,15 € de coût. Le revendeur peut donc baisser ce réglage sans se
+    // mettre en danger.
+    expect(programGenerationMargin(1, 40).marginEur).toBeGreaterThan(0);
+    // Elle ne devient déficitaire qu'à un prix du crédit très bas.
+    expect(programGenerationMargin(1, 10).marginEur).toBeLessThan(0);
   });
 
   it("chiffre un pack au coût réel du crédit", () => {

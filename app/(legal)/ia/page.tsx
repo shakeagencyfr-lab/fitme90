@@ -23,10 +23,17 @@ export default function TransparenceIaPage() {
 
       <h2>Ce service utilise de l&apos;intelligence artificielle</h2>
       <p>
-        Le programme d&apos;entraînement, le plan nutritionnel, les recettes, les
-        alternatives d&apos;exercices et les réponses du Coach IA sont produits
-        automatiquement par un modèle de langage. Aucun de ces contenus n&apos;est
-        rédigé ni relu par un humain avant de t&apos;être présenté.
+        Le programme d&apos;entraînement, le plan nutritionnel et les réponses du
+        Coach IA sont produits automatiquement par un modèle de langage. Aucun de
+        ces contenus n&apos;est rédigé ni relu par un humain avant de t&apos;être
+        présenté.
+      </p>
+      <p>
+        En revanche, tes recettes du jour et les alternatives d&apos;exercice ne
+        font intervenir aucun modèle : elles sont choisies dans un catalogue
+        écrit à l&apos;avance, puis calculées à partir de tes réponses et de tes
+        objectifs. Le résultat est reproductible, et une allergie déclarée y est
+        appliquée par un filtre, pas par une consigne donnée à un modèle.
       </p>
       <p>
         Quand tu écris au Coach IA, tu échanges avec un programme, pas avec une

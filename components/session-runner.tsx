@@ -8,7 +8,6 @@ import { Button, Alert, MonoLabel } from "@/components/ui";
 import { ExerciseModal } from "@/components/exercise-modal";
 import { matchLibraryExercise, libraryFrames } from "@/lib/exercise-library";
 import { isCardioExercise, cardioZone, formatRest, type HeartZone } from "@/lib/fitness";
-import { AiQuotaBadge } from "@/components/ai-quota-badge";
 
 // Vignette illustrée d'un exercice (depuis la bibliothèque), cliquable pour
 // ouvrir la fiche complète. Vide si l'exercice n'est pas dans la bibliothèque.
@@ -135,7 +134,6 @@ interface Props {
   restSec?: number;
   initialCardio?: string[]; // noms des exercices cardio déjà cochés
   canAlternate?: boolean; // proposer un exercice de remplacement (IA)
-  sessionTitle?: string; // contexte séance pour l'alternative
 }
 
 export function SessionRunner({
@@ -149,7 +147,6 @@ export function SessionRunner({
   restSec = 90,
   initialCardio = [],
   canAlternate = false,
-  sessionTitle = "",
 }: Props) {
   const router = useRouter();
   // Liste locale des exercices : permet de remplacer un exercice par une
@@ -157,9 +154,6 @@ export function SessionRunner({
   const [exList, setExList] = useState<Exercise[]>(exercises);
   const [altBusy, setAltBusy] = useState<number | null>(null);
   const [altErr, setAltErr] = useState("");
-  // Incrémenté après chaque alternative demandée : le badge de solde se relit
-  // alors, au lieu d'afficher le compte d'avant l'action.
-  const [aiTick, setAiTick] = useState(0);
   // Fiche exercice (image + consignes) ouverte au clic sur un nom.
   const [guideName, setGuideName] = useState<string | null>(null);
   // Resynchronise la liste locale quand on change de jour (nouvelle séance) :
@@ -178,11 +172,17 @@ export function SessionRunner({
       const res = await fetch("/api/exercise/alternative", {
         method: "POST",
         headers: { "content-type": "application/json" },
+        // Le volume du jour part avec la demande : c'est le programme qui
+        // fixe séries, répétitions et repos, pas le mouvement choisi. Le
+        // remplaçant reprend donc exactement la même charge de travail.
         body: JSON.stringify({
           name: ex.name,
-          note: ex.note ?? "",
           cardio: !!ex.cardio,
-          sessionTitle,
+          sets: ex.sets,
+          reps: ex.reps,
+          rest: ex.rest,
+          duration: ex.duration ?? "",
+          zone: ex.zone ?? "",
           avoid: exList.map((x) => x.name),
         }),
       });
@@ -200,7 +200,6 @@ export function SessionRunner({
       setAltErr(e instanceof Error ? e.message : t("session.altUnavailable"));
     } finally {
       setAltBusy(null);
-      setAiTick((n) => n + 1);
     }
   }
   // État initial : brouillon local prioritaire (saisie en cours non validée),
@@ -394,11 +393,6 @@ export function SessionRunner({
         </p>
       ) : null}
       {altErr ? <Alert>{altErr}</Alert> : null}
-      {/* Le solde d'actions IA : demander une alternative puise dans le même
-          compteur que le chat et les recettes, et le client doit voir le
-          nombre baisser là où il dépense. */}
-      <AiQuotaBadge refreshKey={aiTick} className="self-start" />
-
       {exList.map((ex, ei) => {
         // Exercice cardio : pas de séries/charges, on affiche la zone cardiaque cible.
         if (isCardioExercise(ex.name, ex.note, ex.cardio)) {

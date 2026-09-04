@@ -91,8 +91,8 @@ export async function saveCoachConfig(
     .trim()
     .slice(0, 40);
 
-  // Les deux plafonds journaliers (messages, recettes) se règlent désormais PAR
-  // OFFRE, dans l'écran Plans. On ne les écrit plus ici : les colonnes restent
+  // Le plafond journalier de messages se règle désormais PAR OFFRE, dans
+  // l'écran Plans. On ne les écrit plus ici : les colonnes restent
   // en base comme repli pour les comptes réglés avant ce changement, et les
   // écraser avec des valeurs par défaut à chaque enregistrement de méthodologie
   // aurait modifié le comportement sans que personne ne le demande.
@@ -430,8 +430,9 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
   const vipChat = formData.get("vip_chat") === "on";
   // Le Coach IA est inclus par défaut ; la case l'exclut si décochée.
   const coachAi = formData.get("coach_ai") === "on";
-  // Quota journalier d'actions IA par client sur ce plan (vide = défaut du
-  // coach). Un seul nombre : il couvre messages, recettes et alternatives.
+  // Quota journalier de messages au Coach IA par client sur ce plan (vide =
+  // défaut du coach). Recettes et alternatives d'exercice sont calculées sans
+  // modèle : elles n'entrent dans aucun plafond.
   const quotaRaw = String(formData.get("coach_ai_daily_limit") ?? "").trim();
   const coachAiDailyLimit = quotaRaw === "" ? null : Number(quotaRaw);
   if (coachAiDailyLimit != null && (!Number.isFinite(coachAiDailyLimit) || coachAiDailyLimit < 0)) {
@@ -1098,8 +1099,8 @@ export async function saveResellerAiMode(_prev: ResellerAiState, formData: FormD
 /**
  * Tarification en crédits du revendeur d'IA. DEUX types de crédits, chacun avec
  * son prix de vente (en centimes) :
- *  - crédit IA = 1 action simple (chat / recette / exercice), modèle Haiku ;
- *  - une génération de programme consomme N crédits IA (réglable), modèle Opus.
+ *  - crédit IA = 1 message au Coach IA, modèle Haiku ;
+ *  - une génération de programme consomme N crédits IA (réglable), Sonnet.
  */
 export async function saveResellerCredits(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
   const ctx = await getAdminOrNull();

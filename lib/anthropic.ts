@@ -12,19 +12,27 @@ export function anthropic(apiKey?: string) {
 // ajuster le coût sans redéploiement (ex. passer la génération en
 // claude-sonnet-5). Défaut : le modèle le plus capable.
 export const MODELS = {
-  // Génération du programme : livrable premium, on garde le modèle le plus
-  // capable (Opus 5).
-  generate: process.env.ANTHROPIC_MODEL_GENERATE ?? "claude-opus-5",
+  // Génération du programme : Sonnet 5.
+  //
+  // C'était Opus 5. Le poste pesait à lui seul plus que tout le reste réuni
+  // (0,39 $ par génération, contre 0,005 $ pour un message de chat), pour un
+  // travail très encadré : le brief impose la structure, le nombre de cycles,
+  // les gabarits de séance, et un schéma JSON validé à l'arrivée. Sonnet 5
+  // coûte deux fois et demie moins cher par jeton, en entrée comme en sortie,
+  // et rend le même livrable sur une tâche aussi contrainte. Repasser sur Opus
+  // ne demande qu'une variable d'environnement.
+  generate: process.env.ANTHROPIC_MODEL_GENERATE ?? "claude-sonnet-5",
   // Tout le reste tourne sur Haiku 4.5 : fenêtre 200k, vision incluse, et de
-  // loin le meilleur rapport qualité/prix. Seule la génération du programme
-  // (livrable premium) justifie Opus. Optimisation de coût BYOK volontaire.
+  // loin le meilleur rapport qualité/prix.
   //
   // Chat coach : dialogue, historique rejoué à chaque message (poste de coût
   // récurrent principal).
   coach: process.env.ANTHROPIC_MODEL_COACH ?? "claude-haiku-4-5",
-  // Fonctions annexes (alternative d'exercice, fiche exercice IA).
+  // Fiche d'exercice rédigée par l'IA (les alternatives, elles, sont passées
+  // à un moteur déterministe : voir lib/exercise-alternatives.ts).
   assist: process.env.ANTHROPIC_MODEL_ASSIST ?? "claude-haiku-4-5",
-  // Recettes (texte + photo → recette).
+  // Photo d'aliments → recette (vision). Les recettes du jour, elles, sortent
+  // d'un catalogue calculé sans IA : voir lib/recipe-engine.ts.
   recipes: process.env.ANTHROPIC_MODEL_RECIPES ?? "claude-haiku-4-5",
   // Analyse photo de la salle (reconnaissance de matériel, vision Haiku).
   analyzeGym: process.env.ANTHROPIC_MODEL_ANALYZE ?? "claude-haiku-4-5",

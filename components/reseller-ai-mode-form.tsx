@@ -30,9 +30,10 @@ export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured, a
   const [mode, setMode] = useState<"byok" | "provider">(initialMode);
   const [limit, setLimit] = useState<number>(initialLimit);
 
-  // Estimation par client : usage réaliste vs plafond de sécurité (recettes
-  // bornées côté coach, on retient 1/jour par défaut pour la projection).
-  const { realMonth, ceilingMonth } = estimateAiMonthlyCost(limit, 1);
+  // Estimation par client : usage réaliste d'un côté, plafond de sécurité de
+  // l'autre. Le plafond ne porte que sur les messages du Coach IA, seule
+  // action du client qui appelle encore un modèle.
+  const { realMonth, ceilingMonth } = estimateAiMonthlyCost(limit);
 
   return (
     <Card as="section" className="flex flex-col gap-5">
@@ -104,7 +105,7 @@ export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured, a
                 </span>
               </div>
               <span className="text-[12px] text-muted-2">
-                {tx("Estimation d'après la conso réelle (chat et recette sur Haiku ≈ $0.015–0.02 l'action). Détaille ta marge par crédit dans la « Tarification en crédits » ci-dessous.")}</span>
+                {tx("Estimation d'après la conso réelle (chat sur Haiku, environ 0,005 $ le message). Détaille ta marge par crédit dans la « Tarification en crédits » ci-dessous.")}</span>
             </div>
           </div>
         ) : (
