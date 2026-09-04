@@ -70,8 +70,17 @@ export interface ChildTenant {
   name: string;
   slug: string;
   kind: TenantKind;
+  /** Clients rattachés EN DIRECT à ce compte. Toujours 0 pour un revendeur :
+   *  ses clients appartiennent aux tenants de ses coachs, pas au sien. */
   clientCount: number;
+  /** Clients de tout le sous-réseau : ceux du compte, plus ceux de ses enfants.
+   *  C'est le seul chiffre qui ait un sens pour un revendeur. */
+  networkClientCount: number;
+  /** Coachs et salles rattachés (0 pour un coach, qui n'a pas d'enfants). */
+  childCount: number;
   clientLimit: number | null;
+  /** Palier posé sur ce compte (acheté ou offert par le parent). */
+  planId: string | null;
   subStatus: string | null;
   /** Utilisateur « owner » du tenant enfant (null s'il n'en a pas). */
   ownerUserId: string | null;
@@ -89,12 +98,12 @@ export async function listChildTenants(parentId: string): Promise<ChildTenant[]>
   const admin = createAdminClient();
   const { data: kids } = await admin
     .from("tenants")
-    .select("id, name, slug, kind, client_limit, sub_status, suspended_at, suspended_reason, ai_supply, ai_mode")
+    .select("id, name, slug, kind, client_limit, plan_id, sub_status, suspended_at, suspended_reason, ai_supply, ai_mode")
     .eq("parent_id", parentId)
     .order("created_at", { ascending: false })
     .returns<
       {
-        id: string; name: string; slug: string; kind: string | null; client_limit: number | null; sub_status: string | null;
+        id: string; name: string; slug: string; kind: string | null; client_limit: number | null; plan_id: string | null; sub_status: string | null;
         suspended_at: string | null; suspended_reason: string | null; ai_supply: string | null; ai_mode: string | null;
       }[]
     >();
@@ -116,13 +125,53 @@ export async function listChildTenants(parentId: string): Promise<ChildTenant[]>
     else if (p.role === "owner" && !owners.has(p.tenant_id)) owners.set(p.tenant_id, p.id);
   }
 
+  // Un revendeur n'a AUCUN client en direct : ils sont rattachés aux tenants de
+  // ses coachs. Ne compter que ses propres profils affichait « 0 client » à la
+  // plateforme pour un revendeur qui en avait pourtant dans son réseau. On
+  // descend donc d'un cran de plus, mais seulement sous les comptes qui peuvent
+  // avoir des enfants : un coach n'en a pas, inutile de le chercher.
+  const avecEnfants = list.filter((k) => asKind(k.kind) !== "coach").map((k) => k.id);
+  /** Petit-enfant -> enfant dont il dépend. */
+  const rattachement = new Map<string, string>();
+  /** Enfant -> nombre de coachs et salles rattachés. */
+  const childCounts = new Map<string, number>();
+  /** Enfant -> clients de ses propres enfants. */
+  const sousReseau = new Map<string, number>();
+
+  if (avecEnfants.length > 0) {
+    const { data: petits } = await admin
+      .from("tenants")
+      .select("id, parent_id")
+      .in("parent_id", avecEnfants)
+      .returns<{ id: string; parent_id: string }[]>();
+    for (const g of petits ?? []) {
+      rattachement.set(g.id, g.parent_id);
+      childCounts.set(g.parent_id, (childCounts.get(g.parent_id) ?? 0) + 1);
+    }
+    if (rattachement.size > 0) {
+      const { data: clients } = await admin
+        .from("profiles")
+        .select("tenant_id")
+        .in("tenant_id", [...rattachement.keys()])
+        .eq("role", "client")
+        .returns<{ tenant_id: string }[]>();
+      for (const c of clients ?? []) {
+        const enfant = rattachement.get(c.tenant_id);
+        if (enfant) sousReseau.set(enfant, (sousReseau.get(enfant) ?? 0) + 1);
+      }
+    }
+  }
+
   return list.map((k) => ({
     id: k.id,
     name: k.name,
     slug: k.slug,
     kind: asKind(k.kind),
     clientCount: counts.get(k.id) ?? 0,
+    networkClientCount: (counts.get(k.id) ?? 0) + (sousReseau.get(k.id) ?? 0),
+    childCount: childCounts.get(k.id) ?? 0,
     clientLimit: k.client_limit,
+    planId: k.plan_id,
     subStatus: k.sub_status,
     ownerUserId: owners.get(k.id) ?? null,
     suspendedAt: k.suspended_at,

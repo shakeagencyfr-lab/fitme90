@@ -32,14 +32,31 @@ export interface FakeAdmin {
 
 /**
  * @param rows Lignes à renvoyer, par table. Une table absente renvoie [].
+ * @param sequences Réponses SUCCESSIVES pour une table interrogée plusieurs
+ *   fois dans le même appel. Certaines fonctions descendent la hiérarchie et
+ *   lisent `tenants` deux fois (les enfants, puis leurs propres enfants) : sans
+ *   ça, la seconde lecture recevrait les lignes de la première et le test
+ *   passerait sur une réalité qui n'existe pas. Une fois la file vidée, on
+ *   retombe sur `rows`.
  */
-export function fakeAdmin(rows: Record<string, unknown[]> = {}): FakeAdmin {
+export function fakeAdmin(
+  rows: Record<string, unknown[]> = {},
+  sequences: Record<string, unknown[][]> = {},
+): FakeAdmin {
   const queries: RecordedQuery[] = [];
+  const restant: Record<string, unknown[][]> = {};
+  for (const [table, list] of Object.entries(sequences)) restant[table] = [...list];
 
   function builder(table: string) {
     const q: RecordedQuery = { table, filters: [] };
     queries.push(q);
-    const data = () => rows[table] ?? [];
+    // Résolu UNE fois par requête, à la première lecture : une même chaîne peut
+    // être consommée par `maybeSingle` puis par `then`, sans avancer la file.
+    let resolu: unknown[] | null = null;
+    const data = () => {
+      if (resolu === null) resolu = restant[table]?.shift() ?? rows[table] ?? [];
+      return resolu;
+    };
 
     // Chaque méthode renvoie le même objet : la chaîne d'appels se poursuit,
     // et `await` sur la chaîne livre le résultat (thenable).

@@ -6,10 +6,12 @@ import { returnFromSupport } from "@/app/admin/actions";
  * Bandeau affiché tant qu'on est connecté à la place de quelqu'un d'autre.
  *
  * Deux situations, deux formulations. Un opérateur réseau est DANS un compte
- * qui n'est pas le sien et doit pouvoir en sortir ; un coach saisit POUR son
- * client pendant la séance et doit surtout se rappeler à chaque instant que ce
- * qu'il tape est enregistré au nom de cette personne. D'où le prénom en clair
- * plutôt qu'un simple « Assistance ».
+ * qui n'est pas le sien et doit pouvoir en sortir ; un coach assiste son client
+ * pendant la séance et doit se rappeler à chaque instant que ce qu'il tape est
+ * enregistré au nom de cette personne. D'où le prénom en clair.
+ *
+ * Le mot est « assistance » des deux côtés : « saisie » ne disait rien à
+ * personne hors du contexte de la séance.
  */
 export async function SupportReturnBar() {
   const back = await readSupportReturn();
@@ -26,12 +28,12 @@ export async function SupportReturnBar() {
     >
       <button type="submit" className="tap inline-flex items-center gap-2 text-[13.5px] font-semibold hover:underline">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M15 18l-6-6 6-6" /></svg>
-        {client ? tx("Terminer la saisie") : tx("Retour à mon espace")}
+        {client ? tx("Terminer l'assistance") : tx("Retour à mon espace")}
         {!client && back.actorName ? ` (${back.actorName})` : ""}
       </button>
       <span className="truncate font-mono text-[10.5px] uppercase tracking-[0.12em] text-white/60">
         {client
-          ? `${tx("Tu saisis pour")} ${back.targetName || tx("ce client")}`
+          ? `${tx("Assistance de")} ${back.targetName || tx("ce client")}`
           : tx("Assistance")}
       </span>
     </form>

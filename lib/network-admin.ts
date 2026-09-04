@@ -4,6 +4,7 @@ import { isDescendantTenant } from "@/lib/support-access";
 import { creditWallet } from "@/lib/credits";
 import { purgeUser } from "@/lib/account-deletion";
 import { stripeForTenant } from "@/lib/coach-payments";
+import { grantTenantPlan } from "@/lib/tenant-billing";
 
 // Actions d'un opérateur réseau (plateforme ou revendeur) sur un compte de sa
 // descendance : désactiver / réactiver, offrir des crédits IA, supprimer.
@@ -29,6 +30,21 @@ export async function suspendTenant(actorTenantId: string, targetTenantId: strin
     .update({ suspended_at: new Date().toISOString(), suspended_reason: "manual" })
     .eq("id", targetTenantId);
   return error ? { ok: false, error: "Désactivation impossible." } : { ok: true };
+}
+
+/**
+ * Le parent pose ou retire un palier sur un compte de son réseau, sans passer
+ * par un paiement. La plateforme offre un palier à un revendeur, un revendeur à
+ * un coach ou une salle : même geste, même garde.
+ */
+export async function setTenantPlan(
+  actorTenantId: string,
+  targetTenantId: string,
+  planId: string | null,
+): Promise<NetworkActionResult> {
+  const err = await guard(actorTenantId, targetTenantId);
+  if (err) return { ok: false, error: err };
+  return grantTenantPlan(actorTenantId, targetTenantId, planId);
 }
 
 /** Réactive un compte désactivé manuellement. */

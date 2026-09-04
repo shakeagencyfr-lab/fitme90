@@ -9,6 +9,8 @@ import { Alert, Card, MonoLabel } from "@/components/ui";
 import { CreateAccountForm } from "@/components/create-account-form";
 import { NetworkActionsMenu } from "@/components/network-actions-menu";
 import { canGiftCredits, supplyContexts } from "@/lib/network-admin";
+import { listPlans } from "@/lib/plans";
+import { GRANTED_STATUS } from "@/lib/tenant-billing";
 
 export const metadata = { title: "Mon réseau, Admin My Fitness App" };
 export const dynamic = "force-dynamic";
@@ -49,6 +51,12 @@ export default async function AdminNetworkPage({
         children.filter((c) => c.kind === "reseller").map((c) => ({ id: c.id, aiSupply: c.aiSupply })),
       )
     : new Map();
+  // Paliers que l'acteur peut POSER sur un compte de son réseau. Ce sont ses
+  // propres paliers, ceux qu'il vend déjà : offrir revient à en donner un sans
+  // le facturer, pas à inventer une capacité au cas par cas.
+  const planChoices = tenantId
+    ? (await listPlans(tenantId)).map((p) => ({ id: p.id, name: p.name, clientLimit: p.client_limit }))
+    : [];
   const base = SITE_URL || "";
   const landingUrl = slug ? `${base}/r/${slug}` : null;
   // Un revendeur recrute des coachs (?r=<son slug>). La plateforme recrute des
@@ -145,7 +153,7 @@ export default async function AdminNetworkPage({
               />
             </Card>
             <Card>
-              <Stat label={tx("Clients (réseau)")} value={children.reduce((s, c) => s + c.clientCount, 0)} />
+              <Stat label={tx("Clients (réseau)")} value={children.reduce((s, c) => s + c.networkClientCount, 0)} />
             </Card>
           </div>
 
@@ -199,12 +207,31 @@ export default async function AdminNetworkPage({
                           /{c.kind === "reseller" ? "r" : "c"}/{c.slug}
                         </Link>
                       </td>
+                      {/* Un coach a des clients en direct, plafonnés par son palier.
+                          Un revendeur n'en a aucun : les siens sont chez ses coachs.
+                          Afficher son compte direct revenait à annoncer « 0 client »
+                          à un revendeur qui en avait dans son réseau. */}
                       <td className="px-4 py-3 tabular-nums text-body">
-                        {c.clientCount}
-                        {c.clientLimit != null ? ` / ${c.clientLimit}` : ""}
+                        {c.kind === "coach" ? (
+                          <>
+                            {c.clientCount}
+                            {c.clientLimit != null ? ` / ${c.clientLimit}` : ""}
+                          </>
+                        ) : (
+                          <span className="flex flex-col leading-tight">
+                            <span>{c.networkClientCount}</span>
+                            <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted-2">
+                              {c.childCount} {c.childCount > 1 ? tx("comptes") : tx("compte")}
+                            </span>
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
-                        {c.subStatus === "active" || c.subStatus === "trialing" ? (
+                        {/* Trois états, pas deux : un palier OFFERT n'est ni un
+                            abonnement payant ni le palier gratuit. */}
+                        {c.subStatus === GRANTED_STATUS ? (
+                          <span className="rounded-pill bg-brand/10 px-2.5 py-0.5 text-[12px] font-medium text-brand">{tx("Palier offert")}</span>
+                        ) : c.subStatus === "active" || c.subStatus === "trialing" ? (
                           <span className="rounded-pill bg-brand/10 px-2.5 py-0.5 text-[12px] font-medium text-brand">{tx("Payant")}</span>
                         ) : (
                           <span className="rounded-pill bg-surface-2 px-2.5 py-0.5 text-[12px] font-medium text-muted-2">{tx("Palier gratuit")}</span>
@@ -218,6 +245,9 @@ export default async function AdminNetworkPage({
                           suspended={!!c.suspendedAt}
                           canGift={giftable.has(c.id)}
                           supply={supplies.get(c.id) ?? null}
+                          plans={planChoices}
+                          currentPlanId={c.planId}
+                          planGranted={c.subStatus === GRANTED_STATUS}
                         />
                       </td>
                     </tr>

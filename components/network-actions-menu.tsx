@@ -34,9 +34,23 @@ interface Props {
   canGift: boolean;
   /** Renseigné uniquement pour un revendeur dont l'acteur est le parent. */
   supply?: SupplyInfo | null;
+  /** Paliers que l'acteur peut poser sur ce compte (les siens). */
+  plans?: PlanChoice[];
+  /** Palier actuellement posé, pour présélectionner le bon choix. */
+  currentPlanId?: string | null;
+  /** Le palier a-t-il été OFFERT (pas payé) ? Change le libellé du dialogue. */
+  planGranted?: boolean;
 }
 
-type Dialog = "gift" | "suspend" | "delete" | "supply" | null;
+type Dialog = "gift" | "suspend" | "delete" | "supply" | "plan" | null;
+
+/** Palier proposé par l'acteur, tel qu'il peut le poser sur un compte enfant. */
+export interface PlanChoice {
+  id: string;
+  name: string;
+  /** Clients inclus. null = illimité. */
+  clientLimit: number | null;
+}
 
 function Icon({ d, className = "" }: { d: string; className?: string }) {
   return (
@@ -46,7 +60,17 @@ function Icon({ d, className = "" }: { d: string; className?: string }) {
   );
 }
 
-export function NetworkActionsMenu({ tenantId, name, ownerUserId, suspended, canGift, supply = null }: Props) {
+export function NetworkActionsMenu({
+  tenantId,
+  name,
+  ownerUserId,
+  suspended,
+  canGift,
+  supply = null,
+  plans = [],
+  currentPlanId = null,
+  planGranted = false,
+}: Props) {
   const tx = usePhrase();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -187,6 +211,12 @@ export function NetworkActionsMenu({ tenantId, name, ownerUserId, suspended, can
               {supply.current === "platform_credits" ? tx("Repasser en clé perso") : tx("Passer en crédits IA")}
             </button>
           ) : null}
+          {plans.length > 0 ? (
+            <button type="button" className={`${item} text-ink`} onClick={() => { setOpen(false); setDialog("plan"); }}>
+              <Icon d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />{" "}
+              {currentPlanId ? tx("Changer son palier") : tx("Offrir un palier")}
+            </button>
+          ) : null}
           {suspended ? (
             <form action={action}>
               <input type="hidden" name="tenant_id" value={tenantId} />
@@ -221,6 +251,31 @@ export function NetworkActionsMenu({ tenantId, name, ownerUserId, suspended, can
                   <input name="amount" type="number" min={1} max={100000} defaultValue={50} required className="h-11 w-[160px] rounded-control border border-line-4 bg-surface px-3 text-[15px] text-ink outline-none focus:border-ink" />
                 </label>
               </>
+            ) : dialog === "plan" ? (
+              <>
+                <input type="hidden" name="op" value="plan" />
+                <h2 className="font-archivo text-[20px] font-extrabold tracking-[-0.02em] text-ink">{tx("Palier de")} {name}</h2>
+                <p className="text-[14px] leading-relaxed text-body">
+                  {tx("Le palier que tu poses ici est offert : il fixe la capacité du compte sans rien facturer. Un abonnement payant en cours chez toi est résilié au passage.")}</p>
+                <label className="flex flex-col gap-1.5">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">{tx("Palier")}</span>
+                  <select
+                    name="plan_id"
+                    defaultValue={currentPlanId ?? "gratuit"}
+                    className="h-11 rounded-control border border-line-4 bg-surface px-3 text-[15px] text-ink outline-none focus:border-ink"
+                  >
+                    <option value="gratuit">{tx("Palier gratuit")} ({tx("1 client")})</option>
+                    {plans.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.clientLimit == null ? tx("clients illimités") : `${p.clientLimit} ${p.clientLimit > 1 ? tx("clients") : tx("client")}`})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {currentPlanId && !planGranted ? (
+                  <Alert>{tx("Ce compte a un abonnement payant en cours. Poser un palier ici le résilie : il ne sera plus prélevé.")}</Alert>
+                ) : null}
+              </>
             ) : dialog === "supply" && supply ? (
               <SupplyDialog name={name} supply={supply} />
             ) : dialog === "suspend" ? (
@@ -251,6 +306,8 @@ export function NetworkActionsMenu({ tenantId, name, ownerUserId, suspended, can
               >
                 {dialog === "gift"
                   ? "Créditer"
+                  : dialog === "plan"
+                    ? "Appliquer le palier"
                   : dialog === "supply"
                     ? supply?.current === "platform_credits"
                       ? "Repasser en clé perso"

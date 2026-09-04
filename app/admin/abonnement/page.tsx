@@ -52,6 +52,10 @@ export default async function AdminBillingPage({
   // Paliers vendables : actifs et avec au moins un prix.
   const sellable = plans.filter((p) => p.is_active && (p.price_month_cents != null || p.price_year_cents != null));
   const hasActiveSub = !!(billing?.active && billing.planId);
+  // Palier OFFERT par le parent : actif, mais sans abonnement Stripe. Il n'y a
+  // ni échéance à annoncer ni résiliation à proposer, et le proposer donnerait
+  // un bouton qui ne peut rien faire.
+  const offert = !!billing?.granted;
   const frozen = !!(billing?.status && FROZEN_STATUSES.has(billing.status));
 
   return (
@@ -96,7 +100,10 @@ export default async function AdminBillingPage({
               <span className="font-archivo font-extrabold text-[22px] leading-none tracking-[-0.02em] text-ink">
                 {billing?.planName ?? "Palier gratuit"}
               </span>
-              {hasActiveSub ? (
+              {offert ? (
+                <span className="rounded-pill bg-brand/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-brand">
+                  {tx("Offert")}</span>
+              ) : hasActiveSub ? (
                 <span className="rounded-pill bg-brand/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-brand">
                   {tx("Actif")}</span>
               ) : (
@@ -109,7 +116,10 @@ export default async function AdminBillingPage({
                 <CapacityGauge used={cap.used} limit={cap.limit} unlimited={cap.unlimited} />
               </div>
             ) : null}
-            {!hasActiveSub ? (
+            {offert ? (
+              <p className="text-[12.5px] leading-[1.55] text-muted-2">
+                {tx("Ce palier t'a été offert : tu en as toute la capacité, sans rien payer et sans échéance. Celui qui te l'a posé peut le changer à tout moment.")}</p>
+            ) : !hasActiveSub ? (
               <p className="text-[12.5px] leading-[1.55] text-muted-2">
                 {tx("Tu es sur le palier gratuit : une seule place client, offerte. Les offres ci-dessous ouvrent des places supplémentaires.")}</p>
             ) : billing?.cancelAtPeriodEnd ? (
