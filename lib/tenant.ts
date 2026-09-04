@@ -114,12 +114,12 @@ async function tenantOwnKey(tenantId: string): Promise<string | null> {
 }
 
 /**
- * Ce tenant a-t-il une clé Anthropic UTILISABLE à lui ?
+ * Ce tenant a-t-il une clé Anthropic UTILISABLE à lui ? Une clé enregistrée
+ * mais indéchiffrable n'en est pas une.
  *
- * Volontairement calqué sur la première branche de `tenantAnthropicKey` : une
- * clé enregistrée mais indéchiffrable n'en est pas une, l'appel repartira vers
- * le revendeur. C'est ce booléen qui décide des débits de crédits, donc il doit
- * dire exactement ce que fera l'appel, pas ce que la base laisse croire.
+ * Attention : avoir une clé ne veut pas dire s'en servir. Si le revendeur
+ * parent fournit l'IA, cette clé reste dormante. Pour savoir ce qui tourne
+ * vraiment, c'est `tenantAnthropicKey` qui fait foi.
  */
 export async function tenantHasOwnKey(tenantId: string | null): Promise<boolean> {
   if (!tenantId) return false;
@@ -128,38 +128,44 @@ export async function tenantHasOwnKey(tenantId: string | null): Promise<boolean>
 
 /**
  * Clé Anthropic (déchiffrée) à utiliser pour cet utilisateur, sinon null.
- * BYOK d'abord : la clé du tenant du client (son coach). À défaut, si le
- * revendeur parent est en mode « provider » (revendeur IA), on utilise SA clé —
- * c'est lui qui fournit et facture l'IA à ses coachs.
+ *
+ * Le FOURNISSEUR décide, pas la clé enregistrée : si le revendeur parent est en
+ * mode « provider », c'est sa chaîne qui tourne (sa clé, ou celle de la
+ * plateforme quand il achète des crédits), et une clé posée sur le compte du
+ * coach reste dormante. Sinon, chaque coach tourne sur la sienne.
+ *
+ * L'ordre inverse (clé du compte d'abord) ouvrait une brèche : un coach pouvait
+ * coller une clé et cesser de consommer les crédits de son revendeur, qui
+ * perdait son revenu sans pouvoir s'y opposer. La règle est énoncée une seule
+ * fois, dans `lib/ai-supply.ts` ; ce qui suit en est la traduction en requêtes.
  */
 export async function tenantAnthropicKey(userId: string): Promise<string | null> {
   const tenantId = await tenantIdForUser(userId);
   if (!tenantId) return null;
 
-  const own = await tenantOwnKey(tenantId);
-  if (own) return own;
-
-  // Repli : clé du revendeur parent s'il est fournisseur d'IA.
   const admin = createAdminClient();
   const { data: t } = await admin
     .from("tenants")
     .select("parent_id")
     .eq("id", tenantId)
     .maybeSingle<{ parent_id: string | null }>();
-  if (!t?.parent_id) return null;
-  const { data: parent } = await admin
-    .from("tenants")
-    .select("ai_mode, ai_supply, parent_id")
-    .eq("id", t.parent_id)
-    .maybeSingle<{ ai_mode: string | null; ai_supply: string | null; parent_id: string | null }>();
-  if (parent?.ai_mode !== "provider") return null;
-  // Revendeur en crédits plateforme : l'IA tourne sur la clé de la plateforme,
-  // et chaque action débite son portefeuille (chargeAiUsage).
-  if (parent.ai_supply === "platform_credits") {
-    const platformId = parent.parent_id;
-    return platformId ? tenantOwnKey(platformId) : null;
+
+  if (t?.parent_id) {
+    const { data: parent } = await admin
+      .from("tenants")
+      .select("ai_mode, ai_supply, parent_id")
+      .eq("id", t.parent_id)
+      .maybeSingle<{ ai_mode: string | null; ai_supply: string | null; parent_id: string | null }>();
+    if (parent?.ai_mode === "provider") {
+      // Revendeur en crédits plateforme : l'IA tourne sur la clé de la
+      // plateforme, et chaque action débite son portefeuille (chargeAiUsage).
+      if (parent.ai_supply === "platform_credits") {
+        return parent.parent_id ? tenantOwnKey(parent.parent_id) : null;
+      }
+      return tenantOwnKey(t.parent_id);
+    }
   }
-  return tenantOwnKey(t.parent_id);
+  return tenantOwnKey(tenantId);
 }
 
 /**

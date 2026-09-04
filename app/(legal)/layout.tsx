@@ -22,6 +22,7 @@ export default function LegalLayout({ children }: { children: ReactNode }) {
           <Link href="/mentions-legales" className="hover:text-ink">Mentions légales</Link>
           <Link href="/confidentialite" className="hover:text-ink">Confidentialité</Link>
           <Link href="/cgv" className="hover:text-ink">CGV</Link>
+          <Link href="/ia" className="hover:text-ink">Transparence IA</Link>
           <Link href="/" className="hover:text-ink">Accueil</Link>
         </nav>
       </main>

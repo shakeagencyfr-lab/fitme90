@@ -63,3 +63,43 @@ describe("totaux", () => {
     expect(t.costPerCreditEur).toBeNull();
   });
 });
+
+// Un coût nul en face de crédits consommés n'est pas un crédit gratuit : c'est
+// une absence de mesure. Confondre les deux affichait « ×Infinity de marge ».
+describe("totalsOf : coût par crédit non mesurable", () => {
+  const ligne = (o: Partial<RevenueLine> = {}): RevenueLine => ({
+    tenantId: "t1",
+    name: "Revendeur",
+    kind: "reseller",
+    onCredits: true,
+    creditsSold: 0,
+    revenueCents: 0,
+    creditsSpent: 0,
+    costUsd: 0,
+    ...o,
+  });
+
+  it("ne renvoie aucun coût par crédit quand rien n'a été consommé", () => {
+    expect(totalsOf([ligne()]).costPerCreditEur).toBeNull();
+  });
+
+  it("ne renvoie aucun coût par crédit quand la conso n'a rien coûté au vendeur", () => {
+    // 14 crédits partis, aucune dépense imputable : la conso tournait sur des
+    // clés perso. Diviser le prix de vente par ce zéro donnait l'infini.
+    expect(totalsOf([ligne({ creditsSpent: 14, costUsd: 0 })]).costPerCreditEur).toBeNull();
+  });
+
+  it("renvoie un coût par crédit dès qu'une dépense est mesurée", () => {
+    const t = totalsOf([ligne({ creditsSpent: 10, costUsd: 1 })]);
+    expect(t.costPerCreditEur).not.toBeNull();
+    expect(Number.isFinite(t.costPerCreditEur!)).toBe(true);
+    expect(t.costPerCreditEur!).toBeGreaterThan(0);
+  });
+
+  it("ne produit jamais un rapport prix/coût infini", () => {
+    for (const [spent, usd] of [[0, 0], [14, 0], [10, 1], [1, 0.0001]] as const) {
+      const c = totalsOf([ligne({ creditsSpent: spent, costUsd: usd })]).costPerCreditEur;
+      if (c != null) expect(Number.isFinite(0.05 / c)).toBe(true);
+    }
+  });
+});

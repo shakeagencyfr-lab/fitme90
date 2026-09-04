@@ -1,7 +1,8 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { monthStartIso, rowCost, type CostRow } from "@/lib/ai-cost";
-import { resellerModel } from "@/lib/credits";
+import { resellerBilling } from "@/lib/credits";
+import { supplyDisplay } from "@/lib/ai-supply";
 import type { ChildTenant } from "@/lib/hierarchy";
 
 /**
@@ -38,9 +39,11 @@ export async function networkAiFigures(
   if (children.length === 0) return out;
   const admin = createAdminClient();
 
-  // Un coach est en crédits si SON revendeur (donc l'acteur) revend l'IA en
-  // crédits. Un revendeur, lui, porte son propre choix dans `ai_supply`.
-  const coachsEnCredits = (await resellerModel(actorTenantId)) === "credits";
+  // Un coach a un solde à surveiller quand son revendeur (donc l'acteur) LUI
+  // FOURNIT l'IA et la lui facture en crédits. Même règle exactement que la
+  // résolution de clé et que le débit, via lib/ai-supply : c'est en la
+  // réécrivant ici que cet écran finissait par contredire celui du coach.
+  const coachsEnCredits = supplyDisplay(await resellerBilling(actorTenantId)) === "credits";
   const mode = (c: ChildTenant): "credits" | "byok" =>
     c.kind === "reseller"
       ? c.aiSupply === "platform_credits" ? "credits" : "byok"

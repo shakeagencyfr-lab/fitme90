@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { encodeText, textWidth, wrap, ellipsize, PdfPage, renderPdf, A4 } from "./pdf";
+import { contentMarkString, isAiMarked } from "./ai-act";
 
 /**
  * Générateur de PDF.
@@ -153,3 +154,42 @@ describe("structure du fichier", () => {
     expect(Buffer.byteLength(m![2], "latin1")).toBe(Number(m![1]));
   });
 });
+
+// AI Act, article 50(2) : un contenu généré doit porter une marque LISIBLE PAR
+// MACHINE. Une mention imprimée sur la page n'y suffit pas, un outil tiers doit
+// pouvoir la détecter sans lire le document.
+describe("marquage IA du fichier", () => {
+  const marque = contentMarkString({
+    vendor: "Anthropic",
+    purpose: "Mon programme",
+    generatedAt: "2026-09-04T10:00:00.000Z",
+  });
+
+  it("inscrit la marque dans les métadonnées du PDF", () => {
+    const s = Buffer.from(renderPdf([new PdfPage()], { aiMark: marque })).toString("latin1");
+    expect(s).toContain("/Producer (");
+    expect(s).toContain("EU-AI-Act-Art-50");
+  });
+
+  it("la marque écrite se relit comme une marque IA", () => {
+    const s = Buffer.from(renderPdf([new PdfPage()], { aiMark: marque })).toString("latin1");
+    const m = s.match(/\/Producer \((.*?)\) >>/);
+    expect(m).not.toBeNull();
+    // Les parenthèses sont échappées dans un littéral PDF : on les rétablit
+    // avant de relire, sinon le JSON ne se parse pas.
+    const brut = m![1].replace(/\\([()\\])/g, "$1");
+    expect(isAiMarked(brut)).toBe(true);
+  });
+
+  it("n'écrit aucun /Info quand il n'y a ni titre ni marque", () => {
+    const s = Buffer.from(renderPdf([new PdfPage()])).toString("latin1");
+    expect(s).not.toContain("/Info");
+  });
+
+  it("garde le titre ET la marque quand les deux sont donnés", () => {
+    const s = Buffer.from(renderPdf([new PdfPage()], { title: "Mon programme", aiMark: marque })).toString("latin1");
+    expect(s).toContain("/Title (");
+    expect(s).toContain("/Producer (");
+  });
+});
+

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { tenantKeyStatus } from "@/lib/tenant";
+import { resellerBilling } from "@/lib/credits";
+import { supplyDisplay } from "@/lib/ai-supply";
 import { tenantStripeStatus } from "@/lib/coach-payments";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ByokForm } from "@/components/byok-form";
@@ -19,15 +21,21 @@ export default async function AdminIntegrationsPage() {
   const stripe = tenantId ? await tenantStripeStatus(tenantId) : empty;
 
   let slug: string | null = null;
+  // Une clé peut être enregistrée sans jamais servir : quand le revendeur
+  // fournit l'IA, c'est SA chaîne qui tourne. Sans le dire, le coach voit une
+  // clé « configurée » et un compteur de dépense à zéro, et croit à une panne.
+  let fourniture: "credits" | "supplied" | "own_key" = "own_key";
   if (tenantId) {
     const admin = createAdminClient();
     const { data } = await admin
       .from("tenants")
-      .select("slug")
+      .select("slug, parent_id")
       .eq("id", tenantId)
-      .maybeSingle<{ slug: string }>();
+      .maybeSingle<{ slug: string; parent_id: string | null }>();
     slug = data?.slug ?? null;
+    if (data?.parent_id) fourniture = supplyDisplay(await resellerBilling(data.parent_id));
   }
+  const cleDormante = fourniture !== "own_key";
 
   return (
     <div className="flex flex-col gap-6">
@@ -63,6 +71,18 @@ export default async function AdminIntegrationsPage() {
                 {tx("Voir ma page publique ↗")}</Link>
             ) : null}
           </div>
+
+          {cleDormante ? (
+            <Alert tone="info">
+              {tx("Ton revendeur fournit l'IA de tes clients : elle tourne sur sa chaîne, pas sur ta clé.")}{" "}
+              {fourniture === "credits"
+                ? tx("Chaque action débite ton solde de crédits, que tu suis dans « Crédits IA ».")
+                : tx("Elle est comprise dans ton abonnement : tu n'as rien à avancer.")}{" "}
+              {anthropic.configured
+                ? tx("La clé enregistrée ci-dessous reste donc inutilisée tant que cette fourniture dure.")
+                : tx("Tu n'as donc aucune clé à renseigner ci-dessous.")}
+            </Alert>
+          ) : null}
 
           <ByokForm
             configured={anthropic.configured}
