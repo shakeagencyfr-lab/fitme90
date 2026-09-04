@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/components/locale-provider";
 import { MuscleIllustration } from "@/components/muscle-illustration";
+import { ModalLayer } from "@/components/modal-layer";
 
 // Fiche exercice en modale : image(s) + groupe musculaire + étapes + conseils +
 // erreurs. Les données viennent de /api/exercise/guide (coach > bibliothèque > IA).
@@ -60,19 +61,11 @@ export function ExerciseModal({ name, onClose }: { name: string | null; onClose:
     return () => clearInterval(t);
   }, [nFrames]);
 
-  // Fermeture à la touche Échap.
-  useEffect(() => {
-    if (!name) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [name, onClose]);
-
   if (!name) return null;
 
+  // Échap, voile et ancrage à l'écran sont assurés par ModalLayer.
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center" role="dialog" aria-label={name}>
-      <button aria-label={t("common.close")} onClick={onClose} className="absolute inset-0 bg-ink/40 backdrop-blur-[2px]" />
+    <ModalLayer onClose={onClose} label={name} closeLabel={t("common.close")}>
       <div className="relative z-10 flex max-h-[88dvh] w-full max-w-[520px] flex-col overflow-hidden rounded-t-[16px] border border-line bg-surface shadow-xl sm:rounded-card">
         {/* En-tête */}
         <div className="flex items-start justify-between gap-3 border-b border-line-2 px-5 py-4">
@@ -188,7 +181,7 @@ export function ExerciseModal({ name, onClose }: { name: string | null; onClose:
           </div>
         </div>
       </div>
-    </div>
+    </ModalLayer>
   );
 }
 

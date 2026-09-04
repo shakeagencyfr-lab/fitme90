@@ -2,7 +2,7 @@
 
 import { usePhrase } from "@/components/locale-provider";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { PREVIEW_FRAME_ATTR } from "@/lib/theme-preview";
 import { useRouter } from "next/navigation";
 import { BrandingForm } from "@/components/branding-form";
@@ -40,6 +40,12 @@ interface Props {
   businessType: BusinessType | null;
 }
 
+/** Hauteur de la fenêtre : seule la vue en grand en dépend. */
+function souscrireFenetre(cb: () => void) {
+  window.addEventListener("resize", cb);
+  return () => window.removeEventListener("resize", cb);
+}
+
 // Studio « marque blanche » : configuration à gauche, aperçu live à droite.
 // L'aperçu est un iframe de la vraie page publique ; il se recharge à chaque
 // enregistrement (les formulaires appellent router.refresh() → nouveau
@@ -64,6 +70,26 @@ export function WhiteLabelStudio({
   const tx = usePhrase();
   const router = useRouter();
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  /**
+   * Aperçu en grand, par-dessus la page.
+   *
+   * Élargir la colonne d'aperçu revenait à rétrécir le configurateur, qui est
+   * l'écran de travail : on réglait un problème en en créant un autre. Le
+   * panneau garde donc sa place habituelle, et vient couvrir la fenêtre quand
+   * on le demande. C'est le MÊME panneau qui change de cadre, pas un second :
+   * l'iframe n'est jamais démontée, donc la page ne se recharge pas et
+   * l'aperçu vivant ne perd pas le brouillon en cours.
+   */
+  const [plein, setPlein] = useState(false);
+
+  useEffect(() => {
+    if (!plein) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPlein(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [plein]);
 
   /**
    * L'aperçu rend une VRAIE largeur d'écran, puis la réduit.
@@ -86,6 +112,7 @@ export function WhiteLabelStudio({
 
   const cadre = useRef<HTMLDivElement | null>(null);
   const [dispo, setDispo] = useState(0);
+  const hFenetre = useSyncExternalStore(souscrireFenetre, () => window.innerHeight, () => 0);
 
   // La largeur disponible dépend de la fenêtre et du menu latéral rétractable :
   // un calcul unique au montage se tromperait dès le premier redimensionnement.
@@ -104,30 +131,27 @@ export function WhiteLabelStudio({
     const ro = new ResizeObserver(mesurer);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [mesurer, previewUrl]);
+  }, [mesurer, previewUrl, plein]);
 
-  // Un mobile n'est jamais agrandi : le montrer plus gros que nature donnerait
-  // une fausse idée des tailles de texte.
-  const brut = dispo > 0 ? dispo / vue.largeur : 1;
-  const echelle = device === "mobile" ? Math.min(1, brut) : brut;
-  // Centrage du mobile quand la colonne est plus large que lui. Le décalage est
+  /**
+   * L'échelle tient dans TROIS limites, et prend la plus contraignante.
+   *
+   * La largeur disponible, d'abord. La hauteur ensuite, sans quoi l'aperçu en
+   * grand déborderait sous le bas de la fenêtre. Et jamais plus de 1 : un
+   * écran agrandi au-delà de sa taille réelle donne une fausse idée des tailles
+   * de texte, sur mobile comme sur bureau.
+   */
+  const budget = plein && hFenetre > 0 ? hFenetre - 150 : Number.POSITIVE_INFINITY;
+  const echelle = Math.min(1, dispo > 0 ? dispo / vue.largeur : 1, budget / vue.hauteur);
+  // Centrage quand le cadre est plus large que la vue simulée. Le décalage est
   // exprimé AVANT mise à l'échelle, puisque `transform` applique l'un puis
   // l'autre sur le même repère.
-  const decalage = device === "mobile" && echelle > 0 ? Math.max(0, (dispo / echelle - vue.largeur) / 2) : 0;
+  const decalage = echelle > 0 ? Math.max(0, (dispo / echelle - vue.largeur) / 2) : 0;
 
   const src = previewUrl ? `${previewUrl}?preview=${previewVersion}` : null;
 
   return (
-    // La colonne d'aperçu s'élargit en mode Bureau : à 460 pixels, un écran de
-    // 1280 tiendrait au tiers de sa taille et la page n'y serait plus lisible.
-    <div
-      className={[
-        "grid gap-5",
-        device === "desktop"
-          ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,660px)]"
-          : "lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)]",
-      ].join(" ")}
-    >
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)]">
       {/* Colonne configuration */}
       <div className="flex flex-col gap-5">
         <BrandingForm branding={branding} namePlaceholder={namePlaceholder} />
@@ -157,9 +181,22 @@ export function WhiteLabelStudio({
         )}
       </div>
 
-      {/* Colonne aperçu live (sticky) */}
-      <div className="lg:sticky lg:top-6 lg:self-start">
-        <div className="flex flex-col gap-3 rounded-card border border-line bg-surface p-3.5">
+      {/* Colonne aperçu live : à sa place d'habitude, par-dessus la fenêtre en
+          grand. Le sous-arbre est identique dans les deux cas, seules les
+          classes changent, donc l'iframe n'est jamais démontée. */}
+      <div
+        className={
+          plein
+            ? "fixed inset-0 z-[70] flex items-center justify-center bg-ink/50 p-3 backdrop-blur-[2px] sm:p-6"
+            : "lg:sticky lg:top-6 lg:self-start"
+        }
+      >
+        <div
+          className={[
+            "flex flex-col gap-3 rounded-card border border-line bg-surface p-3.5",
+            plein ? "max-h-full w-full max-w-[1500px] shadow-2xl" : "",
+          ].join(" ")}
+        >
           <div className="flex items-center justify-between gap-2 px-1">
             <div className="flex items-center gap-2">
               <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">{tx("Aperçu live")}</span>
@@ -187,6 +224,22 @@ export function WhiteLabelStudio({
                   </button>
                 ))}
               </div>
+              <button
+                type="button"
+                onClick={() => setPlein((p) => !p)}
+                aria-pressed={plein}
+                aria-label={plein ? tx("Réduire l'aperçu") : tx("Agrandir l'aperçu")}
+                title={plein ? tx("Réduire l'aperçu") : tx("Agrandir l'aperçu")}
+                className="tap flex size-8 items-center justify-center rounded-control border border-line-4 text-muted hover:border-ink hover:text-ink"
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  {plein ? (
+                    <path d="M9 4v5H4M15 20v-5h5M9 20v-5H4M15 4v5h5" />
+                  ) : (
+                    <path d="M4 9V4h5M20 15v5h-5M20 9V4h-5M4 15v5h5" />
+                  )}
+                </svg>
+              </button>
               <button
                 type="button"
                 onClick={() => router.refresh()}

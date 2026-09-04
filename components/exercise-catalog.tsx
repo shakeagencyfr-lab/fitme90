@@ -5,6 +5,7 @@ import { usePhrase } from "@/components/locale-provider";
 import { useMemo, useState } from "react";
 import { EXERCISE_LIBRARY, libraryFrames, normalizeExerciseName, type LibraryExercise } from "@/lib/exercise-library";
 import { MuscleIllustration } from "@/components/muscle-illustration";
+import { ModalLayer } from "@/components/modal-layer";
 
 // Catalogue LECTURE SEULE de la bibliothèque intégrée : le coach voit tous les
 // exercices illustrés par défaut (visuels + consignes) sans pouvoir les modifier.
@@ -38,8 +39,7 @@ function DetailModal({ ex, onClose }: { ex: LibraryExercise; onClose: () => void
   const tx = usePhrase();
   const [a, b] = libraryFrames(ex.key);
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center" role="dialog" aria-label={ex.name}>
-      <button aria-label={tx("Fermer")} onClick={onClose} className="absolute inset-0 bg-ink/40 backdrop-blur-[2px]" />
+    <ModalLayer onClose={onClose} label={ex.name} closeLabel={tx("Fermer")}>
       <div className="relative z-10 flex max-h-[88dvh] w-full max-w-[560px] flex-col overflow-hidden rounded-t-[16px] border border-line bg-surface shadow-xl sm:rounded-card">
         <div className="flex items-start justify-between gap-3 border-b border-line-2 px-5 py-4">
           <div className="flex flex-col gap-1">
@@ -96,7 +96,7 @@ function DetailModal({ ex, onClose }: { ex: LibraryExercise; onClose: () => void
           </div>
         </div>
       </div>
-    </div>
+    </ModalLayer>
   );
 }
 
