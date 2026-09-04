@@ -46,13 +46,26 @@ export default async function AdminNetworkPage({
   const giftable = new Set(
     (await Promise.all(children.map(async (c) => ((tenantId && (await canGiftCredits(tenantId, c.id))) ? c.id : null)))).filter(Boolean) as string[],
   );
-  // Bascule BYOK <-> crédits : réservée aux revendeurs, et donc au seul étage
-  // qui leur vend l'IA. Un coach n'a pas de fourniture propre, elle découle du
-  // modèle de son revendeur.
+  // Bascule vers la clé perso, aux deux étages, mais avec deux sens.
+  //
+  // Sur un revendeur, elle change sa SOURCE : sa clé, ou des crédits achetés à
+  // la plateforme. Sur un coach, elle pose une DISPENSE : il tourne sur sa
+  // propre clé alors que son revendeur fournit les autres. Dans les deux cas
+  // c'est le parent qui décide, jamais le compte lui-même.
   const supplies = tenantId
     ? await supplyContexts(
         tenantId,
-        children.filter((c) => c.kind === "reseller").map((c) => ({ id: c.id, aiSupply: c.aiSupply })),
+        children
+          .filter((c) => c.kind === "reseller" || c.kind === "coach")
+          .map((c) => ({
+            id: c.id,
+            kind: c.kind === "reseller" ? ("reseller" as const) : ("coach" as const),
+            // Pour un coach, « byok » veut dire dispensé : c'est la même
+            // question, posée à son étage.
+            aiSupply: c.kind === "coach"
+              ? (c.aiSelfManaged ? ("byok" as const) : ("platform_credits" as const))
+              : c.aiSupply,
+          })),
       )
     : new Map();
   // Paliers que l'acteur peut POSER sur un compte de son réseau. Ce sont ses

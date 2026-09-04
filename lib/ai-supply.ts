@@ -17,6 +17,12 @@
  * n'importe quel coach pouvait coller une clé et cesser de payer les crédits de
  * son revendeur, qui perdait son revenu sans pouvoir s'y opposer. C'est le
  * fournisseur qui décide s'il fournit.
+ *
+ * L'EXCEPTION, ET POURQUOI ELLE NE ROUVRE PAS LA BRÈCHE. Un revendeur peut
+ * dispenser un coach précis et le laisser tourner sur sa propre clé. La
+ * décision reste celle du fournisseur : c'est lui qui pose l'exception depuis
+ * son écran réseau, jamais le coach depuis le sien. Un coach dispensé ne
+ * consomme plus aucun crédit et règle Anthropic directement.
  */
 
 /** Un compte, tel que la résolution a besoin de le voir. */
@@ -29,6 +35,11 @@ export interface SupplyNode {
   aiSupply: "byok" | "platform_credits";
   /** Une clé Anthropic utilisable est enregistrée sur ce compte. */
   hasOwnKey: boolean;
+  /**
+   * Dispensé par son parent : tourne sur sa propre clé même si le parent
+   * fournit. Posé par le parent, jamais par le compte lui-même.
+   */
+  selfManaged?: boolean;
 }
 
 /**
@@ -43,6 +54,9 @@ export function keyOwnerFor(id: string, byId: Map<string, SupplyNode>, depth = 0
   const moi = byId.get(id);
   if (!moi || depth > 4) return null;
 
+  // Dispensé : on ne remonte pas la chaîne, ce compte répond de lui-même.
+  if (moi.selfManaged) return moi.hasOwnKey ? moi.id : null;
+
   const parent = moi.parentId ? byId.get(moi.parentId) : undefined;
   if (parent?.aiMode === "provider") {
     // Le parent fournit : sa chaîne tourne, la clé de `moi` reste dormante.
@@ -56,7 +70,11 @@ export function keyOwnerFor(id: string, byId: Map<string, SupplyNode>, depth = 0
 
 /** Ce que la chaîne de fourniture dit d'une action IA, pour décider des débits. */
 export interface SupplyFacts {
-  /** Le revendeur fournit l'IA à ses coachs (`ai_mode = provider`). */
+  /**
+   * Le revendeur fournit l'IA à ce coach : son mode est `provider` ET le coach
+   * n'a pas été dispensé. Un coach dispensé se comporte exactement comme un
+   * coach dont le revendeur ne fournit pas.
+   */
   resellerSupplies: boolean;
   /** Le revendeur facture ses coachs en crédits, ou par abonnement. */
   model: "subscription" | "credits";

@@ -15,6 +15,8 @@ import { Alert, Button } from "@/components/ui";
 
 /** Contexte de bascule BYOK <-> crédits, pour un revendeur rattaché à l'acteur. */
 export interface SupplyInfo {
+  /** Étage concerné : le geste et son libellé ne sont pas les mêmes. */
+  kind: "reseller" | "coach";
   current: "byok" | "platform_credits";
   /** Le revendeur a branché sa propre clé Anthropic. */
   targetHasKey: boolean;
@@ -233,7 +235,11 @@ export function NetworkActionsMenu({
           {supply ? (
             <button type="button" className={`${item} text-ink`} onClick={() => { setOpen(false); setDialog("supply"); }}>
               <Icon d="M4 7h16M4 7l3-3M4 7l3 3M20 17H4m16 0-3-3m3 3-3 3" />{" "}
-              {supply.current === "platform_credits" ? tx("Repasser en clé perso") : tx("Passer en crédits IA")}
+              {supply.current === "platform_credits"
+                ? tx("Repasser en clé perso")
+                : supply.kind === "coach"
+                  ? tx("Remettre sous ton IA")
+                  : tx("Passer en crédits IA")}
             </button>
           ) : null}
           {plans.length > 0 ? (
@@ -328,7 +334,7 @@ export function NetworkActionsMenu({
                 type="submit"
                 loading={pending}
                 variant={dialog === "delete" ? "danger" : "primary"}
-                disabled={dialog === "supply" && supply?.current === "byok" && !supply.supplierKeyReady}
+                disabled={dialog === "supply" && supply?.kind === "reseller" && supply.current === "byok" && !supply.supplierKeyReady}
                 className="h-11"
               >
                 {dialog === "gift"
@@ -338,7 +344,9 @@ export function NetworkActionsMenu({
                   : dialog === "supply"
                     ? supply?.current === "platform_credits"
                       ? "Repasser en clé perso"
-                      : "Basculer en crédits IA"
+                      : supply?.kind === "coach"
+                        ? "Remettre sous ton IA"
+                        : "Basculer en crédits IA"
                     : dialog === "suspend"
                       ? "Désactiver"
                       : "Supprimer définitivement"}
@@ -363,6 +371,11 @@ function SupplyDialog({ name, supply }: { name: string; supply: SupplyInfo }) {
   const tx = usePhrase();
   const toCredits = supply.current === "byok";
   const next = toCredits ? "platform_credits" : "byok";
+
+  // Un coach n'a pas de fourniture à lui : ce qu'on règle sur lui est une
+  // DISPENSE, et lui parler de « crédits » ou de « ses coachs » n'aurait
+  // aucun sens. Le dialogue change donc entièrement de texte.
+  if (supply.kind === "coach") return <CoachSupplyDialog name={name} supply={supply} next={next} />;
 
   return (
     <>
@@ -415,6 +428,64 @@ function SupplyDialog({ name, supply }: { name: string; supply: SupplyInfo }) {
                 {tx("Il n'a aucune clé Anthropic. Ses coachs repassent donc en « chacun sa clé » et son modèle de revente redevient l'abonnement, sans quoi son assistant serait muet.")}
               </li>
             )}
+          </ul>
+        </>
+      )}
+    </>
+  );
+}
+
+/**
+ * Dispenser un coach, ou le remettre sous l'IA du revendeur.
+ *
+ * Ce que ce dialogue doit faire comprendre en trois lignes : la dispense ne
+ * touche NI son abonnement, NI ses offres, NI ses clients. Seule la source de
+ * son IA change, et donc qui la paie. Sans cette précision, un revendeur
+ * n'ose pas cliquer, ou clique en croyant résilier quelque chose.
+ */
+function CoachSupplyDialog({
+  name,
+  supply,
+  next,
+}: {
+  name: string;
+  supply: SupplyInfo;
+  next: string;
+}) {
+  const tx = usePhrase();
+  const dispenser = supply.current === "platform_credits";
+
+  return (
+    <>
+      <input type="hidden" name="op" value="supply" />
+      <input type="hidden" name="supply" value={next} />
+      <h2 className="font-archivo text-[20px] font-extrabold tracking-[-0.02em] text-ink">
+        {dispenser ? `Laisser ${name} sur sa propre clé ?` : `Remettre ${name} sous ton IA ?`}
+      </h2>
+
+      {dispenser ? (
+        <>
+          <p className="text-[14px] leading-relaxed text-body">
+            {tx("Il cesse de consommer ton IA et règle Anthropic directement, avec sa propre clé. Tu ne le factures plus pour l'IA.")}
+          </p>
+          <ul className="flex flex-col gap-1.5 rounded-control border border-line-4 bg-surface-2 px-3.5 py-3 text-[13px] leading-[1.55] text-body">
+            <li>{tx("Son abonnement, ses offres et ses clients ne changent pas. Seule la source de son IA change.")}</li>
+            <li>{tx("Tu peux le remettre sous ton IA à tout moment, depuis ce même menu.")}</li>
+            {supply.targetHasKey ? null : (
+              <li className="text-[#C4471A]">
+                {tx("Il n'a aucune clé Anthropic branchée : le dispenser couperait son IA immédiatement. L'enregistrement sera refusé.")}
+              </li>
+            )}
+          </ul>
+        </>
+      ) : (
+        <>
+          <p className="text-[14px] leading-relaxed text-body">
+            {tx("Il repasse sur ta chaîne d'approvisionnement : son IA tourne sur ton contrat, et chaque action est facturée comme pour tes autres coachs.")}
+          </p>
+          <ul className="flex flex-col gap-1.5 rounded-control border border-line-4 bg-surface-2 px-3.5 py-3 text-[13px] leading-[1.55] text-body">
+            <li>{tx("Sa propre clé reste enregistrée mais n'est plus utilisée. Rien n'est supprimé.")}</li>
+            <li>{tx("Son abonnement, ses offres et ses clients ne changent pas.")}</li>
           </ul>
         </>
       )}

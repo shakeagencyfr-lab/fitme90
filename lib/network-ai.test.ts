@@ -25,7 +25,7 @@ function enfant(p: Partial<ChildTenant> & Pick<ChildTenant, "id" | "kind">): Chi
   return {
     name: "X", slug: "x", clientCount: 0, networkClientCount: 0, childCount: 0,
     clientLimit: null, planId: null, subStatus: null, ownerUserId: null,
-    suspendedAt: null, suspendedReason: null, aiSupply: "byok", aiMode: null,
+    suspendedAt: null, suspendedReason: null, aiSupply: "byok", aiMode: null, aiSelfManaged: false,
     ...p,
   };
 }

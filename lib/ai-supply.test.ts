@@ -142,3 +142,46 @@ describe("supplyDisplay", () => {
     }
   });
 });
+
+/**
+ * LA DISPENSE.
+ *
+ * Un revendeur peut laisser un coach précis tourner sur sa propre clé. C'est
+ * l'exception à la règle « le revendeur décide », et elle ne rouvre pas la
+ * brèche qu'elle semble rouvrir : la décision reste celle du fournisseur.
+ */
+describe("coach dispensé par son revendeur", () => {
+  const reseau = (dispense: boolean, coachAUneCle: boolean) =>
+    new Map<string, SupplyNode>([
+      ["plateforme", { id: "plateforme", parentId: null, aiMode: "provider", aiSupply: "byok", hasOwnKey: true }],
+      ["revendeur", { id: "revendeur", parentId: "plateforme", aiMode: "provider", aiSupply: "byok", hasOwnKey: true }],
+      ["coach", { id: "coach", parentId: "revendeur", aiMode: "byok", aiSupply: "byok", hasOwnKey: coachAUneCle, selfManaged: dispense }],
+    ]);
+
+  it("fait tourner un coach dispensé sur SA clé, pas celle du revendeur", () => {
+    expect(keyOwnerFor("coach", reseau(true, true))).toBe("coach");
+  });
+
+  it("laisse un coach non dispensé sur la clé de son revendeur", () => {
+    // La règle générale ne bouge pas : sans dispense, la clé du coach dort.
+    expect(keyOwnerFor("coach", reseau(false, true))).toBe("revendeur");
+  });
+
+  it("refuse plutôt que de reporter en silence sur le revendeur", () => {
+    // Un coach dispensé mais sans clé n'a plus de fourniture du tout. Retomber
+    // sur celle du revendeur ferait payer quelqu'un qui a justement cessé de
+    // fournir ce compte.
+    expect(keyOwnerFor("coach", reseau(true, false))).toBeNull();
+  });
+
+  it("ne débite aucun portefeuille pour un coach dispensé", () => {
+    // Les faits vus depuis un coach dispensé sont ceux d'un coach autonome :
+    // il règle Anthropic en dollars, personne d'autre n'est concerné.
+    const dispense = whoPays({ resellerSupplies: false, model: "credits", supply: "platform_credits" });
+    expect(dispense).toEqual({ coach: false, reseller: false });
+  });
+
+  it("affiche « sa propre clé » pour un coach dispensé", () => {
+    expect(supplyDisplay({ resellerSupplies: false, model: "credits", supply: "byok" })).toBe("own_key");
+  });
+});

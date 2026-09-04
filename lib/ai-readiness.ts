@@ -41,9 +41,9 @@ export async function tenantAiReady(tenantId: string | null): Promise<boolean> {
     if (noeuds.has(id)) continue;
     const { data } = await admin
       .from("tenants")
-      .select("id, parent_id, ai_mode, ai_supply")
+      .select("id, parent_id, ai_mode, ai_supply, ai_self_managed")
       .eq("id", id)
-      .maybeSingle<{ id: string; parent_id: string | null; ai_mode: string | null; ai_supply: string | null }>();
+      .maybeSingle<{ id: string; parent_id: string | null; ai_mode: string | null; ai_supply: string | null; ai_self_managed: boolean | null }>();
     if (!data) break;
     ids.push(data.id);
     noeuds.set(data.id, {
@@ -51,6 +51,7 @@ export async function tenantAiReady(tenantId: string | null): Promise<boolean> {
       parentId: data.parent_id,
       aiMode: data.ai_mode === "provider" ? "provider" : "byok",
       aiSupply: data.ai_supply === "platform_credits" ? "platform_credits" : "byok",
+      selfManaged: !!data.ai_self_managed,
       hasOwnKey: false, // rempli juste après, en une seule requête
     });
     if (data.parent_id) aVoir.push(data.parent_id);

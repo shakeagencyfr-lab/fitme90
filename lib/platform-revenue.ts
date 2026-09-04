@@ -105,8 +105,8 @@ async function payeurParTenant(ids: string[]): Promise<Map<string, string | null
   const [{ data: rows }, { data: secrets }] = await Promise.all([
     admin
       .from("tenants")
-      .select("id, parent_id, ai_mode, ai_supply")
-      .returns<{ id: string; parent_id: string | null; ai_mode: string | null; ai_supply: string | null }[]>(),
+      .select("id, parent_id, ai_mode, ai_supply, ai_self_managed")
+      .returns<{ id: string; parent_id: string | null; ai_mode: string | null; ai_supply: string | null; ai_self_managed: boolean | null }[]>(),
     admin
       .from("tenant_secrets")
       .select("tenant_id, anthropic_key_enc")
@@ -123,6 +123,7 @@ async function payeurParTenant(ids: string[]): Promise<Map<string, string | null
         aiMode: r.ai_mode === "provider" ? "provider" : "byok",
         aiSupply: r.ai_supply === "platform_credits" ? "platform_credits" : "byok",
         hasOwnKey: aUneCle.has(r.id),
+        selfManaged: !!r.ai_self_managed,
       },
     ]),
   );

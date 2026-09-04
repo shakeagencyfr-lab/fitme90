@@ -91,6 +91,8 @@ export interface ChildTenant {
   aiSupply: "byok" | "platform_credits";
   /** Coach : fournisseur IA de son revendeur (byok = sa propre clé). */
   aiMode: string | null;
+  /** Dispensé par son parent : tourne sur sa propre clé malgré la fourniture. */
+  aiSelfManaged: boolean;
 }
 
 /** Comptes enfants d'un tenant (coachs/salles d'un revendeur, ou d'une plateforme). */
@@ -98,13 +100,14 @@ export async function listChildTenants(parentId: string): Promise<ChildTenant[]>
   const admin = createAdminClient();
   const { data: kids } = await admin
     .from("tenants")
-    .select("id, name, slug, kind, client_limit, plan_id, sub_status, suspended_at, suspended_reason, ai_supply, ai_mode")
+    .select("id, name, slug, kind, client_limit, plan_id, sub_status, suspended_at, suspended_reason, ai_supply, ai_mode, ai_self_managed")
     .eq("parent_id", parentId)
     .order("created_at", { ascending: false })
     .returns<
       {
         id: string; name: string; slug: string; kind: string | null; client_limit: number | null; plan_id: string | null; sub_status: string | null;
         suspended_at: string | null; suspended_reason: string | null; ai_supply: string | null; ai_mode: string | null;
+        ai_self_managed: boolean | null;
       }[]
     >();
   const list = kids ?? [];
@@ -178,5 +181,6 @@ export async function listChildTenants(parentId: string): Promise<ChildTenant[]>
     suspendedReason: k.suspended_reason === "manual" || k.suspended_reason === "payment" ? k.suspended_reason : null,
     aiSupply: k.ai_supply === "platform_credits" ? "platform_credits" : "byok",
     aiMode: k.ai_mode,
+    aiSelfManaged: !!k.ai_self_managed,
   }));
 }

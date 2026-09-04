@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { billingParentId, tenantNode } from "@/lib/hierarchy";
-import { getWallet, listCreditPacks, clientUsesCredits, listLedger, programCreditCost, realCreditCostCents, type LedgerEntry } from "@/lib/credits";
+import { getWallet, listCreditPacks, clientUsesCredits, listLedger, programCreditCost, creditPriceToday, type LedgerEntry } from "@/lib/credits";
 import { CreditScale, CreditScaleNote } from "@/components/credit-scale";
 import { verifyPackCheckout } from "@/lib/credit-billing";
 import { BuyPackButton } from "@/components/buy-pack-button";
@@ -76,7 +76,7 @@ export default async function AdminCreditsPage({
     // Ce qu'un crédit lui coûte VRAIMENT : la moyenne de ses achats, sinon le
     // meilleur tarif qu'il obtiendrait aujourd'hui. Sans ce chiffre, un solde
     // en crédits ne veut rien dire.
-    realCreditCostCents(tenantId),
+    creditPriceToday(tenantId),
   ]);
   const usesCredits = coachUsesCredits;
   const packs = supplierId ? (await listCreditPacks(supplierId)).filter((p) => p.is_active) : [];

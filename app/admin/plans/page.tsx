@@ -7,7 +7,7 @@ import { MAX_OFFERS_PER_TENANT, programDaysForMonths, formatEuros } from "@/lib/
 import { OfferForm } from "@/components/offer-form";
 import { EmbedSnippet } from "@/components/embed-snippet";
 import { toggleOffer, removeOffer } from "@/app/admin/actions";
-import { bestSupplierPack, clientUsesCredits, programCreditCost, realCreditCostCents } from "@/lib/credits";
+import { bestSupplierPack, clientUsesCredits, programCreditCost, creditPriceToday } from "@/lib/credits";
 import { CreditScale, CreditScaleNote } from "@/components/credit-scale";
 import { readCoachConfig } from "@/lib/methodology";
 import { Alert, Card } from "@/components/ui";
@@ -49,7 +49,7 @@ export default async function AdminPlansPage() {
         clientUsesCredits(tenantId),
         programCreditCost(tenantId),
         readCoachConfig(tenantId),
-        realCreditCostCents(tenantId),
+        creditPriceToday(tenantId),
         // Le forfait le plus avantageux du revendeur : c'est lui qui chiffre
         // en euros le plafond en crédits d'un plan.
         bestSupplierPack(tenantId),
