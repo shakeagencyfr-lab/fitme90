@@ -68,10 +68,14 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     {/* Le thème du coach habille l'espace de SES clients : couleurs, polices,
         rayons, motif de fond et style de cartes. Posé sur l'élément qui peint
         le fond de page, sans quoi le motif passerait sous une couleur opaque. */}
-    <div className="min-h-dvh bg-paper nav:flex nav:items-start" {...themeProps(brand?.theme)}>
-      {/* Le coach qui saisit pour son client doit voir en permanence au nom de
-          qui il enregistre, et pouvoir en sortir d'un geste. */}
-      <div className="fixed inset-x-0 top-0 z-50"><SupportReturnBar /></div>
+    <div className="min-h-dvh bg-paper" {...themeProps(brand?.theme)}>
+      {/* Le coach en assistance doit voir en permanence au nom de qui il
+          enregistre, et pouvoir en sortir d'un geste. Dans le FLUX, pas en
+          `fixed` : posé au-dessus de la page, il recouvrait le haut du contenu
+          (le titre « Salut … » passait sous le bandeau). Il reste collant grâce
+          au `sticky` du composant, qui suffit à le garder visible au défilement. */}
+      <SupportReturnBar />
+      <div className="nav:flex nav:items-start">
       <AppNav
         day={day}
         dayPct={dayPct}
@@ -106,6 +110,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         ) : null}
         <PageTransition>{children}</PageTransition>
       </main>
+      </div>
       {ctx.access.coachEnabled && aiIncluded ? <CoachWidget coachName={coachName} /> : null}
       {/* Le tutoriel visite programme, séance et nutrition : sans plan consultable
           il tournait à vide, et se marquait « vu » en localStorage, donc le

@@ -15,10 +15,24 @@ import type { Plan } from "@/lib/plans";
 /** Palier gratuit rétabli en cas de défaut de paiement (« 1er client offert »). */
 export const FREE_TIER_CLIENT_LIMIT = 1;
 
+/**
+ * Palier POSÉ PAR LE PARENT, sans abonnement Stripe : la plateforme offre un
+ * palier à un revendeur, un revendeur à un coach. Ce n'est pas un statut Stripe,
+ * c'est le nôtre, et il vaut « en règle » partout où l'on demande si le compte a
+ * droit à sa capacité.
+ *
+ * Un compte dans cet état n'a pas de `sub_id`, ce qui le met naturellement hors
+ * de portée du cron de synchronisation (qui ne lit que les tenants qui en ont
+ * un) et du gel pour défaut de paiement (qui exige un abonnement en échec). Il
+ * n'y a donc rien à payer, et rien qui puisse le déclasser tout seul.
+ */
+export const GRANTED_STATUS = "granted";
+
 const PLAN_COLS =
   "id, tenant_id, name, price_month_cents, price_year_cents, client_limit, setup_fee_cents, is_active, position, created_at";
 
 function subActive(status: string | null, periodEnd: string | null, now = new Date()): boolean {
+  if (status === GRANTED_STATUS) return true;
   if (status === "active" || status === "trialing") return true;
   if (status === "canceled" && periodEnd && new Date(periodEnd) > now) return true;
   return false;
@@ -261,6 +275,8 @@ export interface TenantBillingState {
   currentPeriodEnd: string | null;
   active: boolean;
   cancelAtPeriodEnd: boolean;
+  /** Palier offert par le parent : actif, mais rien à payer ni à résilier. */
+  granted: boolean;
 }
 
 /** État de facturation courant d'un tenant (écran « Mon abonnement »). */
@@ -287,6 +303,7 @@ export async function tenantBillingState(tenantId: string): Promise<TenantBillin
     currentPeriodEnd: periodEnd,
     active: subActive(status, periodEnd),
     cancelAtPeriodEnd: !!data?.sub_cancel_at_period_end,
+    granted: status === GRANTED_STATUS,
   };
 }
 
@@ -420,4 +437,80 @@ export async function reactivateTenantPlan(tenantId: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+// ------------------------------------------------------------------ palier offert
+
+export interface GrantResult {
+  ok: boolean;
+  error?: string;
+}
+
+/**
+ * Le parent pose (ou retire) un palier sur un compte de son réseau, sans
+ * paiement : la plateforme offre un palier à un revendeur, un revendeur à un
+ * coach. `planId` à null ramène au palier gratuit.
+ *
+ * Si la cible payait déjà un abonnement chez l'acteur, il est RÉSILIÉ : offrir
+ * un palier tout en continuant de prélever serait le contraire de ce que
+ * l'action annonce. L'annulation se fait avec la clé Stripe de l'acteur, sur
+ * son propre compte, donc sur un abonnement dont il est le bénéficiaire.
+ *
+ * La garde de descendance est faite par l'appelant (lib/network-admin), qui la
+ * partage avec les autres actions réseau.
+ */
+export async function grantTenantPlan(
+  actorTenantId: string,
+  targetTenantId: string,
+  planId: string | null,
+): Promise<GrantResult> {
+  const admin = createAdminClient();
+
+  const { data: target } = await admin
+    .from("tenants")
+    .select("parent_id, sub_id")
+    .eq("id", targetTenantId)
+    .maybeSingle<{ parent_id: string | null; sub_id: string | null }>();
+  if (!target) return { ok: false, error: "Compte introuvable." };
+  // Le palier appartient au parent DIRECT : c'est lui qui facture. Un
+  // grand-parent ne peut pas poser son propre palier par-dessus.
+  if (target.parent_id !== actorTenantId) {
+    return { ok: false, error: "Seul le compte parent direct peut changer ce palier." };
+  }
+
+  let plan: Plan | null = null;
+  if (planId) {
+    plan = await planById(planId);
+    if (!plan || plan.tenant_id !== actorTenantId) return { ok: false, error: "Palier introuvable." };
+  }
+
+  // Abonnement payant en cours : on l'arrête avant d'offrir.
+  if (target.sub_id) {
+    const stripe = await stripeForTenant(actorTenantId);
+    if (stripe) {
+      try {
+        await stripe.subscriptions.cancel(target.sub_id);
+      } catch {
+        /* déjà clos ou introuvable : on continue, l'état local fait foi */
+      }
+    }
+  }
+
+  const { error } = await admin
+    .from("tenants")
+    .update({
+      plan_id: plan?.id ?? null,
+      sub_id: null,
+      sub_status: plan ? GRANTED_STATUS : null,
+      sub_current_period_end: null,
+      sub_cancel_at_period_end: false,
+      sub_synced_at: new Date().toISOString(),
+      client_limit: plan ? plan.client_limit : FREE_TIER_CLIENT_LIMIT,
+      // Un compte gelé pour impayé ne doit pas le rester alors qu'on vient de
+      // lui offrir son palier : il n'y a plus rien à régulariser.
+      ...(plan ? { suspended_at: null, suspended_reason: null } : {}),
+    })
+    .eq("id", targetTenantId);
+  if (error) return { ok: false, error: "Changement de palier impossible." };
+  return { ok: true };
 }

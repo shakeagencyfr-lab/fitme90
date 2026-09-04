@@ -190,7 +190,7 @@ export default async function ClientDetailPage({
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
             </svg>
-            {tx("Saisir pour ce client")}
+            {tx("Assister ce client")}
           </button>
         </form>
       </div>
@@ -199,7 +199,7 @@ export default async function ClientDetailPage({
         <Alert>
           {assistanceErreur === "refus"
             ? tx("Ce client n'est pas rattaché à ton compte.")
-            : tx("La connexion en saisie a échoué. Réessaie dans un instant.")}
+            : tx("La connexion en assistance a échoué. Réessaie dans un instant.")}
         </Alert>
       ) : null}
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { suspendTenant, reactivateTenant, giftCredits, deleteTenantTree, setResellerSupply } from "@/lib/network-admin";
+import { suspendTenant, reactivateTenant, giftCredits, deleteTenantTree, setResellerSupply, setTenantPlan } from "@/lib/network-admin";
 import { setSupportReturn, readSupportReturn, clearSupportReturn } from "@/lib/support-return";
 import { LANDING_TEMPLATES, BUSINESS_TYPES } from "@/lib/offers";
 import { whitelabelEnabled } from "@/lib/whitelabel";
@@ -1666,7 +1666,7 @@ export async function returnFromSupport(): Promise<void> {
 export interface NetworkState {
   ok?: boolean;
   error?: string;
-  done?: "suspend" | "reactivate" | "gift" | "delete" | "supply";
+  done?: "suspend" | "reactivate" | "gift" | "delete" | "supply" | "plan";
 }
 
 async function networkActor(): Promise<{ ctx: NonNullable<Awaited<ReturnType<typeof getAdminOrNull>>>; tenantId: string } | null> {
@@ -1691,6 +1691,10 @@ export async function networkAction(_prev: NetworkState, formData: FormData): Pr
   else if (op === "supply") {
     const supply = formData.get("supply") === "platform_credits" ? "platform_credits" : "byok";
     res = await setResellerSupply(actor.tenantId, target, supply);
+  } else if (op === "plan") {
+    // « gratuit » = retirer le palier, pas un identifiant à chercher en base.
+    const raw = String(formData.get("plan_id") ?? "").trim();
+    res = await setTenantPlan(actor.tenantId, target, raw && raw !== "gratuit" ? raw : null);
   } else if (op === "delete") {
     const expected = String(formData.get("expected_name") ?? "").trim();
     const typed = String(formData.get("confirm_name") ?? "").trim();
