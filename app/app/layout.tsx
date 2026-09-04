@@ -111,7 +111,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <PageTransition>{children}</PageTransition>
       </main>
       </div>
-      {ctx.access.coachEnabled && aiIncluded ? <CoachWidget coachName={coachName} /> : null}
+      {ctx.access.coachEnabled && aiIncluded ? <CoachWidget coachName={coachName} brandName={brand?.name ?? ""} /> : null}
       {/* Le tutoriel visite programme, séance et nutrition : sans plan consultable
           il tournait à vide, et se marquait « vu » en localStorage, donc le
           client ne le revoyait jamais une fois son programme généré. */}

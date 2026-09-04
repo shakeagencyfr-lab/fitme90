@@ -236,7 +236,19 @@ export class PdfPage {
 }
 
 /** Assemble les pages en un fichier PDF complet. */
-export function renderPdf(pages: PdfPage[], meta: { title?: string } = {}): Uint8Array {
+export function renderPdf(
+  pages: PdfPage[],
+  meta: {
+    title?: string;
+    /**
+     * Marque de contenu généré par IA (AI Act, article 50(2)), écrite dans le
+     * dictionnaire /Info du PDF. Une phrase imprimée sur la page ne suffit pas :
+     * l'obligation vise un marquage LISIBLE PAR MACHINE, qu'un outil tiers doit
+     * pouvoir détecter sans lire le document.
+     */
+    aiMark?: string;
+  } = {},
+): Uint8Array {
   const objets: string[] = [];
   /** @returns le numéro de l'objet ajouté (les objets PDF sont numérotés à partir de 1). */
   const ajouter = (contenu: string): number => {
@@ -276,9 +288,15 @@ export function renderPdf(pages: PdfPage[], meta: { title?: string } = {}): Uint
   const debutTable = Buffer.byteLength(corps, "latin1");
   corps += `xref\n0 ${objets.length + 1}\n0000000000 65535 f \n`;
   for (const p of positions) corps += `${String(p).padStart(10, "0")} 00000 n \n`;
+  // /Producer porte la marque IA : c'est un champ standard du dictionnaire
+  // /Info, donc lu par n'importe quel outil PDF sans convention privée.
+  const info = [
+    meta.title ? `/Title (${encodeText(meta.title)})` : "",
+    meta.aiMark ? `/Producer (${encodeText(meta.aiMark)})` : "",
+  ].filter(Boolean).join(" ");
   corps +=
     `trailer\n<< /Size ${objets.length + 1} /Root 1 0 R` +
-    (meta.title ? ` /Info << /Title (${encodeText(meta.title)}) >>` : "") +
+    (info ? ` /Info << ${info} >>` : "") +
     ` >>\nstartxref\n${debutTable}\n%%EOF`;
 
   return new Uint8Array(Buffer.from(corps, "latin1"));

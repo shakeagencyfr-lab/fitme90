@@ -2,6 +2,7 @@ import { cycleSessions, type Plan, type Session } from "@/lib/program";
 import { macrosForDay, pnum, grp } from "@/lib/nutrition";
 import { A4, PdfPage, ellipsize, renderPdf, textWidth, wrap } from "@/lib/pdf";
 import { dateLocale, makeT, type Locale } from "@/lib/i18n";
+import { contentMarkString } from "@/lib/ai-act";
 
 /**
  * Composition du plan d'entraînement en PDF téléchargeable.
@@ -253,9 +254,19 @@ export function planPdf(input: PlanPdfInput): Uint8Array {
   nutrition(c, input.plan, t);
 
   const date = new Date().toLocaleDateString(dateLocale(input.locale), { day: "numeric", month: "long", year: "numeric" });
-  pieds(c.pages, t("pdf.footer", { date }));
+  // La mention visible accompagne la marque machine : l'une informe le lecteur,
+  // l'autre les outils. L'article 50 attend les deux.
+  pieds(c.pages, `${t("pdf.footer", { date })} · ${t("pdf.aiNotice")}`);
 
-  return renderPdf(c.pages, { title: input.clientName ? `${t("pdf.title")} ${input.clientName}` : t("pdf.title") });
+  return renderPdf(c.pages, {
+    title: input.clientName ? `${t("pdf.title")} ${input.clientName}` : t("pdf.title"),
+    // AI Act, article 50(2) : le document sort marqué, pas seulement légendé.
+    aiMark: contentMarkString({
+      vendor: "Anthropic",
+      purpose: t("pdf.title"),
+      generatedAt: new Date().toISOString(),
+    }),
+  });
 }
 
 /** Nom de fichier proposé au téléchargement, sûr sur tous les systèmes. */

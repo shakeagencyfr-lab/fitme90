@@ -10,6 +10,7 @@ import { dateLocale, type Locale, type TFn } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
 import { COACH_NAME } from "@/lib/config";
+import { chatDisclosure } from "@/lib/ai-act";
 
 interface Msg {
   role: "user" | "assistant";
@@ -126,7 +127,14 @@ function loadImage(file: File): Promise<HTMLImageElement> {
 // Coach flottant : accessible depuis tout l'espace client (README).
 // Texte + photo (vision) + dictée vocale. Monté uniquement si le coach est
 // activé (avant J90), le layout ne le rend pas au-delà.
-export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) {
+export function CoachWidget({
+  coachName = COACH_NAME,
+  brandName = "",
+}: {
+  coachName?: string;
+  /** Marque que le client connaît : en marque blanche, ce n'est pas la nôtre. */
+  brandName?: string;
+}) {
   const router = useRouter();
   const t = useT();
   const locale = useLocale();
@@ -442,7 +450,11 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
         </button>
         <div className="min-w-0 flex-1 text-center">
           <div className="truncate font-archivo font-semibold text-[15px] text-ink">{coachName}</div>
-          <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">Coach My Fitness App</div>
+          {/* Article 50(1) de l'AI Act : l'interlocuteur est nommé comme une IA
+              en permanence, pas seulement au premier message. Le libellé
+              remplace « Coach My Fitness App », qui fuitait notre marque chez
+              un coach en marque blanche. */}
+          <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">{t("widget.aiLabel")}</div>
         </div>
         <button
           onClick={newConversation}
@@ -527,6 +539,14 @@ export function CoachWidget({ coachName = COACH_NAME }: { coachName?: string }) 
         {loadingHistory ? (
           <div className="self-center text-[12.5px] text-muted-2">Chargement de la conversation…</div>
         ) : null}
+        {/* Article 50(1) de l'AI Act : l'information est donnée AU MOMENT de la
+            première interaction, en tête du fil, avant le premier message. En
+            la mettant ailleurs (page légale, réglages), elle n'informerait que
+            ceux qui la cherchent, ce que le texte ne permet pas. */}
+        <div className="self-stretch rounded-card border border-line-4 bg-surface-2 px-3.5 py-2.5 text-[12.5px] leading-[1.55] text-muted">
+          {chatDisclosure(brandName, coachName)}
+        </div>
+
         {messages.map((m, i) => (
           <div
             key={i}

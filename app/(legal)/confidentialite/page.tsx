@@ -34,6 +34,25 @@ export default function ConfidentialitePage() {
         pour les données de santé, recueilli séparément et révocable à tout moment.
       </p>
 
+      <h2>Décisions automatisées et intelligence artificielle</h2>
+      <p>
+        Ton programme, ton plan nutritionnel et les réponses du Coach IA sont
+        produits automatiquement par un modèle de langage, sans relecture
+        humaine préalable. Il ne s&apos;agit pas d&apos;une décision produisant des
+        effets juridiques ou t&apos;affectant de manière significative au sens de
+        l&apos;article 22 du RGPD : ton coach reste ton interlocuteur et peut
+        corriger ce qui est proposé.
+      </p>
+      <p>
+        Le détail du fonctionnement, des limites et des recours figure sur la
+        page <a href="/ia">Transparence sur l&apos;IA</a>, établie au regard de
+        l&apos;article 50 du règlement (UE) 2024/1689.
+      </p>
+      <p>
+        Tes données ne servent pas à entraîner le modèle. Les contenus générés
+        portent une mention visible et un marquage lisible par machine.
+      </p>
+
       <h2>Sous-traitants</h2>
       <ul>
         <li>Vercel, hébergement de l'application (région UE, Paris).</li>

@@ -124,6 +124,9 @@ export const fr = {
   },
   widget: {
     greeting: "Salut, moi c'est {name}, ton coach. Pose-moi une question sur ta séance, un exercice, une substitution ou un repas. Tu peux aussi m'envoyer une photo (repas, machine) ou dicter à la voix.",
+    // Article 50(1) de l'AI Act : le libellé nomme l'interlocuteur comme une IA
+    // en permanence, à côté du prénom du coach.
+    aiLabel: "Assistant IA",
     placeholder: "Ta question…",
     listening: "Parle, je t'écoute…",
     unavailable: "Le coach est indisponible.",
@@ -614,6 +617,9 @@ export const fr = {
     carbs: "Glucides",
     fat: "Lipides",
     footer: "Document généré le {date}. Conseils de forme pour personnes en bonne santé, ne remplace pas un avis médical.",
+    // AI Act, article 50(2) : mention visible, à côté du marquage machine
+    // inscrit dans les métadonnées du fichier.
+    aiNotice: "Contenu généré par une intelligence artificielle.",
     macroNote: "Un jour sans entraînement, on retire environ 10 % des calories et un cinquième des glucides. Les protéines ne bougent pas : c'est le jour de repos qui reconstruit le muscle.",
     trainingDay: "Jour d'entraînement",
     restDay: "Jour de repos",
