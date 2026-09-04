@@ -114,6 +114,19 @@ async function tenantOwnKey(tenantId: string): Promise<string | null> {
 }
 
 /**
+ * Ce tenant a-t-il une clé Anthropic UTILISABLE à lui ?
+ *
+ * Volontairement calqué sur la première branche de `tenantAnthropicKey` : une
+ * clé enregistrée mais indéchiffrable n'en est pas une, l'appel repartira vers
+ * le revendeur. C'est ce booléen qui décide des débits de crédits, donc il doit
+ * dire exactement ce que fera l'appel, pas ce que la base laisse croire.
+ */
+export async function tenantHasOwnKey(tenantId: string | null): Promise<boolean> {
+  if (!tenantId) return false;
+  return !!(await tenantOwnKey(tenantId));
+}
+
+/**
  * Clé Anthropic (déchiffrée) à utiliser pour cet utilisateur, sinon null.
  * BYOK d'abord : la clé du tenant du client (son coach). À défaut, si le
  * revendeur parent est en mode « provider » (revendeur IA), on utilise SA clé —

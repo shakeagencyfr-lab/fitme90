@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { tenantHasOwnKey } from "@/lib/tenant";
 import { DEFAULT_PROGRAM_CREDITS } from "@/lib/config";
 
 // UN SEUL crédit IA. Toute action IA (message du chat, recette, alternative
@@ -201,6 +202,9 @@ export async function clientUsesCredits(coachTenantId: string | null): Promise<b
     .eq("id", coachTenantId)
     .maybeSingle<{ parent_id: string | null }>();
   if (!data?.parent_id) return false;
+  // Ce coach a sa propre clé : ses clients tournent dessus, aucun crédit n'est
+  // consommé. Lui montrer un portefeuille laisserait croire l'inverse.
+  if (await tenantHasOwnKey(coachTenantId)) return false;
   return (await resellerModel(data.parent_id)) === "credits";
 }
 
@@ -319,6 +323,41 @@ export function coachUsageToCharge(regenerated: boolean): AiUsageKind[] {
   return regenerated ? ["action", "program"] : ["action"];
 }
 
+/** Ce que la chaîne de fourniture dit d'une action IA, pour décider des débits. */
+export interface SupplyFacts {
+  /** Le coach a sa propre clé Anthropic : l'appel tournera dessus. */
+  coachHasOwnKey: boolean;
+  /** Le revendeur facture ses coachs en crédits, ou par abonnement. */
+  model: "subscription" | "credits";
+  /** Le revendeur paie l'IA lui-même (byok) ou achète ses crédits à la plateforme. */
+  supply: "byok" | "platform_credits";
+}
+
+/** Quels étages doivent être débités pour cette action. */
+export interface UsageCharge {
+  coach: boolean;
+  reseller: boolean;
+}
+
+/**
+ * Qui paie une action IA.
+ *
+ * Un crédit n'est pas un droit d'usage, c'est de l'IA achetée à quelqu'un.
+ * Quand le COACH a sa propre clé, l'appel part sur cette clé et il paie
+ * Anthropic en dollars : personne au-dessus de lui ne consomme quoi que ce
+ * soit. Débiter quand même son revendeur lui faisait perdre un crédit acheté à
+ * la plateforme sans qu'aucune requête ne parte de la clé plateforme, et
+ * débiter le coach lui faisait payer deux fois la même action.
+ *
+ * Un revendeur qui veut malgré tout monétiser un coach BYOK a l'outil pour :
+ * l'abonnement (`reseller_model = 'subscription'`). Le crédit, lui, ne se
+ * facture que s'il y a de l'IA fournie en face.
+ */
+export function whoPays(f: SupplyFacts): UsageCharge {
+  if (f.coachHasOwnKey) return { coach: false, reseller: false };
+  return { coach: f.model === "credits", reseller: f.supply === "platform_credits" };
+}
+
 export interface AiAllowance {
   ok: boolean;
   /** Message à afficher au client si refus. */
@@ -342,10 +381,18 @@ export async function checkAiAllowance(coachTenantId: string | null, kind: AiUsa
   const resellerId = await parentOf(coachTenantId);
   if (!resellerId) return none;
 
-  const [model, supply] = await Promise.all([resellerModel(resellerId), resellerSupply(resellerId)]);
-  const coachCost = model === "credits" ? (kind === "program" ? await programCreditCost(coachTenantId) : 1) : 0;
-  const resellerCost =
-    supply === "platform_credits" ? (kind === "program" ? await programCreditCost(resellerId) : 1) : 0;
+  const [model, supply, coachHasOwnKey] = await Promise.all([
+    resellerModel(resellerId),
+    resellerSupply(resellerId),
+    tenantHasOwnKey(coachTenantId),
+  ]);
+  // Les débits suivent la clé qui exécutera l'appel, jamais la seule
+  // configuration du revendeur.
+  const pays = whoPays({ coachHasOwnKey, model, supply });
+  if (!pays.coach && !pays.reseller) return none;
+
+  const coachCost = pays.coach ? (kind === "program" ? await programCreditCost(coachTenantId) : 1) : 0;
+  const resellerCost = pays.reseller ? (kind === "program" ? await programCreditCost(resellerId) : 1) : 0;
   const base = { coachCost, resellerCost, resellerId };
 
   if (coachCost > 0) {
