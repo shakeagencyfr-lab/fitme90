@@ -9,6 +9,7 @@ import { CoachSage } from "@/components/landing-templates/coach-sage";
 import { CoachKinetic } from "@/components/landing-templates/coach-kinetic";
 import { CoachAurora } from "@/components/landing-templates/coach-aurora";
 import { LocaleProvider } from "@/components/locale-provider";
+import { ThemePreviewBridge } from "@/components/theme-preview-bridge";
 import { resolveLocale, tenantLocale } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
@@ -36,10 +37,20 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default async function CoachLandingPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function CoachLandingPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { slug } = await params;
   const data = await publicOffersBySlug(slug);
   if (!data) notFound();
+
+  // Le pont d'aperçu n'existe QUE dans l'iframe du studio : sur la vraie page
+  // publique, aucun visiteur ne peut lui envoyer de thème.
+  const enApercu = "preview" in (await searchParams);
 
   const { tenant, offers } = data;
   const [leadMagnet, locale] = await Promise.all([leadMagnetEnabled(tenant.id), resolveLocale(await tenantLocale(tenant.id))]);
@@ -51,5 +62,10 @@ export default async function CoachLandingPage({ params }: { params: Promise<{ s
     : tenant.landingTemplate === "kinetic" ? <CoachKinetic {...props} />
     : tenant.landingTemplate === "aurora" ? <CoachAurora {...props} />
     : <CoachOnyx {...props} />;
-  return <LocaleProvider locale={locale}>{page}</LocaleProvider>;
+  return (
+    <LocaleProvider locale={locale}>
+      {enApercu ? <ThemePreviewBridge /> : null}
+      {page}
+    </LocaleProvider>
+  );
 }

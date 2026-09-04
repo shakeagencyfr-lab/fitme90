@@ -3,6 +3,7 @@
 import { usePhrase } from "@/components/locale-provider";
 
 import { useState } from "react";
+import { PREVIEW_FRAME_ATTR } from "@/lib/theme-preview";
 import { useRouter } from "next/navigation";
 import { BrandingForm } from "@/components/branding-form";
 import { BrandIdentityForm } from "@/components/brand-identity-form";
@@ -141,6 +142,7 @@ export function WhiteLabelStudio({
           {src ? (
             <div className="flex justify-center overflow-hidden rounded-control bg-[#0a0b0c]">
               <iframe
+                {...{ [PREVIEW_FRAME_ATTR]: "" }}
                 key={`${device}-${previewVersion}`}
                 src={src}
                 title={tx("Aperçu de la page publique")}
