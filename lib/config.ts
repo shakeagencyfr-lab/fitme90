@@ -310,6 +310,19 @@ export function formatEurPrecise(n: number): string {
   return `${n.toFixed(decimals)} €`;
 }
 
+/**
+ * Le même formatage, pour un montant déjà exprimé en CENTIMES.
+ *
+ * Elle existe pour fermer un piège qui s'est refermé une fois : un prix
+ * unitaire de crédit est stocké en centimes (4 pour quatre centimes), et le
+ * passer tel quel à `formatEurPrecise` affiche « 4.00 € » au lieu de
+ * « 0.0400 € ». Le nom de la fonction porte désormais l'unité, ce qu'un
+ * paramètre nommé `n` ne pouvait pas faire.
+ */
+export function formatCentsPrecise(cents: number): string {
+  return formatEurPrecise(cents / 100);
+}
+
 export interface CreditMargin {
   /** Coût Anthropic estimé (converti en €). */
   costEur: number;

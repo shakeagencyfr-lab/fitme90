@@ -1,5 +1,5 @@
 import { tx } from "@/lib/i18n/request";
-import { formatEurPrecise } from "@/lib/config";
+import { formatCentsPrecise, formatEurPrecise } from "@/lib/config";
 
 /**
  * Barème des crédits IA, tel qu'un coach doit le comprendre en trois secondes.
@@ -90,7 +90,7 @@ export function CreditScaleNote({ programCredits, unitCents = null }: { programC
       {tx("crédits est fixé par la plateforme, identique pour tout le monde.")}
       {unitCents == null
         ? ` ${tx("Le prix du crédit, lui, est celui de ton revendeur.")}`
-        : ` ${tx("Le prix du crédit est celui de ton revendeur :")} ${formatEurPrecise(unitCents / 100)} ${tx("chez toi.")}`}
+        : ` ${tx("Le prix du crédit est celui de ton revendeur :")} ${formatCentsPrecise(unitCents)} ${tx("chez toi.")}`}
     </p>
   );
 }

@@ -4,6 +4,7 @@ import {
   creditPackMargin,
   programGenerationMargin,
   formatEurPrecise,
+  formatCentsPrecise,
   AI_COST_CREDIT_USD,
   usdToEur,
 } from "./config";
@@ -66,5 +67,30 @@ describe("formatEurPrecise", () => {
   it("gère zéro et les négatifs", () => {
     expect(formatEurPrecise(0)).toBe("0.00 €");
     expect(formatEurPrecise(-0.0055)).toBe("-0.0055 €");
+  });
+});
+
+/**
+ * Le piège qui s'est refermé une fois : un prix unitaire de crédit est stocké
+ * en CENTIMES, et le passer tel quel à `formatEurPrecise` affichait « 4.00 € »
+ * là où il fallait lire « 0.0400 € ». Un forfait à 40 € les 1 000 crédits se
+ * présentait donc comme cent fois plus cher, sur l'écran même où le coach
+ * décide de son prix de vente.
+ */
+describe("formatCentsPrecise", () => {
+  it("lit un montant en centimes, pas en euros", () => {
+    // 40 € les 1 000 crédits, soit 4 centimes le crédit.
+    expect(formatCentsPrecise(4)).toBe("0.0400 €");
+    expect(formatCentsPrecise(4)).not.toBe(formatEurPrecise(4));
+  });
+
+  it("garde assez de décimales sous le centime", () => {
+    // 50 € les 20 000 crédits : un quart de centime.
+    expect(formatCentsPrecise(0.25)).toBe("0.0025 €");
+  });
+
+  it("repasse à deux décimales au-dessus de dix centimes", () => {
+    expect(formatCentsPrecise(25)).toBe("0.25 €");
+    expect(formatCentsPrecise(0)).toBe("0.00 €");
   });
 });
