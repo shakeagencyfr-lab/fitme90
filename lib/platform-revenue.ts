@@ -42,7 +42,15 @@ export interface RevenueTotals {
   costUsd: number;
   /** Recette moins coût, en euros. */
   marginEur: number;
-  /** Ce qu'un crédit consommé a réellement coûté, en euros. null si aucun. */
+  /**
+   * Ce qu'un crédit consommé a réellement coûté, en euros.
+   *
+   * null quand le chiffre n'a pas de sens : aucun crédit consommé, ou aucun
+   * coût mesuré en face. Un coût nul n'est PAS un crédit gratuit, c'est une
+   * absence de mesure (la conso est partie sur des clés perso, ou le journal
+   * IA ne couvre pas encore la période). L'afficher comme 0,00 € donnait un
+   * rapport prix/coût infini à l'écran.
+   */
   costPerCreditEur: number | null;
 }
 
@@ -73,8 +81,9 @@ export function totalsOf(lines: RevenueLine[]): RevenueTotals {
     ...t,
     marginEur: t.revenueCents / 100 - coutEur,
     // Le chiffre qui dit si le crédit est une unité honnête : ce qu'il coûte
-    // vraiment, à comparer au prix auquel il est vendu.
-    costPerCreditEur: t.creditsSpent > 0 ? coutEur / t.creditsSpent : null,
+    // vraiment, à comparer au prix auquel il est vendu. Il faut les deux
+    // termes : sans coût mesuré, il n'y a rien à comparer.
+    costPerCreditEur: t.creditsSpent > 0 && coutEur > 0 ? coutEur / t.creditsSpent : null,
   };
 }
 
