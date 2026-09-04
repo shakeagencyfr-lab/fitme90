@@ -24,7 +24,7 @@ export default function TransparenceIaPage() {
       <h2>Ce service utilise de l&apos;intelligence artificielle</h2>
       <p>
         Le programme d&apos;entraînement, le plan nutritionnel, les recettes, les
-        alternatives d&apos;exercices et les réponses du Coach IA sont générés
+        alternatives d&apos;exercices et les réponses du Coach IA sont produits
         automatiquement par un modèle de langage. Aucun de ces contenus n&apos;est
         rédigé ni relu par un humain avant de t&apos;être présenté.
       </p>
@@ -32,6 +32,34 @@ export default function TransparenceIaPage() {
         Quand tu écris au Coach IA, tu échanges avec un programme, pas avec une
         personne, même s&apos;il porte le prénom de ton coach. Cette information
         t&apos;est rappelée dans la conversation elle-même.
+      </p>
+
+      <h2>L&apos;IA exécute la méthode de ton coach</h2>
+      <p>
+        Le modèle n&apos;improvise pas une méthode d&apos;entraînement. Il applique
+        un cadre écrit, en trois couches : tes réponses au questionnaire (objectif,
+        matériel, contraintes, allergies, disponibilités), un cadre de référence
+        fondé sur les données de la littérature sportive, et par-dessus, les
+        consignes propres de ton coach.
+      </p>
+      <p>
+        Ce dernier point est le plus important : quand ton coach a écrit sa
+        méthode, <strong>ses consignes priment sur le cadre de référence</strong>.
+        Sa façon de périodiser, ses exercices de prédilection, ses interdits, ses
+        fourchettes de charge deviennent les règles que le modèle doit suivre. Le
+        travail du coach est en amont, dans la méthode ; l&apos;IA la décline sur
+        ton cas particulier, à ton rythme et à toute heure.
+      </p>
+      <p>
+        C&apos;est aussi ton coach qui règle le prénom de l&apos;assistant, le
+        nombre d&apos;échanges compris dans ton offre et ce que contient ton
+        programme. Deux clients de deux coachs différents n&apos;obtiennent pas le
+        même programme, même avec des réponses identiques.
+      </p>
+      <p className="muted">
+        Si ton coach n&apos;a pas écrit de méthode propre, c&apos;est le cadre de
+        référence qui s&apos;applique, et la mention affichée dans ta conversation
+        te le dit dans ces termes.
       </p>
 
       <h2>Comment reconnaître un contenu généré</h2>
@@ -55,8 +83,9 @@ export default function TransparenceIaPage() {
         </li>
         <li>
           <strong>Ton coach ou ta salle</strong> déploie ce système sous sa
-          marque et reste ton interlocuteur professionnel. Il peut relire et
-          corriger ce que l&apos;IA propose.
+          marque, y écrit sa méthode, et reste ton interlocuteur professionnel.
+          Il peut relire et corriger ce que l&apos;IA propose. La méthode est son
+          travail et lui appartient.
         </li>
       </ul>
 

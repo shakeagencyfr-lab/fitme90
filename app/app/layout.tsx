@@ -15,7 +15,7 @@ import { affiliationConfig } from "@/lib/affiliation";
 import { brandForUser } from "@/lib/branding";
 import { themeProps } from "@/components/tenant-theme";
 import { brandMetadataForUser } from "@/lib/brand-metadata";
-import { readCoachName } from "@/lib/methodology";
+import { readCoachConfig } from "@/lib/methodology";
 import { tenantFreezeState } from "@/lib/freeze";
 import { FrozenScreen } from "@/components/frozen-screen";
 import { SupportReturnBar } from "@/components/support-return-bar";
@@ -39,16 +39,22 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // Config propre au tenant du client (= celui de son coach) : boutique, prénom
   // du coach IA, Chat VIP, marque blanche. En parallèle après le contexte.
   const tenantId = ctx.profile?.tenant_id ?? null;
-  const [shopEnabled, vip, brand, coachName, freeze, aiIncluded, aff, tenantLang] = await Promise.all([
+  const [shopEnabled, vip, brand, coachConfig, freeze, aiIncluded, aff, tenantLang] = await Promise.all([
     isShopEnabled(tenantId),
     clientVipContext(ctx.userId),
     brandForUser(ctx.userId),
-    readCoachName(tenantId),
+    // La config porte le prénom de l'assistant ET le mode de génération : la
+    // mention de transparence doit dire si la méthode est celle du coach.
+    readCoachConfig(tenantId),
     tenantFreezeState(tenantId),
     clientCoachAiIncluded(ctx.userId),
     affiliationConfig(tenantId),
     userLocale(ctx.userId),
   ]);
+  const coachName = coachConfig.coach_name;
+  const methodSource = coachConfig.generation_mode === "custom" && coachConfig.custom_methodology.trim()
+    ? "coach"
+    : "reference";
   // Langue de l'espace client : choix de la personne, sinon celle du coach.
   const locale = await resolveLocale(tenantLang);
   const t = makeT(locale);
@@ -111,7 +117,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <PageTransition>{children}</PageTransition>
       </main>
       </div>
-      {ctx.access.coachEnabled && aiIncluded ? <CoachWidget coachName={coachName} brandName={brand?.name ?? ""} /> : null}
+      {ctx.access.coachEnabled && aiIncluded ? <CoachWidget coachName={coachName} brandName={brand?.name ?? ""} methodSource={methodSource} /> : null}
       {/* Le tutoriel visite programme, séance et nutrition : sans plan consultable
           il tournait à vide, et se marquait « vu » en localStorage, donc le
           client ne le revoyait jamais une fois son programme généré. */}

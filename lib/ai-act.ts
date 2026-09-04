@@ -105,6 +105,28 @@ export function isAiMarked(raw: unknown): boolean {
 }
 
 /**
+ * D'OÙ VIENT LA MÉTHODE appliquée par l'IA.
+ *
+ * Dire « c'est généré par une IA » et s'arrêter là serait exact mais trompeur
+ * dans l'autre sens : le modèle n'invente pas une méthode, il applique celle
+ * du coach. `effectiveMethodology` place les consignes du coach EN PRIORITÉ
+ * sur la base de référence, et le coach règle aussi le prénom de l'assistant,
+ * les plafonds et les offres.
+ *
+ * D'où deux formulations, et pas une seule : annoncer « la méthode de ton
+ * coach » à un coach resté en mode automatique serait une allégation fausse,
+ * donc une pratique commerciale trompeuse. On dit ce qui est vrai dans chaque
+ * cas, ce qui est plus solide que la version flatteuse uniforme.
+ */
+export type MethodSource = "coach" | "reference";
+
+function methodePhrase(marque: string, source: MethodSource): string {
+  return source === "coach"
+    ? `Il applique la méthode de ${marque}, que ${marque} a paramétrée lui-même et qui prime sur notre cadre de référence.`
+    : `Il applique le cadre de référence de ${marque} et les réglages que ${marque} a définis pour ses clients.`;
+}
+
+/**
  * La phrase d'information de l'article 50(1), au moment de la première
  * interaction.
  *
@@ -113,19 +135,33 @@ export function isAiMarked(raw: unknown): boolean {
  * Le nom du coach est repris tel quel, parce que c'est précisément ce nom qui
  * pouvait laisser croire à un humain.
  */
-export function chatDisclosure(brand: string, coachName: string): string {
+export function chatDisclosure(
+  brand: string,
+  coachName: string,
+  source: MethodSource = "reference",
+): string {
   const marque = brand.trim() || "ton coach";
   const prenom = coachName.trim();
   return (
-    `${prenom} est un assistant automatique. Tu échanges avec une intelligence artificielle, ` +
-    `pas avec une personne. Ses réponses sont générées à partir de ton programme et de tes ` +
-    `réponses au questionnaire, et elles ne remplacent ni un avis médical, ni le suivi de ${marque}.`
+    `${prenom} est un assistant automatique : tu échanges avec une intelligence artificielle, ` +
+    `pas avec une personne. ${methodePhrase(marque, source)} ` +
+    `Ses réponses partent de ton programme et de tes réponses au questionnaire, et elles ne ` +
+    `remplacent ni un avis médical, ni le suivi de ${marque}.`
   );
 }
 
 /** La mention portée par un contenu généré, à l'écran et sur les exports. */
-export function contentDisclosure(purpose: string): string {
-  return `${purpose} généré par une intelligence artificielle, à partir de tes réponses. À vérifier avec un professionnel avant toute décision de santé.`;
+export function contentDisclosure(
+  purpose: string,
+  brand = "ton coach",
+  source: MethodSource = "reference",
+): string {
+  const marque = brand.trim() || "ton coach";
+  return (
+    `${purpose} construit automatiquement à partir de tes réponses. ` +
+    `${methodePhrase(marque, source)} ` +
+    `À vérifier avec un professionnel avant toute décision de santé.`
+  );
 }
 
 /**
@@ -140,6 +176,11 @@ export const AI_LITERACY_POINTS: { titre: string; texte: string }[] = [
     titre: "Ce que l'IA produit",
     texte:
       "Les programmes, les plans nutritionnels et les réponses du Coach IA sont générés automatiquement à partir du questionnaire et de l'historique du client. Rien n'est relu par un humain avant d'être affiché.",
+  },
+  {
+    titre: "Ce qu'elle applique",
+    texte:
+      "Elle n'invente pas de méthode : elle applique la tienne. Les consignes que tu écris dans Configuration IA priment sur le cadre de référence, et tu règles aussi le prénom de l'assistant, les plafonds et les offres. Tant que tu restes en mode automatique, c'est le cadre de référence qui s'applique, et tes clients en sont informés dans ces termes.",
   },
   {
     titre: "Ce qu'elle peut se tromper",

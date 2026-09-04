@@ -10,7 +10,7 @@ import { dateLocale, type Locale, type TFn } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
 import { COACH_NAME } from "@/lib/config";
-import { chatDisclosure } from "@/lib/ai-act";
+import { chatDisclosure, type MethodSource } from "@/lib/ai-act";
 
 interface Msg {
   role: "user" | "assistant";
@@ -130,10 +130,13 @@ function loadImage(file: File): Promise<HTMLImageElement> {
 export function CoachWidget({
   coachName = COACH_NAME,
   brandName = "",
+  methodSource = "reference",
 }: {
   coachName?: string;
   /** Marque que le client connaît : en marque blanche, ce n'est pas la nôtre. */
   brandName?: string;
+  /** Le coach a-t-il paramétré sa propre méthode, ou suit-il le cadre de référence ? */
+  methodSource?: MethodSource;
 }) {
   const router = useRouter();
   const t = useT();
@@ -544,7 +547,7 @@ export function CoachWidget({
             la mettant ailleurs (page légale, réglages), elle n'informerait que
             ceux qui la cherchent, ce que le texte ne permet pas. */}
         <div className="self-stretch rounded-card border border-line-4 bg-surface-2 px-3.5 py-2.5 text-[12.5px] leading-[1.55] text-muted">
-          {chatDisclosure(brandName, coachName)}
+          {chatDisclosure(brandName, coachName, methodSource)}
         </div>
 
         {messages.map((m, i) => (

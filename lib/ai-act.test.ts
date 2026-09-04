@@ -83,6 +83,46 @@ describe("information de première interaction", () => {
   });
 });
 
+// Être transparent ne veut pas dire dévaluer le produit : l'IA n'invente pas
+// une méthode, elle applique celle du coach, et `effectiveMethodology` fait
+// bien primer ses consignes. Mais l'annoncer à un coach resté en mode
+// automatique serait une allégation fausse, donc ces deux cas sont distincts.
+describe("origine de la méthode", () => {
+  it("attribue la méthode au coach quand il l'a paramétrée", () => {
+    const t = chatDisclosure("Studio Nord", "Sébastien", "coach");
+    expect(t).toMatch(/méthode de Studio Nord/);
+    expect(t).toMatch(/prime/);
+  });
+
+  it("ne prétend pas à une méthode propre quand le coach est en mode automatique", () => {
+    const t = chatDisclosure("Studio Nord", "Sébastien", "reference");
+    expect(t).not.toMatch(/méthode de Studio Nord/);
+    expect(t).toMatch(/cadre de référence/);
+    expect(t).toMatch(/réglages que Studio Nord a définis/);
+  });
+
+  it("dit dans les deux cas que c'est une IA et pas une personne", () => {
+    for (const source of ["coach", "reference"] as const) {
+      const t = chatDisclosure("Studio Nord", "Sébastien", source);
+      expect(t).toMatch(/intelligence artificielle/i);
+      expect(t).toMatch(/pas avec une personne/i);
+    }
+  });
+
+  it("attribue aussi la méthode sur les contenus exportés", () => {
+    expect(contentDisclosure("Ce programme", "Studio Nord", "coach")).toMatch(/méthode de Studio Nord/);
+    expect(contentDisclosure("Ce programme", "Studio Nord", "reference")).toMatch(/cadre de référence/);
+  });
+
+  it("reste lisible sans marque, dans les deux modes", () => {
+    for (const source of ["coach", "reference"] as const) {
+      const t = chatDisclosure("", "Sébastien", source);
+      expect(t).not.toContain("undefined");
+      expect(t).toMatch(/ton coach/);
+    }
+  });
+});
+
 describe("littératie IA (article 4)", () => {
   it("couvre les limites, pas seulement les capacités", () => {
     const tout = AI_LITERACY_POINTS.map((p) => `${p.titre} ${p.texte}`).join(" ").toLowerCase();
