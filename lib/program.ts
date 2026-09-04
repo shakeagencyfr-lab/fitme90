@@ -374,6 +374,66 @@ export function readAdaptations(answers: Record<string, unknown>): string[] {
   return Array.isArray(a) ? a.map((x) => String(x)).filter(Boolean) : [];
 }
 
+/** Réponse qui veut dire « rien à signaler ». */
+const RIEN = /^(aucun|aucune|non|rien|ras|n\/?a|-|nc|non concern[ée]?)$/i;
+
+/** Valeurs cochées d'une question à choix multiples, hors « Aucune ». */
+function coches(raw: unknown): string[] {
+  return (Array.isArray(raw) ? raw : [])
+    .map((x) => String(x).trim())
+    .filter((x) => x && !RIEN.test(x));
+}
+
+/**
+ * Contraintes physiques à respecter, rassemblées depuis TOUT ce que le client a
+ * déclaré.
+ *
+ * Elles ne venaient que de `answers.adaptations`, écrite au seul endroit où un
+ * client signale une gêne au Coach IA en cours de programme. Autrement dit le
+ * bloc impératif du brief ne se déclenchait JAMAIS pour un premier programme :
+ * une épaule cochée au questionnaire n'arrivait au modèle que noyée parmi vingt
+ * lignes de profil, sans consigne. Le commentaire de `lib/screening.ts` dit
+ * pourtant l'intention : les gênes articulaires « relèvent de l'adaptation
+ * d'exercices, dans le périmètre du coach ». Il manquait le fil entre les deux.
+ *
+ * Fonction PURE, pour que ce fil soit testable : c'est une donnée de santé, et
+ * une régression silencieuse ici produit un programme dangereux qui a l'air
+ * normal.
+ */
+export function adaptationsFromAnswers(answers: Record<string, unknown>): string[] {
+  const out: string[] = [];
+
+  // Signalées en cours de route au Coach IA : déjà rédigées, on les garde
+  // telles quelles et en premier, ce sont les plus récentes.
+  out.push(...readAdaptations(answers));
+
+  for (const p of coches(answers?.patho1)) out.push(`pathologie articulaire déclarée : ${p.toLowerCase()}`);
+  for (const m of coches(answers?.mobility)) out.push(`limitation de mobilité : ${m.toLowerCase()}`);
+
+  const passees = String(answers?.past_injuries ?? "").trim();
+  if (passees && !RIEN.test(passees)) out.push(`blessure passée : ${passees.slice(0, 160)}`);
+
+  // Doublons possibles : « Épaule » en pathologie et « Épaules » en mobilité
+  // désignent la même zone, et répétées elles diluent la consigne. On compare
+  // donc la ZONE, pas la phrase entière, et on garde la première mention : les
+  // entrées sont rangées de la plus grave à la moins grave (gêne signalée en
+  // cours de route, puis pathologie, puis mobilité), donc la première est celle
+  // qui appelle l'adaptation la plus prudente.
+  const zone = (a: string) => {
+    const i = a.lastIndexOf(" : ");
+    return (i === -1 ? a : a.slice(i + 3)).toLowerCase().replace(/s\b/g, "").trim();
+  };
+  const vues = new Set<string>();
+  return out
+    .filter((a) => {
+      const k = zone(a);
+      if (vues.has(k)) return false;
+      vues.add(k);
+      return true;
+    })
+    .slice(0, 8);
+}
+
 /**
  * L'objectif est-il orienté perte de masse grasse / conditionnement ? On regarde
  * l'objectif principal ET secondaire (perte de gras, recomposition, endurance).
@@ -387,7 +447,7 @@ export function isFatLossGoal(answers: Record<string, unknown>): boolean {
 /** Construit le texte de brief envoyé au modèle (réponses en clair). */
 export function buildBrief({ answers, trainDays, equipment, priorCycleNote, programDays }: Brief): string {
   const lines = describeAnswers(answers);
-  const adaptations = readAdaptations(answers);
+  const adaptations = adaptationsFromAnswers(answers);
   const cycleCount = cycleCountForDays(programDays ?? 90);
   const parts = [
     "Profil client My Fitness App, transformation sur toute la durée du programme.",
@@ -406,7 +466,12 @@ export function buildBrief({ answers, trainDays, equipment, priorCycleNote, prog
   }
   if (adaptations.length) {
     parts.push(
-      `ADAPTATIONS À RESPECTER IMPÉRATIVEMENT (blessures / contraintes) : ${adaptations.join(" ; ")}. Exclus ou remplace tout exercice contre-indiqué par une alternative sûre sur les mêmes groupes musculaires, et adapte les consignes.`,
+      `CONTRAINTES PHYSIQUES DÉCLARÉES, À RESPECTER IMPÉRATIVEMENT : ${adaptations.join(" ; ")}.\n` +
+        "Pour CHACUNE, les trois points suivants sont obligatoires :\n" +
+        "1. Le champ \"warning\" la NOMME et dit ce que tu as changé pour elle. N'écris JAMAIS qu'aucune contrainte n'a été déclarée alors qu'il y en a une ci-dessus : ce serait faux, et le client le lirait.\n" +
+        "2. Au moins UN exercice du programme en tient compte, par une variante plus sûre sur les mêmes groupes musculaires, une amplitude réduite ou une charge plus prudente. Si un mouvement est contre-indiqué, remplace-le, ne le laisse pas en l'état.\n" +
+        "3. La \"note\" de cet exercice DIT la raison, en langage de coach, pour que le client comprenne pourquoi ce choix a été fait pour lui.\n" +
+        "Une contrainte simplement recopiée dans le résumé sans effet sur le programme est une faute.",
     );
   }
   if (priorCycleNote) {

@@ -156,3 +156,44 @@ export function planConformity(plan: Plan, wantCycles: number, wantSessions: num
     sessionsOk: cycles.length > 0 && cycles.every((_, i) => sessionsOf(plan, i).length >= wantSessions),
   };
 }
+
+/** Ce qu'un plan a fait d'une contrainte physique déclarée. */
+export interface ConstraintEcho {
+  /** L'avertissement nomme la zone concernée. */
+  inWarning: boolean;
+  /** Au moins une consigne d'exercice la nomme, donc un choix a été expliqué. */
+  inNotes: boolean;
+  /** L'avertissement nie qu'une contrainte ait été déclarée. Faute grave. */
+  denies: boolean;
+}
+
+/**
+ * Une contrainte déclarée a-t-elle laissé une trace dans le plan ?
+ *
+ * Les autres mesures regardent la structure ; celle-ci regarde la promesse la
+ * plus sensible du produit. Un plan peut être parfaitement périodisé et écrire
+ * à un client qu'il n'a signalé aucune gêne alors qu'il en a coché une : c'est
+ * arrivé en test, et rien d'autre ne l'attrape.
+ *
+ * @param zones Mots à chercher, par exemple « épaule » ou « genou ».
+ */
+export function constraintEcho(plan: Plan, zones: string[]): ConstraintEcho {
+  const sansAccent = (t: string) =>
+    t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const cherche = (t: string) => zones.some((z) => sansAccent(t).includes(sansAccent(z)));
+
+  const warning = plan.warning ?? "";
+  const notes = (plan.cycles ?? []).flatMap((c) =>
+    (c.sessions ?? []).flatMap((s) => s.exercises.map((e) => e.note ?? "")),
+  );
+
+  return {
+    inWarning: cherche(warning),
+    inNotes: notes.some((n) => n.trim() !== "" && cherche(n)),
+    // Formulations vues en production : « aucune contrainte de santé n'a été
+    // déclarée », « aucune blessure signalée ».
+    denies: /aucune?\s+(contrainte|blessure|g[êe]ne|limitation|probl[èe]me)[^.]{0,40}(d[ée]clar|signal|mentionn)/i.test(
+      warning,
+    ),
+  };
+}

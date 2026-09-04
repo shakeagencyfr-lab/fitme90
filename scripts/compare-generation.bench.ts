@@ -1,7 +1,7 @@
 import { it, expect, vi } from "vitest";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { cycleCountForDays, type Plan } from "@/lib/program";
-import { planMetrics, planConformity } from "@/lib/plan-quality";
+import { planMetrics, planConformity, constraintEcho } from "@/lib/plan-quality";
 import { usdToEur } from "@/lib/config";
 
 /**
@@ -44,6 +44,9 @@ const TARIFS: Record<string, { in: number; out: number }> = {
  * écarts observés ne veulent plus rien dire. Quatre jours d'entraînement,
  * matériel de salle complète, objectif de prise de masse.
  */
+/** Zone contrainte du brief, cherchée ensuite dans le plan rendu. */
+const ZONES = ["épaule"];
+
 const BRIEF = {
   answers: {
     name: "Témoin",
@@ -56,11 +59,16 @@ const BRIEF = {
     level: "intermédiaire",
     days: "4",
     place: "salle",
-    injuries: "épaule droite sensible en développé militaire",
+    // VRAIES clés du questionnaire. La première version utilisait « injuries »,
+    // qui n'existe nulle part : la contrainte n'atteignait pas le bloc impératif
+    // du brief et le banc mesurait un chemin que personne n'emprunte.
+    patho1: ["Épaule"],
+    mobility: ["Épaules"],
+    past_injuries: "gêne à l'épaule droite en développé militaire",
     diet: "aucune restriction",
     training_history: "3 ans de musculation, arrêt de 6 mois",
     loved_exos: "j'aime le soulevé de terre, je déteste le burpee",
-  } as Record<string, string>,
+  } as Record<string, unknown>,
   trainDays: ["LUN", "MAR", "JEU", "VEN"],
   equipment: ["Barre olympique", "Haltères", "Rack à squat", "Poulie haute", "Presse à cuisses", "Banc réglable", "Rameur"],
   programDays: 90,
@@ -92,6 +100,7 @@ interface Ligne {
   echauffements: number;
   consignes: number;
   derive: string;
+  contrainte: string;
   erreur?: string;
 }
 
@@ -124,6 +133,18 @@ it.skipIf(!UTILISABLE)(
         const usd = (res.usage.input_tokens * tarif.in + res.usage.output_tokens * tarif.out) / 1_000_000;
         const m = planMetrics(res.plan as Plan);
         const c = planConformity(res.plan as Plan, wantCycles, wantSessions);
+        const ce = constraintEcho(res.plan as Plan, ZONES);
+        // Le seul critère où « presque » ne suffit pas : nier une contrainte
+        // déclarée est disqualifiant, quel que soit le reste du plan.
+        const contrainte = ce.denies
+          ? "NIÉE"
+          : ce.inWarning && ce.inNotes
+            ? "avert. + consigne"
+            : ce.inWarning
+              ? "avert. seul"
+              : ce.inNotes
+                ? "consigne seule"
+                : "absente";
 
         writeFileSync(`${SORTIE}/${r.model}-${r.effort}.json`, JSON.stringify(res.plan, null, 2));
         lignes.push({
@@ -142,6 +163,7 @@ it.skipIf(!UTILISABLE)(
           echauffements: m.warmupRate,
           consignes: m.noteRate,
           derive: m.macroDrift == null ? "n/a" : pct(m.macroDrift),
+          contrainte,
         });
       } catch (e) {
         lignes.push({
@@ -149,7 +171,7 @@ it.skipIf(!UTILISABLE)(
           secondes: (Date.now() - t0) / 1000,
           inTok: 0, outTok: 0, usd: 0, eur: 0,
           conforme: "échec", variete: 0, progression: 0, exosParSeance: 0,
-          echauffements: 0, consignes: 0, derive: "n/a",
+          echauffements: 0, consignes: 0, derive: "n/a", contrainte: "n/a",
           erreur: e instanceof Error ? e.message : String(e),
         });
       }
@@ -172,6 +194,7 @@ it.skipIf(!UTILISABLE)(
       ["Échauff.", (l) => pct(l.echauffements)],
       ["Consignes", (l) => pct(l.consignes)],
       ["Dérive macros", (l) => l.derive],
+      ["Contrainte épaule", (l) => l.contrainte],
     ];
     const largeurs = colonnes.map(([titre, get]) =>
       Math.max(titre.length, ...lignes.map((l) => get(l).length)),
