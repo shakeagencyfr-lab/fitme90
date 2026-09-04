@@ -168,16 +168,52 @@ export async function bestSupplierPack(buyerTenantId: string | null): Promise<Be
 }
 
 /**
- * Coût unitaire réel d'un crédit pour un acheteur, en centimes :
- *   1. moyenne de ses achats déjà payés (la vérité) ;
- *   2. sinon le meilleur tarif unitaire des packs actifs de son fournisseur
- *      (ce qu'il paierait s'il achetait maintenant) ;
- *   3. sinon null, l'appelant retombe sur le prix affiché du fournisseur.
+ * Ce qu'un crédit coûte AUJOURD'HUI à un acheteur, en centimes.
+ *
+ * L'ordre a été inversé, et c'est un vrai correctif. On partait de la moyenne
+ * des achats déjà payés, au motif que c'était « la vérité ». Conséquence : un
+ * coach qui avait acheté à l'ancien tarif continuait de voir l'ancien tarif
+ * indéfiniment, même après que son revendeur avait changé de prix. Le barème
+ * et le coût d'un plan affichaient donc un chiffre périmé, et c'est précisément
+ * le chiffre sur lequel il décide d'acheter et de fixer ses prix.
+ *
+ * Un barème sert à décider, donc il doit montrer le prix EN VIGUEUR :
+ *   1. le meilleur tarif unitaire des packs actifs de son fournisseur, c'est-à-
+ *      dire ce qu'il paierait en rechargeant maintenant ;
+ *   2. sinon le prix unitaire affiché par ce fournisseur ;
+ *   3. sinon la moyenne de ses achats passés, faute de mieux ;
+ *   4. sinon null, et l'appelant n'annonce aucun chiffre.
  */
-export async function realCreditCostCents(buyerTenantId: string | null): Promise<number | null> {
+export async function creditPriceToday(buyerTenantId: string | null): Promise<number | null> {
   if (!buyerTenantId) return null;
   const admin = createAdminClient();
+  const supplierId = await parentOf(buyerTenantId);
 
+  if (supplierId) {
+    const { data: packs } = await admin
+      .from("credit_packs")
+      .select("credits, price_cents")
+      .eq("tenant_id", supplierId)
+      .eq("is_active", true)
+      .limit(50)
+      .returns<{ credits: number; price_cents: number }[]>();
+
+    const best = bestPackByUnit(
+      (packs ?? []).map((p) => ({ name: "", credits: p.credits, priceCents: p.price_cents })),
+    );
+    if (best) return best.unitCents;
+
+    // Aucun pack : le prix unitaire que le fournisseur affiche fait foi.
+    const { data: sup } = await admin
+      .from("tenants")
+      .select("ai_credit_price_cents")
+      .eq("id", supplierId)
+      .maybeSingle<{ ai_credit_price_cents: number | null }>();
+    if (sup?.ai_credit_price_cents != null) return Math.max(0, sup.ai_credit_price_cents);
+  }
+
+  // Dernier recours : ce qu'il a payé jusqu'ici. Mieux que rien, mais on ne
+  // s'en sert que si le fournisseur n'annonce aucun tarif.
   const { data: rows } = await admin
     .from("credit_ledger")
     .select("delta, price_cents")
@@ -187,26 +223,9 @@ export async function realCreditCostCents(buyerTenantId: string | null): Promise
     .limit(500)
     .returns<{ delta: number; price_cents: number }[]>();
 
-  const avg = averagePurchaseCostCents(
+  return averagePurchaseCostCents(
     (rows ?? []).map((r) => ({ credits: r.delta, priceCents: r.price_cents })),
   );
-  if (avg != null) return avg;
-
-  // Aucun achat chiffré : on montre le tarif qu'il obtiendrait en achetant.
-  const supplierId = await parentOf(buyerTenantId);
-  if (!supplierId) return null;
-  const { data: packs } = await admin
-    .from("credit_packs")
-    .select("credits, price_cents")
-    .eq("tenant_id", supplierId)
-    .eq("is_active", true)
-    .limit(50)
-    .returns<{ credits: number; price_cents: number }[]>();
-
-  const best = bestPackByUnit(
-    (packs ?? []).map((p) => ({ name: "", credits: p.credits, priceCents: p.price_cents })),
-  );
-  return best ? best.unitCents : null;
 }
 
 export interface DebitResult {
@@ -257,15 +276,29 @@ export async function resellerModel(tenantId: string | null): Promise<"subscript
  * routes IA.
  */
 export async function clientUsesCredits(coachTenantId: string | null): Promise<boolean> {
-  if (!coachTenantId) return false;
+  return whoPays(await coachSupplyFacts(coachTenantId)).coach;
+}
+
+/**
+ * Les faits de fourniture VUS DEPUIS UN COACH, dispense comprise.
+ *
+ * `resellerBilling` décrit le revendeur ; il ignore qu'un coach précis peut
+ * avoir été dispensé et tourner sur sa propre clé. Un coach dispensé se
+ * comporte exactement comme un coach dont le revendeur ne fournit pas : aucun
+ * portefeuille ne bouge, il règle Anthropic lui-même.
+ */
+export async function coachSupplyFacts(coachTenantId: string | null): Promise<SupplyFacts> {
+  const aucun: SupplyFacts = { resellerSupplies: false, model: "subscription", supply: "byok" };
+  if (!coachTenantId) return aucun;
   const admin = createAdminClient();
   const { data } = await admin
     .from("tenants")
-    .select("parent_id")
+    .select("parent_id, ai_self_managed")
     .eq("id", coachTenantId)
-    .maybeSingle<{ parent_id: string | null }>();
-  if (!data?.parent_id) return false;
-  return whoPays(await resellerBilling(data.parent_id)).coach;
+    .maybeSingle<{ parent_id: string | null; ai_self_managed: boolean | null }>();
+  if (!data?.parent_id) return aucun;
+  if (data.ai_self_managed) return aucun;
+  return resellerBilling(data.parent_id);
 }
 
 /**
@@ -440,7 +473,9 @@ export async function checkAiAllowance(coachTenantId: string | null, kind: AiUsa
   const resellerId = await parentOf(coachTenantId);
   if (!resellerId) return none;
 
-  const faits = await resellerBilling(resellerId);
+  // Les faits vus DEPUIS LE COACH : un coach dispensé par son revendeur tourne
+  // sur sa propre clé, et aucun portefeuille ne doit bouger pour lui.
+  const faits = await coachSupplyFacts(coachTenantId);
   // Les débits suivent la chaîne de fourniture, exactement comme la résolution
   // de clé : si le revendeur ne fournit pas, le coach tourne sur la sienne et
   // personne n'est débité.

@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { tenantNode, platformTenantId } from "@/lib/hierarchy";
 import { tenantKeyStatus } from "@/lib/tenant";
 import { resellerMonthlyAiUsage } from "@/lib/ai-cost";
-import { listCreditPacks, getWallet, programCreditCost, realCreditCostCents } from "@/lib/credits";
+import { listCreditPacks, getWallet, programCreditCost, creditPriceToday } from "@/lib/credits";
 import { ResellerModelForm } from "@/components/reseller-model-form";
 import { WhitelabelPriceForm } from "@/components/whitelabel-price-form";
 import { ResellerAiModeForm } from "@/components/reseller-ai-mode-form";
@@ -116,7 +116,7 @@ export default async function AdminResellerAiPage() {
     // des packs actifs. Le prix unitaire affiché par la plateforme n'est qu'un
     // prix conseillé, les packs pouvant être remisés au volume : simuler dessus
     // faussait la marge.
-    const real = await realCreditCostCents(tenantId);
+    const real = await creditPriceToday(tenantId);
     buyPriceCents = real ?? p?.ai_credit_price_cents ?? DEFAULT_AI_CREDIT_PRICE_CENTS;
     platformProgramCredits = await programCreditCost(tenantId);
   }

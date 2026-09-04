@@ -174,6 +174,8 @@ export function supplySwitchPatch(supply: AiSupply, targetHasOwnKey: boolean): R
 
 /** Ce qu'il faut savoir avant de proposer la bascule (avertissements de l'écran réseau). */
 export interface SupplyContext {
+  /** Étage concerné : le geste et son libellé ne sont pas les mêmes. */
+  kind: "reseller" | "coach";
   current: AiSupply;
   /** Le revendeur a sa propre clé Anthropic. */
   targetHasKey: boolean;
@@ -186,17 +188,17 @@ export interface SupplyContext {
 }
 
 /**
- * Contexte de bascule pour plusieurs revendeurs d'un coup (l'écran réseau les
- * liste tous) : trois requêtes au total, quel que soit le nombre de comptes.
+ * Contexte de bascule pour tout un réseau d'un coup (l'écran liste revendeurs
+ * ET coachs) : trois requêtes au total, quel que soit le nombre de comptes.
  */
 export async function supplyContexts(
   actorTenantId: string,
-  resellers: { id: string; aiSupply: AiSupply }[],
+  comptes: { id: string; kind: "reseller" | "coach"; aiSupply: AiSupply }[],
 ): Promise<Map<string, SupplyContext>> {
   const out = new Map<string, SupplyContext>();
-  if (resellers.length === 0) return out;
+  if (comptes.length === 0) return out;
   const admin = createAdminClient();
-  const ids = resellers.map((r) => r.id);
+  const ids = comptes.map((r) => r.id);
 
   const [{ data: secrets }, { data: packs }, { data: wallets }] = await Promise.all([
     admin
@@ -223,8 +225,9 @@ export async function supplyContexts(
   const supplierKeyReady = keyed.has(actorTenantId);
   const supplierHasPack = (packs ?? []).length > 0;
 
-  for (const r of resellers) {
+  for (const r of comptes) {
     out.set(r.id, {
+      kind: r.kind,
       current: r.aiSupply,
       targetHasKey: keyed.has(r.id),
       supplierKeyReady,
@@ -236,8 +239,23 @@ export async function supplyContexts(
 }
 
 /**
- * Bascule un revendeur entre sa propre clé et les crédits achetés à son parent.
+ * Bascule un compte entre sa propre clé et l'IA fournie par son parent.
  * Réservé au parent direct : c'est lui qui fournit (et facture) l'IA.
+ *
+ * DEUX MÉCANIQUES SOUS UN SEUL GESTE, parce que les deux étages ne se règlent
+ * pas de la même façon.
+ *
+ * Sur un REVENDEUR, la bascule change sa source : sa propre clé, ou des crédits
+ * achetés à la plateforme. C'est un changement de modèle pour lui et pour tous
+ * ses coachs.
+ *
+ * Sur un COACH, elle pose une DISPENSE. La règle générale veut qu'un coach
+ * suive son revendeur, et cette règle protège le revenu du revendeur : sans
+ * elle, n'importe quel coach collerait une clé et cesserait de payer ses
+ * crédits. Mais elle laissait le revendeur sans solution pour le cas légitime,
+ * un coach à qui il ACCEPTE de laisser l'autonomie. La dispense est cette
+ * exception, et elle est posée par le revendeur, jamais par le coach : la
+ * brèche reste fermée.
  */
 export async function setResellerSupply(
   actorTenantId: string,
@@ -247,20 +265,36 @@ export async function setResellerSupply(
   const admin = createAdminClient();
   const { data: target } = await admin
     .from("tenants")
-    .select("kind, parent_id, ai_supply")
+    .select("kind, parent_id, ai_supply, ai_self_managed")
     .eq("id", targetTenantId)
-    .maybeSingle<{ kind: string; parent_id: string | null; ai_supply: string | null }>();
+    .maybeSingle<{ kind: string; parent_id: string | null; ai_supply: string | null; ai_self_managed: boolean | null }>();
   if (!target || target.parent_id !== actorTenantId) return { ok: false, error: "Ce compte n'est pas rattaché à toi." };
-  if (target.kind !== "reseller") {
-    return { ok: false, error: "La fourniture en crédits se règle sur un revendeur. Pour un coach, elle découle du modèle de son revendeur." };
-  }
-  const current: AiSupply = target.ai_supply === "platform_credits" ? "platform_credits" : "byok";
-  if (current === supply) return { ok: true };
 
   const [{ data: actorSecret }, { data: targetSecret }] = await Promise.all([
     admin.from("tenant_secrets").select("anthropic_key_enc").eq("tenant_id", actorTenantId).maybeSingle<{ anthropic_key_enc: string | null }>(),
     admin.from("tenant_secrets").select("anthropic_key_enc").eq("tenant_id", targetTenantId).maybeSingle<{ anthropic_key_enc: string | null }>(),
   ]);
+
+  if (target.kind === "coach") {
+    // La dispense, et rien d'autre : le coach garde son modèle de facturation,
+    // ses offres et ses clients. Seule la source de son IA change.
+    const dispense = supply === "byok";
+    if (!!target.ai_self_managed === dispense) return { ok: true };
+    // Dispenser un coach sans clé, c'est éteindre son IA sur-le-champ. Mieux
+    // vaut le refuser que le laisser découvrir la panne par ses clients.
+    if (dispense && !targetSecret?.anthropic_key_enc) {
+      return { ok: false, error: "Ce coach n'a pas encore branché sa clé Anthropic : le dispenser couperait son IA immédiatement." };
+    }
+    const { error } = await admin
+      .from("tenants")
+      .update({ ai_self_managed: dispense })
+      .eq("id", targetTenantId);
+    return error ? { ok: false, error: "Changement impossible." } : { ok: true };
+  }
+
+  const current: AiSupply = target.ai_supply === "platform_credits" ? "platform_credits" : "byok";
+  if (current === supply) return { ok: true };
+
   if (supply === "platform_credits" && !actorSecret?.anthropic_key_enc) {
     return { ok: false, error: "Branche d'abord ta clé Anthropic (Revenu IA) : c'est elle qui ferait tourner l'IA de ce revendeur." };
   }

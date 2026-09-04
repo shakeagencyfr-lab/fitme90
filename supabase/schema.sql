@@ -845,3 +845,17 @@ alter table public.coach_config add column if not exists prospect_followup_enabl
 -- stocké : la salutation, la signature et le lien de désabonnement sont
 -- ajoutés à l'envoi et ne sont pas modifiables.
 alter table public.coach_config add column if not exists prospect_followup_copy jsonb not null default '{}'::jsonb;
+
+-- Un compte qui tourne sur SA PROPRE clé, même si son parent fournit l'IA.
+--
+-- La règle générale veut qu'un revendeur en mode « provider » fournisse l'IA à
+-- tous ses coachs, et qu'une clé enregistrée par un coach reste dormante. Cette
+-- règle protège le revenu du revendeur : sans elle, n'importe quel coach
+-- pourrait coller une clé et cesser de payer ses crédits.
+--
+-- Elle laissait cependant le revendeur sans solution pour le cas légitime : un
+-- coach qui a sa propre clé et à qui le revendeur ACCEPTE de laisser
+-- l'autonomie. Cette colonne est cette exception, et elle est posée par le
+-- PARENT depuis son écran réseau, jamais par le compte lui-même : la brèche
+-- reste fermée.
+alter table public.tenants add column if not exists ai_self_managed boolean not null default false;
