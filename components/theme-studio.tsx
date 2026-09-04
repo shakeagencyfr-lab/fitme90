@@ -13,8 +13,6 @@ import { saveTheme, type BrandingState } from "@/app/admin/actions";
 import { themeProps } from "@/components/tenant-theme";
 import {
   BACKGROUNDS,
-  backgroundChoices,
-  cardChoices,
   BODY_FONTS,
   CARD_STYLES,
   COLOR_PRESETS,
@@ -25,6 +23,8 @@ import {
   STYLE_THEMES,
   THEME_FONTS,
   normalizeTheme,
+  type BackgroundKey,
+  type CardKey,
   type CornerKey,
   type FontKey,
   type TenantTheme,
@@ -287,7 +287,7 @@ export function ThemeStudio({ current, logoUrl, brandName, audience }: Props) {
         <div className="flex flex-col gap-1.5">
           <span className="text-[12.5px] font-semibold text-body">{tx("Arrière-plan de page")}</span>
           <div className="flex flex-wrap gap-2">
-            {backgroundChoices(t.background).map((k) => (
+            {(Object.keys(BACKGROUNDS) as BackgroundKey[]).map((k) => (
               <Choice key={k} on={t.background === k} onClick={() => set("background", k)}>
                 {tx(BACKGROUNDS[k])}
               </Choice>
@@ -310,7 +310,7 @@ export function ThemeStudio({ current, logoUrl, brandName, audience }: Props) {
           <div className="flex flex-col gap-1.5">
             <span className="text-[12.5px] font-semibold text-body">{tx("Style de carte")}</span>
             <div className="flex flex-wrap gap-2">
-              {cardChoices(t.card).map((k) => (
+              {(Object.keys(CARD_STYLES) as CardKey[]).map((k) => (
                 <Choice key={k} on={t.card === k} onClick={() => set("card", k)}>{tx(CARD_STYLES[k])}</Choice>
               ))}
             </div>
