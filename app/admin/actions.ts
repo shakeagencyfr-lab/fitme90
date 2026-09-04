@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isServedInstant } from "@/lib/push-windows";
 import { getAdminOrNull } from "@/lib/admin";
 import { tenantNode } from "@/lib/hierarchy";
+import { accountCapacity } from "@/lib/entitlements";
 import { createChildTenantAccount } from "@/lib/admin-provision";
 import { isDescendantTenant, isOwnClient, loginLinkForUser, establishSupportSession, logSupportAccess } from "@/lib/support-access";
 import { broadcastPushToUsers } from "@/lib/push";
@@ -1572,6 +1573,20 @@ export async function createNetworkAccount(
   // Un revendeur ne crée que des coachs ; seule la plateforme crée des revendeurs.
   const wants = String(formData.get("kind") ?? "");
   const kind: "reseller" | "coach" = node.kind === "platform" && wants === "reseller" ? "reseller" : "coach";
+
+  // Capacité du créateur : un revendeur ne peut pas ouvrir plus de comptes que
+  // son palier n'en autorise. La plateforme n'a pas de plafond au-dessus
+  // d'elle, donc elle n'est pas concernée.
+  if (node.kind === "reseller") {
+    const cap = await accountCapacity(actorTenantId);
+    if (cap.full) {
+      return {
+        error: `Ton palier autorise ${cap.limit} compte${(cap.limit ?? 0) > 1 ? "s" : ""}, tous occupés. Passe au palier supérieur pour en ouvrir un de plus.`,
+        name,
+        email,
+      };
+    }
+  }
 
   const aiSupply = formData.get("ai_supply") === "platform_credits" ? "platform_credits" : "byok";
   const created = await createChildTenantAccount({ parentTenantId: actorTenantId, kind, name, email, contactName, aiSupply });

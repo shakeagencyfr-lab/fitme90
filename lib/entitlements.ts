@@ -69,3 +69,61 @@ export async function capacityForSlug(slug: string): Promise<TenantCapacity | nu
   const used = await activeClientCount(tenant.id);
   return capacityFrom(tenant.client_limit ?? null, used);
 }
+
+// ------------------------------------------------------------------ capacité d'un revendeur
+
+/**
+ * Capacité d'un REVENDEUR, comptée en comptes et non en clients.
+ *
+ * Un revendeur n'a aucun client en direct : les siens sont chez ses coachs. La
+ * même colonne `client_limit` sert donc à plafonner ce qu'il vend réellement,
+ * à savoir le nombre de comptes coach ou salle sous sa marque. Sans cette
+ * distinction, sa jauge affichait « 0 / 1 » alors qu'il avait déjà un coach en
+ * activité, et rien ne l'empêchait d'en ouvrir cent.
+ *
+ * La limite reste posée par le palier que la plateforme lui accorde ou lui
+ * vend, exactement comme celle d'un coach.
+ */
+
+/** Comptes enfants d'un tenant : coachs, salles, sous-revendeurs. */
+export async function childAccountCount(tenantId: string): Promise<number> {
+  const admin = createAdminClient();
+  const { count } = await admin
+    .from("tenants")
+    .select("id", { count: "exact", head: true })
+    .eq("parent_id", tenantId);
+  return count ?? 0;
+}
+
+/** Capacité en comptes d'un revendeur, à partir de son id. */
+export async function accountCapacity(tenantId: string): Promise<TenantCapacity> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("tenants")
+    .select("client_limit")
+    .eq("id", tenantId)
+    .maybeSingle<{ client_limit: number | null }>();
+  const used = await childAccountCount(tenantId);
+  return capacityFrom(data?.client_limit ?? null, used);
+}
+
+/**
+ * Capacité en comptes d'un revendeur résolu par slug.
+ *
+ * Sert au moment où un coach s'inscrit par le lien d'un revendeur
+ * (`/inscription-coach?r=<slug>`) : le slug voyage dans le formulaire, comme
+ * celui du coach dans l'inscription d'un client. Renvoie null si le slug ne
+ * désigne pas un revendeur, auquel cas il n'y a pas de limite à appliquer.
+ */
+export async function accountCapacityForResellerSlug(slug: string): Promise<TenantCapacity | null> {
+  const admin = createAdminClient();
+  const { data: tenant } = await admin
+    .from("tenants")
+    .select("id, client_limit")
+    .eq("slug", slug)
+    .eq("kind", "reseller")
+    .maybeSingle<{ id: string; client_limit: number | null }>();
+  if (!tenant) return null;
+  const used = await childAccountCount(tenant.id);
+  return capacityFrom(tenant.client_limit ?? null, used);
+}
