@@ -13,6 +13,7 @@ import { DEFAULT_BRAND_COLOR, formatEuros } from "@/lib/config";
 import {
   MARQUEE, FEATURES, SHOWCASE, COMPARE_WITHOUT, COMPARE_WITH, STEPS, SECTORS, FAQ, Ic, priceLine,
 } from "@/components/landing-templates/reseller-content";
+import { themeVars, themeAttrs } from "@/lib/theme";
 
 // Template revendeur « Onyx » : design sombre premium (design historique).
 
@@ -85,10 +86,11 @@ export function ResellerOnyx({ reseller, plans }: { reseller: PublicReseller; pl
       className="relative min-h-dvh overflow-hidden scroll-smooth bg-[#080a0c] pb-[76px] text-white [scrollbar-color:#333_#080a0c] sm:pb-0"
       style={
         {
-          ["--color-brand" as string]: accent,
+          ...themeVars(reseller.theme),
           ["--color-brand-hover" as string]: `color-mix(in srgb, ${accent} 85%, #000)`,
         } as CSSProperties
       }
+      {...themeAttrs(reseller.theme)}
     >
       <style dangerouslySetInnerHTML={{ __html: css }} />
 

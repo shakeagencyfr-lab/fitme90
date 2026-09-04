@@ -12,6 +12,7 @@ import { LeadBand } from "@/components/landing-templates/lead-band";
 import { AuthorEngine } from "@/components/landing-templates/author-engine";
 import { offerCardCopy, landingCopy, type LandingCopy, type Audience } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
+import { themeVars, themeAttrs } from "@/lib/theme";
 
 // Template « Sage » : calme, éditorial, beaucoup d'air.
 //
@@ -200,13 +201,14 @@ export function CoachSage({ tenant, offers, leadMagnet = false, locale = "fr" }:
       className="min-h-dvh scroll-smooth pb-[76px] sm:pb-0"
       style={
         {
-          ["--color-brand" as string]: accent,
+          ...themeVars(tenant.theme),
           ["--color-brand-hover" as string]: `color-mix(in srgb, ${accent} 85%, #000)`,
           ["--color-ink" as string]: INK,
-          background: PAPER,
+          backgroundColor: PAPER,
           color: INK,
         } as CSSProperties
       }
+      {...themeAttrs(tenant.theme)}
     >
       {/* Header : très léger, presque absent */}
       <header className="sticky top-0 z-30 border-b border-ink/8 bg-[#f4f1ea]/85 backdrop-blur-md">

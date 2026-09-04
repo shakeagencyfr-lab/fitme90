@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { getSessionContext } from "@/lib/guard";
 import { isCoachAccount } from "@/lib/admin";
 import { AppNav } from "@/components/app-nav";
@@ -13,6 +13,7 @@ import { clientVipContext, clientUnreadVipCount } from "@/lib/vip";
 import { clientCoachAiIncluded } from "@/lib/offers";
 import { affiliationConfig } from "@/lib/affiliation";
 import { brandForUser } from "@/lib/branding";
+import { themeProps } from "@/components/tenant-theme";
 import { brandMetadataForUser } from "@/lib/brand-metadata";
 import { readCoachName } from "@/lib/methodology";
 import { tenantFreezeState } from "@/lib/freeze";
@@ -62,16 +63,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const programDays = ctx.access.programDays;
   const dayPct = Math.max(1, Math.round((Math.min(day, programDays) / programDays) * 100));
 
-  const accentStyle = brand?.brandColor
-    ? ({
-        ["--color-brand" as string]: brand.brandColor,
-        ["--color-brand-hover" as string]: `color-mix(in srgb, ${brand.brandColor} 85%, #000)`,
-      } as CSSProperties)
-    : undefined;
-
   return (
     <LocaleProvider locale={locale}>
-    <div className="min-h-dvh bg-paper nav:flex nav:items-start" style={accentStyle}>
+    {/* Le thème du coach habille l'espace de SES clients : couleurs, polices,
+        rayons, motif de fond et style de cartes. Posé sur l'élément qui peint
+        le fond de page, sans quoi le motif passerait sous une couleur opaque. */}
+    <div className="min-h-dvh bg-paper nav:flex nav:items-start" {...themeProps(brand?.theme)}>
       {/* Le coach qui saisit pour son client doit voir en permanence au nom de
           qui il enregistre, et pouvoir en sortir d'un geste. */}
       <div className="fixed inset-x-0 top-0 z-50"><SupportReturnBar /></div>

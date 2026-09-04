@@ -82,6 +82,16 @@ export default async function WhiteLabelPage({
   const domainLocked = kind === "coach" && !wl.enabled && wl.priceCents != null;
   const domainInfo = await customDomainInfo(t?.custom_domain ?? null);
 
+  // Un thème habille les espaces de ceux qui sont EN DESSOUS. Un coach donne
+  // ses couleurs à ses clients, un revendeur au dashboard de ses coachs. On le
+  // dit en clair : sinon chacun croit régler l'apparence de son propre écran.
+  const themeAudience =
+    kind === "reseller"
+      ? tx("Ces réglages habillent ta page publique et le tableau de bord de tes coachs et salles. Ils ne changent pas ton propre écran, qui porte la marque de la plateforme.")
+      : kind === "platform"
+        ? tx("Ces réglages habillent la page d'accueil de la plateforme et le tableau de bord de tes revendeurs.")
+        : tx("Ces réglages habillent ta page publique et l'espace de tes clients : leur application, leurs pages de connexion et l'icône qu'ils installent sur leur téléphone.");
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
@@ -105,11 +115,16 @@ export default async function WhiteLabelPage({
         kind={kind}
         businessType={businessType}
         domainLocked={domainLocked}
+        themeAudience={themeAudience}
         previewVersion={previewToken([
           template, branding.brandColor, branding.headline, branding.tagline,
           branding.logoUrl, branding.faviconUrl,
           String(branding.aboutEnabled), branding.aboutTitle, branding.aboutText, branding.aboutPhotoUrl,
           t?.subdomain, t?.custom_domain, t?.business_type,
+          // Le thème et l'identité changent aussi le rendu public : sans eux
+          // dans le jeton, l'aperçu resterait sur l'ancienne version.
+          JSON.stringify(branding.theme), JSON.stringify(branding.identity),
+          branding.logoDarkUrl,
         ])}
       />
 

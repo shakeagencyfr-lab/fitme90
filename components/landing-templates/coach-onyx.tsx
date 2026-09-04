@@ -12,6 +12,7 @@ import { LeadBand } from "@/components/landing-templates/lead-band";
 import { AuthorEngine } from "@/components/landing-templates/author-engine";
 import { offerCardCopy, landingCopy, type Audience } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
+import { themeVars, themeAttrs } from "@/lib/theme";
 
 // Template « Onyx » : design sombre premium (design historique de la landing
 // coach->client). Rendu par app/c/[slug] quand tenant.landingTemplate === "onyx".
@@ -122,12 +123,13 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false, locale = "fr" }:
       className="min-h-dvh scroll-smooth bg-[#0a0b0c] pb-[76px] text-white [scrollbar-color:#333_#0a0b0c] sm:pb-0"
       style={
         {
-          ["--color-brand" as string]: accent,
+          ...themeVars(tenant.theme),
           // Le survol des CTA reste dans l'univers de couleur du coach (nuance
           // plus foncée de son accent) au lieu de repasser à l'orange FitMe.
           ["--color-brand-hover" as string]: `color-mix(in srgb, ${accent} 85%, #000)`,
         } as CSSProperties
       }
+      {...themeAttrs(tenant.theme)}
     >
       <style
         dangerouslySetInnerHTML={{

@@ -36,8 +36,12 @@ export async function GET() {
   // tenant (coach du client, parent du coach, ou plateforme), en 1re position ;
   // les PNG My Fitness App restent en repli pour qu'une icône valide existe
   // toujours (jamais de monogramme généré par le navigateur).
-  const withFavicon = (url: string | null) =>
-    url ? [{ src: url, sizes: "any", purpose: "any" }, ...APP_ICONS] : APP_ICONS;
+  // L'icône carrée d'application prime sur le favicon : ce dernier est dessiné
+  // pour 32 px et ressort flou une fois posé sur un écran d'accueil.
+  const withIcon = (appIcon: string | null, favicon: string | null) => {
+    const url = appIcon || favicon;
+    return url ? [{ src: url, sizes: "any", purpose: "any" }, ...APP_ICONS] : APP_ICONS;
+  };
   try {
     const ctx = await getSessionContext();
     if (ctx && !isCoachAccount(ctx)) {
@@ -46,7 +50,7 @@ export async function GET() {
         name = brand.name;
         shortName = brand.name.slice(0, 24);
         if (brand.brandColor) themeColor = brand.brandColor;
-        icons = withFavicon(brand.faviconUrl);
+        icons = withIcon(brand.appIconUrl, brand.faviconUrl);
       }
     } else if (ctx) {
       // Un coach/owner installe SON outil, à la marque de son parent.
@@ -56,10 +60,10 @@ export async function GET() {
         shortName = parent.name.slice(0, 24);
       }
       if (parent?.brandColor) themeColor = parent.brandColor;
-      icons = withFavicon(parent?.faviconUrl ?? null);
+      icons = withIcon(null, parent?.faviconUrl ?? null);
     } else {
       const platform = await platformBrand();
-      icons = withFavicon(platform?.faviconUrl ?? null);
+      icons = withIcon(null, platform?.faviconUrl ?? null);
     }
   } catch {
     /* pas de session : manifest My Fitness App par défaut */

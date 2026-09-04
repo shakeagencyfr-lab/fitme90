@@ -34,7 +34,7 @@ import { setProspectStatus, deleteProspect } from "@/lib/prospects";
 import { createCreditPack, setCreditPackActive, deleteCreditPack } from "@/lib/credits";
 import { setResellerWhitelabelPrice } from "@/lib/whitelabel";
 import { setTenantSmtp, clearTenantSmtp, testSmtp } from "@/lib/smtp";
-import { saveTenantBranding, uploadTenantAsset, clearTenantAsset, type AssetKind } from "@/lib/branding";
+import { saveTenantBranding, saveTenantIdentity, saveTenantTheme, uploadTenantAsset, clearTenantAsset, type AssetKind } from "@/lib/branding";
 import { setTenantStripeKey, clearTenantStripeKey, testStripeKey } from "@/lib/coach-payments";
 import {
   clientBelongsToTenant,
@@ -208,7 +208,8 @@ export async function saveBranding(_prev: BrandingState, formData: FormData): Pr
   const ctx = await getAdminOrNull();
   if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
   const res = await saveTenantBranding(ctx.profile.tenant_id, {
-    brandColor: String(formData.get("brand_color") ?? ""),
+    // Champ absent : la couleur appartient au studio de thème, on n'y touche pas.
+    brandColor: formData.has("brand_color") ? String(formData.get("brand_color")) : undefined,
     tagline: String(formData.get("tagline") ?? ""),
     headline: String(formData.get("headline") ?? ""),
     aboutEnabled: formData.get("about_enabled") === "on",
@@ -216,6 +217,45 @@ export async function saveBranding(_prev: BrandingState, formData: FormData): Pr
     aboutText: String(formData.get("about_text") ?? ""),
     language: String(formData.get("language") ?? ""),
   });
+  if (!res.ok) return { error: res.error };
+  revalidatePath("/admin/marque-blanche");
+  return { ok: true };
+}
+
+/** Enregistre l'identité écrite de la marque (noms, contact, liens, SEO). */
+export async function saveIdentity(_prev: BrandingState, formData: FormData): Promise<BrandingState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const f = (k: string) => String(formData.get(k) ?? "");
+  const res = await saveTenantIdentity(ctx.profile.tenant_id, {
+    appName: f("app_name"),
+    legalName: f("legal_name"),
+    supportEmail: f("support_email"),
+    termsUrl: f("terms_url"),
+    privacyUrl: f("privacy_url"),
+    seoTitle: f("seo_title"),
+    seoDescription: f("seo_description"),
+  });
+  if (!res.ok) return { error: res.error };
+  revalidatePath("/admin/marque-blanche");
+  return { ok: true };
+}
+
+/**
+ * Enregistre le thème de marque. Le formulaire envoie le thème entier en JSON ;
+ * il est intégralement revalidé côté serveur (lib/theme), donc un champ inconnu
+ * ou une couleur douteuse retombe sur le défaut plutôt que d'atteindre le CSS.
+ */
+export async function saveTheme(_prev: BrandingState, formData: FormData): Promise<BrandingState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  let raw: unknown = null;
+  try {
+    raw = JSON.parse(String(formData.get("theme") ?? "{}"));
+  } catch {
+    return { error: "Thème illisible." };
+  }
+  const res = await saveTenantTheme(ctx.profile.tenant_id, raw);
   if (!res.ok) return { error: res.error };
   revalidatePath("/admin/marque-blanche");
   return { ok: true };

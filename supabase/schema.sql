@@ -67,6 +67,28 @@ create table if not exists public.tenants (
   -- Désactivation par le parent (manual) ou automatique sur impayé (payment).
   suspended_at timestamptz,
   suspended_reason text,
+  -- Coach indépendant ou salle : change le DISCOURS de la landing, rien d'autre.
+  business_type text,
+  -- Identité écrite de la marque (marque blanche approfondie). Facultative :
+  -- tout retombe sur `name` quand ce n'est pas renseigné.
+  app_name text,
+  legal_name text,
+  support_email text,
+  terms_url text,
+  privacy_url text,
+  seo_title text,
+  seo_description text,
+  -- Un logo clair disparaît sur fond sombre : d'où une seconde image.
+  logo_dark_url text,
+  -- Icône carrée : écran d'accueil PWA et menu replié, où le favicon (32 px)
+  -- sort flou et où un logo horizontal ne tient pas.
+  app_icon_url text,
+  -- Thème de marque : couleurs, polices, arrière-plan, style de cartes, rayons.
+  -- Une colonne jsonb plutôt que douze colonnes : ses champs suivent le design,
+  -- et une migration par réglage n'aurait été que du bruit. Intégralement
+  -- revalidé par lib/theme.ts à la lecture, donc une valeur inconnue ou
+  -- hostile en base ne peut pas atteindre le CSS servi aux visiteurs.
+  theme jsonb,
   constraint tenants_pkey primary key (id),
   constraint tenants_slug_key unique (slug),
   constraint tenants_kind_check check (kind = any (array['platform','reseller','coach'])),

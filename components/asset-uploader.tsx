@@ -18,7 +18,15 @@ interface Props {
 
 // Dimension max (px) selon l'usage — on compresse côté client pour que n'importe
 // quelle photo passe sans dépasser la limite serveur.
-const MAX_DIM: Record<AssetKind, number> = { portrait: 1200, logo: 700, favicon: 256 };
+const MAX_DIM: Record<AssetKind, number> = {
+  portrait: 1200,
+  logo: 700,
+  "logo-dark": 700,
+  favicon: 256,
+  // L'icône d'application sert aussi d'écran d'accueil sur iOS : 512 px est la
+  // taille attendue par les manifests, en dessous elle sort floue.
+  "app-icon": 512,
+};
 
 /**
  * Redimensionne + compresse une image côté navigateur (canvas → WEBP). SVG et

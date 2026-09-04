@@ -5,6 +5,8 @@ import { usePhrase } from "@/components/locale-provider";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BrandingForm } from "@/components/branding-form";
+import { BrandIdentityForm } from "@/components/brand-identity-form";
+import { ThemeStudio } from "@/components/theme-studio";
 import { TemplateSelector } from "@/components/template-selector";
 import { BusinessTypeForm } from "@/components/business-type-form";
 import { SubdomainForm } from "@/components/subdomain-form";
@@ -30,6 +32,8 @@ interface Props {
   customDomainInfo: CustomDomainInfo;
   /** Étage configuré : décide de ce que l'adresse personnalisée sert vraiment. */
   kind: "platform" | "reseller" | "coach";
+  /** Ce que le thème habille à cet étage, dit en clair. */
+  themeAudience: string;
   /** Coach indépendant ou salle : choisit le discours de la page publique.
    *  null au niveau plateforme, qui n'a pas de page de vente client. */
   businessType: BusinessType | null;
@@ -54,6 +58,7 @@ export function WhiteLabelStudio({
   customDomainInfo,
   kind,
   businessType,
+  themeAudience,
 }: Props) {
   const tx = usePhrase();
   const router = useRouter();
@@ -66,6 +71,13 @@ export function WhiteLabelStudio({
       {/* Colonne configuration */}
       <div className="flex flex-col gap-5">
         <BrandingForm branding={branding} namePlaceholder={namePlaceholder} />
+        <BrandIdentityForm identity={branding.identity} namePlaceholder={namePlaceholder} />
+        <ThemeStudio
+          current={branding.theme}
+          logoUrl={branding.logoUrl}
+          brandName={branding.identity.appName?.trim() || namePlaceholder}
+          audience={themeAudience}
+        />
         {businessType ? <BusinessTypeForm current={businessType} /> : null}
         {template ? <TemplateSelector current={template} accent={accent} /> : null}
         <SubdomainForm current={subdomain} slug={slug} siteHost={siteHost} rootDomain={rootDomain} kind={kind} />

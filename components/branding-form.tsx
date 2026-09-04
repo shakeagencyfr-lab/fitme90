@@ -6,7 +6,6 @@ import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveBranding, type BrandingState } from "@/app/admin/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
-import { DEFAULT_BRAND_COLOR } from "@/lib/config";
 import { AssetUploader } from "@/components/asset-uploader";
 import type { Branding } from "@/lib/branding";
 
@@ -14,7 +13,6 @@ export function BrandingForm({ branding, namePlaceholder }: { branding: Branding
   const tx = usePhrase();
   const router = useRouter();
   const [state, action, pending] = useActionState(saveBranding, {} as BrandingState);
-  const [color, setColor] = useState(branding.brandColor ?? DEFAULT_BRAND_COLOR);
   const [aboutOn, setAboutOn] = useState(branding.aboutEnabled);
 
   // Rafraîchit la page (et l'aperçu live du studio marque blanche) après save.
@@ -32,7 +30,19 @@ export function BrandingForm({ branding, namePlaceholder }: { branding: Branding
       {/* Images (formulaires indépendants) */}
       <div className="grid gap-4 sm:grid-cols-2">
         <AssetUploader kind="logo" label={tx("Logo")} hint={tx("PNG/SVG, fond transparent idéalement. Compressé automatiquement (3 Mo max).")} currentUrl={branding.logoUrl} />
-        <AssetUploader kind="favicon" label={tx("Favicon")} hint={tx("Petite icône d'onglet (carré, PNG/ICO).")} currentUrl={branding.faviconUrl} />
+        <AssetUploader
+          kind="logo-dark"
+          label={tx("Logo (mode sombre)")}
+          hint={tx("Facultatif. Un logo foncé disparaît sur fond noir : charge ici sa version claire. Sans lui, le logo principal sert dans les deux thèmes.")}
+          currentUrl={branding.logoDarkUrl}
+        />
+        <AssetUploader kind="favicon" label={tx("Favicon")} hint={tx("Petite icône d'onglet (carré, PNG/WEBP/SVG, pas de JPG).")} currentUrl={branding.faviconUrl} />
+        <AssetUploader
+          kind="app-icon"
+          label={tx("Icône d'application")}
+          hint={tx("Carrée, pour l'écran d'accueil quand un client installe l'app. 512 px de côté idéalement, pas de JPG.")}
+          currentUrl={branding.appIconUrl}
+        />
       </div>
 
       {/* Textes + couleur (un seul formulaire) */}
@@ -73,20 +83,6 @@ export function BrandingForm({ branding, namePlaceholder }: { branding: Branding
           </select>
           <span className="text-[12px] text-muted-2">
             {tx("Langue par défaut de ta page publique, de l'espace client et du coach IA. Chaque client peut ensuite basculer lui-même (FR / EN) ; l'IA lui répond dans sa langue.")}</span>
-        </label>
-
-        <label className="flex flex-col gap-1.5">
-          <MonoLabel>{tx("Couleur d'accent")}</MonoLabel>
-          <div className="flex items-center gap-3">
-            <input
-              type="color"
-              name="brand_color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              className="h-11 w-14 cursor-pointer rounded-control border border-line-4 bg-surface"
-            />
-            <span className="font-plex text-[14px] text-body">{color}</span>
-          </div>
         </label>
 
         {/* Section « à propos » optionnelle */}

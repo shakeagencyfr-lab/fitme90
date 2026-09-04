@@ -1,21 +1,21 @@
-import type { CSSProperties, ReactNode } from "react";
-import { accentForSlug } from "@/lib/branding";
+import type { ReactNode } from "react";
+import { brandForSlug } from "@/lib/branding";
+import { themeProps } from "@/components/tenant-theme";
 
-// Applique la couleur d'accent d'un coach (par son slug) au contenu enfant, en
-// surchargeant --color-brand / --color-brand-hover. Sert à brander les pages de
-// connexion / inscription quand on arrive depuis la page d'un coach.
+/**
+ * Applique le thème d'un coach (par son slug) au contenu enfant. Sert à brander
+ * les pages de connexion et d'inscription quand on arrive depuis sa page
+ * publique : le visiteur ne doit pas voir nos couleurs s'intercaler entre la
+ * page du coach et son espace.
+ *
+ * Le div porte `bg-paper` : c'est lui qui peint le fond, donc c'est sur lui que
+ * le motif d'arrière-plan du thème doit se poser.
+ */
 export async function CoachAccent({ slug, children }: { slug?: string; children: ReactNode }) {
-  const accent = slug ? await accentForSlug(slug) : null;
-  if (!accent) return <>{children}</>;
+  const brand = slug ? await brandForSlug(slug) : null;
+  if (!brand) return <>{children}</>;
   return (
-    <div
-      style={
-        {
-          ["--color-brand" as string]: accent,
-          ["--color-brand-hover" as string]: `color-mix(in srgb, ${accent} 85%, #000)`,
-        } as CSSProperties
-      }
-    >
+    <div className="bg-paper" {...themeProps(brand.theme)}>
       {children}
     </div>
   );

@@ -1,9 +1,9 @@
-import type { CSSProperties } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { publicOffersBySlug } from "@/lib/offers";
-import { DEFAULT_BRAND_COLOR } from "@/lib/config";
 import { GiftPurchase } from "@/components/gift-purchase";
+import { themeProps } from "@/components/tenant-theme";
+
 
 export const dynamic = "force-dynamic";
 
@@ -19,19 +19,10 @@ export default async function GiftPage({ params }: { params: Promise<{ slug: str
   if (!data) notFound();
 
   const { tenant, offers } = data;
-  const accent = tenant.brandColor || DEFAULT_BRAND_COLOR;
   const giftable = offers.filter((o) => o.billing_type !== "subscription");
 
   return (
-    <div
-      className="min-h-dvh bg-[#0a0b0c] text-white"
-      style={
-        {
-          ["--color-brand" as string]: accent,
-          ["--color-brand-hover" as string]: `color-mix(in srgb, ${accent} 85%, #000)`,
-        } as CSSProperties
-      }
-    >
+    <div className="min-h-dvh bg-[#0a0b0c] text-white" {...themeProps(tenant.theme)}>
       <div className="mx-auto flex w-full max-w-[560px] flex-col gap-8 px-5 py-12 sm:py-16">
         <Link href={`/c/${slug}`} className="text-[13px] text-white/50 transition-colors hover:text-white">
           ← Retour à {tenant.name}

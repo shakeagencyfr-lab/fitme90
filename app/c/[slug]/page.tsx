@@ -26,9 +26,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const data = await publicOffersBySlug(slug);
   if (!data) return { title: "Coach introuvable" };
   const t = data.tenant;
+  // Le coach peut écrire lui-même son titre et sa description de référencement.
+  // À défaut, on retombe sur son accroche, qui reste une bien meilleure vitrine
+  // qu'un texte générique.
   return {
-    title: `${t.headline || t.name} — Coaching`,
-    description: t.tagline || `Programme de coaching personnalisé avec ${t.name}.`,
+    title: t.seoTitle || `${t.headline || t.name}, coaching`,
+    description: t.seoDescription || t.tagline || `Programme de coaching personnalisé avec ${t.name}.`,
     icons: t.faviconUrl ? { icon: t.faviconUrl } : undefined,
   };
 }

@@ -13,6 +13,7 @@ import { ResellerOnyx } from "@/components/landing-templates/reseller-onyx";
 import { ResellerLumen } from "@/components/landing-templates/reseller-lumen";
 import type { PublicReseller } from "@/lib/reseller";
 import type { Plan } from "@/lib/plans";
+import { DEFAULT_THEME } from "@/lib/theme";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,10 @@ const DEMO_TENANT: PublicTenant = {
   aboutTitle: "Léa, coach diplômée d'État",
   aboutText: "Dix ans de coaching en salle et à distance. Ma méthode : de la technique propre, de la régularité, et une nutrition qui tient dans la vraie vie.",
   aboutPhotoUrl: null,
+  logoDarkUrl: null,
+  theme: DEFAULT_THEME,
+  seoTitle: null,
+  seoDescription: null,
 };
 
 function offer(partial: Partial<Offer>): Offer {
@@ -73,7 +78,9 @@ const DEMO_RESELLER: PublicReseller = {
   tagline: null,
   headline: null,
   logoUrl: null,
+  logoDarkUrl: null,
   landingTemplate: "onyx",
+  theme: DEFAULT_THEME,
 };
 
 function plan(partial: Partial<Plan>): Plan {

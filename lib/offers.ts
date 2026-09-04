@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MAX_OFFERS_PER_TENANT, isProductDuration } from "@/lib/config";
+import { normalizeTheme, withPrimary, type TenantTheme } from "@/lib/theme";
 
 // Catalogue d'offres d'un tenant (coach/salle) : jusqu'à 3 formules, chacune
 // avec une durée prédéfinie. Les clients choisiront leur offre plus tard (via
@@ -96,6 +97,13 @@ export interface PublicTenant {
   aboutTitle: string | null;
   aboutText: string | null;
   aboutPhotoUrl: string | null;
+  /** Variante du logo pour fond sombre (les templates Onyx / Volt en ont besoin). */
+  logoDarkUrl: string | null;
+  /** Thème de marque : couleurs, polices, apparence de la page publique. */
+  theme: TenantTheme;
+  /** Métadonnées de référencement, si le coach les a renseignées. */
+  seoTitle: string | null;
+  seoDescription: string | null;
 }
 
 export interface PublicTenantOffers {
@@ -117,7 +125,7 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
   const query = admin
     .from("tenants")
     .select(
-      "id, name, slug, brand_color, tagline, headline, logo_url, favicon_url, landing_template, business_type, about_enabled, about_title, about_text, about_photo_url",
+      "id, name, slug, app_name, brand_color, tagline, headline, logo_url, logo_dark_url, favicon_url, landing_template, business_type, about_enabled, about_title, about_text, about_photo_url, theme, seo_title, seo_description",
     );
   const { data: tenant } = await (safe
     ? query.or(`slug.eq.${key},subdomain.eq.${key}`)
@@ -128,6 +136,7 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
       id: string;
       name: string;
       slug: string;
+      app_name: string | null;
       brand_color: string | null;
       tagline: string | null;
       headline: string | null;
@@ -139,6 +148,10 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
       about_title: string | null;
       about_text: string | null;
       about_photo_url: string | null;
+      logo_dark_url: string | null;
+      theme: unknown;
+      seo_title: string | null;
+      seo_description: string | null;
     }>();
   if (!tenant) return null;
 
@@ -168,7 +181,9 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
   return {
     tenant: {
       id: tenant.id,
-      name: tenant.name,
+      // Le nom d'application, quand il est posé, remplace le nom du compte
+      // partout où le visiteur voit la marque.
+      name: tenant.app_name?.trim() || tenant.name,
       slug: tenant.slug,
       chargesEnabled,
       brandColor: tenant.brand_color,
@@ -182,6 +197,12 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
       aboutTitle: tenant.about_title,
       aboutText: tenant.about_text,
       aboutPhotoUrl: tenant.about_photo_url,
+      logoDarkUrl: tenant.logo_dark_url,
+      // `brand_color` fait foi sur la couleur principale : c'est la colonne que
+      // lisent le manifest PWA et l'ancien formulaire.
+      theme: withPrimary(normalizeTheme(tenant.theme), tenant.brand_color),
+      seoTitle: tenant.seo_title,
+      seoDescription: tenant.seo_description,
     },
     offers: sellable,
   };
