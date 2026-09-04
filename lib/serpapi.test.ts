@@ -197,6 +197,55 @@ describe("détail d'une fiche", () => {
 });
 
 /**
+ * LE bug qui rendait l'import inutilisable en production : chaque fiche choisie
+ * répondait « Google n'a pas accepté cette demande ».
+ *
+ * SerpApi sépare la fiche, les avis et les photos en trois moteurs, et ces
+ * moteurs n'acceptent pas le même identifiant. `google_maps&type=place` refuse
+ * le `data_id` que les deux autres réclament, et répond
+ * « Missing query `data`, `place_id` or `data_cid` parameter ».
+ */
+describe("identifiant attendu par chaque moteur", () => {
+  it("désigne la fiche par son place_id, jamais par son data_id", async () => {
+    const { f, urls } = faux(reponse(FICHE), reponse({}), reponse({}));
+    const r = await fetchPlaceDraft("0x12cdd3cfdb3fc957:0x3a0cfae47faee2d6", {
+      placeId: "ChIJN1t_tDeuEmsRUsoyG83frY4",
+      fetcher: f,
+    });
+    expect(r.ok).toBe(true);
+    expect(urls[0]).toContain("type=place");
+    expect(urls[0]).toContain("place_id=ChIJN1t_tDeuEmsRUsoyG83frY4");
+    // La régression exacte : le data_id sur l'appel « détail » rendait un 400.
+    expect(urls[0]).not.toContain("data_id");
+  });
+
+  it("garde le data_id pour les avis et les photos, qui eux l'exigent", async () => {
+    const { f, urls } = faux(reponse(FICHE), reponse({}), reponse({}));
+    await fetchPlaceDraft("0x1:0x2", { placeId: "ChIJabc", fetcher: f });
+    const avis = urls.find((u) => u.includes("google_maps_reviews"))!;
+    const photos = urls.find((u) => u.includes("google_maps_photos"))!;
+    expect(avis).toContain("data_id=0x1%3A0x2");
+    expect(photos).toContain("data_id=0x1%3A0x2");
+  });
+
+  it("se rabat sur le data_cid quand le résultat n'a pas de place_id", async () => {
+    // Le CID est la seconde moitié du data_id, en décimal : la fiche reste
+    // atteignable sans perdre le coach.
+    const { f, urls } = faux(reponse(FICHE), reponse({}), reponse({}));
+    const r = await fetchPlaceDraft("0x12cdd3cfdb3fc957:0x3a0cfae47faee2d6", { fetcher: f });
+    expect(r.ok).toBe(true);
+    expect(urls[0]).toContain("data_cid=4182994013222003414");
+  });
+
+  it("refuse plutôt que d'appeler avec un identifiant que le moteur rejettera", async () => {
+    const { f } = faux(reponse(FICHE));
+    const r = await fetchPlaceDraft("identifiant-bizarre", { fetcher: f });
+    expect(r.ok).toBe(false);
+    expect(f).not.toHaveBeenCalled();
+  });
+});
+
+/**
  * Une erreur qu'on ne peut pas diagnostiquer est une erreur qu'on ne corrigera
  * pas. En production, tout ce qu'on voyait était « Google n'a pas répondu »,
  * pour une clé refusée comme pour un paramètre invalide. Ces tests verrouillent

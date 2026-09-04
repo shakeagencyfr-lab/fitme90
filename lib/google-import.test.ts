@@ -3,6 +3,7 @@ import {
   safeImageUrl,
   safeSiteUrl,
   safePhone,
+  dataCidFromDataId,
   readCandidates,
   readOpeningHours,
   readReviews,
@@ -108,6 +109,32 @@ describe("résultats de recherche", () => {
 
   it("refuse une note hors échelle plutôt que de l'afficher", () => {
     expect(readCandidates([{ data_id: "0x1", title: "A", rating: 12 }])[0].rating).toBeNull();
+  });
+
+  it("retient aussi le place_id, que l'appel « détail » réclame", () => {
+    // Les trois moteurs SerpApi n'acceptent pas le même identifiant : sans le
+    // place_id, la fiche choisie ne peut pas être ouverte.
+    const [avec, sans] = readCandidates([
+      { data_id: "0x1", place_id: "ChIJabc", title: "Avec" },
+      { data_id: "0x2", title: "Sans" },
+    ]);
+    expect(avec.placeId).toBe("ChIJabc");
+    expect(sans.placeId).toBeNull();
+  });
+});
+
+describe("CID déduit d'un data_id", () => {
+  it("rend le CID en décimal, sans perte sur un grand nombre", () => {
+    // Un CID dépasse ce qu'un nombre JavaScript représente exactement :
+    // l'arrondir désignerait une autre fiche, ou aucune.
+    expect(dataCidFromDataId("0x12cdd3cfdb3fc957:0x3a0cfae47faee2d6")).toBe("4182994013222003414");
+    expect(dataCidFromDataId(" 0x1:0xFF ")).toBe("255");
+  });
+
+  it("rend null sur ce qui n'a pas la forme attendue", () => {
+    for (const mauvais of ["", "0x1", "abc:def", "0x1:0x", "0x1:0x2:0x3", "0xzz:0x1"]) {
+      expect(dataCidFromDataId(mauvais)).toBeNull();
+    }
   });
 });
 

@@ -59,8 +59,14 @@ export interface RawPhoto {
 
 /** Un résultat de recherche, proposé au coach pour qu'il choisisse. */
 export interface PlaceCandidate {
-  /** Identifiant SerpApi de la fiche. Indispensable pour la suite. */
+  /** Identifiant des appels « avis » et « photos ». */
   dataId: string;
+  /**
+   * Identifiant de l'appel « détail de la fiche », qui n'accepte PAS le
+   * `data_id` des deux autres. Absent de certains résultats, d'où le repli sur
+   * `dataCidFromDataId`.
+   */
+  placeId: string | null;
   name: string;
   address: string | null;
   rating: number | null;
@@ -203,6 +209,7 @@ export function readCandidates(raw: unknown, limit = 8): PlaceCandidate[] {
     vus.add(dataId);
     out.push({
       dataId,
+      placeId: text(p.place_id, 200),
       name,
       address: text(p.address, 200),
       rating: number(p.rating, 0, 5),
@@ -212,6 +219,30 @@ export function readCandidates(raw: unknown, limit = 8): PlaceCandidate[] {
     if (out.length >= limit) break;
   }
   return out;
+}
+
+/**
+ * Le CID décimal contenu dans un `data_id`, ou null.
+ *
+ * L'appel « détail de la fiche » n'accepte pas le `data_id` que les appels
+ * « avis » et « photos » réclament : il veut un `place_id` ou un `data_cid`.
+ * Quand un résultat de recherche n'expose pas son `place_id`, la fiche serait
+ * perdue alors que l'information est là : un `data_id` s'écrit
+ * `0x<identifiant du lieu>:0x<CID>`, et le CID en décimal est exactement ce que
+ * `data_cid` attend.
+ *
+ * La conversion passe par `BigInt` parce qu'un CID dépasse largement ce qu'un
+ * nombre JavaScript représente sans perte : l'arrondir désignerait une autre
+ * fiche, ou aucune.
+ */
+export function dataCidFromDataId(dataId: string): string | null {
+  const m = /^0x[0-9a-f]+:0x([0-9a-f]+)$/i.exec(dataId.trim());
+  if (!m) return null;
+  try {
+    return BigInt(`0x${m[1]}`).toString(10);
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -2,6 +2,7 @@ import "server-only";
 import { readBoundedText } from "@/lib/bounded-body";
 import {
   buildDraft,
+  dataCidFromDataId,
   readCandidates,
   type ImportDraft,
   type PlaceCandidate,
@@ -155,6 +156,26 @@ export async function searchPlaces(
 }
 
 /**
+ * Comment DÉSIGNER une fiche dans l'appel « détail », qui n'accepte pas le même
+ * identifiant que les deux autres.
+ *
+ * `google_maps_reviews` et `google_maps_photos` prennent un `data_id` ;
+ * `google_maps&type=place` le refuse et réclame un `place_id` ou un
+ * `data_cid`. Envoyer le `data_id` partout, comme on le faisait, rendait un
+ * 400 « Missing query `data`, `place_id` or `data_cid` parameter » sur CHAQUE
+ * fiche choisie : l'import ne pouvait pas aboutir une seule fois.
+ *
+ * Le `place_id` du résultat de recherche est la voie normale. Le `data_cid`
+ * déduit du `data_id` est le repli, pour les résultats qui n'en portent pas.
+ */
+function identiteDeFiche(dataId: string, placeId?: string | null): Record<string, string> | null {
+  const pid = placeId?.trim().slice(0, 200);
+  if (pid) return { place_id: pid };
+  const cid = dataCidFromDataId(dataId);
+  return cid ? { data_cid: cid } : null;
+}
+
+/**
  * Détail d'une fiche : informations, avis, photos.
  *
  * Trois appels, parce que SerpApi les sépare. Les avis et les photos ne sont
@@ -164,15 +185,18 @@ export async function searchPlaces(
  */
 export async function fetchPlaceDraft(
   dataId: string,
-  opts: { locale?: string; fetcher?: Fetcher } = {},
+  opts: { placeId?: string | null; locale?: string; fetcher?: Fetcher } = {},
 ): Promise<SerpResult<ImportDraft>> {
   const id = dataId.trim().slice(0, 120);
   if (!id) return { ok: false, error: "Fiche inconnue." };
 
+  const identite = identiteDeFiche(id, opts.placeId);
+  if (!identite) return { ok: false, error: "Cette fiche n'a pas d'identifiant exploitable. Choisis-en une autre." };
+
   const hl = opts.locale === "en" ? "en" : "fr";
   const f = opts.fetcher ?? fetch;
 
-  const fiche = await call({ engine: "google_maps", type: "place", data_id: id, hl }, f);
+  const fiche = await call({ engine: "google_maps", type: "place", ...identite, hl }, f);
   if (!fiche.ok) return fiche;
 
   const [avis, photos] = await Promise.all([

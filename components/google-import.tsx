@@ -91,6 +91,9 @@ export function GoogleImport({ linkedName }: { linkedName: string | null }) {
             <form key={c.dataId} action={avancer}>
               <input type="hidden" name="etape" value="apercu" />
               <input type="hidden" name="data_id" value={c.dataId} />
+              {/* L'appel « détail » n'accepte pas le data_id des appels avis
+                  et photos : sans ce champ, chaque fiche choisie échouait. */}
+              <input type="hidden" name="place_id" value={c.placeId ?? ""} />
               <button
                 type="submit"
                 disabled={encours}
