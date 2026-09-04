@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planMetrics, planConformity } from "./plan-quality";
+import { planMetrics, planConformity, constraintEcho } from "./plan-quality";
 import type { Plan, PlanExercise } from "./program";
 
 /**
@@ -160,5 +160,49 @@ describe("conformité au brief", () => {
     const c = { sessions: [seance("Haut", HAUT), seance("Bas", BAS)] };
     const r = planConformity(plan([c, c, c]), 3, 2);
     expect(r.cyclesOk && r.sessionsOk).toBe(true);
+  });
+});
+
+describe("trace d'une contrainte déclarée", () => {
+  const avec = (warning: string, note: string) =>
+    ({
+      ...plan([{ sessions: [seance("Haut", HAUT.map((e) => ({ ...e, note })))] }]),
+      warning,
+    }) as Plan;
+
+  it("voit la contrainte nommée dans l'avertissement et dans une consigne", () => {
+    const e = constraintEcho(
+      avec("Programme adapté à ton épaule sensible.", "Amplitude réduite, épaule ménagée."),
+      ["épaule"],
+    );
+    expect(e.inWarning).toBe(true);
+    expect(e.inNotes).toBe(true);
+    expect(e.denies).toBe(false);
+  });
+
+  it("ignore les accents, qui varient d'une génération à l'autre", () => {
+    const e = constraintEcho(avec("Adapté a ton epaule.", ""), ["épaule"]);
+    expect(e.inWarning).toBe(true);
+  });
+
+  it("repère un avertissement qui NIE une contrainte pourtant déclarée", () => {
+    // Le défaut observé en production : le client a coché une épaule, le plan
+    // lui écrit qu'il n'a rien signalé. Rien d'autre ne l'attrape.
+    const e = constraintEcho(
+      avec("Aucune contrainte de santé ni allergie n'a été déclarée, mais la reprise impose de la prudence.", ""),
+      ["épaule"],
+    );
+    expect(e.denies).toBe(true);
+    expect(e.inWarning).toBe(false);
+  });
+
+  it("ne crie pas au loup sur un avertissement normal", () => {
+    const e = constraintEcho(avec("Programme de reprise après 6 mois d'arrêt, charges prudentes.", ""), ["épaule"]);
+    expect(e.denies).toBe(false);
+  });
+
+  it("ne compte pas une consigne vide", () => {
+    const e = constraintEcho(avec("Épaule ménagée.", ""), ["épaule"]);
+    expect(e.inNotes).toBe(false);
   });
 });
