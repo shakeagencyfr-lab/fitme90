@@ -6,7 +6,7 @@ import type { TFn } from "@/lib/i18n";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminEmail } from "@/lib/admin";
-import { capacityForSlug } from "@/lib/entitlements";
+import { capacityForSlug, accountCapacityForResellerSlug } from "@/lib/entitlements";
 import { provisionCoachIfPending, provisionResellerIfPending } from "@/lib/coach-onboarding";
 import { applyPendingCoachSelection } from "@/lib/tenant";
 
@@ -187,6 +187,21 @@ export async function signUpCoachAction(
   if (!tenantName) return { error: t("authErr.brandName") };
   // Rattachement éventuel à un revendeur (lien /inscription-coach?r=<slug>).
   const resellerSlug = String(formData.get("reseller_slug") ?? "").trim().slice(0, 80);
+
+  // Capacité du revendeur : son palier plafonne le nombre de comptes sous sa
+  // marque, comme celui d'un coach plafonne ses clients. On refuse AVANT de
+  // créer le compte, pour ne pas laisser un utilisateur sans espace après
+  // confirmation de son e-mail. Message neutre : le candidat n'a pas à savoir
+  // où en est le contrat de son revendeur.
+  if (resellerSlug) {
+    const cap = await accountCapacityForResellerSlug(resellerSlug);
+    if (cap?.full) {
+      return {
+        error:
+          "Ce réseau n'ouvre pas de nouveau compte pour le moment. Rapproche-toi de ton contact.",
+      };
+    }
+  }
 
   const data: Record<string, string> = { coach_signup: "1", tenant_name: tenantName, coach_name: coachName };
   if (resellerSlug) data.reseller_slug = resellerSlug;

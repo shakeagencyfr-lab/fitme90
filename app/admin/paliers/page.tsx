@@ -1,4 +1,5 @@
 import { getAdminOrNull } from "@/lib/admin";
+import { tenantNode } from "@/lib/hierarchy";
 import { tx } from "@/lib/i18n/request";
 import { listPlans, MAX_PLANS_PER_TENANT, type Plan } from "@/lib/plans";
 import { formatEuros } from "@/lib/config";
@@ -15,14 +16,19 @@ function priceLabel(p: Plan): string {
   return parts.join(" ou ") || "Sans prix";
 }
 
-function clientsLabel(p: Plan): string {
-  return p.client_limit == null ? "Clients illimités" : `${p.client_limit} client${p.client_limit > 1 ? "s" : ""} inclus`;
+function clientsLabel(p: Plan, unite: "client" | "compte"): string {
+  if (p.client_limit == null) return unite === "compte" ? "Comptes illimités" : "Clients illimités";
+  return `${p.client_limit} ${unite}${p.client_limit > 1 ? "s" : ""} inclus`;
 }
 
 export default async function AdminPlansPage() {
   const ctx = await getAdminOrNull();
   const tenantId = ctx?.profile?.tenant_id ?? null;
   const plans = tenantId ? await listPlans(tenantId) : [];
+  // La plateforme vend à des revendeurs : son palier plafonne des comptes de
+  // réseau, pas des clients. Un revendeur vend à des coachs : des clients.
+  const node = tenantId ? await tenantNode(tenantId) : null;
+  const unite: "client" | "compte" = node?.kind === "platform" ? "compte" : "client";
 
   return (
     <div className="flex flex-col gap-5">
@@ -30,7 +36,9 @@ export default async function AdminPlansPage() {
         <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
           {tx("Paliers")}</h1>
         <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
-          {tx("Les formules d'abonnement que tu proposes aux comptes que tu héberges (revendeurs, coachs ou salles selon ton niveau). Chaque palier fixe un prix récurrent et un nombre de clients inclus ; le 1er client reste offert pour démarrer. Des frais de mise en place one-shot peuvent s'ajouter pour les salles.")}</p>
+          {unite === "compte"
+            ? tx("Les formules d'abonnement que tu proposes à tes revendeurs. Chaque palier fixe un prix récurrent et le nombre de comptes coach ou salle qu'ils pourront ouvrir sous leur marque ; le 1er reste offert pour démarrer. Des frais de mise en place one-shot peuvent s'ajouter.")
+            : tx("Les formules d'abonnement que tu proposes aux comptes que tu héberges (coachs ou salles). Chaque palier fixe un prix récurrent et un nombre de clients inclus ; le 1er client reste offert pour démarrer. Des frais de mise en place one-shot peuvent s'ajouter pour les salles.")}</p>
       </div>
 
       {!tenantId ? (
@@ -51,7 +59,7 @@ export default async function AdminPlansPage() {
                         {tx("Inactif")}</span>
                     ) : null}
                     <span className="rounded-pill bg-brand/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-brand">
-                      {clientsLabel(p)}
+                      {clientsLabel(p, unite)}
                     </span>
                   </div>
                   <span className="text-[13px] text-body">
@@ -83,7 +91,7 @@ export default async function AdminPlansPage() {
               </Card>
             ))
           )}
-          <PlanForm atLimit={plans.length >= MAX_PLANS_PER_TENANT} />
+          <PlanForm atLimit={plans.length >= MAX_PLANS_PER_TENANT} unit={unite === "compte" ? "comptes" : "clients"} />
         </div>
       )}
     </div>

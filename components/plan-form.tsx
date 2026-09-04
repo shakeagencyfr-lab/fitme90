@@ -8,11 +8,17 @@ import { Button, Alert, MonoLabel } from "@/components/ui";
 
 /**
  * Formulaire de création d'un palier d'abonnement (facturation Lot C). Le
- * vendeur (plateforme / revendeur) fixe un prix récurrent, un nombre de clients
- * inclus (vide = illimité) et d'éventuels frais de mise en place one-shot.
+ * vendeur (plateforme / revendeur) fixe un prix récurrent, une capacité incluse
+ * (vide = illimité) et d'éventuels frais de mise en place one-shot.
+ *
+ * La capacité ne compte pas la même chose selon l'étage, et le mot doit le
+ * dire : la plateforme vend à des revendeurs, dont le palier plafonne les
+ * COMPTES de leur réseau ; un revendeur vend à des coachs, dont le palier
+ * plafonne les CLIENTS. Une seule colonne en base, deux libellés.
  */
-export function PlanForm({ atLimit }: { atLimit: boolean }) {
+export function PlanForm({ atLimit, unit = "clients" }: { atLimit: boolean; unit?: "clients" | "comptes" }) {
   const tx = usePhrase();
+  const comptes = unit === "comptes";
   const [state, action, pending] = useActionState(addPlan, {} as PlanState);
 
   if (atLimit) {
@@ -32,7 +38,7 @@ export function PlanForm({ atLimit }: { atLimit: boolean }) {
           type="text"
           name="name"
           maxLength={80}
-          placeholder={tx("Ex : Studio 25 clients")}
+          placeholder={comptes ? tx("Ex : Réseau 25 comptes") : tx("Ex : Studio 25 clients")}
           className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
         />
       </label>
@@ -62,7 +68,7 @@ export function PlanForm({ atLimit }: { atLimit: boolean }) {
 
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1.5">
-          <MonoLabel>{tx("Clients inclus")}</MonoLabel>
+          <MonoLabel>{comptes ? tx("Comptes inclus") : tx("Clients inclus")}</MonoLabel>
           <input
             type="text"
             inputMode="numeric"
@@ -84,7 +90,10 @@ export function PlanForm({ atLimit }: { atLimit: boolean }) {
       </div>
 
       <div className="rounded-control border border-line-4 bg-surface-2 p-3.5 text-[12.5px] leading-relaxed text-muted">
-        <span className="font-semibold text-body">{tx("Clients inclus")}</span> {tx("= le nombre de comptes clients que le compte pourra gérer sur ce palier ; laisse vide pour « illimité ». Les")}<span className="font-semibold text-body"> {tx("frais de setup")}</span> {tx("sont facturés une seule fois (utile pour les salles : paramétrage du matériel, mise en place). Renseigne au moins un prix.")}</div>
+        <span className="font-semibold text-body">{comptes ? tx("Comptes inclus") : tx("Clients inclus")}</span>{" "}
+        {comptes
+          ? tx("= le nombre de comptes coach ou salle que le revendeur pourra ouvrir sur ce palier ; laisse vide pour « illimité ». Les")
+          : tx("= le nombre de comptes clients que le compte pourra gérer sur ce palier ; laisse vide pour « illimité ». Les")}<span className="font-semibold text-body"> {tx("frais de setup")}</span> {tx("sont facturés une seule fois (utile pour les salles : paramétrage du matériel, mise en place). Renseigne au moins un prix.")}</div>
 
       {state.error ? <Alert>{state.error}</Alert> : null}
       {state.ok ? <Alert tone="info">{tx("Palier ajouté.")}</Alert> : null}

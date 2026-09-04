@@ -40,6 +40,12 @@ interface Props {
   currentPlanId?: string | null;
   /** Le palier a-t-il été OFFERT (pas payé) ? Change le libellé du dialogue. */
   planGranted?: boolean;
+  /**
+   * Ce que la capacité du palier plafonne sur CE compte : les clients d'un
+   * coach, les comptes de réseau d'un revendeur. Le nombre est le même en base,
+   * la phrase ne peut pas l'être.
+   */
+  capacityUnit?: "clients" | "comptes";
 }
 
 type Dialog = "gift" | "suspend" | "delete" | "supply" | "plan" | null;
@@ -48,8 +54,26 @@ type Dialog = "gift" | "suspend" | "delete" | "supply" | "plan" | null;
 export interface PlanChoice {
   id: string;
   name: string;
-  /** Clients inclus. null = illimité. */
+  /** Capacité incluse, en clients ou en comptes selon le compte visé. null = illimité. */
   clientLimit: number | null;
+}
+
+/** « 25 comptes », « clients illimités » : le nombre, puis le bon mot. */
+function capaciteLabel(
+  limite: number | null,
+  unite: "clients" | "comptes",
+  tx: (s: string) => string,
+): string {
+  if (limite == null) return unite === "comptes" ? tx("comptes illimités") : tx("clients illimités");
+  const mot =
+    unite === "comptes"
+      ? limite > 1
+        ? tx("comptes")
+        : tx("compte")
+      : limite > 1
+        ? tx("clients")
+        : tx("client");
+  return `${limite} ${mot}`;
 }
 
 function Icon({ d, className = "" }: { d: string; className?: string }) {
@@ -70,6 +94,7 @@ export function NetworkActionsMenu({
   plans = [],
   currentPlanId = null,
   planGranted = false,
+  capacityUnit = "clients",
 }: Props) {
   const tx = usePhrase();
   const router = useRouter();
@@ -264,10 +289,12 @@ export function NetworkActionsMenu({
                     defaultValue={currentPlanId ?? "gratuit"}
                     className="h-11 rounded-control border border-line-4 bg-surface px-3 text-[15px] text-ink outline-none focus:border-ink"
                   >
-                    <option value="gratuit">{tx("Palier gratuit")} ({tx("1 client")})</option>
+                    <option value="gratuit">
+                      {tx("Palier gratuit")} ({capacityUnit === "comptes" ? tx("1 compte") : tx("1 client")})
+                    </option>
                     {plans.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.name} ({p.clientLimit == null ? tx("clients illimités") : `${p.clientLimit} ${p.clientLimit > 1 ? tx("clients") : tx("client")}`})
+                        {p.name} ({capaciteLabel(p.clientLimit, capacityUnit, tx)})
                       </option>
                     ))}
                   </select>

@@ -7,9 +7,11 @@ import { listChildTenants } from "@/lib/hierarchy";
 import { SITE_URL } from "@/lib/config";
 import { Alert, Card, MonoLabel } from "@/components/ui";
 import { CreateAccountForm } from "@/components/create-account-form";
+import { CapacityCard, CAPACITE_COMPTES } from "@/components/capacity-card";
 import { NetworkActionsMenu } from "@/components/network-actions-menu";
 import { canGiftCredits, supplyContexts } from "@/lib/network-admin";
 import { listPlans } from "@/lib/plans";
+import { accountCapacity } from "@/lib/entitlements";
 import { networkAiFigures, type NetworkAi } from "@/lib/network-ai";
 import { formatUsd } from "@/lib/ai-cost";
 import { GRANTED_STATUS } from "@/lib/tenant-billing";
@@ -64,6 +66,9 @@ export default async function AdminNetworkPage({
   // pas deux façons de dire la même chose : l'un annonce ce qu'il reste, l'autre
   // ce qui a déjà été payé.
   const aiFigures: Map<string, NetworkAi> = tenantId ? await networkAiFigures(tenantId, children) : new Map();
+  // Capacité du revendeur lui-même, comptée en comptes. La plateforme n'a
+  // personne au-dessus d'elle pour la plafonner : sa jauge n'aurait pas de sens.
+  const capacite = tenantId && kind === "reseller" ? await accountCapacity(tenantId) : null;
   const base = SITE_URL || "";
   const landingUrl = slug ? `${base}/r/${slug}` : null;
   // Un revendeur recrute des coachs (?r=<son slug>). La plateforme recrute des
@@ -149,6 +154,9 @@ export default async function AdminNetworkPage({
             </Card>
           ) : null}
 
+          {/* Ce qu'il reste, avant le bouton qui en consomme une place. */}
+          {capacite ? <CapacityCard cap={capacite} wording={CAPACITE_COMPTES} /> : null}
+
           {/* Création manuelle d'un compte enfant + lien de connexion à copier. */}
           {isNetworkOperator ? <CreateAccountForm canCreateReseller={isPlatform} /> : null}
 
@@ -227,8 +235,18 @@ export default async function AdminNetworkPage({
                         ) : (
                           <span className="flex flex-col leading-tight">
                             <span>{c.networkClientCount}</span>
-                            <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted-2">
-                              {c.childCount} {c.childCount > 1 ? tx("comptes") : tx("compte")}
+                            {/* Sa capacité se compte en comptes, pas en clients :
+                                c'est ce que son palier plafonne réellement. */}
+                            <span
+                              className={`font-mono text-[11px] uppercase tracking-[0.1em] ${
+                                c.clientLimit != null && c.childCount >= c.clientLimit
+                                  ? "text-alert-ink"
+                                  : "text-muted-2"
+                              }`}
+                            >
+                              {c.childCount}
+                              {c.clientLimit != null ? ` / ${c.clientLimit}` : ""}{" "}
+                              {c.childCount > 1 ? tx("comptes") : tx("compte")}
                             </span>
                           </span>
                         )}
@@ -282,6 +300,7 @@ export default async function AdminNetworkPage({
                           plans={planChoices}
                           currentPlanId={c.planId}
                           planGranted={c.subStatus === GRANTED_STATUS}
+                          capacityUnit={c.kind === "reseller" ? "comptes" : "clients"}
                         />
                       </td>
                     </tr>
