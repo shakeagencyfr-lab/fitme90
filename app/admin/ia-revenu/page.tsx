@@ -12,6 +12,7 @@ import { WhitelabelPriceForm } from "@/components/whitelabel-price-form";
 import { ResellerAiModeForm } from "@/components/reseller-ai-mode-form";
 import { ResellerCreditPricingForm } from "@/components/reseller-credit-pricing-form";
 import { ByokForm } from "@/components/byok-form";
+import { AiRevenueSummary } from "@/components/ai-revenue-summary";
 import { Alert, Card, MonoLabel } from "@/components/ui";
 import { DEFAULT_AI_CREDIT_PRICE_CENTS, DEFAULT_PROGRAM_CREDITS, formatEuros } from "@/lib/config";
 
@@ -63,6 +64,10 @@ export default async function AdminResellerAiPage() {
           <p className="max-w-[72ch] text-[15px] leading-[1.6] text-muted">
             {tx("Tu vends des crédits IA à tes revendeurs en « crédits plateforme » (choix fait à la création de leur compte). L'IA tourne sur ta clé Anthropic, chaque action de leurs coachs débite leur solde, et ils revendent le crédit à leurs coachs avec leur marge.")}</p>
         </div>
+
+        {/* Le résultat d'abord, les réglages ensuite : on vient ici pour
+            savoir ce que ça rapporte, pas pour relire son prix. */}
+        <AiRevenueSummary tenantId={tenantId!} creditPriceCents={creditPrice} />
 
         <ResellerCreditPricingForm
           initialPriceCents={creditPrice}
@@ -137,6 +142,11 @@ export default async function AdminResellerAiPage() {
           )}
         </p>
       </div>
+
+      {/* Ce que la revente rapporte, avant le solde et les réglages. */}
+      {resellerModel === "credits" ? (
+        <AiRevenueSummary tenantId={tenantId!} creditPriceCents={creditPrice} />
+      ) : null}
 
       {buysFromPlatform && wallet ? (
         <Card as="section" className="flex flex-wrap items-center justify-between gap-4">
