@@ -1,9 +1,9 @@
-import type { CSSProperties } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { publicLeadMagnetBySlug } from "@/lib/prospects";
-import { DEFAULT_BRAND_COLOR } from "@/lib/config";
 import { LeadMagnetForm } from "@/components/lead-magnet-form";
+import { themeProps } from "@/components/tenant-theme";
+
 
 export const dynamic = "force-dynamic";
 
@@ -35,12 +35,11 @@ export default async function DecouvertePage({ params }: { params: Promise<{ slu
   const lm = await publicLeadMagnetBySlug(slug);
   if (!lm) notFound();
 
-  const accent = lm.brandColor || DEFAULT_BRAND_COLOR;
 
   return (
     <div
       className="min-h-dvh bg-paper"
-      style={{ ["--color-brand" as string]: accent, ["--color-brand-hover" as string]: `color-mix(in srgb, ${accent} 85%, #000)` } as CSSProperties}
+      {...themeProps(lm.theme)}
     >
       <header className="border-b border-line bg-surface">
         <div className="mx-auto flex w-full max-w-[900px] items-center justify-between gap-4 px-5 py-4 sm:px-8">

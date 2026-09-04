@@ -69,7 +69,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         wallet={wallet}
         brandName={parentBrand?.name ?? null}
         brandLogoUrl={parentBrand?.logoUrl ?? null}
-        brandColor={parentBrand?.brandColor ?? null}
+        brandLogoDarkUrl={parentBrand?.logoDarkUrl ?? null}
+        brandTheme={parentBrand?.theme ?? null}
       >
         {freeze.frozen ? <CoachFreezeBanner suspended={freeze.suspended} /> : null}
         {children}

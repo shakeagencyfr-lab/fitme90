@@ -22,6 +22,7 @@ import { LeadBand } from "@/components/landing-templates/lead-band";
 import { AuthorEngine } from "@/components/landing-templates/author-engine";
 import { offerCardCopy, landingCopy, type LandingCopy, type Audience } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
+import { themeVars, themeAttrs } from "@/lib/theme";
 
 // Template « Aurora » : le même arsenal que Kinetic, employé à l'envers.
 //
@@ -163,13 +164,14 @@ export function CoachAurora({ tenant, offers, leadMagnet = false, locale = "fr" 
       className="relative min-h-dvh scroll-smooth pb-[76px] sm:pb-0"
       style={
         {
-          ["--color-brand" as string]: accent,
+          ...themeVars(tenant.theme),
           ["--color-brand-hover" as string]: `color-mix(in srgb, ${accent} 85%, #000)`,
           ["--color-ink" as string]: INK,
-          background: PAPER,
+          backgroundColor: PAPER,
           color: INK,
         } as CSSProperties
       }
+      {...themeAttrs(tenant.theme)}
     >
       <ScrollProgress />
 

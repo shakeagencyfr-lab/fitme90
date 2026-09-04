@@ -1,11 +1,11 @@
-import type { CSSProperties } from "react";
 import Link from "next/link";
 import { brandForSlug } from "@/lib/branding";
-import { DEFAULT_BRAND_COLOR } from "@/lib/config";
 import {
   buildMiniProgram, isGoal, isLevel, isEquipment, type Goal, type Level, type Equipment,
 } from "@/lib/lead-magnet";
 import { PrintButton } from "@/components/print-button";
+import { themeProps } from "@/components/tenant-theme";
+
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Ta semaine découverte" };
@@ -20,7 +20,6 @@ export default async function ResultatPage({
   const { slug } = await params;
   const sp = await searchParams;
   const brand = await brandForSlug(slug);
-  const accent = brand?.brandColor || DEFAULT_BRAND_COLOR;
   const coachName = brand?.name || "ton coach";
 
   const goal: Goal = isGoal(sp.g ?? "") ? (sp.g as Goal) : "forme";
@@ -39,7 +38,7 @@ export default async function ResultatPage({
   return (
     <div
       className="min-h-dvh bg-paper"
-      style={{ ["--color-brand" as string]: accent, ["--color-brand-hover" as string]: `color-mix(in srgb, ${accent} 85%, #000)` } as CSSProperties}
+      {...themeProps(brand?.theme)}
     >
       {/* Barre d'action (masquée à l'impression) */}
       <div className="no-print sticky top-0 z-10 border-b border-line bg-surface/90 backdrop-blur">

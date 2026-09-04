@@ -12,6 +12,7 @@ import { LeadBand } from "@/components/landing-templates/lead-band";
 import { AuthorEngine } from "@/components/landing-templates/author-engine";
 import { offerCardCopy, landingCopy, type LandingCopy, type Audience } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
+import { themeVars, themeAttrs } from "@/lib/theme";
 
 // Template « Volt » : sombre, contrasté, tranchant.
 //
@@ -216,13 +217,14 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
       className="min-h-dvh scroll-smooth pb-[76px] sm:pb-0"
       style={
         {
-          ["--color-brand" as string]: accent,
+          ...themeVars(tenant.theme),
           ["--color-brand-hover" as string]: `color-mix(in srgb, ${accent} 85%, #fff)`,
           ["--color-ink" as string]: INK,
-          background: BG,
+          backgroundColor: BG,
           color: INK,
         } as CSSProperties
       }
+      {...themeAttrs(tenant.theme)}
     >
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0b0c0e]/85 backdrop-blur-md">

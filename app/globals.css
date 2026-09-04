@@ -47,6 +47,11 @@
   --color-cardio: #7fa8c9;
   --color-rest: #dfdcd6;
 
+  /* Accents secondaires du thème de marque (pilotés par lib/theme.ts) */
+  --color-accent: #17191b; /* accent secondaire : puces, dégradés */
+  --color-ok: #129a72; /* réussite : payé, validé, objectif atteint */
+  --color-danger: #dc2626; /* danger : erreur, suppression, retard */
+
   /* Rayons */
   --radius-control: 9px;
   --radius-btn: 10px;
@@ -98,6 +103,10 @@
 
   --color-fill: #f2f1ee;
   --color-fillfg: #17191b;
+
+  --color-accent: #f3f2ef;
+  --color-ok: #2fbb92;
+  --color-danger: #f26161;
 }
 
 /* ------------------------------------------------------------------ *
@@ -439,4 +448,166 @@ input:not([type="checkbox"]):not([type="radio"]) {
     transform: none !important;
   }
   .lift:hover { transform: none !important; }
+}
+
+/* ================================================================== *
+ * MARQUE BLANCHE — apparence pilotée par le thème du tenant
+ *
+ * lib/theme.ts pose sur l'élément qui PEINT LE FOND DE PAGE deux attributs,
+ * `data-wl-bg` et `data-wl-card`, plus les variables de couleurs, de polices
+ * et de rayons. Tout le reste de l'application continue d'utiliser
+ * bg-paper / text-ink / rounded-card sans rien savoir du thème.
+ *
+ * Les motifs sont des dégradés CSS : aucune image à héberger, aucun poids
+ * réseau, et ils suivent la couleur d'accent du coach. `background-attachment:
+ * fixed` les ancre au cadre visible plutôt qu'au document, sans quoi une page
+ * longue étirerait la lueur sur des milliers de pixels.
+ * ================================================================== */
+
+/* Les polices par défaut rejoignent la palette : un thème peut ainsi désigner
+   « archivo » comme n'importe quelle autre famille. La substitution se fait
+   ici, à la racine, donc sans cycle quand un thème remappe --font-archivo. */
+:root {
+  --font-wl-archivo: var(--font-archivo);
+  --font-wl-plex: var(--font-plex);
+  /* Hauteur du logo dans les menus. Surchargée par le thème du tenant. */
+  --wl-logo-h: 34px;
+  /* Teinte des motifs, dérivée de l'accent. */
+  --wl-ink: color-mix(in srgb, var(--color-ink) 8%, transparent);
+  --wl-tint: color-mix(in srgb, var(--color-brand) 16%, transparent);
+}
+
+/* La police du corps est posée sur <body>, au-dessus du conteneur de thème.
+   Quand celui-ci remappe --font-plex, body a déjà calculé sa valeur et ses
+   enfants héritent de l'ancienne police. Le conteneur la redéclare donc, pour
+   que le choix du coach s'applique réellement à son texte courant. */
+[data-wl-bg] {
+  font-family: var(--font-plex), system-ui, sans-serif;
+}
+
+/* ------------------------------------------------------------------ fonds */
+
+[data-wl-bg="glow"] {
+  background-image: radial-gradient(70% 55% at 50% -10%, var(--wl-tint), transparent 70%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+[data-wl-bg="grid"] {
+  background-image: linear-gradient(var(--wl-ink) 1px, transparent 1px),
+    linear-gradient(90deg, var(--wl-ink) 1px, transparent 1px);
+  background-size: 34px 34px;
+  background-attachment: fixed;
+}
+
+[data-wl-bg="glow-grid"] {
+  background-image: radial-gradient(70% 55% at 50% -10%, var(--wl-tint), transparent 70%),
+    linear-gradient(var(--wl-ink) 1px, transparent 1px),
+    linear-gradient(90deg, var(--wl-ink) 1px, transparent 1px);
+  background-size: auto, 34px 34px, 34px 34px;
+  background-repeat: no-repeat, repeat, repeat;
+  background-attachment: fixed;
+}
+
+[data-wl-bg="rays"] {
+  background-image: conic-gradient(
+    from 200deg at 50% -20%,
+    transparent 0deg,
+    var(--wl-tint) 18deg,
+    transparent 36deg,
+    transparent 54deg,
+    var(--wl-tint) 72deg,
+    transparent 90deg
+  );
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+[data-wl-bg="sheen"] {
+  background-image: linear-gradient(180deg, var(--wl-tint), transparent 340px);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+[data-wl-bg="lines"] {
+  background-image: repeating-linear-gradient(90deg, var(--wl-ink) 0 1px, transparent 1px 76px);
+  background-attachment: fixed;
+}
+
+[data-wl-bg="ruled"] {
+  background-image: repeating-linear-gradient(180deg, var(--wl-ink) 0 1px, transparent 1px 30px);
+  background-attachment: fixed;
+}
+
+[data-wl-bg="dots"] {
+  background-image: radial-gradient(var(--wl-ink) 1.4px, transparent 1.4px);
+  background-size: 24px 24px;
+  background-attachment: fixed;
+}
+
+[data-wl-bg="zigzag"] {
+  background-image: repeating-linear-gradient(135deg, var(--wl-ink) 0 2px, transparent 2px 14px),
+    repeating-linear-gradient(45deg, var(--wl-ink) 0 2px, transparent 2px 14px);
+  background-size: 28px 28px;
+  background-attachment: fixed;
+}
+
+/* Grain : un damier très fin lu de loin comme du bruit. Moins coûteux qu'une
+   texture bitmap, et il suit lui aussi la couleur du thème. */
+[data-wl-bg="grain"] {
+  background-image: repeating-conic-gradient(var(--wl-ink) 0% 25%, transparent 0% 50%);
+  background-size: 4px 4px;
+  background-attachment: fixed;
+}
+
+/* `plain` ne pose rien : c'est l'absence de motif, pas un motif de plus. */
+
+/* ---------------------------------------------------------- mouvement */
+
+/* L'arrière-plan respire lentement. Réservé aux motifs qui y gagnent : sur une
+   grille, un déplacement continu donne le mal de mer. */
+@keyframes wl-drift {
+  0% { background-position: 50% 0%; }
+  50% { background-position: 50% 5%; }
+  100% { background-position: 50% 0%; }
+}
+
+[data-wl-motion="on"][data-wl-bg="glow"],
+[data-wl-motion="on"][data-wl-bg="glow-grid"],
+[data-wl-motion="on"][data-wl-bg="rays"],
+[data-wl-motion="on"][data-wl-bg="sheen"] {
+  animation: wl-drift 18s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------------ cartes */
+
+/* Ces règles ne visent QUE les surfaces neutres : une carte à fond de marque
+   ou une alerte garde son fond. D'où le double filtre sur les classes. */
+
+[data-wl-card="glass"] [class*="rounded-card"][class*="bg-surface"] {
+  background-color: color-mix(in srgb, var(--color-surface) 62%, transparent);
+  backdrop-filter: blur(14px) saturate(1.25);
+}
+[data-wl-card="glass"] [class*="rounded-card"][class*="border-line"] {
+  border-color: color-mix(in srgb, var(--color-ink) 12%, transparent);
+}
+
+[data-wl-card="flat"] [class*="rounded-card"][class*="bg-surface"] {
+  background-color: var(--color-surface-2);
+}
+[data-wl-card="flat"] [class*="rounded-card"][class*="border-line"] {
+  border-color: transparent;
+}
+
+[data-wl-card="hairline"] [class*="rounded-card"][class*="bg-surface"] {
+  background-color: transparent;
+}
+[data-wl-card="hairline"] [class*="rounded-card"][class*="border-line"] {
+  border-color: color-mix(in srgb, var(--color-line) 55%, transparent);
+}
+
+/* `paper` est le rendu d'origine : surface pleine, bordure franche. */
+
+@media (prefers-reduced-motion: reduce) {
+  [data-wl-motion="on"] { animation: none !important; }
 }

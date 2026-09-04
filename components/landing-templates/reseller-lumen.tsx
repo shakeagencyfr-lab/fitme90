@@ -13,6 +13,7 @@ import { DEFAULT_BRAND_COLOR, formatEuros } from "@/lib/config";
 import {
   MARQUEE, FEATURES, SHOWCASE, COMPARE_WITHOUT, COMPARE_WITH, STEPS, SECTORS, FAQ, Ic, priceLine,
 } from "@/components/landing-templates/reseller-content";
+import { themeVars, themeAttrs } from "@/lib/theme";
 
 // Template revendeur « Lumen » : design clair, éditorial et aéré. Même contenu
 // que Onyx, habillage lumineux. `--color-ink` figé (indépendant du thème app).
@@ -83,11 +84,12 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
       className="relative min-h-dvh overflow-hidden scroll-smooth bg-[#f6f4ef] pb-[76px] text-ink sm:pb-0"
       style={
         {
-          ["--color-brand" as string]: accent,
+          ...themeVars(reseller.theme),
           ["--color-brand-hover" as string]: `color-mix(in srgb, ${accent} 85%, #000)`,
           ["--color-ink" as string]: "#1b1815",
         } as CSSProperties
       }
+      {...themeAttrs(reseller.theme)}
     >
       <style dangerouslySetInnerHTML={{ __html: css }} />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[640px]" style={{ background: `radial-gradient(55% 55% at 50% 0%, color-mix(in srgb, ${accent} 14%, transparent), transparent 72%)` }} />

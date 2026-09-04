@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isGoal, isLevel, isEquipment } from "@/lib/lead-magnet";
+import { normalizeTheme, withPrimary, type TenantTheme } from "@/lib/theme";
 
 // Prospects captés par le lead magnet (mini-programme gratuit). Stockés par
 // tenant (coach), visibles dans le CRM. Accès service_role uniquement.
@@ -26,6 +27,8 @@ export interface PublicLeadMagnet {
   brandColor: string | null;
   logoUrl: string | null;
   faviconUrl: string | null;
+  /** Thème de marque : la page découverte doit être aux couleurs du coach. */
+  theme: TenantTheme;
 }
 
 /** Résout un coach par slug pour la page découverte, si le lead magnet est actif. */
@@ -35,13 +38,21 @@ export async function publicLeadMagnetBySlug(slug: string): Promise<PublicLeadMa
   const admin = createAdminClient();
   const { data: t } = await admin
     .from("tenants")
-    .select("id, name, slug, brand_color, logo_url, favicon_url")
+    .select("id, name, slug, app_name, brand_color, logo_url, favicon_url, theme")
     .or(`slug.eq.${key},subdomain.eq.${key}`)
     .limit(1)
-    .maybeSingle<{ id: string; name: string; slug: string; brand_color: string | null; logo_url: string | null; favicon_url: string | null }>();
+    .maybeSingle<{ id: string; name: string; slug: string; app_name: string | null; brand_color: string | null; logo_url: string | null; favicon_url: string | null; theme: unknown }>();
   if (!t) return null;
   if (!(await leadMagnetEnabled(t.id))) return null;
-  return { tenantId: t.id, name: t.name, slug: t.slug, brandColor: t.brand_color, logoUrl: t.logo_url, faviconUrl: t.favicon_url };
+  return {
+    tenantId: t.id,
+    name: t.app_name?.trim() || t.name,
+    slug: t.slug,
+    brandColor: t.brand_color,
+    logoUrl: t.logo_url,
+    faviconUrl: t.favicon_url,
+    theme: withPrimary(normalizeTheme(t.theme), t.brand_color),
+  };
 }
 
 /** Le lead magnet est-il activé pour ce tenant ? */

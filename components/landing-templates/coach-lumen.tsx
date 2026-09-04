@@ -11,6 +11,7 @@ import { LeadBand } from "@/components/landing-templates/lead-band";
 import { AuthorEngine } from "@/components/landing-templates/author-engine";
 import { offerCardCopy, landingCopy, type LandingCopy, type Audience } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
+import { themeVars, themeAttrs } from "@/lib/theme";
 
 // Template « Lumen » : design clair, éditorial et aéré. Même contenu que Onyx,
 // habillage lumineux (fond papier chaud, encre sombre, accent de marque).
@@ -176,13 +177,14 @@ export function CoachLumen({ tenant, offers, leadMagnet = false, locale = "fr" }
       className="min-h-dvh scroll-smooth bg-[#f6f4ef] pb-[76px] text-ink sm:pb-0"
       style={
         {
-          ["--color-brand" as string]: accent,
+          ...themeVars(tenant.theme),
           ["--color-brand-hover" as string]: `color-mix(in srgb, ${accent} 85%, #000)`,
           // Le template clair fige son encre : la landing publique ne doit pas
           // basculer si le visiteur a activé le thème sombre de l'app.
           ["--color-ink" as string]: "#1b1815",
         } as CSSProperties
       }
+      {...themeAttrs(tenant.theme)}
     >
       <style
         dangerouslySetInnerHTML={{

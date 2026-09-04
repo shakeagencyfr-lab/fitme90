@@ -5,7 +5,7 @@ import { LangSwitch } from "@/components/lang-switch";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode, type CSSProperties } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Wordmark } from "@/components/brand";
 import { CoachBell } from "@/components/coach-bell";
 import { PageTransition } from "@/components/page-transition";
@@ -13,6 +13,8 @@ import { AdminSearch, type SearchDest } from "@/components/admin-search";
 import { signOutAction } from "@/app/(auth)/actions";
 import type { CoachNotif } from "@/lib/notifications";
 import type { TenantKind } from "@/lib/hierarchy";
+import { themeProps } from "@/components/tenant-theme";
+import type { TenantTheme } from "@/lib/theme";
 
 // Navigation du dashboard coach, façon « app shell » soigné : barre latérale
 // verticale à partir de lg ; sur mobile, barre du haut flottante + tiroir en
@@ -399,7 +401,8 @@ export function AdminShell({
   wallet = null,
   brandName = null,
   brandLogoUrl = null,
-  brandColor = null,
+  brandLogoDarkUrl = null,
+  brandTheme = null,
 }: {
   children: ReactNode;
   notifs: CoachNotif[];
@@ -414,7 +417,10 @@ export function AdminShell({
    *  revendeur). Le dashboard porte CETTE marque — jamais My Fitness App pour un coach. */
   brandName?: string | null;
   brandLogoUrl?: string | null;
-  brandColor?: string | null;
+  /** Variante du logo pour fond sombre : un logo clair y disparaîtrait. */
+  brandLogoDarkUrl?: string | null;
+  /** Thème du parent : couleurs, polices, apparence de tout le dashboard. */
+  brandTheme?: TenantTheme | null;
 }) {
   const tx = usePhrase();
   const pathname = usePathname();
@@ -463,22 +469,34 @@ export function AdminShell({
     />
   );
 
-  // Accent du dashboard = couleur du parent (marque blanche complète). À défaut,
-  // le thème garde l'orange par défaut.
-  const accentStyle = brandColor
-    ? ({
-        ["--color-brand" as string]: brandColor,
-        ["--color-brand-hover" as string]: `color-mix(in srgb, ${brandColor} 85%, #000)`,
-      } as CSSProperties)
-    : undefined;
 
   // La marque seule. `min-w-0` + `truncate` : sur 264 px, un nom long doit se
   // couper proprement au lieu de pousser la cloche par-dessus le logotype.
   const brandMark = (
     <span className="flex min-w-0 items-center">
       {brandLogoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={brandLogoUrl} alt={brandName ?? ""} className="h-6 w-auto max-w-[130px] object-contain" />
+        <>
+          {/* Hauteur pilotée par le thème du parent (« Taille du logo »).
+              Deux <img> plutôt qu'un choix en JavaScript : le thème sombre est
+              posé avant l'hydratation, une bascule côté client ferait clignoter
+              le mauvais logo au premier rendu. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={brandLogoUrl}
+            alt={brandName ?? ""}
+            className={`w-auto max-w-[130px] object-contain ${brandLogoDarkUrl ? "dark:hidden" : ""}`}
+            style={{ height: "var(--wl-logo-h)" }}
+          />
+          {brandLogoDarkUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={brandLogoDarkUrl}
+              alt={brandName ?? ""}
+              className="hidden w-auto max-w-[130px] object-contain dark:block"
+              style={{ height: "var(--wl-logo-h)" }}
+            />
+          ) : null}
+        </>
       ) : brandName ? (
         <span className="truncate font-archivo text-[19px] font-extrabold tracking-[-0.02em] text-ink">{brandName}</span>
       ) : (
@@ -534,7 +552,7 @@ export function AdminShell({
   );
 
   return (
-    <div className="min-h-dvh bg-paper lg:flex" style={accentStyle}>
+    <div className="min-h-dvh bg-paper lg:flex" {...themeProps(brandTheme)}>
       {/* ───────── Barre latérale (desktop ≥ lg) ─────────
           Trois états :
             déployée   264 px, chevron « à droite pour replier

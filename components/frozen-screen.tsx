@@ -1,7 +1,7 @@
-import type { CSSProperties } from "react";
 import { getT } from "@/lib/i18n/server";
 import { signOutAction } from "@/app/(auth)/actions";
 import type { PublicBrand } from "@/lib/branding";
+import { themeProps } from "@/components/tenant-theme";
 
 // Écran affiché à un client dont le coach est temporairement suspendu (défaut de
 // paiement du coach auprès de son revendeur). L'accès reprend dès que le coach
@@ -9,12 +9,8 @@ import type { PublicBrand } from "@/lib/branding";
 export async function FrozenScreen({ brand }: { brand: PublicBrand | null }) {
   const { t } = await getT();
   const name = brand?.name ?? "ton coach";
-  const accentStyle = brand?.brandColor
-    ? ({ ["--color-brand" as string]: brand.brandColor } as CSSProperties)
-    : undefined;
-
   return (
-    <div className="min-h-dvh bg-paper flex items-center justify-center px-5 py-10" style={accentStyle}>
+    <div className="min-h-dvh bg-paper flex items-center justify-center px-5 py-10" {...themeProps(brand?.theme)}>
       <div className="w-full max-w-[440px] rounded-card border border-line bg-surface p-8 text-center shadow-[0_10px_40px_rgba(23,25,27,0.08)]">
         <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-brand/10 text-brand">
           <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

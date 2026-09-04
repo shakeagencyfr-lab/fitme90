@@ -6,6 +6,7 @@ import { iconUrl } from "@/lib/config";
 import { platformBrand } from "@/lib/branding";
 import { resolveLocale } from "@/lib/i18n/server";
 import { LocaleProvider } from "@/components/locale-provider";
+import { themeFontVariables } from "./fonts";
 
 // Polices auto-hébergées par next/font (aucun appel à Google au runtime,
 // donc rien à autoriser dans la CSP côté font-src).
@@ -76,17 +77,21 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang={locale}
       suppressHydrationWarning
-      className={`${archivo.variable} ${plex.variable} ${plexMono.variable} h-full antialiased`}
+      className={`${archivo.variable} ${plex.variable} ${plexMono.variable} ${themeFontVariables} h-full antialiased`}
     >
       {/* Manifest en marque blanche : credentials pour transmettre la session. */}
       <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />
-      {/* Sans JavaScript, aucun observateur ne pose la classe `.is-in` : les
-          blocs révélés au scroll resteraient invisibles. On les rend visibles
-          d'office plutôt que de servir une page vide. */}
-      <noscript>
-        <style dangerouslySetInnerHTML={{ __html: ".reveal{opacity:1!important;transform:none!important}" }} />
-      </noscript>
       <body className="min-h-full flex flex-col bg-paper text-ink">
+        {/* Sans JavaScript, aucun observateur ne pose la classe `.is-in` : les
+            blocs révélés au scroll resteraient invisibles. On les rend visibles
+            d'office plutôt que de servir une page vide.
+            Dans <body> et non sous <html> : React ne remonte pas <noscript>
+            dans <head> comme il le fait pour <link> et <script>, et un
+            <noscript> enfant direct de <html> est un HTML invalide qui casse
+            l'hydratation. */}
+        <noscript>
+          <style dangerouslySetInnerHTML={{ __html: ".reveal{opacity:1!important;transform:none!important}" }} />
+        </noscript>
         {/* Applique le thème avant le premier rendu (évite le flash clair). */}
         <script
           dangerouslySetInnerHTML={{
