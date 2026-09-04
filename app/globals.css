@@ -365,7 +365,16 @@ input:not([type="checkbox"]):not([type="radio"]) {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
 }
-.page-in { animation: page-in var(--dur-base) var(--ease-out-soft) both; }
+
+/* Pas de `both` ici, et ce n'est pas un détail.
+   Un mode de remplissage qui persiste laisse les navigateurs considérer que
+   l'élément porte encore une transformation une fois l'animation finie. Il
+   devient alors le repère de tous ses descendants en `position: fixed`, et ce
+   bloc-là fait toute la hauteur de la page : une modale « centrée à l'écran »
+   s'ouvrait au milieu de plusieurs milliers de pixels, hors de vue.
+   L'état final de cette animation est de toute façon l'état naturel de
+   l'élément, donc le remplissage n'apportait rien. */
+.page-in { animation: page-in var(--dur-base) var(--ease-out-soft); }
 
 /* Rail horizontal : la barre de défilement disparaît, le geste reste. */
 .rail-x {
