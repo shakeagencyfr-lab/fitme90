@@ -1,6 +1,11 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import {
+  PREVIEW_FRAME_ATTR,
+  THEME_PREVIEW_TYPE,
+  type ThemePreviewMessage,
+} from "@/lib/theme-preview";
 import { useRouter } from "next/navigation";
 import { usePhrase } from "@/components/locale-provider";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
@@ -8,6 +13,8 @@ import { saveTheme, type BrandingState } from "@/app/admin/actions";
 import { themeProps } from "@/components/tenant-theme";
 import {
   BACKGROUNDS,
+  backgroundChoices,
+  cardChoices,
   BODY_FONTS,
   CARD_STYLES,
   COLOR_PRESETS,
@@ -18,8 +25,6 @@ import {
   STYLE_THEMES,
   THEME_FONTS,
   normalizeTheme,
-  type BackgroundKey,
-  type CardKey,
   type CornerKey,
   type FontKey,
   type TenantTheme,
@@ -84,6 +89,23 @@ function Choice({
   );
 }
 
+/**
+ * Envoie le brouillon à l'iframe d'aperçu, si elle est à l'écran.
+ *
+ * On la retrouve par son attribut plutôt que par une référence partagée : le
+ * studio et l'aperçu vivent dans deux composants voisins, et les relier par
+ * un état commun aurait fait remonter tout le thème d'un cran pour un seul
+ * message.
+ */
+function envoyerApercu(theme: TenantTheme): void {
+  if (typeof document === "undefined") return;
+  const frame = document.querySelector<HTMLIFrameElement>(`iframe[${PREVIEW_FRAME_ATTR}]`);
+  frame?.contentWindow?.postMessage(
+    { type: THEME_PREVIEW_TYPE, theme } satisfies ThemePreviewMessage,
+    window.location.origin,
+  );
+}
+
 export function ThemeStudio({ current, logoUrl, brandName, audience }: Props) {
   const tx = usePhrase();
   const router = useRouter();
@@ -93,6 +115,21 @@ export function ThemeStudio({ current, logoUrl, brandName, audience }: Props) {
   useEffect(() => {
     if (state.ok) router.refresh();
   }, [state.ok, router]);
+
+  // Aperçu vivant : chaque changement part vers l'iframe de la page publique,
+  // sans rien enregistrer. C'est ce qui permet d'essayer six thèmes en six
+  // clics au lieu de six enregistrements.
+  useEffect(() => {
+    envoyerApercu(t);
+    // L'iframe peut charger APRÈS le premier clic : quand elle se signale
+    // prête, on lui renvoie l'état courant.
+    function onPret(e: MessageEvent) {
+      if (e.origin !== window.location.origin) return;
+      if ((e.data as { type?: string } | null)?.type === "fitme:theme-preview-ready") envoyerApercu(t);
+    }
+    window.addEventListener("message", onPret);
+    return () => window.removeEventListener("message", onPret);
+  }, [t]);
 
   const set = <K extends keyof TenantTheme>(k: K, v: TenantTheme[K]) => setT((p) => ({ ...p, [k]: v }));
   const dirty = JSON.stringify(t) !== JSON.stringify(current);
@@ -250,7 +287,7 @@ export function ThemeStudio({ current, logoUrl, brandName, audience }: Props) {
         <div className="flex flex-col gap-1.5">
           <span className="text-[12.5px] font-semibold text-body">{tx("Arrière-plan de page")}</span>
           <div className="flex flex-wrap gap-2">
-            {(Object.keys(BACKGROUNDS) as BackgroundKey[]).map((k) => (
+            {backgroundChoices(t.background).map((k) => (
               <Choice key={k} on={t.background === k} onClick={() => set("background", k)}>
                 {tx(BACKGROUNDS[k])}
               </Choice>
@@ -273,7 +310,7 @@ export function ThemeStudio({ current, logoUrl, brandName, audience }: Props) {
           <div className="flex flex-col gap-1.5">
             <span className="text-[12.5px] font-semibold text-body">{tx("Style de carte")}</span>
             <div className="flex flex-wrap gap-2">
-              {(Object.keys(CARD_STYLES) as CardKey[]).map((k) => (
+              {cardChoices(t.card).map((k) => (
                 <Choice key={k} on={t.card === k} onClick={() => set("card", k)}>{tx(CARD_STYLES[k])}</Choice>
               ))}
             </div>

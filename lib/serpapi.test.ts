@@ -195,3 +195,53 @@ describe("détail d'une fiche", () => {
     expect(b.urls[0]).toContain("hl=en");
   });
 });
+
+/**
+ * Une erreur qu'on ne peut pas diagnostiquer est une erreur qu'on ne corrigera
+ * pas. En production, tout ce qu'on voyait était « Google n'a pas répondu »,
+ * pour une clé refusée comme pour un paramètre invalide. Ces tests verrouillent
+ * les deux exigences : tracer assez pour comprendre, jamais la clé.
+ */
+describe("diagnostic des échecs", () => {
+  it("trace le statut et le message de SerpApi, sans la clé", async () => {
+    const trace = vi.spyOn(console, "error").mockImplementation(() => {});
+    const f = faux(reponse({ error: "Invalid data_id parameter" }, 400));
+    await fetchPlaceDraft("0x0:0x0", { fetcher: f.f });
+
+    expect(trace).toHaveBeenCalled();
+    const journalise = JSON.stringify(trace.mock.calls);
+    expect(journalise).toContain("Invalid data_id parameter");
+    expect(journalise).toContain("400");
+    // Le point critique : ni la clé, ni l'adresse qui la porte.
+    expect(journalise).not.toContain(CLE);
+    expect(journalise).not.toContain("api_key");
+    expect(journalise).not.toContain("serpapi.com");
+    trace.mockRestore();
+  });
+
+  it("ne propose pas de réessayer sur un 4xx, qui ne s'arrangera pas seul", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const f = faux(reponse({ error: "Invalid data_id" }, 400));
+    const r = await fetchPlaceDraft("0x0:0x0", { fetcher: f.f });
+    expect(r.ok).toBe(false);
+    expect(r.ok === false && r.error).not.toMatch(/Réessaie dans un instant/);
+    vi.restoreAllMocks();
+  });
+
+  it("garde « réessaie » pour une panne serveur, qui elle peut passer", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const f = faux(reponse("panne", 503));
+    const r = await searchPlaces("studio fitme", { fetcher: f.f });
+    expect(r.ok === false && r.error).toMatch(/Réessaie dans un instant/);
+    vi.restoreAllMocks();
+  });
+
+  it("distingue toujours une clé refusée du reste", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const f = faux(reponse({ error: "Invalid API key" }, 401));
+    const r = await searchPlaces("studio fitme", { fetcher: f.f });
+    expect(r.ok === false && r.error).toMatch(/Clé Google refusée/);
+    vi.restoreAllMocks();
+  });
+});
+

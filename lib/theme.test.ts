@@ -13,6 +13,14 @@ import {
   BODY_FONTS,
   LOGO_MIN,
   LOGO_MAX,
+  OFFERED_BACKGROUNDS,
+  OFFERED_CARDS,
+  BACKGROUND_KEYS,
+  CARD_KEYS,
+  BACKGROUNDS,
+  CARD_STYLES,
+  backgroundChoices,
+  cardChoices,
 } from "./theme";
 
 /**
@@ -163,3 +171,62 @@ describe("thèmes et palettes prêts à l'emploi", () => {
     expect(isDefaultTheme(normalizeTheme({ primary: "#0891b2" }))).toBe(false);
   });
 });
+
+/**
+ * Réduire un menu est facile ; le réduire sans casser ce qui existe l'est
+ * moins. Ces tests portent sur les deux risques : un thème qui poserait un
+ * réglage absent du sélecteur, et un compte qui perdrait le sien.
+ */
+describe("options proposées et options valides", () => {
+  it("chaque thème n'emploie que des fonds et des cartes proposés", () => {
+    // Sinon, cliquer un thème afficherait un réglage d'apparence introuvable
+    // juste en dessous : le sélecteur semblerait vide.
+    for (const t of STYLE_THEMES) {
+      expect(OFFERED_BACKGROUNDS).toContain(t.patch.background);
+      expect(OFFERED_CARDS).toContain(t.patch.card);
+    }
+  });
+
+  it("propose exactement quatre fonds et deux cartes", () => {
+    expect(OFFERED_BACKGROUNDS).toHaveLength(4);
+    expect(OFFERED_CARDS).toHaveLength(2);
+  });
+
+  it("garde valides les options retirées du sélecteur", () => {
+    // Un compte qui avait choisi « Zigzag » doit garder sa page telle quelle.
+    for (const k of BACKGROUND_KEYS) expect(BACKGROUNDS[k]).toBeTruthy();
+    for (const k of CARD_KEYS) expect(CARD_STYLES[k]).toBeTruthy();
+    expect(BACKGROUND_KEYS.length).toBeGreaterThan(OFFERED_BACKGROUNDS.length);
+    expect(CARD_KEYS.length).toBeGreaterThan(OFFERED_CARDS.length);
+  });
+
+  it("ajoute le réglage courant à la liste quand il n'est plus proposé", () => {
+    // Sans ça, le coach verrait un sélecteur où rien n'est coché et croirait
+    // avoir perdu son réglage.
+    expect(backgroundChoices("zigzag")).toContain("zigzag");
+    expect(backgroundChoices("zigzag")).toHaveLength(5);
+    expect(cardChoices("glass")).toContain("glass");
+    expect(cardChoices("glass")).toHaveLength(3);
+  });
+
+  it("n'ajoute rien quand le réglage courant est déjà proposé", () => {
+    expect(backgroundChoices("plain")).toHaveLength(4);
+    expect(cardChoices("paper")).toHaveLength(2);
+  });
+
+  it("donne à chaque thème une clé et un libellé uniques", () => {
+    expect(new Set(STYLE_THEMES.map((t) => t.key)).size).toBe(STYLE_THEMES.length);
+    expect(new Set(STYLE_THEMES.map((t) => t.label)).size).toBe(STYLE_THEMES.length);
+  });
+
+  it("donne à chaque thème une couleur principale lisible sur fond clair", () => {
+    // Elle sert de fond de bouton avec du texte blanc : trop claire, le libellé
+    // devient illisible.
+    for (const t of STYLE_THEMES) {
+      const [r, v, b] = [1, 3, 5].map((i) => parseInt(t.patch.primary.slice(i, i + 2), 16));
+      const lum = (0.2126 * r + 0.7152 * v + 0.0722 * b) / 255;
+      expect(lum, `${t.label} (${t.patch.primary})`).toBeLessThan(0.55);
+    }
+  });
+});
+
