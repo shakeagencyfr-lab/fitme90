@@ -7,7 +7,8 @@ import { MAX_OFFERS_PER_TENANT, programDaysForMonths, formatEuros } from "@/lib/
 import { OfferForm } from "@/components/offer-form";
 import { EmbedSnippet } from "@/components/embed-snippet";
 import { toggleOffer, removeOffer } from "@/app/admin/actions";
-import { clientUsesCredits, programCreditCost } from "@/lib/credits";
+import { clientUsesCredits, programCreditCost, realCreditCostCents } from "@/lib/credits";
+import { CreditScale, CreditScaleNote } from "@/components/credit-scale";
 import { readCoachConfig } from "@/lib/methodology";
 import { Alert, Card } from "@/components/ui";
 
@@ -42,9 +43,15 @@ function Pill({ children, tone = "muted" }: { children: React.ReactNode; tone?: 
 export default async function AdminPlansPage() {
   const ctx = await getAdminOrNull();
   const tenantId = ctx?.profile?.tenant_id ?? null;
-  const [offers, creditMode, programCredits, cfg] = tenantId
-    ? await Promise.all([listOffers(tenantId), clientUsesCredits(tenantId), programCreditCost(tenantId), readCoachConfig(tenantId)])
-    : [[], false, 10, null];
+  const [offers, creditMode, programCredits, cfg, unitCents] = tenantId
+    ? await Promise.all([
+        listOffers(tenantId),
+        clientUsesCredits(tenantId),
+        programCreditCost(tenantId),
+        readCoachConfig(tenantId),
+        realCreditCostCents(tenantId),
+      ])
+    : [[], false, 10, null, null];
 
   let slug: string | null = null;
   if (tenantId) {
@@ -120,6 +127,18 @@ export default async function AdminPlansPage() {
                 </Card>
               ))
             )}
+            {/* Le barème AVANT le formulaire : le coach s'apprête à décider
+                combien de messages il inclut dans un plan, il doit savoir ce
+                que chacun lui coûte au moment où il choisit. */}
+            {creditMode ? (
+              <div className="flex flex-col gap-2">
+                <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">
+                  {tx("Ce que consomme chaque action")}
+                </span>
+                <CreditScale programCredits={programCredits} unitCents={unitCents} />
+                <CreditScaleNote programCredits={programCredits} unitCents={unitCents} />
+              </div>
+            ) : null}
             <OfferForm
               atLimit={offers.length >= MAX_OFFERS_PER_TENANT}
               programCredits={programCredits}
