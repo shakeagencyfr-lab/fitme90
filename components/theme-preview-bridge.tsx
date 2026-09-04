@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { themeVars, themeAttrs } from "@/lib/theme";
+import { themeVars, themeAttrs, THEME_ROOT_ATTR } from "@/lib/theme";
 import { isThemePreviewMessage } from "@/lib/theme-preview";
 
 /**
@@ -21,18 +21,29 @@ export function ThemePreviewBridge() {
       if (e.origin !== window.location.origin) return;
       if (!isThemePreviewMessage(e.data)) return;
 
-      const racine = document.documentElement;
-      for (const [k, v] of Object.entries(themeVars(e.data.theme))) {
-        racine.style.setProperty(k, v);
-      }
+      // On vise l'élément qui PORTE déjà le thème, pas <html>.
+      //
+      // Le serveur pose les variables en style en ligne sur la racine de la
+      // landing. Un style en ligne gagne sur tout ce qu'un ancêtre déclare :
+      // écrire sur <html>, comme on le faisait, ne changeait donc rien du tout
+      // à l'intérieur de la page, et l'aperçu restait figé sur le thème
+      // enregistré. On écrit au même endroit que le serveur, ce qui remplace
+      // sa valeur au lieu de se faire couvrir par elle.
+      const cibles = document.querySelectorAll<HTMLElement>(`[${THEME_ROOT_ATTR}]`);
+      const racines: HTMLElement[] = cibles.length > 0 ? [...cibles] : [document.documentElement];
+
+      const vars = Object.entries(themeVars(e.data.theme));
       // Les motifs de fond et le style de carte sont pilotés par des attributs,
       // pas par des variables : il faut aussi retirer ceux qui ne sont plus là,
       // sinon l'animation resterait allumée après l'avoir décochée.
       const attrs = themeAttrs(e.data.theme);
-      for (const nom of ["data-wl-bg", "data-wl-card", "data-wl-motion"]) {
-        const v = attrs[nom];
-        if (v) racine.setAttribute(nom, v);
-        else racine.removeAttribute(nom);
+      for (const racine of racines) {
+        for (const [k, v] of vars) racine.style.setProperty(k, v);
+        for (const nom of ["data-wl-bg", "data-wl-card", "data-wl-motion"]) {
+          const v = attrs[nom];
+          if (v) racine.setAttribute(nom, v);
+          else racine.removeAttribute(nom);
+        }
       }
     }
 

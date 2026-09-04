@@ -2,7 +2,7 @@
 
 import { usePhrase } from "@/components/locale-provider";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PREVIEW_FRAME_ATTR } from "@/lib/theme-preview";
 import { useRouter } from "next/navigation";
 import { BrandingForm } from "@/components/branding-form";
@@ -65,10 +65,69 @@ export function WhiteLabelStudio({
   const router = useRouter();
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
 
+  /**
+   * L'aperçu rend une VRAIE largeur d'écran, puis la réduit.
+   *
+   * La colonne d'aperçu fait environ 430 pixels. Un iframe qui l'occupe en
+   * largeur est un écran de 430 pixels de large : la page publique y bascule
+   * en disposition mobile, et le bouton « Bureau » montrait donc la même chose
+   * que le bouton « Mobile ». Le coach ne pouvait pas voir sa page de bureau.
+   *
+   * L'iframe fait maintenant la largeur qu'il annonce, 1280 ou 390 pixels, et
+   * c'est une mise à l'échelle CSS qui le fait tenir dans la colonne. Le
+   * document à l'intérieur croit être sur cet écran-là, donc il choisit la
+   * bonne disposition ; on ne fait que le regarder de plus loin.
+   */
+  const VUES = {
+    desktop: { largeur: 1280, hauteur: 820 },
+    mobile: { largeur: 390, hauteur: 780 },
+  } as const;
+  const vue = VUES[device];
+
+  const cadre = useRef<HTMLDivElement | null>(null);
+  const [dispo, setDispo] = useState(0);
+
+  // La largeur disponible dépend de la fenêtre et du menu latéral rétractable :
+  // un calcul unique au montage se tromperait dès le premier redimensionnement.
+  const mesurer = useCallback(() => {
+    const l = cadre.current?.clientWidth;
+    if (l && l > 0) setDispo(l);
+  }, []);
+
+  useEffect(() => {
+    mesurer();
+    const el = cadre.current;
+    if (!el || typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", mesurer);
+      return () => window.removeEventListener("resize", mesurer);
+    }
+    const ro = new ResizeObserver(mesurer);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [mesurer, previewUrl]);
+
+  // Un mobile n'est jamais agrandi : le montrer plus gros que nature donnerait
+  // une fausse idée des tailles de texte.
+  const brut = dispo > 0 ? dispo / vue.largeur : 1;
+  const echelle = device === "mobile" ? Math.min(1, brut) : brut;
+  // Centrage du mobile quand la colonne est plus large que lui. Le décalage est
+  // exprimé AVANT mise à l'échelle, puisque `transform` applique l'un puis
+  // l'autre sur le même repère.
+  const decalage = device === "mobile" && echelle > 0 ? Math.max(0, (dispo / echelle - vue.largeur) / 2) : 0;
+
   const src = previewUrl ? `${previewUrl}?preview=${previewVersion}` : null;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)]">
+    // La colonne d'aperçu s'élargit en mode Bureau : à 460 pixels, un écran de
+    // 1280 tiendrait au tiers de sa taille et la page n'y serait plus lisible.
+    <div
+      className={[
+        "grid gap-5",
+        device === "desktop"
+          ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,660px)]"
+          : "lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)]",
+      ].join(" ")}
+    >
       {/* Colonne configuration */}
       <div className="flex flex-col gap-5">
         <BrandingForm branding={branding} namePlaceholder={namePlaceholder} />
@@ -107,6 +166,9 @@ export function WhiteLabelStudio({
               {previewUrl ? (
                 <span className="rounded-pill bg-surface-2 px-2 py-0.5 font-mono text-[10px] text-muted-2">{previewUrl}</span>
               ) : null}
+              {/* La largeur simulée, sinon une page réduite de moitié passe pour
+                  une page mal fichue. */}
+              <span className="font-mono text-[10px] text-muted-2">{vue.largeur} px</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="flex rounded-control border border-line-4 p-0.5">
@@ -140,16 +202,23 @@ export function WhiteLabelStudio({
           </div>
 
           {src ? (
-            <div className="flex justify-center overflow-hidden rounded-control bg-[#0a0b0c]">
+            <div
+              ref={cadre}
+              className="overflow-hidden rounded-control bg-[#0a0b0c]"
+              style={{ height: Math.round(vue.hauteur * echelle) }}
+            >
               <iframe
                 {...{ [PREVIEW_FRAME_ATTR]: "" }}
                 key={`${device}-${previewVersion}`}
                 src={src}
                 title={tx("Aperçu de la page publique")}
-                className={[
-                  "h-[600px] border-0 bg-white transition-[width] duration-300",
-                  device === "mobile" ? "w-[390px]" : "w-full",
-                ].join(" ")}
+                className="border-0 bg-white"
+                style={{
+                  width: vue.largeur,
+                  height: vue.hauteur,
+                  transform: `scale(${echelle}) translateX(${decalage}px)`,
+                  transformOrigin: "top left",
+                }}
                 loading="lazy"
               />
             </div>

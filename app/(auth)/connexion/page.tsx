@@ -1,6 +1,6 @@
 import { LoginForm } from "@/components/auth-forms";
 import { Alert } from "@/components/ui";
-import { CoachAccent } from "@/components/coach-accent";
+import { AuthShell } from "@/components/auth-shell";
 import { CoachBrandHeader } from "@/components/coach-brand-header";
 import { brandMetadata } from "@/lib/brand-metadata";
 import { TenantLocale } from "@/components/tenant-locale";
@@ -24,7 +24,7 @@ export default async function ConnexionPage({
   const { t } = await getT(await tenantLocaleBySlug(coachSlug));
   return (
     <TenantLocale slug={coachSlug}>
-    <CoachAccent slug={coachSlug}>
+    <AuthShell slug={coachSlug}>
       <CoachBrandHeader slug={coachSlug} hrefBase={hrefBase} />
       <div className="flex flex-col gap-4">
         {erreur === "lien_invalide" ? (
@@ -32,7 +32,7 @@ export default async function ConnexionPage({
         ) : null}
         <LoginForm suite={suite} coachSlug={typeof sp.c === "string" ? sp.c : undefined} resellerSlug={resellerSlug} />
       </div>
-    </CoachAccent>
+    </AuthShell>
     </TenantLocale>
   );
 }
