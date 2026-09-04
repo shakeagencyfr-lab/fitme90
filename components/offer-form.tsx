@@ -10,7 +10,7 @@ import {
   PRODUCTS,
   monthlyEquivalentCents,
   formatEuros,
-  formatEurPrecise,
+  formatCentsPrecise,
   planMaxCredits,
   planMaxCostEur,
   programDaysForMonths,
@@ -288,7 +288,7 @@ export function OfferForm({
                       {tx("Chiffré au meilleur tarif de ton revendeur :")}{" "}
                       <span className="text-body">{bestPack.name}</span>{" "}
                       ({bestPack.credits.toLocaleString("fr-FR")} {tx("crédits")} {tx("pour")}{" "}
-                      {formatEuros(bestPack.priceCents)}, {tx("soit")} {formatEurPrecise(bestPack.unitCents)}{" "}
+                      {formatEuros(bestPack.priceCents)}, {tx("soit")} {formatCentsPrecise(bestPack.unitCents)}{" "}
                       {tx("le crédit")}). {tx("Un autre forfait coûtera davantage.")}
                     </span>
                   ) : (
