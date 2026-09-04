@@ -110,21 +110,58 @@ export function firstName(full: string): string {
 }
 
 /**
- * Le texte d'une étape. Volontairement court et sans mise en forme : ces
- * messages partent souvent depuis le serveur SMTP du coach, où un e-mail
- * sobre passe mieux les filtres qu'un gabarit chargé d'images.
+ * Le texte que le coach peut réécrire : un objet et un corps.
+ *
+ * Le corps s'arrête là où commencent les obligations. La salutation, la
+ * signature et le lien de désabonnement sont ajoutés à l'envoi et ne sont pas
+ * modifiables : le désabonnement parce qu'un e-mail de prospection sans lien
+ * de retrait n'est pas légal, la signature parce qu'un message anonyme finit
+ * en indésirable.
  */
-export function followupMessage(step: number, ctx: FollowupContext): FollowupMessage {
-  const t = (fr: string) => translatePhrase(ctx.locale, fr);
-  const hi = ctx.firstName ? `${t("Salut")} ${ctx.firstName},` : `${t("Salut")},`;
-  const signature = `\n\n${ctx.brand}`;
-  const foot = `\n\n${t("Pour ne plus recevoir ces messages :")} ${ctx.unsubscribeUrl}`;
+export interface FollowupCopy {
+  subject: string;
+  body: string;
+}
+
+/** Textes personnalisés, par étape. Une étape absente garde le texte d'origine. */
+export type FollowupCopyMap = Partial<Record<number, FollowupCopy>>;
+
+/**
+ * Les jetons acceptés dans un corps réécrit.
+ *
+ * Trois, pas davantage : chacun correspond à une information que le coach ne
+ * peut pas écrire lui-même parce qu'elle change à chaque destinataire.
+ */
+export const FOLLOWUP_TOKENS = ["{prenom}", "{marque}", "{lien}"] as const;
+
+/**
+ * Remplace les jetons. Un jeton inconnu est laissé tel quel plutôt qu'effacé :
+ * si le coach se trompe, il doit le VOIR dans son propre e-mail de test, pas
+ * découvrir un trou dans le message reçu par un prospect.
+ */
+export function fillTokens(text: string, ctx: FollowupContext): string {
+  return text
+    .replaceAll("{prenom}", ctx.firstName)
+    .replaceAll("{marque}", ctx.brand)
+    .replaceAll("{lien}", ctx.landingUrl);
+}
+
+/**
+ * Le texte d'origine d'une étape. Volontairement court et sans mise en forme :
+ * ces messages partent souvent depuis le serveur SMTP du coach, où un e-mail
+ * sobre passe mieux les filtres qu'un gabarit chargé d'images.
+ *
+ * C'est aussi ce qui s'affiche dans l'éditeur du coach, prérempli : partir
+ * d'une page blanche donne un message écrit à la va-vite ou pas de message du
+ * tout.
+ */
+export function followupDefaultCopy(step: number, locale: Locale): FollowupCopy {
+  const t = (fr: string) => translatePhrase(locale, fr);
 
   if (step === 1) {
     return {
       subject: t("Ta première séance s'est bien passée ?"),
-      text:
-        `${hi}\n\n` +
+      body:
         t(
           "Tu as reçu ton mini-programme il y a quelques jours. Si tu as déjà fait la première séance, le plus dur est derrière toi : c'est celle-là que la plupart des gens ne font jamais.",
         ) +
@@ -133,17 +170,14 @@ export function followupMessage(step: number, ctx: FollowupContext): FollowupMes
           "Un conseil pour la suite : garde les mêmes charges cette semaine et concentre-toi sur l'exécution. La progression viendra la semaine d'après, pas maintenant.",
         ) +
         "\n\n" +
-        t("Si tu bloques sur un exercice, réponds à ce message, je te donne une alternative.") +
-        signature +
-        foot,
+        t("Si tu bloques sur un exercice, réponds à ce message, je te donne une alternative."),
     };
   }
 
   if (step === 2) {
     return {
       subject: t("Et maintenant, on fait quoi ?"),
-      text:
-        `${hi}\n\n` +
+      body:
         t(
           "Ta semaine découverte est terminée. C'est le moment où tout se joue : refaire la même semaine en boucle ne mène nulle part, un corps s'adapte en quelques séances et cesse de changer.",
         ) +
@@ -152,16 +186,13 @@ export function followupMessage(step: number, ctx: FollowupContext): FollowupMes
           "La suite, c'est une progression construite sur plusieurs mois, avec des charges qui montent, des séances qui évoluent et une nutrition qui suit. C'est exactement ce que je fais avec les personnes que j'accompagne.",
         ) +
         "\n\n" +
-        `${t("Tu peux voir comment ça se passe ici :")} ${ctx.landingUrl}` +
-        signature +
-        foot,
+        `${t("Tu peux voir comment ça se passe ici :")} {lien}`,
     };
   }
 
   return {
     subject: t("Dernier message"),
-    text:
-      `${hi}\n\n` +
+    body:
       t(
         "C'est mon dernier message, promis. Si le moment n'est pas le bon, garde le mini-programme, il reste valable.",
       ) +
@@ -169,10 +200,43 @@ export function followupMessage(step: number, ctx: FollowupContext): FollowupMes
       t(
         "Si en revanche tu veux un programme construit pour toi, adapté à ton matériel et suivi au quotidien, tout est expliqué ici :",
       ) +
-      ` ${ctx.landingUrl}` +
+      " {lien}" +
       "\n\n" +
-      t("Dans tous les cas, bon entraînement.") +
-      signature +
-      foot,
+      t("Dans tous les cas, bon entraînement."),
+  };
+}
+
+/** Les trois textes d'origine, pour préremplir l'éditeur du coach. */
+export function followupDefaultCopies(locale: Locale): FollowupCopy[] {
+  return FOLLOWUP_STEPS.map((s) => followupDefaultCopy(s.step, locale));
+}
+
+/**
+ * Le message final : le texte de l'étape, personnalisé ou non, encadré de ce
+ * qui ne se négocie pas.
+ *
+ * Un objet ou un corps vide retombe sur le texte d'origine plutôt que de
+ * partir vide. Un coach qui efface tout et enregistre ne doit pas envoyer une
+ * coquille à ses prospects.
+ */
+export function followupMessage(
+  step: number,
+  ctx: FollowupContext,
+  copies: FollowupCopyMap = {},
+): FollowupMessage {
+  const t = (fr: string) => translatePhrase(ctx.locale, fr);
+  const parDefaut = followupDefaultCopy(step, ctx.locale);
+  const perso = copies[step];
+
+  const subject = perso?.subject?.trim() || parDefaut.subject;
+  const body = perso?.body?.trim() || parDefaut.body;
+
+  const hi = ctx.firstName ? `${t("Salut")} ${ctx.firstName},` : `${t("Salut")},`;
+  const signature = `\n\n${ctx.brand}`;
+  const foot = `\n\n${t("Pour ne plus recevoir ces messages :")} ${ctx.unsubscribeUrl}`;
+
+  return {
+    subject: fillTokens(subject, ctx),
+    text: `${hi}\n\n${fillTokens(body, ctx)}${signature}${foot}`,
   };
 }

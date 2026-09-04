@@ -104,6 +104,69 @@ export function averagePurchaseCostCents(lines: PurchaseLine[]): number | null {
   return credits > 0 ? cents / credits : null;
 }
 
+/** Un forfait tel qu'on le compare : ce qu'il donne, ce qu'il coûte. */
+export interface PackLine {
+  name: string;
+  credits: number;
+  priceCents: number;
+}
+
+/** Le forfait le plus intéressant d'une liste, au prix du crédit. */
+export interface BestPack {
+  name: string;
+  credits: number;
+  priceCents: number;
+  /** Prix d'UN crédit dans ce forfait, en centimes. */
+  unitCents: number;
+}
+
+/**
+ * Le forfait au meilleur rapport, c'est-à-dire au prix du crédit le plus bas.
+ *
+ * Ce n'est pas le forfait le moins cher : un gros forfait coûte davantage à
+ * l'achat mais fait souvent baisser le prix unitaire, et c'est ce prix-là qui
+ * décide de ce qu'un plan coûtera vraiment. Comparer les prix affichés
+ * désignerait systématiquement le plus petit forfait, le moins avantageux.
+ *
+ * Fonction pure, donc testable sans base : c'est le calcul qui compte, pas la
+ * requête qui l'alimente.
+ */
+export function bestPackByUnit(packs: readonly PackLine[]): BestPack | null {
+  let best: BestPack | null = null;
+  for (const p of packs) {
+    if (!(p.credits > 0) || !(p.priceCents >= 0)) continue;
+    const unitCents = p.priceCents / p.credits;
+    if (!best || unitCents < best.unitCents) {
+      best = { name: p.name, credits: p.credits, priceCents: p.priceCents, unitCents };
+    }
+  }
+  return best;
+}
+
+/**
+ * Le meilleur forfait que le FOURNISSEUR de ce compte propose aujourd'hui.
+ *
+ * Sert à chiffrer en euros ce qu'un plafond en crédits représente. On prend le
+ * tarif le plus avantageux à dessein : annoncer au coach une somme qu'il
+ * pourrait dépasser en achetant mal serait injuste, tandis que « au mieux, ce
+ * plan te coûtera tant » est une borne qu'il maîtrise, puisqu'il lui suffit de
+ * prendre ce forfait-là.
+ */
+export async function bestSupplierPack(buyerTenantId: string | null): Promise<BestPack | null> {
+  if (!buyerTenantId) return null;
+  const supplierId = await parentOf(buyerTenantId);
+  if (!supplierId) return null;
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("credit_packs")
+    .select("name, credits, price_cents")
+    .eq("tenant_id", supplierId)
+    .eq("is_active", true)
+    .limit(50)
+    .returns<{ name: string; credits: number; price_cents: number }[]>();
+  return bestPackByUnit((data ?? []).map((p) => ({ name: p.name, credits: p.credits, priceCents: p.price_cents })));
+}
+
 /**
  * Coût unitaire réel d'un crédit pour un acheteur, en centimes :
  *   1. moyenne de ses achats déjà payés (la vérité) ;
@@ -140,10 +203,10 @@ export async function realCreditCostCents(buyerTenantId: string | null): Promise
     .limit(50)
     .returns<{ credits: number; price_cents: number }[]>();
 
-  const units = (packs ?? [])
-    .filter((p) => p.credits > 0 && p.price_cents >= 0)
-    .map((p) => p.price_cents / p.credits);
-  return units.length ? Math.min(...units) : null;
+  const best = bestPackByUnit(
+    (packs ?? []).map((p) => ({ name: "", credits: p.credits, priceCents: p.price_cents })),
+  );
+  return best ? best.unitCents : null;
 }
 
 export interface DebitResult {

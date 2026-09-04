@@ -10,6 +10,7 @@ import {
   firstName,
   type FollowupCandidate,
 } from "@/lib/prospect-followup";
+import { prospectFollowupCopy } from "@/lib/prospects";
 
 /**
  * Envoi des relances de prospects.
@@ -126,6 +127,10 @@ export async function runProspectFollowups(now: Date = new Date()): Promise<Foll
   for (const tenant of tenants ?? []) {
     out.tenants += 1;
 
+    // Une lecture par coach, pas par prospect : les trois textes sont les
+    // mêmes pour tout le monde.
+    const textes = await prospectFollowupCopy(tenant.id);
+
     const { data: rows } = await admin
       .from("prospects")
       .select("id, name, email, created_at, followup_sent, followup_at, status, unsubscribed_at")
@@ -147,13 +152,17 @@ export async function runProspectFollowups(now: Date = new Date()): Promise<Foll
     out.due += due.length;
 
     for (const { prospect, step } of due) {
-      const msg = followupMessage(step.step, {
-        firstName: firstName(prospect.name),
-        brand: tenant.name,
-        landingUrl: landingUrl(tenant.slug),
-        unsubscribeUrl: `${SITE_URL || "https://myfitnessapp.fit"}/desabonnement?t=${unsubscribeToken(prospect.id)}`,
-        locale: asLocale(tenant.language),
-      });
+      const msg = followupMessage(
+        step.step,
+        {
+          firstName: firstName(prospect.name),
+          brand: tenant.name,
+          landingUrl: landingUrl(tenant.slug),
+          unsubscribeUrl: `${SITE_URL || "https://myfitnessapp.fit"}/desabonnement?t=${unsubscribeToken(prospect.id)}`,
+          locale: asLocale(tenant.language),
+        },
+        textes,
+      );
 
       // Envoyé depuis le serveur SMTP du coach s'il en a un : en marque
       // blanche, un message signé de sa marque ne doit pas partir de la nôtre.

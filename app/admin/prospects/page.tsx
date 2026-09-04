@@ -2,7 +2,11 @@ import Link from "next/link";
 import { tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { listProspects, leadMagnetEnabled, prospectFollowupEnabled } from "@/lib/prospects";
+import { listProspects, leadMagnetEnabled, prospectFollowupEnabled, prospectFollowupCopy } from "@/lib/prospects";
+import { followupDefaultCopies } from "@/lib/prospect-followup";
+import { tenantLocale } from "@/lib/i18n/server";
+import { asLocale } from "@/lib/i18n";
+import { FollowupEditor } from "@/components/followup-editor";
 import { GOAL_LABEL, LEVEL_LABEL, EQUIP_LABEL, isGoal, isLevel, isEquipment } from "@/lib/lead-magnet";
 import { SITE_URL } from "@/lib/config";
 import { LeadMagnetToggle } from "@/components/lead-magnet-toggle";
@@ -35,13 +39,16 @@ export default async function AdminProspectsPage() {
     );
   }
 
-  const [prospects, enabled, followups, { data: t }] = await Promise.all([
+  const [prospects, enabled, followups, textes, langue, { data: t }] = await Promise.all([
     listProspects(tenantId),
     leadMagnetEnabled(tenantId),
     prospectFollowupEnabled(tenantId),
-    createAdminClient().from("tenants").select("slug").eq("id", tenantId).maybeSingle<{ slug: string }>(),
+    prospectFollowupCopy(tenantId),
+    tenantLocale(tenantId),
+    createAdminClient().from("tenants").select("slug, name").eq("id", tenantId).maybeSingle<{ slug: string; name: string }>(),
   ]);
   const slug = t?.slug ?? null;
+  const parDefaut = followupDefaultCopies(asLocale(langue));
   const link = slug ? `${SITE_URL || ""}/c/${slug}/decouverte` : null;
   const nouveaux = prospects.filter((p) => p.status === "nouveau").length;
 
@@ -71,6 +78,12 @@ export default async function AdminProspectsPage() {
             </div>
             <LeadMagnetToggle enabled={followups} name="prospect_followup_enabled" />
           </div>
+        ) : null}
+        {/* Les textes ne s'affichent QUE si la séquence est active : montrer
+            trois éditeurs pour des messages qui ne partiront jamais donne
+            l'impression d'un réglage sans effet. */}
+        {enabled && followups ? (
+          <FollowupEditor defaults={parDefaut} saved={textes} brand={t?.name ?? "Ta marque"} />
         ) : null}
         {enabled && link ? (
           <div className="flex flex-col gap-1.5">

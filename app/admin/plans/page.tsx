@@ -7,7 +7,7 @@ import { MAX_OFFERS_PER_TENANT, programDaysForMonths, formatEuros } from "@/lib/
 import { OfferForm } from "@/components/offer-form";
 import { EmbedSnippet } from "@/components/embed-snippet";
 import { toggleOffer, removeOffer } from "@/app/admin/actions";
-import { clientUsesCredits, programCreditCost, realCreditCostCents } from "@/lib/credits";
+import { bestSupplierPack, clientUsesCredits, programCreditCost, realCreditCostCents } from "@/lib/credits";
 import { CreditScale, CreditScaleNote } from "@/components/credit-scale";
 import { readCoachConfig } from "@/lib/methodology";
 import { Alert, Card } from "@/components/ui";
@@ -43,15 +43,18 @@ function Pill({ children, tone = "muted" }: { children: React.ReactNode; tone?: 
 export default async function AdminPlansPage() {
   const ctx = await getAdminOrNull();
   const tenantId = ctx?.profile?.tenant_id ?? null;
-  const [offers, creditMode, programCredits, cfg, unitCents] = tenantId
+  const [offers, creditMode, programCredits, cfg, unitCents, meilleurPack] = tenantId
     ? await Promise.all([
         listOffers(tenantId),
         clientUsesCredits(tenantId),
         programCreditCost(tenantId),
         readCoachConfig(tenantId),
         realCreditCostCents(tenantId),
+        // Le forfait le plus avantageux du revendeur : c'est lui qui chiffre
+        // en euros le plafond en crédits d'un plan.
+        bestSupplierPack(tenantId),
       ])
-    : [[], false, 10, null, null];
+    : [[], false, 10, null, null, null];
 
   let slug: string | null = null;
   if (tenantId) {
@@ -145,6 +148,7 @@ export default async function AdminPlansPage() {
               creditMode={creditMode}
               defaultQuota={cfg?.coach_ai_daily_limit ?? 60}
               defaultRecipes={cfg?.recipe_ai_daily_limit ?? 1}
+              bestPack={meilleurPack}
             />
           </div>
 

@@ -837,3 +837,11 @@ create index if not exists prospects_followup_idx
 -- Désactivé par défaut : on n'envoie jamais d'e-mail au nom d'un coach sans
 -- qu'il l'ait demandé.
 alter table public.coach_config add column if not exists prospect_followup_enabled boolean not null default false;
+
+-- Textes des relances, réécrits par le coach. Un objet par étape :
+--   { "1": { "subject": "...", "body": "..." }, ... }
+-- Une étape absente garde le texte d'origine, ce qui laisse le coach n'en
+-- personnaliser qu'une seule sans recopier les deux autres. Seul le CORPS est
+-- stocké : la salutation, la signature et le lien de désabonnement sont
+-- ajoutés à l'envoi et ne sont pas modifiables.
+alter table public.coach_config add column if not exists prospect_followup_copy jsonb not null default '{}'::jsonb;

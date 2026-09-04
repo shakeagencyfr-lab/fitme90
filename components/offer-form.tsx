@@ -10,11 +10,13 @@ import {
   PRODUCTS,
   monthlyEquivalentCents,
   formatEuros,
+  formatEurPrecise,
   planMaxCredits,
   planMaxCostEur,
   programDaysForMonths,
   type OfferDurationMonths,
 } from "@/lib/config";
+import type { BestPack } from "@/lib/credits";
 
 /**
  * Formulaire de création d'un plan vendu au client. Le coach choisit d'abord
@@ -28,6 +30,7 @@ export function OfferForm({
   creditMode,
   defaultQuota,
   defaultRecipes,
+  bestPack = null,
 }: {
   atLimit: boolean;
   /** Crédits IA consommés par une génération de programme (réglé par le fournisseur). */
@@ -38,6 +41,9 @@ export function OfferForm({
   defaultQuota: number;
   /** Régénérations de recettes par défaut (ancien réglage global du coach). */
   defaultRecipes: number;
+  /** Forfait de crédits le plus avantageux du revendeur, pour chiffrer le
+   *  plafond en euros. null quand le revendeur n'en propose aucun. */
+  bestPack?: BestPack | null;
 }) {
   const tx = usePhrase();
   const [state, action, pending] = useActionState(addOffer, {} as OfferState);
@@ -57,6 +63,10 @@ export function OfferForm({
   // Coût MAXIMUM du plan pour le coach : générations (une par bloc de 3 mois)
   // + quota journalier saturé chaque jour. Il ne paie que l'usage réel.
   const max = planMaxCredits({ programDays: planDays, dailyQuota: quotaN, programCredits, recipeQuota: recipesN });
+  // Ce que ce plafond pèse en euros, au tarif le plus avantageux du revendeur.
+  // Sans forfait proposé, on ne peut pas convertir : mieux vaut ne rien
+  // annoncer qu'inventer un prix du crédit.
+  const plafondEuros = bestPack ? Math.round(max.total * bestPack.unitCents) : null;
   // Le même plafond, converti en euros pour un coach en BYOK : c'est sur ce
   // chiffre qu'il fixe son prix de vente, pas sur un nombre de messages.
   const maxEur = planMaxCostEur({ programDays: planDays, dailyQuota: quotaN, recipeQuota: recipesN });
@@ -246,8 +256,18 @@ export function OfferForm({
                 /* Coach sous crédits IA : il ne voit jamais Anthropic, son
                    plafond se lit dans la seule unité qu'il achète. */
                 <>
-                  <span className="font-archivo text-[22px] font-extrabold leading-none text-ink">
-                    {max.total.toLocaleString("fr-FR")} {tx("crédits IA")}
+                  <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <span className="font-archivo text-[22px] font-extrabold leading-none text-ink">
+                      {max.total.toLocaleString("fr-FR")} {tx("crédits IA")}
+                    </span>
+                    {/* Un plafond en crédits ne dit rien tant qu'on ne sait pas
+                        ce qu'il pèse en euros : c'est ce chiffre-là qu'on
+                        compare au prix du plan qu'on est en train de fixer. */}
+                    {plafondEuros != null ? (
+                      <span className="font-archivo text-[16px] font-bold leading-none text-muted">
+                        ≈ {formatEuros(plafondEuros)}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="text-[12.5px] leading-[1.6] text-muted">
                     {tx("Si le client sature tout, sur toute la durée du plan :")} {max.generations} {tx("génération")}
@@ -260,6 +280,19 @@ export function OfferForm({
                       : `+ ${tx("des recettes sans plafond")}`}
                     .
                   </span>
+                  {bestPack ? (
+                    <span className="text-[12.5px] leading-[1.6] text-muted-2">
+                      {tx("Chiffré au meilleur tarif de ton revendeur :")}{" "}
+                      <span className="text-body">{bestPack.name}</span>{" "}
+                      ({bestPack.credits.toLocaleString("fr-FR")} {tx("crédits")} {tx("pour")}{" "}
+                      {formatEuros(bestPack.priceCents)}, {tx("soit")} {formatEurPrecise(bestPack.unitCents)}{" "}
+                      {tx("le crédit")}). {tx("Un autre forfait coûtera davantage.")}
+                    </span>
+                  ) : (
+                    <span className="text-[12.5px] leading-[1.6] text-muted-2">
+                      {tx("Ton revendeur ne propose aucun forfait de crédits pour l'instant : impossible de chiffrer ce plafond en euros.")}
+                    </span>
+                  )}
                   {quotaN === 0 || recipesN === 0 ? (
                     <span className="text-[12.5px] leading-[1.6] text-muted-2">
                       {tx("Un plafond laissé à 0 ouvre la dépense : le total ci-dessus ne couvre alors que le reste.")}</span>

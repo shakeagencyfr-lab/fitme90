@@ -6,7 +6,11 @@ import { useActionState } from "react";
 import { submitLeadMagnet, type LeadState } from "@/app/c/[slug]/decouverte/actions";
 import { GOALS, LEVELS, EQUIPMENTS, GOAL_LABEL, LEVEL_LABEL, EQUIP_LABEL } from "@/lib/lead-magnet";
 
-const field = "w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink";
+// Hauteur fixe plutôt qu'un padding : sur téléphone, un champ de moins de
+// 44 px se rate au doigt, et un `select` natif ne se laisse pas mesurer par son
+// contenu. La bordure de focus prend la couleur du coach, comme le reste.
+const field =
+  "h-12 w-full rounded-control border border-line-4 bg-surface px-3.5 text-[15px] text-ink outline-none transition-colors focus:border-brand";
 const label = "font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2";
 
 export function LeadMagnetForm({ slug }: { slug: string }) {
@@ -14,7 +18,18 @@ export function LeadMagnetForm({ slug }: { slug: string }) {
   const [state, action, pending] = useActionState(submitLeadMagnet, {} as LeadState);
 
   return (
-    <form action={action} className="flex flex-col gap-4 rounded-card border border-line bg-surface p-6">
+    <form
+      action={action}
+      className="flex flex-col gap-4 rounded-card-lg border border-line bg-surface p-5 shadow-[0_24px_60px_-38px_rgba(23,25,27,0.45)] sm:p-7"
+    >
+      <div className="flex flex-col gap-1">
+        <span className="font-archivo text-[19px] font-extrabold leading-tight tracking-[-0.02em] text-ink">
+          {tx("Cinq questions, trente secondes")}
+        </span>
+        <span className="text-[13px] leading-[1.55] text-muted">
+          {tx("Le document est généré tout de suite et part sur ton e-mail.")}
+        </span>
+      </div>
       <input type="hidden" name="slug" value={slug} />
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -84,9 +99,9 @@ export function LeadMagnetForm({ slug }: { slug: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="tap inline-flex h-12 items-center justify-center gap-2 rounded-btn bg-brand px-6 text-[15px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98] disabled:opacity-60"
+        className="tap press inline-flex h-12 w-full items-center justify-center gap-2 rounded-btn bg-brand px-6 font-archivo text-[15.5px] font-bold text-white transition-colors hover:bg-brand-hover disabled:opacity-60"
       >
-        {pending ? "Un instant…" : "Recevoir mon programme gratuit"}
+        {pending ? tx("Un instant…") : tx("Recevoir mon programme gratuit")}
       </button>
     </form>
   );
