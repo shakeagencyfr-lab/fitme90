@@ -1794,7 +1794,9 @@ export async function googleImportStep(
 
   if (etape === "apercu") {
     if (!serpApiEnabled()) return { error: "L'import Google n'est pas configuré sur cette installation." };
-    const res = await fetchPlaceDraft(String(formData.get("data_id") ?? ""));
+    const res = await fetchPlaceDraft(String(formData.get("data_id") ?? ""), {
+      placeId: String(formData.get("place_id") ?? "") || null,
+    });
     if (!res.ok) return { ...prev, error: res.error };
     const importId = await saveImportDraft(tenantId, res.data);
     if (!importId) return { ...prev, error: "Impossible de préparer l'import. Réessaie." };
