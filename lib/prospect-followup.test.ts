@@ -4,6 +4,7 @@ import {
   dueFollowups,
   followupMessage,
   firstName,
+  followupDefaultCopies,
   FOLLOWUP_STEPS,
   MAX_FOLLOWUPS,
   type FollowupCandidate,
@@ -146,5 +147,70 @@ describe("prénom", () => {
     expect(firstName("Jean-Marc Dupont")).toBe("Jean-Marc");
     expect(firstName("  Marie   Curie ")).toBe("Marie");
     expect(firstName("")).toBe("");
+  });
+});
+
+/**
+ * Un texte réécrit par le coach ne doit ni casser le cadre légal, ni pouvoir
+ * partir vide. Ces deux garanties sont ce qui rend l'éditeur sûr à ouvrir.
+ */
+describe("textes personnalisés", () => {
+  const ctx = {
+    firstName: "Léa",
+    brand: "Seb Coaching",
+    landingUrl: "https://exemple.fr/c/seb",
+    unsubscribeUrl: "https://exemple.fr/desabonnement?t=abc",
+    locale: "fr" as const,
+  };
+
+  it("emploie le texte du coach quand il en a écrit un", () => {
+    const m = followupMessage(1, ctx, {
+      1: { subject: "Alors, cette séance ?", body: "Dis-moi comment ça s'est passé." },
+    });
+    expect(m.subject).toBe("Alors, cette séance ?");
+    expect(m.text).toContain("Dis-moi comment ça s'est passé.");
+  });
+
+  it("garde la signature et le désabonnement, quoi qu'écrive le coach", () => {
+    // Un e-mail de prospection sans lien de retrait n'est pas légal : ce n'est
+    // pas au texte du coach d'en décider.
+    const m = followupMessage(2, ctx, { 2: { subject: "x", body: "y" } });
+    expect(m.text).toContain("Seb Coaching");
+    expect(m.text).toContain(ctx.unsubscribeUrl);
+    expect(m.text.startsWith("Salut Léa,")).toBe(true);
+  });
+
+  it("retombe sur le texte d'origine plutôt que d'envoyer du vide", () => {
+    const vide = followupMessage(3, ctx, { 3: { subject: "   ", body: "" } });
+    const origine = followupMessage(3, ctx);
+    expect(vide.subject).toBe(origine.subject);
+    expect(vide.text).toBe(origine.text);
+  });
+
+  it("remplace les raccourcis, y compris dans l'objet", () => {
+    const m = followupMessage(1, ctx, {
+      1: { subject: "{prenom}, un mot de {marque}", body: "Tout est ici : {lien}" },
+    });
+    expect(m.subject).toBe("Léa, un mot de Seb Coaching");
+    expect(m.text).toContain("Tout est ici : https://exemple.fr/c/seb");
+  });
+
+  it("laisse visible un raccourci mal écrit au lieu de faire un trou", () => {
+    // Le coach doit voir sa faute dans son e-mail de test, pas la découvrir
+    // dans le message reçu par un prospect.
+    const m = followupMessage(1, ctx, { 1: { subject: "o", body: "Salut {prénom} !" } });
+    expect(m.text).toContain("{prénom}");
+  });
+
+  it("donne les trois textes d'origine à l'éditeur", () => {
+    const d = followupDefaultCopies("fr");
+    expect(d).toHaveLength(FOLLOWUP_STEPS.length);
+    for (const c of d) {
+      expect(c.subject.length).toBeGreaterThan(3);
+      expect(c.body.length).toBeGreaterThan(20);
+      // Le cadre n'appartient pas au corps : il est ajouté à l'envoi.
+      expect(c.body).not.toContain("Salut");
+      expect(c.body).not.toContain("désabonnement");
+    }
   });
 });

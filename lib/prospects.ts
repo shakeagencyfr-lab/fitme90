@@ -2,6 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isGoal, isLevel, isEquipment } from "@/lib/lead-magnet";
 import { normalizeTheme, withPrimary, type TenantTheme } from "@/lib/theme";
+import { MAX_FOLLOWUPS, type FollowupCopyMap } from "@/lib/prospect-followup";
 
 // Prospects captés par le lead magnet (mini-programme gratuit). Stockés par
 // tenant (coach), visibles dans le CRM. Accès service_role uniquement.
@@ -120,6 +121,53 @@ export async function setProspectStatus(tenantId: string, id: string, status: st
 export async function deleteProspect(tenantId: string, id: string): Promise<void> {
   const admin = createAdminClient();
   await admin.from("prospects").delete().eq("id", id).eq("tenant_id", tenantId);
+}
+
+/**
+ * Les textes de relance réécrits par ce coach.
+ *
+ * Tout ce qui n'a pas la forme attendue est ignoré silencieusement : la
+ * colonne est du JSON libre, et un enregistrement abîmé ne doit pas empêcher
+ * les relances de partir. Une étape écartée retombe simplement sur son texte
+ * d'origine.
+ */
+export async function prospectFollowupCopy(tenantId: string | null): Promise<FollowupCopyMap> {
+  if (!tenantId) return {};
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("coach_config")
+    .select("prospect_followup_copy")
+    .eq("tenant_id", tenantId)
+    .maybeSingle<{ prospect_followup_copy: unknown }>();
+  return readFollowupCopy(data?.prospect_followup_copy);
+}
+
+/** Valide une carte de textes venue de la base ou d'un formulaire. Pure. */
+export function readFollowupCopy(raw: unknown): FollowupCopyMap {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: FollowupCopyMap = {};
+  for (const [cle, val] of Object.entries(raw as Record<string, unknown>)) {
+    const step = Number(cle);
+    if (!Number.isInteger(step) || step < 1 || step > MAX_FOLLOWUPS) continue;
+    if (!val || typeof val !== "object" || Array.isArray(val)) continue;
+    const o = val as { subject?: unknown; body?: unknown };
+    const subject = typeof o.subject === "string" ? o.subject.trim().slice(0, 200) : "";
+    const body = typeof o.body === "string" ? o.body.trim().slice(0, 4000) : "";
+    // Une étape vide des deux côtés n'est pas une personnalisation : la garder
+    // ferait croire à l'éditeur qu'un texte existe alors qu'il est d'origine.
+    if (!subject && !body) continue;
+    out[step] = { subject, body };
+  }
+  return out;
+}
+
+/** Enregistre les textes de relance. Cloisonné au tenant. */
+export async function saveProspectFollowupCopy(tenantId: string, raw: unknown): Promise<void> {
+  const admin = createAdminClient();
+  await admin
+    .from("coach_config")
+    .update({ prospect_followup_copy: readFollowupCopy(raw) })
+    .eq("tenant_id", tenantId);
 }
 
 /** Les relances automatiques sont-elles activées pour ce tenant ? */

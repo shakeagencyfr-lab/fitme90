@@ -31,7 +31,10 @@ import { createPlan, setPlanActive, deletePlan } from "@/lib/plans";
 import { cancelTenantPlan, reactivateTenantPlan, syncTenantSubscription } from "@/lib/tenant-billing";
 import { deleteOwnCoachAccount } from "@/lib/account-deletion";
 import { setAffiliation } from "@/lib/affiliation";
-import { setProspectStatus, deleteProspect } from "@/lib/prospects";
+import { setProspectStatus, deleteProspect, saveProspectFollowupCopy } from "@/lib/prospects";
+import { FOLLOWUP_STEPS, followupDefaultCopies } from "@/lib/prospect-followup";
+import { tenantLocale } from "@/lib/i18n/server";
+import { asLocale } from "@/lib/i18n";
 import { createCreditPack, setCreditPackActive, deleteCreditPack, canSetProgramCredits } from "@/lib/credits";
 import { setResellerWhitelabelPrice } from "@/lib/whitelabel";
 import { setTenantSmtp, clearTenantSmtp, testSmtp } from "@/lib/smtp";
@@ -986,6 +989,40 @@ export async function setProspectFollowupEnabled(_prev: LeadMagnetState, formDat
       { onConflict: "tenant_id" },
     );
   if (error) return { error: "Enregistrement impossible." };
+  revalidatePath("/admin/prospects");
+  return { ok: true };
+}
+
+export interface FollowupCopyState {
+  ok?: boolean;
+  error?: string;
+}
+
+/**
+ * Enregistre les trois messages de relance réécrits par le coach.
+ *
+ * Un texte identique au texte d'origine n'est PAS stocké : sinon une simple
+ * ouverture de l'écran figerait la formulation du jour, et le coach ne
+ * profiterait plus des corrections apportées au texte de référence. On ne
+ * garde que ce qu'il a réellement voulu changer.
+ */
+export async function saveFollowupCopy(_prev: FollowupCopyState, formData: FormData): Promise<FollowupCopyState> {
+  const ctx = await getAdminOrNull();
+  const tenantId = ctx?.profile?.tenant_id;
+  if (!tenantId) return { error: "Accès refusé." };
+
+  const locale = await tenantLocale(tenantId);
+  const parDefaut = followupDefaultCopies(asLocale(locale));
+
+  const brut: Record<string, { subject: string; body: string }> = {};
+  FOLLOWUP_STEPS.forEach((s, i) => {
+    const subject = String(formData.get(`subject_${s.step}`) ?? "").trim();
+    const body = String(formData.get(`body_${s.step}`) ?? "").trim();
+    if (subject === parDefaut[i].subject && body === parDefaut[i].body) return;
+    brut[String(s.step)] = { subject, body };
+  });
+
+  await saveProspectFollowupCopy(tenantId, brut);
   revalidatePath("/admin/prospects");
   return { ok: true };
 }
