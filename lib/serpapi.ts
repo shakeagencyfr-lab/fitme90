@@ -59,7 +59,8 @@ export type Fetcher = typeof fetch;
  * c'est le genre d'oubli qui publie une clé dans les logs d'un hébergeur.
  */
 function journal(params: Record<string, string>, status: number, detail: string): void {
-  const { api_key: _cle, ...sansCle } = params;
+  const sansCle = { ...params };
+  delete sansCle.api_key;
   console.error("[serpapi]", { params: sansCle, status, detail });
 }
 
