@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionContext } from "@/lib/guard";
-import { checkCoachAiBudget } from "@/lib/coach-ai-budget";
+import { checkClientAiBudget } from "@/lib/coach-ai-budget";
 
 export const runtime = "nodejs";
 
@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export async function GET() {
   const ctx = await getSessionContext();
   if (!ctx) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-  const b = await checkCoachAiBudget(ctx.userId, ctx.profile?.tenant_id ?? null);
+  const b = await checkClientAiBudget(ctx.userId, ctx.profile?.tenant_id ?? null);
   return NextResponse.json({
     limit: b.limit,
     used: b.used,

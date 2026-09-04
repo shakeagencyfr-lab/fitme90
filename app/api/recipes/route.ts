@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { recordCall } from "@/lib/ratelimit";
-import { checkRecipeAiBudget } from "@/lib/coach-ai-budget";
+import { checkClientAiBudget } from "@/lib/coach-ai-budget";
 import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
 import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
@@ -55,7 +55,7 @@ export async function POST() {
   const allowance = await checkAiAllowance(coachTenant, "action");
   if (!allowance.ok) return NextResponse.json({ error: allowance.error }, { status: 402 });
   {
-    const budget = await checkRecipeAiBudget(ctx.userId, coachTenant);
+    const budget = await checkClientAiBudget(ctx.userId, coachTenant);
     if (!budget.ok) {
       const n = budget.limit;
       return NextResponse.json(

@@ -6,7 +6,7 @@ import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
 import { exerciseShape } from "@/lib/program";
 import { recordCall } from "@/lib/ratelimit";
-import { checkCoachAiBudget } from "@/lib/coach-ai-budget";
+import { checkClientAiBudget } from "@/lib/coach-ai-budget";
 import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
 import { COACH_CREDENTIAL } from "@/lib/config";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
   // Porte d'accès : crédits (Modèle crédits) ou plafond journalier.
   const coachTenant = ctx.profile?.tenant_id ?? null;
   // Une alternative compte dans le quota journalier du plan, comme un message.
-  const budget = await checkCoachAiBudget(ctx.userId, coachTenant);
+  const budget = await checkClientAiBudget(ctx.userId, coachTenant);
   if (!budget.ok) {
     return NextResponse.json({ error: t("srv.aiQuotaMidnight") }, { status: 429 });
   }

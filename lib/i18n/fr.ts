@@ -122,6 +122,11 @@ export const fr = {
     cta: "Continuer sur 12 mois",
     unavailable: "Bascule indisponible.",
   },
+  // Solde d'actions IA, affiché à côté de chaque bouton qui en consomme.
+  quota: {
+    left: "{n}/{total} actions IA aujourd'hui",
+    none: "Quota IA atteint",
+  },
   widget: {
     greeting: "Salut, moi c'est {name}, ton coach. Pose-moi une question sur ta séance, un exercice, une substitution ou un repas. Tu peux aussi m'envoyer une photo (repas, machine) ou dicter à la voix.",
     // Article 50(1) de l'AI Act : le libellé nomme l'interlocuteur comme une IA
@@ -133,7 +138,7 @@ export const fr = {
     imageUnreadable: "Image illisible. Essaie une autre photo.",
     noVoice: "La dictée vocale n'est pas supportée par ce navigateur.",
     quotaUsed: "Quota du jour utilisé. Il se renouvelle à {time}.",
-    quotaLeft: "{n} message(s) restant(s) aujourd'hui · renouvelé à {time}",
+    quotaLeft: "{n} action(s) IA restante(s) aujourd'hui · renouvelé à {time}",
     newConversation: "Nouvelle conversation",
     conversations: "Conversations",
     today: "aujourd'hui",

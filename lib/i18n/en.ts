@@ -124,6 +124,10 @@ export const en: Shape<typeof fr> = {
     cta: "Continue for 12 months",
     unavailable: "Upgrade unavailable.",
   },
+  quota: {
+    left: "{n}/{total} AI actions today",
+    none: "Daily AI limit reached",
+  },
   widget: {
     greeting: "Hi, I'm {name}, your coach. Ask me about your workout, an exercise, a substitution or a meal. You can also send me a photo (meal, machine) or use voice dictation.",
     aiLabel: "AI assistant",
@@ -133,7 +137,7 @@ export const en: Shape<typeof fr> = {
     imageUnreadable: "Unreadable image. Try another photo.",
     noVoice: "Voice dictation is not supported by this browser.",
     quotaUsed: "Today's quota is used up. It renews at {time}.",
-    quotaLeft: "{n} message(s) left today · renews at {time}",
+    quotaLeft: "{n} AI action(s) left today · renews at {time}",
     newConversation: "New conversation",
     conversations: "Conversations",
     today: "today",

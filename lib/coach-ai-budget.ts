@@ -1,15 +1,38 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-// QUOTA JOURNALIER d'actions IA par client. Réglé par le coach, PAR OFFRE
-// (« Coach IA » coché sur le plan → quota de messages/jour), à défaut par sa
-// configuration générale, et plafonné par son revendeur quand celui-ci fournit
-// l'IA. Le compteur se remet au quota chaque jour à minuit (heure de Paris) :
-// rien ne s'accumule, 20 par jour et 7 restants ce soir font 20 demain matin,
-// pas 27. Le coach n'est débité que de ce que le client utilise réellement.
+// QUOTA JOURNALIER d'actions IA par client.
+//
+// UN SEUL COMPTEUR, POUR TOUT.
+//
+// Il y en avait deux : les messages d'un côté, les recettes de l'autre. Le
+// coach devait donc régler deux nombres, et le client se heurtait à deux murs
+// différents sans jamais savoir lequel il approchait. Une seule limite couvre
+// désormais les trois actions que le client peut déclencher : parler au Coach
+// IA, régénérer une recette, demander une alternative à un exercice.
+//
+// Ce que ça coûte en clarté du côté du coût : une recette coûte plus cher
+// qu'un message, donc un quota unique se chiffre au prix de l'action la plus
+// chère. C'est le bon compromis : un plafond légèrement pessimiste vaut mieux
+// que deux réglages que personne ne comprend.
+//
+// Réglé par le coach PAR OFFRE, à défaut par sa configuration générale, et
+// plafonné par son revendeur quand celui-ci fournit l'IA. Le compteur se remet
+// au quota chaque jour à minuit (heure de Paris) : rien ne s'accumule, 20 par
+// jour et 7 restants ce soir font 20 demain matin, pas 27. Le coach n'est
+// débité que de ce que le client utilise réellement.
 
 export const DEFAULT_COACH_AI_DAILY_LIMIT = 60;
-export const DEFAULT_RECIPE_AI_DAILY_LIMIT = 1;
+
+/**
+ * Les routes qui consomment le quota du client.
+ *
+ * Cette liste EST la définition de « une action IA ». Toute nouvelle route
+ * déclenchée par un client doit y figurer, sans quoi elle échapperait au
+ * plafond et donc à la facture que le coach croit maîtriser.
+ */
+export const CLIENT_AI_ROUTES = ["coach", "recipes"] as const;
+
 const TZ = "Europe/Paris";
 
 // Combine deux plafonds (0 = illimité) : la contrainte la plus stricte gagne.
@@ -96,43 +119,6 @@ export async function coachAiDailyLimit(tenantId: string | null, userId?: string
   return tighter(coachLimit, Math.max(0, parent.ai_client_daily_limit ?? 0));
 }
 
-/**
- * Plafond journalier de régénérations de recettes par client (0 = illimité).
- * Porté par l'OFFRE du client, comme le quota de messages ; à défaut, l'ancien
- * réglage global du coach, puis la constante.
- */
-export async function recipeAiDailyLimit(tenantId: string | null, userId?: string | null): Promise<number> {
-  if (!tenantId) return DEFAULT_RECIPE_AI_DAILY_LIMIT;
-  const admin = createAdminClient();
-
-  if (userId) {
-    const { data: prof } = await admin
-      .from("profiles")
-      .select("selected_offer_id")
-      .eq("id", userId)
-      .maybeSingle<{ selected_offer_id: string | null }>();
-    if (prof?.selected_offer_id) {
-      const { data: offer } = await admin
-        .from("offers")
-        .select("recipe_ai_daily_limit")
-        .eq("id", prof.selected_offer_id)
-        .maybeSingle<{ recipe_ai_daily_limit: number | null }>();
-      if (offer?.recipe_ai_daily_limit != null) return Math.max(0, offer.recipe_ai_daily_limit);
-    }
-  }
-
-  // Repli : valeur historique du coach, conservée pour ne rien casser sur les
-  // comptes réglés avant que le plafond ne passe dans l'offre.
-  const { data } = await admin
-    .from("coach_config")
-    .select("recipe_ai_daily_limit")
-    .eq("tenant_id", tenantId)
-    .maybeSingle<{ recipe_ai_daily_limit: number | null }>();
-  return data?.recipe_ai_daily_limit == null
-    ? DEFAULT_RECIPE_AI_DAILY_LIMIT
-    : Math.max(0, data.recipe_ai_daily_limit);
-}
-
 export interface BudgetState {
   ok: boolean;
   used: number;
@@ -143,8 +129,16 @@ export interface BudgetState {
   resetsAt: string;
 }
 
-/** Compte les appels d'une route depuis minuit (Paris) et compare à la limite. */
-async function checkRouteBudget(userId: string, route: string, limit: number): Promise<BudgetState> {
+/**
+ * Le quota du jour d'un client : TOUTES ses actions IA confondues.
+ *
+ * Le comptage porte sur l'ensemble des routes clientes, pas sur une seule.
+ * C'est ce qui rend la promesse tenable : « 20 actions par jour » veut dire
+ * vingt, quoi qu'on en fasse, et pas vingt d'un genre plus une poignée d'un
+ * autre.
+ */
+export async function checkClientAiBudget(userId: string, tenantId: string | null): Promise<BudgetState> {
+  const limit = await coachAiDailyLimit(tenantId, userId);
   const resetsAt = parisNextDayStart().toISOString();
   if (limit <= 0) return { ok: true, used: 0, limit: 0, remaining: Infinity, resetsAt };
   const admin = createAdminClient();
@@ -152,21 +146,8 @@ async function checkRouteBudget(userId: string, route: string, limit: number): P
     .from("ai_calls")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
-    .eq("route", route)
+    .in("route", [...CLIENT_AI_ROUTES])
     .gte("created_at", parisDayStart().toISOString());
   const used = count ?? 0;
   return { ok: used < limit, used, limit, remaining: Math.max(0, limit - used), resetsAt };
-}
-
-/**
- * Quota du jour du Coach IA pour un client (route "coach" : messages du chat
- * et alternatives d'exercice). Les recettes ont leur propre plafond.
- */
-export async function checkCoachAiBudget(userId: string, tenantId: string | null): Promise<BudgetState> {
-  return checkRouteBudget(userId, "coach", await coachAiDailyLimit(tenantId, userId));
-}
-
-/** Budget des régénérations de recettes du jour pour un client (route "recipes"). */
-export async function checkRecipeAiBudget(userId: string, tenantId: string | null): Promise<BudgetState> {
-  return checkRouteBudget(userId, "recipes", await recipeAiDailyLimit(tenantId, userId));
 }

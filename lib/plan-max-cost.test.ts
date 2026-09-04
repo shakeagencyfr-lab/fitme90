@@ -5,6 +5,8 @@ import {
   programDaysForMonths,
   estimateAiMonthlyCost,
   usdToEur,
+  AI_COST_RECIPE_USD,
+  AI_COST_COACH_MSG_USD,
 } from "./config";
 
 // Ce que le coach lit en cochant « Coach IA » sur une offre. C'est le chiffre
@@ -15,29 +17,36 @@ describe("coût maximum d'un plan en euros (BYOK)", () => {
   const days12 = programDaysForMonths(12);
 
   it("borne un plan à quota fermé", () => {
-    const c = planMaxCostEur({ programDays: days12, dailyQuota: 20, recipeQuota: 1 });
+    const c = planMaxCostEur({ programDays: days12, dailyQuota: 20 });
     expect(c.totalEur).not.toBeNull();
-    expect(c.messagesEur).toBeGreaterThan(0);
-    expect(c.recipesEur).toBeGreaterThan(0);
-    expect(c.totalEur).toBeCloseTo(c.programEur + c.memoryEur + c.messagesEur! + c.recipesEur!, 6);
+    expect(c.actionsEur).toBeGreaterThan(0);
+    expect(c.totalEur).toBeCloseTo(c.programEur + c.memoryEur + c.actionsEur!, 6);
   });
 
-  it("laisse le total ouvert dès qu'un plafond est illimité", () => {
-    expect(planMaxCostEur({ programDays: days3, dailyQuota: 0, recipeQuota: 1 }).totalEur).toBeNull();
-    expect(planMaxCostEur({ programDays: days3, dailyQuota: 20, recipeQuota: 0 }).totalEur).toBeNull();
+  it("chiffre les actions au prix de la plus chère, la recette", () => {
+    // Le quota est unique : rien n'empêche un client de passer ses vingt
+    // actions du jour à régénérer des recettes. Un plafond qu'un usage réel
+    // peut dépasser n'en est pas un.
+    const c = planMaxCostEur({ programDays: days3, dailyQuota: 20 });
+    expect(c.actionsEur).toBeCloseTo(usdToEur(20 * days3 * AI_COST_RECIPE_USD), 6);
+    expect(AI_COST_RECIPE_USD).toBeGreaterThan(AI_COST_COACH_MSG_USD);
+  });
+
+  it("laisse le total ouvert quand le quota est illimité", () => {
+    expect(planMaxCostEur({ programDays: days3, dailyQuota: 0 }).totalEur).toBeNull();
     // Le poste programme reste chiffrable : il ne dépend d'aucun plafond.
-    expect(planMaxCostEur({ programDays: days3, dailyQuota: 0, recipeQuota: 0 }).programEur).toBeGreaterThan(0);
+    expect(planMaxCostEur({ programDays: days3, dailyQuota: 0 }).programEur).toBeGreaterThan(0);
   });
 
   it("compte une génération par bloc de 3 mois", () => {
-    expect(planMaxCostEur({ programDays: days3, dailyQuota: 20, recipeQuota: 1 }).generations).toBe(1);
-    expect(planMaxCostEur({ programDays: days12, dailyQuota: 20, recipeQuota: 1 }).generations).toBe(4);
+    expect(planMaxCostEur({ programDays: days3, dailyQuota: 20 }).generations).toBe(1);
+    expect(planMaxCostEur({ programDays: days12, dailyQuota: 20 }).generations).toBe(4);
   });
 
   it("croît avec le quota et avec la durée", () => {
-    const petit = planMaxCostEur({ programDays: days3, dailyQuota: 10, recipeQuota: 1 }).totalEur!;
-    const gros = planMaxCostEur({ programDays: days3, dailyQuota: 40, recipeQuota: 1 }).totalEur!;
-    const long = planMaxCostEur({ programDays: days12, dailyQuota: 10, recipeQuota: 1 }).totalEur!;
+    const petit = planMaxCostEur({ programDays: days3, dailyQuota: 10 }).totalEur!;
+    const gros = planMaxCostEur({ programDays: days3, dailyQuota: 40 }).totalEur!;
+    const long = planMaxCostEur({ programDays: days12, dailyQuota: 10 }).totalEur!;
     expect(gros).toBeGreaterThan(petit);
     expect(long).toBeGreaterThan(petit);
   });
@@ -45,25 +54,37 @@ describe("coût maximum d'un plan en euros (BYOK)", () => {
   it("reste au-dessus de la dépense réaliste, sans être délirant", () => {
     // Le plafond doit majorer l'usage réel, sinon il ne protège de rien ; mais
     // s'il le majorait de 100x le coach refuserait un plan parfaitement sain.
-    const quota = 20;
-    const c = planMaxCostEur({ programDays: days3, dailyQuota: quota, recipeQuota: 1 });
+    const c = planMaxCostEur({ programDays: days3, dailyQuota: 20 });
     const reel = usdToEur(estimateAiMonthlyCost(0, 0).realMonth) * 3;
     expect(c.totalEur!).toBeGreaterThan(reel);
-    expect(c.totalEur!).toBeLessThan(reel * 30);
+    expect(c.totalEur!).toBeLessThan(reel * 60);
   });
 
   it("chiffre la mémoire, que rien ne plafonne", () => {
-    expect(planMaxCostEur({ programDays: days3, dailyQuota: 20, recipeQuota: 1 }).memoryEur).toBeGreaterThan(0);
+    expect(planMaxCostEur({ programDays: days3, dailyQuota: 20 }).memoryEur).toBeGreaterThan(0);
   });
 });
 
 describe("coût maximum d'un plan en crédits", () => {
-  it("facture les recettes comme les messages", () => {
-    const days = programDaysForMonths(3);
-    const sans = planMaxCredits({ programDays: days, dailyQuota: 20, programCredits: 40 });
-    const avec = planMaxCredits({ programDays: days, dailyQuota: 20, programCredits: 40, recipeQuota: 1 });
-    expect(sans.recipeCredits).toBe(0);
-    expect(avec.recipeCredits).toBe(days);
-    expect(avec.total).toBe(sans.total + days);
+  const days = programDaysForMonths(3);
+
+  it("compte une action par crédit, quelle que soit l'action", () => {
+    // Message, recette et alternative valent un crédit chacun : il n'y a plus
+    // deux postes à additionner, seulement le quota multiplié par les jours.
+    const c = planMaxCredits({ programDays: days, dailyQuota: 20, programCredits: 40 });
+    expect(c.actionCredits).toBe(20 * days);
+    expect(c.total).toBe(c.generationCredits + c.actionCredits);
+  });
+
+  it("laisse les générations seules quand le quota est illimité", () => {
+    const c = planMaxCredits({ programDays: days, dailyQuota: 0, programCredits: 40 });
+    expect(c.actionCredits).toBe(0);
+    expect(c.total).toBe(c.generationCredits);
+  });
+
+  it("compte une génération par bloc de 3 mois", () => {
+    expect(planMaxCredits({ programDays: days, dailyQuota: 20, programCredits: 40 }).generations).toBe(1);
+    const an = programDaysForMonths(12);
+    expect(planMaxCredits({ programDays: an, dailyQuota: 20, programCredits: 40 }).generations).toBe(4);
   });
 });
