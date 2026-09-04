@@ -604,7 +604,7 @@ export const en: Shape<typeof fr> = {
     noSub: "No active subscription.",
   },
   pdf: {
-    save: "Save as PDF",
+    save: "Download the PDF",
     eyebrow: "Training plan",
     title: "My program",
     titleFor: "{name}'s program",
@@ -616,6 +616,10 @@ export const en: Shape<typeof fr> = {
     carbs: "Carbs",
     fat: "Fat",
     footer: "Document generated on {date}. Fitness guidance for healthy people, not a substitute for medical advice.",
+    macroNote: "On a day without training, calories drop by about 10 % and carbs by a fifth. Protein stays: the rest day is what rebuilds the muscle.",
+    trainingDay: "Training day",
+    restDay: "Rest day",
+    print: "Print",
   },
   admin: {
     groups: { pilot: "Overview", sales: "Sales", content: "Content", settings: "Settings" },

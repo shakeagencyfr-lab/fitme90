@@ -7,7 +7,7 @@ import {
   dayMeals,
   shoppingList,
   shoppingListText,
-  targetKcalForDay,
+  macrosForDay,
   pnum,
   grp,
 } from "@/lib/nutrition";
@@ -130,10 +130,12 @@ export function NutritionView({
   const meals = useMemo(() => dayMeals(day, dayRest, baseKcal, banned, dislikes), [day, dayRest, baseKcal, banned, dislikes]);
   const groups = useMemo(() => shoppingList(day, span, isRestOf, baseKcal, banned, 90, dislikes), [day, span, isRestOf, baseKcal, banned, dislikes]);
 
-  // Macros deux états (README/PDF : jour de repos ≈ −10 % kcal, glucides −1/5, protéines maintenues).
-  const P = pnum(macros.protein), C = pnum(macros.carbs), F = pnum(macros.fat);
-  const trainKcal = targetKcalForDay(baseKcal, false);
-  const restKcal = targetKcalForDay(baseKcal, true);
+  // Macros deux états. La règle vit dans lib/nutrition, partagée avec le PDF :
+  // les deux doivent afficher les mêmes chiffres, sinon le client croit à une
+  // erreur de l'un des deux.
+  const base = { kcal: baseKcal, protein: pnum(macros.protein), carbs: pnum(macros.carbs), fat: pnum(macros.fat) };
+  const train = macrosForDay(base, false);
+  const repos = macrosForDay(base, true);
 
   async function copyList() {
     try {
@@ -263,19 +265,19 @@ export function NutritionView({
             title={t("nutrition.trainingDay")}
             tone="train"
             active={!dayRest}
-            kcal={grp(trainKcal)}
-            protein={`${Math.round(P)} g`}
-            carbs={`${Math.round(C)} g`}
-            fat={`${Math.round(F)} g`}
+            kcal={grp(train.kcal)}
+            protein={`${train.protein} g`}
+            carbs={`${train.carbs} g`}
+            fat={`${train.fat} g`}
           />
           <MacroCard
             title={t("nutrition.restDay")}
             tone="rest"
             active={dayRest}
-            kcal={grp(restKcal)}
-            protein={`${Math.round(P)} g`}
-            carbs={`${Math.round(C * 0.8)} g`}
-            fat={`${Math.round(F)} g`}
+            kcal={grp(repos.kcal)}
+            protein={`${repos.protein} g`}
+            carbs={`${repos.carbs} g`}
+            fat={`${repos.fat} g`}
           />
         </div>
         <Card className="bg-surface-2">

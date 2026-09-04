@@ -338,7 +338,11 @@ export default async function ProgrammePage({
           ) : null}
         </div>
         <p className="text-[14.5px] leading-[1.6] text-muted">{plan.summary}</p>
-        <ButtonLink href="/plan-pdf" variant="ghost" className="mt-1 h-10 self-start">
+        {/* Téléchargement direct : la route rend le fichier et l'envoie en
+            pièce jointe. Auparavant ce lien ouvrait une page qui appelait la
+            boîte d'impression du navigateur, où il fallait aller chercher
+            « Enregistrer au format PDF ». */}
+        <ButtonLink href="/api/plan-pdf" variant="ghost" className="mt-1 h-10 self-start" download>
           {t("dashboard.exportPdf")}
         </ButtonLink>
       </section>

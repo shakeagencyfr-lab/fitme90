@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { cycleSessions, type Plan, type Session } from "@/lib/program";
-import { PrintButton } from "@/components/print-button";
+import { PrintButton, pdfButtonClass } from "@/components/print-button";
 import { dateLocale, makeT, type Locale } from "@/lib/i18n";
+import { macrosForDay, pnum, grp } from "@/lib/nutrition";
 
 // Rendu autonome du plan pour l'export PDF (impression navigateur). Partagé par
 // la page client /plan-pdf et l'aperçu de démonstration.
@@ -12,6 +13,7 @@ export function PlanPdfView({
   logoUrl,
   locale,
   backHref = "/app",
+  downloadHref = null,
 }: {
   plan: Plan;
   clientName: string;
@@ -19,9 +21,25 @@ export function PlanPdfView({
   logoUrl: string | null;
   locale: Locale;
   backHref?: string | null;
+  /**
+   * Route qui rend le fichier PDF. Quand elle est fournie, le bouton télécharge
+   * pour de vrai ; sinon il ouvre l'impression du navigateur, seule option de
+   * l'aperçu de démonstration, qui n'a pas de session donc pas de fichier.
+   */
+  downloadHref?: string | null;
 }) {
   const t = makeT(locale);
   const today = new Date().toLocaleDateString(dateLocale(locale), { day: "numeric", month: "long", year: "numeric" });
+  // Mêmes chiffres que l'écran nutrition : la règle vit dans lib/nutrition,
+  // les deux surfaces la lisent au lieu de la recalculer chacune de son côté.
+  const base = {
+    kcal: pnum(plan.nutrition.kcal),
+    protein: pnum(plan.nutrition.protein),
+    carbs: pnum(plan.nutrition.carbs),
+    fat: pnum(plan.nutrition.fat),
+  };
+  const train = macrosForDay(base, false);
+  const repos = macrosForDay(base, true);
   return (
     <div className="mx-auto max-w-[820px] px-5 py-8 text-ink print:px-0 print:py-0">
       <style>{`
@@ -36,7 +54,16 @@ export function PlanPdfView({
 
       <div className="no-print mb-6 flex items-center justify-between gap-3">
         {backHref ? <Link href={backHref} className="text-[14px] text-muted hover:text-ink">← {t("common.back")}</Link> : <span />}
-        <PrintButton label={t("pdf.save")} />
+        {downloadHref ? (
+          <a href={downloadHref} download className={pdfButtonClass}>
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+            </svg>
+            {t("pdf.save")}
+          </a>
+        ) : (
+          <PrintButton label={t("pdf.print")} />
+        )}
       </div>
 
       <header className="mb-6 flex items-end justify-between gap-4 border-b border-line pb-5">
@@ -108,21 +135,38 @@ export function PlanPdfView({
         );
       })}
 
+      {/* Deux colonnes, parce qu'il y a deux jours différents. Un seul chiffre
+          laissait croire qu'on mange pareil un jour de séance et un jour de
+          repos, alors que l'application, elle, affiche bien les deux. */}
       <section className="mb-4">
         <h2 className="font-archivo text-[19px] font-bold tracking-[-0.01em] text-ink">{t("pdf.nutrition")}</h2>
-        <div className="mt-3 grid grid-cols-4 gap-2">
-          {[
-            [t("dashboard.caloriesPerDay"), plan.nutrition.kcal],
-            [t("pdf.protein"), `${plan.nutrition.protein} g`],
-            [t("pdf.carbs"), `${plan.nutrition.carbs} g`],
-            [t("pdf.fat"), `${plan.nutrition.fat} g`],
-          ].map(([label, value]) => (
-            <div key={label} className="pdf-card rounded-lg border border-line bg-surface px-3 py-2.5">
-              <div className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted">{label}</div>
-              <div className="mt-0.5 font-archivo text-[17px] font-extrabold text-ink">{value}</div>
-            </div>
-          ))}
+        <div className="mt-3 overflow-hidden rounded-lg border border-line pdf-card">
+          <table className="w-full border-collapse text-[12.5px]">
+            <thead>
+              <tr className="border-b border-line bg-surface-2 text-left">
+                <th className="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted"> </th>
+                {[t("dashboard.caloriesPerDay"), t("pdf.protein"), t("pdf.carbs"), t("pdf.fat")].map((h) => (
+                  <th key={h} className="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { titre: t("pdf.trainingDay"), m: train },
+                { titre: t("pdf.restDay"), m: repos },
+              ].map((ligne, i) => (
+                <tr key={ligne.titre} className={i > 0 ? "border-t border-line" : ""}>
+                  <td className="px-3 py-2.5 font-archivo text-[13px] font-bold text-ink">{ligne.titre}</td>
+                  <td className="px-3 py-2.5 font-archivo text-[16px] font-extrabold text-ink">{grp(ligne.m.kcal)}</td>
+                  <td className="px-3 py-2.5 font-archivo text-[16px] font-extrabold text-ink">{ligne.m.protein} g</td>
+                  <td className="px-3 py-2.5 font-archivo text-[16px] font-extrabold text-ink">{ligne.m.carbs} g</td>
+                  <td className="px-3 py-2.5 font-archivo text-[16px] font-extrabold text-ink">{ligne.m.fat} g</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+        <p className="mt-2 text-[11.5px] leading-[1.6] text-muted">{t("pdf.macroNote")}</p>
       </section>
 
       <p className="mt-8 border-t border-line pt-4 text-[11px] leading-[1.6] text-muted">{t("pdf.footer", { date: today })}</p>
