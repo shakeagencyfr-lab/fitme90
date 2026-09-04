@@ -197,6 +197,43 @@ export function targetKcalForDay(baseKcal: number, isRestDay: boolean): number {
   return Math.round(baseKcal * (isRestDay ? 0.9 : 1));
 }
 
+/** Part des glucides conservée un jour de repos. */
+export const REST_CARB_RATIO = 0.8;
+
+export interface DayMacros {
+  kcal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+/**
+ * Macros cibles d'un jour, selon qu'on s'entraîne ou non.
+ *
+ * La règle tient en une phrase, et c'est elle qu'il faut connaître pour lire
+ * le tableau : un jour de repos, on baisse les GLUCIDES, pas les protéines.
+ * Les glucides servent à alimenter la séance ; sans séance, ils ne servent à
+ * rien. Les protéines, elles, servent à réparer ce que la séance de la veille
+ * a abîmé : les baisser un jour de repos reviendrait à couper la
+ * reconstruction au moment précis où elle a lieu. Les lipides ne bougent pas,
+ * ils portent l'équilibre hormonal.
+ *
+ * Le calcul vivait en double, dans l'écran nutrition et nulle part ailleurs.
+ * Le sortir ici permet au PDF d'afficher exactement les mêmes chiffres que
+ * l'application, et de les tester une fois pour les deux.
+ */
+export function macrosForDay(
+  base: { kcal: number; protein: number; carbs: number; fat: number },
+  isRestDay: boolean,
+): DayMacros {
+  return {
+    kcal: targetKcalForDay(base.kcal, isRestDay),
+    protein: Math.round(base.protein),
+    carbs: Math.round(base.carbs * (isRestDay ? REST_CARB_RATIO : 1)),
+    fat: Math.round(base.fat),
+  };
+}
+
 export interface ScaledMeal {
   time: string;
   slot: string;

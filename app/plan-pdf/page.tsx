@@ -36,6 +36,7 @@ export default async function PlanPdfPage() {
       coachName={brand?.name ?? (locale === "en" ? "Your coach" : "Ton coach")}
       logoUrl={brand?.logoUrl ?? null}
       locale={locale}
+      downloadHref="/api/plan-pdf"
     />
   );
 }

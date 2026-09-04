@@ -602,7 +602,7 @@ export const fr = {
     noSub: "Aucun abonnement actif.",
   },
   pdf: {
-    save: "Enregistrer en PDF",
+    save: "Télécharger le PDF",
     eyebrow: "Plan d'entraînement",
     title: "Mon programme",
     titleFor: "Programme de {name}",
@@ -614,6 +614,10 @@ export const fr = {
     carbs: "Glucides",
     fat: "Lipides",
     footer: "Document généré le {date}. Conseils de forme pour personnes en bonne santé, ne remplace pas un avis médical.",
+    macroNote: "Un jour sans entraînement, on retire environ 10 % des calories et un cinquième des glucides. Les protéines ne bougent pas : c'est le jour de repos qui reconstruit le muscle.",
+    trainingDay: "Jour d'entraînement",
+    restDay: "Jour de repos",
+    print: "Imprimer",
   },
   admin: {
     groups: { pilot: "Pilotage", sales: "Vente", content: "Contenu", settings: "Réglages" },

@@ -141,16 +141,23 @@ export function ButtonLink({
   full,
   className,
   children,
+  download,
 }: {
   href: string;
   variant?: ButtonVariant;
   full?: boolean;
   className?: string;
   children: ReactNode;
+  /** Télécharge la cible au lieu de naviguer dessus (fichier servi en pièce jointe). */
+  download?: boolean;
 }) {
   return (
     <Link
       href={href}
+      download={download}
+      // Un téléchargement n'est pas une navigation : le laisser passer par le
+      // routeur ferait tenter à Next un rendu de page pour une réponse binaire.
+      prefetch={download ? false : undefined}
       className={cx(buttonBase, buttonVariants[variant], full && "w-full", className)}
     >
       {children}
