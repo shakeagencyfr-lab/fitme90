@@ -1,10 +1,11 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isDescendantTenant } from "@/lib/support-access";
-import { creditWallet } from "@/lib/credits";
+import { creditWallet, resellerBilling } from "@/lib/credits";
 import { purgeUser } from "@/lib/account-deletion";
 import { stripeForTenant } from "@/lib/coach-payments";
 import { grantTenantPlan } from "@/lib/tenant-billing";
+import { whoPays } from "@/lib/ai-supply";
 
 // Actions d'un opérateur réseau (plateforme ou revendeur) sur un compte de sa
 // descendance : désactiver / réactiver, offrir des crédits IA, supprimer.
@@ -60,16 +61,22 @@ export async function reactivateTenant(actorTenantId: string, targetTenantId: st
  * L'acteur fournit-il les crédits IA de la cible ? Vrai si un coach dont le
  * revendeur vend l'IA en crédits, ou un revendeur qui achète ses crédits à la
  * plateforme. En BYOK, il n'y a pas de portefeuille à créditer.
+ *
+ * Pour un coach, la condition n'est pas seulement « mon modèle est en
+ * crédits » : encore faut-il que je lui FOURNISSE l'IA. Un revendeur en
+ * « coachs autonomes » proposait sinon d'offrir des crédits à un coach qui
+ * tourne sur sa propre clé et n'en dépensera jamais un seul.
  */
 export async function canGiftCredits(actorTenantId: string, targetTenantId: string): Promise<boolean> {
   const admin = createAdminClient();
-  const [{ data: actor }, { data: target }] = await Promise.all([
-    admin.from("tenants").select("kind, reseller_model").eq("id", actorTenantId).maybeSingle<{ kind: string; reseller_model: string | null }>(),
-    admin.from("tenants").select("kind, ai_supply, parent_id").eq("id", targetTenantId).maybeSingle<{ kind: string; ai_supply: string | null; parent_id: string | null }>(),
-  ]);
-  if (!actor || !target || target.parent_id !== actorTenantId) return false;
+  const { data: target } = await admin
+    .from("tenants")
+    .select("kind, ai_supply, parent_id")
+    .eq("id", targetTenantId)
+    .maybeSingle<{ kind: string; ai_supply: string | null; parent_id: string | null }>();
+  if (!target || target.parent_id !== actorTenantId) return false;
   if (target.kind === "reseller") return target.ai_supply === "platform_credits";
-  if (target.kind === "coach") return actor.reseller_model === "credits";
+  if (target.kind === "coach") return whoPays(await resellerBilling(actorTenantId)).coach;
   return false;
 }
 

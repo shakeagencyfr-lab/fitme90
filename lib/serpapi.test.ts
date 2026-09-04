@@ -13,13 +13,13 @@ import { serpApiEnabled, searchPlaces, fetchPlaceDraft } from "./serpapi";
 
 const CLE = "abcdef0123456789abcdef0123456789";
 
-/** Réponse HTTP simulée. */
+/**
+ * Réponse HTTP simulée. Un vrai `Response`, pas un objet qui lui ressemble :
+ * la lecture du corps est bornée par flux, et un faux sans `body` ni `headers`
+ * ne dirait rien de ce que le code fait vraiment.
+ */
 function reponse(body: unknown, status = 200): Response {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    text: async () => (typeof body === "string" ? body : JSON.stringify(body)),
-  } as Response;
+  return new Response(typeof body === "string" ? body : JSON.stringify(body), { status });
 }
 
 /** `fetch` de test : enregistre les adresses appelées, rend des corps en file. */

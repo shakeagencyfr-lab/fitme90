@@ -1,4 +1,5 @@
 import "server-only";
+import { readBoundedText } from "@/lib/bounded-body";
 import {
   buildDraft,
   readCandidates,
@@ -24,8 +25,8 @@ import {
  * ouverte bloque la fonction serverless jusqu'à sa limite, et le coach n'a
  * qu'un écran figé.
  *
- * La réponse est bornée. Un corps énorme, accidentel ou non, remplirait la
- * mémoire du processus avant même qu'on l'analyse.
+ * La réponse est bornée, et bornée à la lecture : un corps énorme, accidentel
+ * ou non, remplirait la mémoire du processus avant même qu'on l'analyse.
  */
 
 const BASE = "https://serpapi.com/search.json";
@@ -72,8 +73,10 @@ async function call(
       if (res.status === 429) return { ok: false, error: "Trop de recherches d'un coup. Réessaie dans une minute." };
       return { ok: false, error: "Google n'a pas répondu. Réessaie dans un instant." };
     }
-    const brut = await res.text();
-    if (brut.length > MAX_BYTES) return { ok: false, error: "Réponse Google inexploitable." };
+    // Lecture bornée pour de vrai : `res.text()` aurait déjà tout chargé avant
+    // qu'on puisse refuser.
+    const brut = await readBoundedText(res, MAX_BYTES);
+    if (brut === null) return { ok: false, error: "Réponse Google inexploitable." };
     const json = JSON.parse(brut) as unknown;
     if (!json || typeof json !== "object" || Array.isArray(json)) {
       return { ok: false, error: "Réponse Google inexploitable." };
