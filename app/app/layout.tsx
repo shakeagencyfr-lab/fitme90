@@ -17,6 +17,7 @@ import { brandMetadataForUser } from "@/lib/brand-metadata";
 import { readCoachName } from "@/lib/methodology";
 import { tenantFreezeState } from "@/lib/freeze";
 import { FrozenScreen } from "@/components/frozen-screen";
+import { SupportReturnBar } from "@/components/support-return-bar";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
 import { makeT } from "@/lib/i18n";
 import { LocaleProvider } from "@/components/locale-provider";
@@ -71,6 +72,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <LocaleProvider locale={locale}>
     <div className="min-h-dvh bg-paper nav:flex nav:items-start" style={accentStyle}>
+      {/* Le coach qui saisit pour son client doit voir en permanence au nom de
+          qui il enregistre, et pouvoir en sortir d'un geste. */}
+      <div className="fixed inset-x-0 top-0 z-50"><SupportReturnBar /></div>
       <AppNav
         day={day}
         dayPct={dayPct}

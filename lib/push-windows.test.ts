@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
-import { PUSH_WINDOWS, windowInstant, nextWindow, isServedInstant } from "./push-windows";
+import { PUSH_WINDOWS, windowInstant, nextWindow, isServedInstant, preciseScheduling } from "./push-windows";
 
 // Le formulaire ne doit proposer QUE des créneaux que le dispatcher sert
 // réellement. La seule façon de le garantir dans la durée est de comparer
@@ -75,5 +75,39 @@ describe("isServedInstant", () => {
     for (const iso of ["2026-05-20T21:15:00Z", "2026-05-20T18:01:00Z", "2026-05-20T02:00:00Z"]) {
       expect(isServedInstant(new Date(iso)), iso).toBe(false);
     }
+  });
+});
+
+describe("ordonnanceur à la minute (pg_cron)", () => {
+  // Le drapeau ouvre le choix de l'heure dans le formulaire. Formulaire et
+  // garde serveur lisent la MÊME fonction : ils ne peuvent pas diverger, sans
+  // quoi l'un promettrait une heure que l'autre refuse.
+  const initial = process.env.NEXT_PUBLIC_PUSH_PRECISE;
+  afterEach(() => {
+    if (initial === undefined) delete process.env.NEXT_PUBLIC_PUSH_PRECISE;
+    else process.env.NEXT_PUBLIC_PUSH_PRECISE = initial;
+  });
+
+  it("reste sur les quatre créneaux tant que le drapeau est absent", () => {
+    delete process.env.NEXT_PUBLIC_PUSH_PRECISE;
+    expect(preciseScheduling()).toBe(false);
+    // 18 h 30 UTC n'est servi par aucun cron Vercel.
+    expect(isServedInstant(new Date("2026-09-10T18:30:00.000Z"))).toBe(false);
+    expect(isServedInstant(new Date("2026-09-10T18:00:00.000Z"))).toBe(true);
+  });
+
+  it("accepte le quart d'heure une fois le drapeau posé", () => {
+    process.env.NEXT_PUBLIC_PUSH_PRECISE = "1";
+    expect(preciseScheduling()).toBe(true);
+    for (const m of ["00", "15", "30", "45"]) {
+      expect(isServedInstant(new Date(`2026-09-10T18:${m}:00.000Z`))).toBe(true);
+    }
+  });
+
+  it("refuse une heure hors de la grille, même en mode précis", () => {
+    process.env.NEXT_PUBLIC_PUSH_PRECISE = "1";
+    expect(isServedInstant(new Date("2026-09-10T18:07:00.000Z"))).toBe(false);
+    // Les secondes comptent : une valeur bricolée à la main ne passe pas.
+    expect(isServedInstant(new Date("2026-09-10T18:15:30.000Z"))).toBe(false);
   });
 });

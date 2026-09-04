@@ -8,6 +8,13 @@
 //
 // Ce module est la source unique de vérité, partagée par le formulaire et par
 // le test qui vérifie qu'elle correspond bien à vercel.json.
+//
+// MODE PRÉCIS. Quand `pg_cron` appelle /api/cron/dispatch toutes les cinq
+// minutes depuis Supabase (voir supabase/pg-cron-notifications.sql), la
+// contrainte des quatre créneaux tombe : n'importe quelle heure part à cinq
+// minutes près. On l'active alors par NEXT_PUBLIC_PUSH_PRECISE=1. Le drapeau
+// est explicite plutôt que déduit : le formulaire ne doit jamais promettre une
+// heure que l'infrastructure en place ne sait pas tenir.
 
 export interface PushWindow {
   /** Heure UTC du cron. */
@@ -54,7 +61,27 @@ export function nextWindow(from: Date, days = 3): { date: string; window: PushWi
   return null;
 }
 
-/** L'instant tombe-t-il exactement sur un créneau servi ? */
+/** Pas de la grille horaire en mode précis, en minutes. */
+export const PRECISE_STEP_MIN = 15;
+
+/**
+ * L'ordonnanceur à la minute est-il en place ?
+ *
+ * Lu des deux côtés (formulaire et garde serveur) pour qu'ils ne puissent pas
+ * diverger : un formulaire plus permissif que la garde renverrait une erreur
+ * après coup, une garde plus permissive laisserait passer des heures jamais
+ * servies.
+ */
+export function preciseScheduling(): boolean {
+  return process.env.NEXT_PUBLIC_PUSH_PRECISE === "1";
+}
+
+/** L'instant tombe-t-il sur un créneau réellement servi ? */
 export function isServedInstant(at: Date): boolean {
+  if (preciseScheduling()) {
+    // Une grille au quart d'heure : assez fine pour que personne ne la sente,
+    // assez grossière pour rester lisible et pour absorber le pas du cron.
+    return at.getUTCSeconds() === 0 && at.getUTCMinutes() % PRECISE_STEP_MIN === 0;
+  }
   return PUSH_WINDOWS.some((w) => at.getUTCHours() === w.hour && at.getUTCMinutes() === w.minute);
 }

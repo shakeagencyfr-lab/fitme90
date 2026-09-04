@@ -15,7 +15,7 @@ import { isServedInstant } from "@/lib/push-windows";
 import { getAdminOrNull } from "@/lib/admin";
 import { tenantNode } from "@/lib/hierarchy";
 import { createChildTenantAccount } from "@/lib/admin-provision";
-import { isDescendantTenant, loginLinkForUser, establishSupportSession, logSupportAccess } from "@/lib/support-access";
+import { isDescendantTenant, isOwnClient, loginLinkForUser, establishSupportSession, logSupportAccess } from "@/lib/support-access";
 import { broadcastPushToUsers } from "@/lib/push";
 import { resolveAudience, type AudienceFilter } from "@/lib/audience";
 import {
@@ -1564,13 +1564,62 @@ export async function supportLoginAs(formData: FormData): Promise<void> {
   redirect("/admin");
 }
 
+/**
+ * Mode assistance d'un COACH sur l'un de ses clients.
+ *
+ * Le cas d'usage est le coaching en présentiel : pendant la séance, c'est le
+ * coach qui note les charges soulevées, pas l'adhérent qui a les mains prises.
+ * Il ouvre donc l'espace du client et saisit à sa place.
+ *
+ * Même mécanique que l'assistance réseau, garde différente. Un revendeur
+ * descend dans un compte de sa DESCENDANCE ; un coach reste dans SON tenant et
+ * ne peut viser qu'un compte de rôle « client ». `isOwnClient` vérifie les
+ * deux, ce qui interdit au passage de prendre la main sur le compte
+ * propriétaire d'une salle.
+ */
+export async function assistClient(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  const actorTenantId = ctx?.profile?.tenant_id ?? null;
+  const targetUserId = String(formData.get("target_user_id") ?? "").trim();
+  const refus = `/admin/clients/${targetUserId || ""}?assistance=refus`;
+  if (!ctx || !actorTenantId || !targetUserId) redirect("/admin");
+  if (!(await isOwnClient(actorTenantId, targetUserId))) redirect(refus);
+
+  const admin = createAdminClient();
+  const { data: target } = await admin
+    .from("profiles")
+    .select("name, email")
+    .eq("id", targetUserId)
+    .maybeSingle<{ name: string | null; email: string | null }>();
+
+  // Tracé avant d'agir : un accès refusé plus loin laisse quand même la trace
+  // de la tentative, et un accès réussi n'est jamais silencieux.
+  await logSupportAccess({ actorUserId: ctx.userId, actorTenantId, targetUserId, targetTenantId: actorTenantId });
+  const ok = await establishSupportSession(targetUserId);
+  if (!ok) redirect(`/admin/clients/${targetUserId}?assistance=echec`);
+
+  await setSupportReturn({
+    actorUserId: ctx.userId,
+    actorName: ctx.profile?.name ?? "",
+    targetUserId,
+    targetName: target?.name || target?.email || "",
+    backTo: `/admin/clients/${targetUserId}`,
+    kind: "client",
+  });
+  // Directement sur la séance du jour : c'est là que le coach va saisir.
+  redirect("/app/seance");
+}
+
 /** Retour à l'espace de l'opérateur après une assistance (cookie signé). */
 export async function returnFromSupport(): Promise<void> {
   const back = await readSupportReturn();
   await clearSupportReturn();
   if (!back) redirect("/admin");
   const ok = await establishSupportSession(back.actorUserId);
-  redirect(ok ? "/admin/reseau" : "/connexion");
+  if (!ok) redirect("/connexion");
+  // Le coach revient sur la fiche du client qu'il assistait, l'opérateur
+  // réseau sur sa liste de comptes.
+  redirect(back.backTo ?? "/admin/reseau");
 }
 
 // ───────────────────────── Réseau : actions sur un compte enfant ─────────────────────────

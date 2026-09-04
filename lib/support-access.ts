@@ -102,3 +102,22 @@ export async function logSupportAccess(entry: {
     /* la traçabilité ne doit jamais empêcher le dépannage */
   }
 }
+
+/**
+ * `targetUserId` est-il un CLIENT du tenant `coachTenantId` ?
+ *
+ * Garde du mode assistance coach. Elle ne ressemble pas à
+ * `isDescendantTenant` : un client vit dans le MÊME tenant que son coach, pas
+ * en dessous. Le rôle est vérifié explicitement pour qu'un coach ne puisse pas
+ * prendre la main sur le compte propriétaire de sa propre salle.
+ */
+export async function isOwnClient(coachTenantId: string, targetUserId: string): Promise<boolean> {
+  if (!coachTenantId || !targetUserId) return false;
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("profiles")
+    .select("tenant_id, role")
+    .eq("id", targetUserId)
+    .maybeSingle<{ tenant_id: string | null; role: string | null }>();
+  return data?.tenant_id === coachTenantId && data?.role === "client";
+}

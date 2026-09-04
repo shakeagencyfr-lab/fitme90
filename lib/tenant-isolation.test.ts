@@ -219,3 +219,40 @@ describe("palette de recherche", () => {
     expect(await res.json()).toEqual({ people: [] });
   });
 });
+
+describe("mode assistance d'un coach sur son client", () => {
+  // Cette garde ouvre la session de quelqu'un d'autre. Elle doit refuser tout
+  // ce qui n'est pas exactement « un compte de rôle client, dans MON tenant ».
+  async function autorise(row: Record<string, unknown> | undefined) {
+    install({ profiles: row ? [row] : [] });
+    const { isOwnClient } = await import("@/lib/support-access");
+    return isOwnClient(TENANT, "cible");
+  }
+
+  it("autorise un client de son propre tenant", async () => {
+    expect(await autorise({ tenant_id: TENANT, role: "client" })).toBe(true);
+  });
+
+  it("refuse le client d'un autre coach", async () => {
+    expect(await autorise({ tenant_id: AUTRE, role: "client" })).toBe(false);
+  });
+
+  it("refuse le compte propriétaire, même dans son tenant", async () => {
+    // Sinon un coach salarié d'une salle prendrait la main sur le compte du
+    // gérant, avec sa facturation et ses réglages.
+    expect(await autorise({ tenant_id: TENANT, role: "owner" })).toBe(false);
+    expect(await autorise({ tenant_id: TENANT, role: "coach" })).toBe(false);
+  });
+
+  it("refuse un compte introuvable ou sans tenant", async () => {
+    expect(await autorise(undefined)).toBe(false);
+    expect(await autorise({ tenant_id: null, role: "client" })).toBe(false);
+  });
+
+  it("refuse quand l'appelant n'a pas de tenant", async () => {
+    install({ profiles: [{ tenant_id: TENANT, role: "client" }] });
+    const { isOwnClient } = await import("@/lib/support-access");
+    expect(await isOwnClient("", "cible")).toBe(false);
+    expect(await isOwnClient(TENANT, "")).toBe(false);
+  });
+});

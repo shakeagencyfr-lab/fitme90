@@ -6,11 +6,11 @@ import { getAdminOrNull } from "@/lib/admin";
 import { computeAccess, accessLabel } from "@/lib/access";
 import { restPattern, startWeekday } from "@/lib/schedule";
 import { computeAdherence } from "@/lib/streak";
-import { Card, MonoLabel } from "@/components/ui";
+import { Alert, Card, MonoLabel } from "@/components/ui";
 import { ClientPush } from "@/components/client-push";
 import { MiniWeightChart, type WeightPoint } from "@/components/mini-weight-chart";
 import { CoachNoteForm } from "@/components/coach-note-form";
-import { deleteCoachNote } from "@/app/admin/actions";
+import { assistClient, deleteCoachNote } from "@/app/admin/actions";
 import { DeleteClientButton } from "@/components/delete-client-button";
 import { VipChat } from "@/components/vip-chat";
 import { clientVipContext, listVipMessages, markThreadRead, type VipMessage } from "@/lib/vip";
@@ -61,10 +61,17 @@ const fmtDateTime = (d: string) =>
 const val = (v: unknown) =>
   Array.isArray(v) ? v.join(", ") : v == null || v === "" ? "·" : String(v);
 
-export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ClientDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ assistance?: string }>;
+}) {
   const gate = await getAdminOrNull();
   if (!gate) notFound();
   const { id } = await params;
+  const { assistance: assistanceErreur } = await searchParams;
   const admin = createAdminClient();
 
   const [{ data: profile }, { data: quiz }, { data: prog }, { data: logs }, { data: weights }, { data: measures }, { data: notes }] =
@@ -163,14 +170,38 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1">
-        <Link href="/admin" className="text-[13px] font-medium text-muted-2 hover:text-ink">
-          {tx("← Tous les clients")}</Link>
-        <h1 className="font-archivo font-extrabold text-[clamp(24px,5vw,34px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          {displayName}
-        </h1>
-        <p className="text-[13px] text-muted-2">{profile.email}</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <Link href="/admin" className="text-[13px] font-medium text-muted-2 hover:text-ink">
+            {tx("← Tous les clients")}</Link>
+          <h1 className="font-archivo font-extrabold text-[clamp(24px,5vw,34px)] leading-[1.05] tracking-[-0.03em] text-ink">
+            {displayName}
+          </h1>
+          <p className="text-[13px] text-muted-2">{profile.email}</p>
+        </div>
+        {/* Coaching en présentiel : pendant la séance c'est le coach qui note
+            les charges, l'adhérent a les mains prises. */}
+        <form action={assistClient}>
+          <input type="hidden" name="target_user_id" value={profile.id} />
+          <button
+            type="submit"
+            className="press tap inline-flex h-10 items-center gap-2 rounded-btn border border-line-4 bg-surface px-4 text-[13.5px] font-semibold text-ink transition-colors hover:border-ink"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+            </svg>
+            {tx("Saisir pour ce client")}
+          </button>
+        </form>
       </div>
+
+      {assistanceErreur ? (
+        <Alert>
+          {assistanceErreur === "refus"
+            ? tx("Ce client n'est pas rattaché à ton compte.")
+            : tx("La connexion en saisie a échoué. Réessaie dans un instant.")}
+        </Alert>
+      ) : null}
 
       {/* Progression */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

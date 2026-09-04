@@ -11,7 +11,7 @@ import {
   type NotifState,
 } from "@/app/admin/actions";
 import { Card, Button, Alert, MonoLabel, Field, TextArea } from "@/components/ui";
-import { PUSH_WINDOWS, windowInstant, nextWindow } from "@/lib/push-windows";
+import { PUSH_WINDOWS, windowInstant, nextWindow, preciseScheduling, PRECISE_STEP_MIN } from "@/lib/push-windows";
 
 interface Scheduled {
   id: string;
@@ -115,6 +115,8 @@ function SlotPicker() {
   const first = now ? nextWindow(now) : null;
   const [date, setDate] = useState("");
   const [slot, setSlot] = useState(0);
+  const [time, setTime] = useState("18:00");
+  const precise = preciseScheduling();
 
   useEffect(() => {
     if (!first) return;
@@ -124,7 +126,17 @@ function SlotPicker() {
     });
   }, [first]);
 
-  const chosen = date ? windowInstant(date, PUSH_WINDOWS[slot] ?? PUSH_WINDOWS[0]) : null;
+  // En mode précis, l'heure saisie est LOCALE : `new Date("2026-09-04T18:30")`
+  // l'interprète dans le fuseau du navigateur, ce qu'on veut. Le hidden envoie
+  // ensuite l'instant absolu, donc le serveur n'a aucun fuseau à deviner.
+  const chosen = !date
+    ? null
+    : precise
+      ? (() => {
+          const d = new Date(`${date}T${time || "18:00"}`);
+          return Number.isNaN(d.getTime()) ? null : d;
+        })()
+      : windowInstant(date, PUSH_WINDOWS[slot] ?? PUSH_WINDOWS[0]);
   const past = !!(chosen && now && chosen.getTime() <= now.getTime());
   const todayISO = now ? new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10) : "";
 
@@ -153,14 +165,29 @@ function SlotPicker() {
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-[13.5px] font-medium text-body-2">{tx("Créneau d'envoi")}</span>
-          <select value={slot} onChange={(e) => setSlot(Number(e.target.value))} className={selectClass}>
-            {PUSH_WINDOWS.map((w, i) => (
-              <option key={`${w.hour}:${w.minute}`} value={i}>
-                {localTime(w)} · {tx(w.role)}
-              </option>
-            ))}
-          </select>
+          <span className="text-[13.5px] font-medium text-body-2">
+            {precise ? tx("Heure d'envoi") : tx("Créneau d'envoi")}
+          </span>
+          {precise ? (
+            // Ordonnanceur à la minute en place : l'heure est libre, au quart
+            // d'heure près. `step` cale le sélecteur natif sur la même grille
+            // que la garde serveur.
+            <input
+              type="time"
+              step={PRECISE_STEP_MIN * 60}
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className={selectClass}
+            />
+          ) : (
+            <select value={slot} onChange={(e) => setSlot(Number(e.target.value))} className={selectClass}>
+              {PUSH_WINDOWS.map((w, i) => (
+                <option key={`${w.hour}:${w.minute}`} value={i}>
+                  {localTime(w)} · {tx(w.role)}
+                </option>
+              ))}
+            </select>
+          )}
         </label>
       </div>
 
