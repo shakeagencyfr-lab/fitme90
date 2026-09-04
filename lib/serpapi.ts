@@ -51,6 +51,34 @@ export function serpApiEnabled(): boolean {
 /** `fetch` remplaçable, pour tester sans réseau. */
 export type Fetcher = typeof fetch;
 
+/**
+ * Trace serveur d'un appel raté : les paramètres MÉTIER, le statut, et ce que
+ * SerpApi dit lui-même. Jamais l'adresse appelée, qui porte la clé en clair.
+ *
+ * `api_key` est retiré explicitement plutôt que par confiance dans l'appelant :
+ * c'est le genre d'oubli qui publie une clé dans les logs d'un hébergeur.
+ */
+function journal(params: Record<string, string>, status: number, detail: string): void {
+  const { api_key: _cle, ...sansCle } = params;
+  console.error("[serpapi]", { params: sansCle, status, detail });
+}
+
+/**
+ * Le message d'erreur que SerpApi renvoie dans son corps, borné et sans rien
+ * d'autre. C'est presque toujours lui qui explique un 4xx (« Invalid data_id »,
+ * « missing parameter »), et sans lui on en est réduit aux suppositions.
+ */
+async function messageErreur(res: Response): Promise<string> {
+  try {
+    const brut = await readBoundedText(res, 8 * 1024);
+    if (!brut) return "corps illisible";
+    const o = JSON.parse(brut) as { error?: unknown };
+    return typeof o?.error === "string" ? o.error.slice(0, 300) : brut.slice(0, 200);
+  } catch {
+    return "corps illisible";
+  }
+}
+
 async function call(
   params: Record<string, string>,
   fetcher: Fetcher,
@@ -67,10 +95,18 @@ async function call(
   try {
     const res = await fetcher(url.toString(), { signal: ctrl.signal, cache: "no-store" });
     if (!res.ok) {
-      // Le statut suffit à diagnostiquer ; le corps peut contenir l'adresse
-      // appelée, donc la clé.
+      // Le message rendu au coach reste générique, mais le SERVEUR doit savoir
+      // ce qui s'est passé. Ne rien tracer rendait l'import indébogable : en
+      // production, tout ce qu'on voyait était « Google n'a pas répondu », pour
+      // une clé refusée comme pour un paramètre invalide.
+      journal(params, res.status, await messageErreur(res));
       if (res.status === 401 || res.status === 403) return { ok: false, error: "Clé Google refusée." };
       if (res.status === 429) return { ok: false, error: "Trop de recherches d'un coup. Réessaie dans une minute." };
+      // Un 4xx n'est pas un incident réseau : réessayer ne changera rien, et le
+      // dire ferait tourner le coach en rond.
+      if (res.status >= 400 && res.status < 500) {
+        return { ok: false, error: "Google n'a pas accepté cette demande. Choisis une autre fiche ou relance la recherche." };
+      }
       return { ok: false, error: "Google n'a pas répondu. Réessaie dans un instant." };
     }
     // Lecture bornée pour de vrai : `res.text()` aurait déjà tout chargé avant
@@ -87,9 +123,10 @@ async function call(
       return { ok: false, error: "Aucun résultat pour cette recherche." };
     }
     return { ok: true, data: obj };
-  } catch {
+  } catch (e) {
     // Coupure, délai dépassé, JSON illisible : la cause exacte n'aide pas le
-    // coach, et le détail pourrait porter l'adresse appelée.
+    // coach, mais elle est indispensable côté serveur.
+    journal(params, 0, e instanceof Error ? e.name : "erreur inconnue");
     return { ok: false, error: "Google n'a pas répondu. Réessaie dans un instant." };
   } finally {
     clearTimeout(minuterie);
