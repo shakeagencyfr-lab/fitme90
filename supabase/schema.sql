@@ -437,6 +437,8 @@ create table if not exists public.ai_calls (
   -- Cache de prompt : lecture facturée 10 % d'un token d'entrée, écriture 125 %.
   cache_read_tokens integer,
   cache_write_tokens integer,
+  -- Ecritures dans le cache 1 heure, facturees 200 % au lieu de 125 %.
+  cache_write_1h_tokens integer,
   created_at timestamptz not null default now(),
   constraint ai_calls_pkey primary key (id)
 );

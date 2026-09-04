@@ -96,7 +96,7 @@ export async function networkAiFigures(
     if (parUtilisateur.size > 0) {
       const { data: calls } = await admin
         .from("ai_calls")
-        .select("user_id, route, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens")
+        .select("user_id, route, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cache_write_1h_tokens")
         .in("user_id", [...parUtilisateur.keys()])
         .gte("created_at", monthStartIso())
         .limit(100000)

@@ -77,8 +77,10 @@ export async function recordCall(
     output_tokens?: number;
     /** Tokens servis par le cache de prompt (facturés 10 % d'un token d'entrée). */
     cache_read_tokens?: number;
-    /** Tokens écrits dans le cache (facturés 125 %). */
+    /** Tokens écrits dans le cache 5 minutes (facturés 125 %). */
     cache_write_tokens?: number;
+    /** Tokens écrits dans le cache 1 heure (facturés 200 %). */
+    cache_write_1h_tokens?: number;
   },
   meta?: CallMeta,
 ): Promise<void> {
@@ -90,6 +92,7 @@ export async function recordCall(
     output_tokens: usage?.output_tokens ?? null,
     cache_read_tokens: usage?.cache_read_tokens ?? null,
     cache_write_tokens: usage?.cache_write_tokens ?? null,
+    cache_write_1h_tokens: usage?.cache_write_1h_tokens ?? null,
     tenant_id: meta?.tenantId ?? null,
     model: meta?.model ?? null,
     action: meta?.action ?? null,
