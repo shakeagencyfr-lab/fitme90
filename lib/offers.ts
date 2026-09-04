@@ -81,6 +81,18 @@ export const BUSINESS_TYPES: readonly BusinessType[] = ["coach", "gym"] as const
 export function asBusinessType(v: string | null | undefined): BusinessType {
   return v === "gym" ? "gym" : "coach";
 }
+/** Un témoignage affiché sur la page publique. */
+export interface PublicTestimonial {
+  id: string;
+  author: string;
+  body: string;
+  rating: number | null;
+  /** Date telle que la source l'écrit (« il y a 2 mois »), jamais réinterprétée. */
+  publishedLabel: string | null;
+  /** « google » quand l'avis vient d'une fiche importée, sinon saisi à la main. */
+  source: string | null;
+}
+
 export interface PublicTenant {
   id: string;
   name: string;
@@ -104,6 +116,12 @@ export interface PublicTenant {
   /** Métadonnées de référencement, si le coach les a renseignées. */
   seoTitle: string | null;
   seoDescription: string | null;
+  /** Témoignages actifs, dans l'ordre choisi. */
+  testimonials: PublicTestimonial[];
+  /** Note Google de l'établissement, quand sa fiche a été importée. */
+  googleRating: number | null;
+  googleReviewsCount: number | null;
+  googleMapsUrl: string | null;
 }
 
 export interface PublicTenantOffers {
@@ -125,7 +143,7 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
   const query = admin
     .from("tenants")
     .select(
-      "id, name, slug, app_name, brand_color, tagline, headline, logo_url, logo_dark_url, favicon_url, landing_template, business_type, about_enabled, about_title, about_text, about_photo_url, theme, seo_title, seo_description",
+      "id, name, slug, app_name, brand_color, tagline, headline, logo_url, logo_dark_url, favicon_url, landing_template, business_type, about_enabled, about_title, about_text, about_photo_url, theme, seo_title, seo_description, google_rating, google_reviews_count, google_maps_url",
     );
   const { data: tenant } = await (safe
     ? query.or(`slug.eq.${key},subdomain.eq.${key}`)
@@ -152,6 +170,9 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
       theme: unknown;
       seo_title: string | null;
       seo_description: string | null;
+      google_rating: number | null;
+      google_reviews_count: number | null;
+      google_maps_url: string | null;
     }>();
   if (!tenant) return null;
 
@@ -163,12 +184,29 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
     .maybeSingle<{ stripe_key_enc: string | null }>();
   const chargesEnabled = !!secret?.stripe_key_enc;
 
-  const { data } = await admin
-    .from("offers")
-    .select(OFFER_COLS)
-    .eq("tenant_id", tenant.id)
-    .eq("is_active", true)
-    .order("position", { ascending: true });
+  const [{ data }, { data: avis }] = await Promise.all([
+    admin
+      .from("offers")
+      .select(OFFER_COLS)
+      .eq("tenant_id", tenant.id)
+      .eq("is_active", true)
+      .order("position", { ascending: true }),
+    admin
+      .from("testimonials")
+      .select("id, author, body, rating, published_label, source")
+      .eq("tenant_id", tenant.id)
+      .eq("is_active", true)
+      .order("position", { ascending: true })
+      .limit(12)
+      .returns<{
+        id: string;
+        author: string;
+        body: string;
+        rating: number | null;
+        published_label: string | null;
+        source: string | null;
+      }[]>(),
+  ]);
 
   // On ne publie que les offres réellement vendables : un prix unique, ou au
   // moins un prix récurrent pour les abonnements.
@@ -203,6 +241,17 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
       theme: withPrimary(normalizeTheme(tenant.theme), tenant.brand_color),
       seoTitle: tenant.seo_title,
       seoDescription: tenant.seo_description,
+      testimonials: (avis ?? []).map((a) => ({
+        id: a.id,
+        author: a.author,
+        body: a.body,
+        rating: a.rating,
+        publishedLabel: a.published_label,
+        source: a.source,
+      })),
+      googleRating: tenant.google_rating,
+      googleReviewsCount: tenant.google_reviews_count,
+      googleMapsUrl: tenant.google_maps_url,
     },
     offers: sellable,
   };

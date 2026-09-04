@@ -50,6 +50,9 @@ import { normalizeSlug, isValidSlug } from "@/lib/config";
 import { markAllCoachNotifsRead, markCoachNotifRead, clearCoachNotifications } from "@/lib/notifications";
 import { saveCoachExerciseMedia, deleteCoachExerciseMedia, uploadExerciseImage } from "@/lib/exercise-guide";
 import { normalizeExerciseName } from "@/lib/exercise-library";
+import { serpApiEnabled, searchPlaces, fetchPlaceDraft } from "@/lib/serpapi";
+import { applyGoogleImport, saveImportDraft, readImportDraft } from "@/lib/google-apply";
+import type { ImportDraft, PlaceCandidate } from "@/lib/google-import";
 
 /** Normalise les champs de segmentation reçus du formulaire coach. */
 function readFilter(formData: FormData): AudienceFilter {
@@ -1719,3 +1722,99 @@ export async function networkAction(_prev: NetworkState, formData: FormData): Pr
   return { ok: true, done: op as NetworkState["done"] };
 }
 
+
+// ------------------------------------------------------------------ import de fiche Google
+
+/**
+ * Import d'une fiche d'établissement Google.
+ *
+ * Trois actions pour trois temps : chercher, prévisualiser, appliquer. Le
+ * découpage n'est pas cosmétique. Entre la prévisualisation et l'application,
+ * le coach doit voir ce qui va être écrit et pouvoir le refuser bloc par bloc :
+ * un import qui écrase silencieusement une page rédigée serait pire que pas
+ * d'import du tout.
+ *
+ * Le brouillon reste côté serveur entre les deux. Il pourrait transiter par le
+ * navigateur, mais ce qui reviendrait d'un formulaire ne serait plus ce qu'on
+ * y avait mis : il faudrait tout revalider, et cela redemanderait la fiche au
+ * service, qui facture chaque appel.
+ */
+
+export interface GoogleSearchState {
+  error?: string;
+  candidates?: PlaceCandidate[];
+  /** Brouillon prêt à relire, une fois une fiche choisie. */
+  draft?: ImportDraft;
+  importId?: string;
+  /** Ce qui a été écrit, une fois l'import appliqué. */
+  done?: { infos: boolean; textes: boolean; photo: boolean; avis: number };
+}
+
+/**
+ * Une seule action pour les trois temps, aiguillée par le champ « etape ».
+ *
+ * Trois actions séparées auraient trois états indépendants, et l'écran
+ * finirait par en montrer deux à la fois : relancer une recherche laisserait
+ * l'aperçu précédent affiché par-dessus les nouveaux résultats. Un seul état
+ * rend cette situation impossible plutôt que de demander à l'affichage de la
+ * démêler.
+ */
+export async function googleImportStep(
+  prev: GoogleSearchState,
+  formData: FormData,
+): Promise<GoogleSearchState> {
+  const ctx = await getAdminOrNull();
+  const tenantId = ctx?.profile?.tenant_id;
+  if (!tenantId) return { error: "Accès refusé." };
+
+  const etape = String(formData.get("etape") ?? "");
+
+  if (etape === "chercher") {
+    if (!serpApiEnabled()) return { error: "L'import Google n'est pas configuré sur cette installation." };
+    const res = await searchPlaces(String(formData.get("q") ?? ""));
+    // Un état neuf : le brouillon de la recherche précédente n'a plus lieu
+    // d'être à l'écran.
+    return res.ok ? { candidates: res.data } : { error: res.error };
+  }
+
+  if (etape === "apercu") {
+    if (!serpApiEnabled()) return { error: "L'import Google n'est pas configuré sur cette installation." };
+    const res = await fetchPlaceDraft(String(formData.get("data_id") ?? ""));
+    if (!res.ok) return { ...prev, error: res.error };
+    const importId = await saveImportDraft(tenantId, res.data);
+    if (!importId) return { ...prev, error: "Impossible de préparer l'import. Réessaie." };
+    return { draft: res.data, importId };
+  }
+
+  if (etape === "appliquer") {
+    const importId = String(formData.get("import_id") ?? "");
+    const draft = importId ? await readImportDraft(tenantId, importId) : null;
+    // Le brouillon a expiré, ou il appartient à quelqu'un d'autre : dans les
+    // deux cas on recommence plutôt que d'appliquer une fiche qu'on ne peut
+    // pas montrer au coach.
+    if (!draft) return { error: "Import expiré. Relance la recherche." };
+
+    const res = await applyGoogleImport(
+      tenantId,
+      draft,
+      {
+        infos: formData.get("infos") === "on",
+        textes: formData.get("textes") === "on",
+        photoUrl: String(formData.get("photo") ?? "") || null,
+        avis: formData
+          .getAll("avis")
+          .map((v) => Number(v))
+          .filter((n) => Number.isInteger(n) && n >= 0),
+      },
+      fetch,
+      importId,
+    );
+    if (!res.ok) return { ...prev, error: res.error ?? "Enregistrement impossible." };
+
+    revalidatePath("/admin/fiche-google");
+    revalidatePath("/admin/marque-blanche");
+    return { done: res.applied };
+  }
+
+  return prev;
+}

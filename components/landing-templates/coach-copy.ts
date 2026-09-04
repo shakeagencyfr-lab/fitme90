@@ -113,6 +113,8 @@ export interface LandingCopy {
   engineBody: string;
   enginePoints: Feature[];
   engineLimit: string;
+  /** Titre de la section des avis clients. */
+  testimonialsTitle: string;
   leadChip: string;
   leadTitle: string;
   leadBody: string;
@@ -231,6 +233,7 @@ const FR: Omit<LandingCopy, "features"> & { features: Feature[] } = {
     "Tableau de suivi à imprimer",
   ],
   leadReassure: "Sans engagement, sans carte bancaire",
+  testimonialsTitle: "Ce qu'en disent ses clients",
   leadChip: "Offert",
   leadTitle: "Ta première semaine, offerte",
   leadBody: "Un vrai plan à suivre, calibré sur ton objectif, ton niveau et ton matériel. Prêt à imprimer.",
@@ -357,6 +360,7 @@ const EN: Omit<LandingCopy, "features"> & { features: Feature[] } = {
     "A tracking table to print",
   ],
   leadReassure: "No commitment, no card",
+  testimonialsTitle: "What their clients say",
   leadChip: "Free",
   leadTitle: "Your first week, on us",
   leadBody: "A real plan to follow, calibrated on your goal, your level and your equipment. Ready to print.",
@@ -411,6 +415,7 @@ const EN: Omit<LandingCopy, "features"> & { features: Feature[] } = {
 type Overrides = Partial<Omit<LandingCopy, "features">> & { features?: Feature[] };
 
 const GYM_FR: Overrides = {
+  testimonialsTitle: "Ce qu'en disent ses adhérents",
   defaultTagline:
     "Un programme construit par l'équipe de ta salle, avec les machines qui sont ici, et qui te suit aussi les jours où tu ne viens pas. Assisté par un moteur spécialisé dans la transformation physique.",
   heroChip: "Programme inclus dans ton adhésion",
@@ -485,6 +490,7 @@ const GYM_FR: Overrides = {
 };
 
 const GYM_EN: Overrides = {
+  testimonialsTitle: "What their members say",
   defaultTagline:
     "A program built by your gym's team, around the machines that are here, and that follows you on the days you do not come in. Assisted by an engine built for physical transformation.",
   heroChip: "Included in your membership",

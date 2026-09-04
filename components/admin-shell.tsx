@@ -63,6 +63,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
     label: "Ma marque",
     items: [
       { href: "/admin/marque-blanche", label: "Marque blanche", icon: <I d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13A1.5 1.5 0 0 1 18.5 20h-13A1.5 1.5 0 0 1 4 18.5z||M9 20V4" /> },
+      { href: "/admin/fiche-google", label: "Fiche Google", kinds: ["coach"], icon: <I d="M12 21s7-5.3 7-11a7 7 0 1 0-14 0c0 5.7 7 11 7 11z||M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5" /> },
       { href: "/admin/exercices", label: "Exercices", kinds: ["coach"], icon: <I d="M6.5 9.5v5||M17.5 9.5v5||M4 11v2||M20 11v2||M6.5 12h11" /> },
     ],
   },

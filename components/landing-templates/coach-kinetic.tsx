@@ -20,6 +20,7 @@ import {
   ScrollMarquee,
 } from "@/components/landing-templates/scroll-fx";
 import { LeadBand } from "@/components/landing-templates/lead-band";
+import { TestimonialBand } from "@/components/landing-templates/testimonial-band";
 import { AuthorEngine } from "@/components/landing-templates/author-engine";
 import { offerCardCopy, landingCopy, type LandingCopy, type Audience } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
@@ -370,6 +371,23 @@ export function CoachKinetic({ tenant, offers, leadMagnet = false, locale = "fr"
                 {tenant.aboutTitle ? <h2 className={`${title} text-[clamp(26px,4vw,44px)] text-white`}>{tenant.aboutTitle}</h2> : null}
                 {tenant.aboutText ? <p className="max-w-[60ch] whitespace-pre-line text-[16px] leading-[1.75] text-white/60">{tenant.aboutText}</p> : null}
               </Reveal>
+            </div>
+          </section>
+        ) : null}
+
+        {/* Ce que disent ses clients. Placé avant le mini-programme :
+            la preuve d'abord, la demande d'adresse ensuite. */}
+        {tenant.testimonials.length > 0 ? (
+          <section className="border-t border-white/10">
+            <div className="mx-auto w-full max-w-[1240px] px-5 py-[clamp(44px,6vw,72px)] sm:px-8">
+              <TestimonialBand
+                items={tenant.testimonials}
+                titre={L.testimonialsTitle}
+                rating={tenant.googleRating}
+                reviewsCount={tenant.googleReviewsCount}
+                mapsUrl={tenant.googleMapsUrl}
+                tone="dark"
+              />
             </div>
           </section>
         ) : null}
