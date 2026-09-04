@@ -205,8 +205,49 @@ export async function clientUsesCredits(coachTenantId: string | null): Promise<b
 }
 
 /**
+ * Combien de crédits ce FOURNISSEUR doit débiter à ses filleuls pour une
+ * génération de programme.
+ *
+ * Le nombre de crédits d'une génération n'est pas un levier commercial, c'est
+ * une UNITÉ DE COMPTE : il dit combien une génération coûte, rapporté au coût
+ * d'une action simple. Celui qui paie l'IA en euros définit cette unité ; ceux
+ * qui achètent des crédits la reçoivent.
+ *
+ * Un revendeur qui achète ses crédits à la plateforme est donc débité dans
+ * l'unité de la PLATEFORME. S'il pouvait en choisir une autre pour ses coachs,
+ * il vendrait une génération dans une unité différente de celle qu'on lui
+ * facture, et perdrait de l'argent à chaque génération sans le voir. C'est
+ * exactement ce qui se produisait : plateforme à 30 crédits, revendeur à 10,
+ * revendeur débité 30 et encaissant 10.
+ *
+ * Un revendeur qui a sa PROPRE clé Anthropic, lui, ne reçoit aucune unité :
+ * il paie en dollars. Il définit donc librement la sienne.
+ *
+ * @param depth garde-fou : la chaîne est plateforme → revendeur → coach, mais
+ *   une boucle de parenté en base ne doit pas faire tourner la récursion.
+ */
+export async function supplierProgramCredits(supplierTenantId: string | null, depth = 0): Promise<number> {
+  if (!supplierTenantId || depth > 4) return DEFAULT_PROGRAM_CREDITS;
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("tenants")
+    .select("parent_id, ai_supply, ai_program_credits")
+    .eq("id", supplierTenantId)
+    .maybeSingle<{ parent_id: string | null; ai_supply: string | null; ai_program_credits: number | null }>();
+  if (!data) return DEFAULT_PROGRAM_CREDITS;
+
+  // Il achète ses crédits plus haut : il est facturé dans l'unité de son
+  // fournisseur, il la répercute telle quelle.
+  if (data.ai_supply === "platform_credits" && data.parent_id) {
+    return supplierProgramCredits(data.parent_id, depth + 1);
+  }
+  const n = data.ai_program_credits;
+  return n != null && n > 0 ? n : DEFAULT_PROGRAM_CREDITS;
+}
+
+/**
  * Coût d'une génération de programme, en crédits, pour un tenant ACHETEUR :
- * celui fixé par son fournisseur (le parent). Défaut 10.
+ * l'unité de son fournisseur, résolue jusqu'à celui qui la définit vraiment.
  */
 export async function programCreditCost(buyerTenantId: string | null): Promise<number> {
   if (!buyerTenantId) return DEFAULT_PROGRAM_CREDITS;
@@ -217,13 +258,23 @@ export async function programCreditCost(buyerTenantId: string | null): Promise<n
     .eq("id", buyerTenantId)
     .maybeSingle<{ parent_id: string | null }>();
   if (!t?.parent_id) return DEFAULT_PROGRAM_CREDITS;
-  const { data: p } = await admin
+  return supplierProgramCredits(t.parent_id);
+}
+
+/**
+ * Ce fournisseur peut-il CHOISIR son unité, ou la reçoit-il de plus haut ?
+ * Vrai seulement s'il paie l'IA lui-même (plateforme, ou revendeur avec sa
+ * propre clé).
+ */
+export async function canSetProgramCredits(tenantId: string | null): Promise<boolean> {
+  if (!tenantId) return false;
+  const admin = createAdminClient();
+  const { data } = await admin
     .from("tenants")
-    .select("ai_program_credits")
-    .eq("id", t.parent_id)
-    .maybeSingle<{ ai_program_credits: number | null }>();
-  const n = p?.ai_program_credits;
-  return n != null && n > 0 ? n : DEFAULT_PROGRAM_CREDITS;
+    .select("parent_id, ai_supply")
+    .eq("id", tenantId)
+    .maybeSingle<{ parent_id: string | null; ai_supply: string | null }>();
+  return !(data?.ai_supply === "platform_credits" && data.parent_id);
 }
 
 // ------------------------------------------------------------------ chaîne de fourniture

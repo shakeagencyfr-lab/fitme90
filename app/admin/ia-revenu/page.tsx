@@ -180,10 +180,15 @@ export default async function AdminResellerAiPage() {
         />
       ) : null}
 
+      {/* Un revendeur qui achète ses crédits est débité dans l'unité de son
+          fournisseur : c'est celle-là qu'on lui montre, pas la sienne. Afficher
+          la sienne lui annonçait une marge positive sur une génération qui lui
+          coûtait en réalité davantage qu'elle ne lui rapportait. */}
       <ResellerCreditPricingForm
         initialPriceCents={creditPrice}
-        initialProgramCredits={programCredits}
+        initialProgramCredits={buysFromPlatform ? platformProgramCredits ?? DEFAULT_PROGRAM_CREDITS : programCredits}
         buyPriceCents={buyPriceCents}
+        canSetCredits={!buysFromPlatform}
       />
 
       <Card as="section" className="flex flex-col gap-4">

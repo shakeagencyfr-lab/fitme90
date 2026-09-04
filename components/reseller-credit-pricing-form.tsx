@@ -12,6 +12,9 @@ interface Props {
   initialProgramCredits: number;
   /** Prix auquel CE fournisseur achète lui-même le crédit (revendeur en crédits plateforme), sinon null. */
   buyPriceCents?: number | null;
+  /** Ce fournisseur définit-il lui-même l'unité (nombre de crédits par
+   *  génération), ou la reçoit-il de son propre fournisseur ? */
+  canSetCredits?: boolean;
   /** Libellé de l'acheteur : « tes coachs » (revendeur) ou « tes revendeurs » (plateforme). */
   buyerLabel?: string;
 }
@@ -22,10 +25,17 @@ interface Props {
  * coût réel et la marge se recalculent en direct, pour qu'un réglage à perte
  * ne passe jamais inaperçu.
  */
-export function ResellerCreditPricingForm({ initialPriceCents, initialProgramCredits, buyPriceCents = null, buyerLabel = "tes coachs" }: Props) {
+export function ResellerCreditPricingForm({
+  initialPriceCents,
+  initialProgramCredits,
+  buyPriceCents = null,
+  buyerLabel = "tes coachs",
+  canSetCredits = true,
+}: Props) {
   const tx = usePhrase();
   const [state, action, saving] = useActionState(saveResellerCredits, {} as ResellerAiState);
   const [cents, setCents] = useState<number>(initialPriceCents);
+  // Imposé par le fournisseur : l'état ne bouge pas, il n'y a rien à régler.
   const [programCredits, setProgramCredits] = useState<number>(initialProgramCredits);
 
   // Coût du crédit : celui du fournisseur (prix d'achat) s'il en a un, sinon
@@ -43,7 +53,11 @@ export function ResellerCreditPricingForm({ initialPriceCents, initialProgramCre
       <div className="flex flex-col gap-1">
         <div className="font-archivo font-bold text-[17px] text-ink">{tx("Tarification du crédit IA")}</div>
         <p className="max-w-[72ch] text-[13px] leading-[1.6] text-muted">
-          {tx("Un seul crédit IA. Chaque action (message du chat, recette, alternative d'exercice) en consomme")} <span className="text-body">1</span> {tx("; une génération de programme en consomme le nombre que tu fixes ici. Tu choisis le prix de revente à")} {buyerLabel}{tx(", la marge se calcule toute seule.")}</p>
+          {tx("Un seul crédit IA. Chaque action (message du chat, recette, alternative d'exercice) en consomme")} <span className="text-body">1</span>
+          {canSetCredits
+            ? tx(" ; une génération de programme en consomme le nombre que tu fixes ici.")
+            : tx(" ; une génération en consomme le nombre fixé par ton fournisseur.")}{" "}
+          {tx("Tu choisis le prix de revente à")} {buyerLabel}{tx(", la marge se calcule toute seule.")}</p>
       </div>
 
       <form action={action} className="flex flex-col gap-5">
@@ -67,17 +81,31 @@ export function ResellerCreditPricingForm({ initialPriceCents, initialProgramCre
           </label>
           <label className="flex flex-col gap-1.5">
             <MonoLabel>{tx("Crédits consommés par génération de programme")}</MonoLabel>
-            <input
-              type="number"
-              min={1}
-              max={500}
-              value={programCredits}
-              onChange={(e) => setProgramCredits(Math.max(1, Math.min(500, Math.trunc(Number(e.target.value) || 1))))}
-              className="w-full max-w-[200px] rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
-            />
-            <input type="hidden" name="ai_program_credits" value={programCredits} />
-            <span className="text-[12px] text-muted-2">
-              {tx("Un programme de 12 mois compte 4 générations (une par bloc de 3 mois).")}</span>
+            {canSetCredits ? (
+              <>
+                <input
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={programCredits}
+                  onChange={(e) => setProgramCredits(Math.max(1, Math.min(500, Math.trunc(Number(e.target.value) || 1))))}
+                  className="w-full max-w-[200px] rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
+                />
+                <input type="hidden" name="ai_program_credits" value={programCredits} />
+                <span className="text-[12px] text-muted-2">
+                  {tx("Un programme de 12 mois compte 4 générations (une par bloc de 3 mois).")}</span>
+              </>
+            ) : (
+              <>
+                {/* Pas un champ : ton fournisseur te débite ce nombre, tu ne
+                    peux pas en revendre un autre sans perdre la différence. */}
+                <div className="flex h-[46px] w-full max-w-[200px] items-center rounded-control border border-line-4 bg-surface px-3.5 text-[15px] text-muted">
+                  {programCredits}
+                </div>
+                <span className="text-[12px] leading-[1.5] text-muted-2">
+                  {tx("Fixé par ton fournisseur : c'est ce qu'il te débite pour une génération. Tu choisis ton prix de revente, pas la quantité.")}</span>
+              </>
+            )}
           </label>
         </div>
 
@@ -104,7 +132,7 @@ export function ResellerCreditPricingForm({ initialPriceCents, initialProgramCre
         </div>
         <p className="text-[12px] leading-[1.6] text-muted-2">
           {buyPriceCents != null
-            ? "Ton coût est ton prix d'achat du crédit. Sur une génération, ton fournisseur t'en débite le même nombre."
+            ? `Ton coût est ton prix d'achat du crédit. Sur une génération, ton fournisseur t'en débite ${programCredits}, le nombre qu'il a fixé.`
             : "Coût MESURÉ sur la conso réelle (table ai_calls), converti en euros à titre indicatif. Il reflète le mix constaté : l'essentiel des crédits part en messages de chat, moins chers qu'une recette. Une génération de programme coûte bien plus qu'une action : vérifie qu'elle reste rentable au nombre de crédits choisi."}
         </p>
 

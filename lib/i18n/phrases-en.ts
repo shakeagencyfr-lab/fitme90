@@ -1089,4 +1089,7 @@ export const PHRASES_EN: Record<string, string> = {
   "IA": "AI",
   "crédits": "credits",
   "ce mois, clé perso": "this month, own key",
+  "Fixé par ton fournisseur : c'est ce qu'il te débite pour une génération. Tu choisis ton prix de revente, pas la quantité.": "Set by your supplier: this is what they charge you for one generation. You choose your resale price, not the quantity.",
+  " ; une génération de programme en consomme le nombre que tu fixes ici.": "; one program generation uses the number you set here.",
+  " ; une génération en consomme le nombre fixé par ton fournisseur.": "; one generation uses the number set by your supplier.",
 };
