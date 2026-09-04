@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Wordmark } from "@/components/brand";
 import { CoachSignupForm } from "@/components/auth-forms";
-import { CoachAccent } from "@/components/coach-accent";
+import { AuthShell } from "@/components/auth-shell";
 import { CoachBrandHeader } from "@/components/coach-brand-header";
 import { brandForSlug } from "@/lib/branding";
 import { TenantLocale } from "@/components/tenant-locale";
@@ -34,7 +34,7 @@ export default async function InscriptionCoachPage({
   const { t } = await getT(await tenantLocaleBySlug(resellerSlug));
   return (
     <TenantLocale slug={resellerSlug}>
-    <CoachAccent slug={resellerSlug}>
+    <AuthShell slug={resellerSlug}>
       <div className="flex flex-col gap-6">
         {brand ? (
           <CoachBrandHeader slug={resellerSlug} hrefBase="/r" />
@@ -50,7 +50,7 @@ export default async function InscriptionCoachPage({
         ) : null}
         <CoachSignupForm resellerSlug={resellerSlug} />
       </div>
-    </CoachAccent>
+    </AuthShell>
     </TenantLocale>
   );
 }

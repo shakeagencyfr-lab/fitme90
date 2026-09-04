@@ -280,9 +280,21 @@ export function themeVars(t: TenantTheme): Record<string, string> {
   };
 }
 
+/**
+ * Marqueur de l'élément qui PORTE le thème.
+ *
+ * Les variables sont posées en style en ligne sur cet élément, donc elles
+ * gagnent sur tout ce qu'un ancêtre déclare. L'aperçu vivant écrivait sur
+ * `<html>` et ne changeait donc rien du tout à l'intérieur d'une landing : le
+ * thème du serveur, plus bas dans l'arbre, l'emportait à chaque fois. Ce
+ * marqueur donne à l'aperçu la seule cible qui compte.
+ */
+export const THEME_ROOT_ATTR = "data-wl-root";
+
 /** Attributs de données lus par les règles d'apparence de globals.css. */
 export function themeAttrs(t: TenantTheme): Record<string, string> {
   return {
+    [THEME_ROOT_ATTR]: "",
     "data-wl-bg": t.background,
     "data-wl-card": t.card,
     ...(t.backgroundMotion && t.background !== "plain" ? { "data-wl-motion": "on" } : {}),

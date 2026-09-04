@@ -1,5 +1,5 @@
 import { SignupForm } from "@/components/auth-forms";
-import { CoachAccent } from "@/components/coach-accent";
+import { AuthShell } from "@/components/auth-shell";
 import { CoachBrandHeader } from "@/components/coach-brand-header";
 import { brandMetadata } from "@/lib/brand-metadata";
 import { TenantLocale } from "@/components/tenant-locale";
@@ -18,10 +18,10 @@ export default async function InscriptionPage({
   const hrefBase = sp.r ? "/r" : "/c";
   return (
     <TenantLocale slug={slug}>
-      <CoachAccent slug={slug}>
+      <AuthShell slug={slug}>
         <CoachBrandHeader slug={slug} hrefBase={hrefBase} />
         <SignupForm coachSlug={sp.c} offerId={sp.offer} interval={sp.interval} refCode={sp.ref} />
-      </CoachAccent>
+      </AuthShell>
     </TenantLocale>
   );
 }

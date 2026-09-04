@@ -480,9 +480,17 @@ input:not([type="checkbox"]):not([type="radio"]) {
 /* La police du corps est posée sur <body>, au-dessus du conteneur de thème.
    Quand celui-ci remappe --font-plex, body a déjà calculé sa valeur et ses
    enfants héritent de l'ancienne police. Le conteneur la redéclare donc, pour
-   que le choix du coach s'applique réellement à son texte courant. */
+   que le choix du coach s'applique réellement à son texte courant.
+
+   Même raisonnement pour les deux teintes des motifs : déclarées uniquement à
+   la racine, elles s'y calculaient une fois pour toutes à partir de NOS
+   couleurs, et le motif d'un coach restait orange quel que soit son thème. Un
+   custom property se résout là où il est déclaré, donc il doit être redéclaré
+   ici, où --color-brand est enfin celui du coach. */
 [data-wl-bg] {
   font-family: var(--font-plex), system-ui, sans-serif;
+  --wl-ink: color-mix(in srgb, var(--color-ink) 8%, transparent);
+  --wl-tint: color-mix(in srgb, var(--color-brand) 16%, transparent);
 }
 
 /* ------------------------------------------------------------------ fonds */

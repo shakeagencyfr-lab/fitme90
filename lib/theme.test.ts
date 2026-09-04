@@ -4,6 +4,7 @@ import {
   normalizeTheme,
   themeVars,
   themeAttrs,
+  THEME_ROOT_ATTR,
   isDefaultTheme,
   DEFAULT_THEME,
   STYLE_THEMES,
@@ -126,6 +127,15 @@ describe("attributs d'apparence", () => {
     const a = themeAttrs(normalizeTheme({ background: "grid", card: "glass" }));
     expect(a["data-wl-bg"]).toBe("grid");
     expect(a["data-wl-card"]).toBe("glass");
+  });
+
+  it("marque l'élément qui porte le thème, cible de l'aperçu vivant", () => {
+    // Le serveur pose les variables en style en ligne sur cet élément. Sans ce
+    // marqueur, l'aperçu écrivait sur <html> et se faisait couvrir par le style
+    // en ligne du serveur : les couleurs ne bougeaient pas d'un pixel.
+    for (const fond of ["plain", "grid", "glow"] as const) {
+      expect(themeAttrs(normalizeTheme({ background: fond }))).toHaveProperty(THEME_ROOT_ATTR);
+    }
   });
 
   it("n'anime rien sur un fond uni, même mouvement demandé", () => {
