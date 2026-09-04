@@ -370,34 +370,32 @@ export function creditPackContents(credits: number): string {
  * programme (une par bloc de 3 mois) plus le quota journalier d'actions IA
  * saturé chaque jour. C'est ce que le coach lit en cochant « Coach IA » sur son
  * offre : il sait ce que ce plan peut lui coûter, au pire.
+ *
+ * Un seul quota couvre les trois actions du client (message, recette,
+ * alternative d'exercice) : elles consomment un crédit chacune, il n'y a donc
+ * rien à additionner séparément.
  */
 export function planMaxCredits(input: {
   programDays: number;
   dailyQuota: number;
   programCredits: number;
-  /** Plafond de recettes par jour. Une recette coûte un crédit, comme un message. */
-  recipeQuota?: number;
 }): {
   generations: number;
   generationCredits: number;
-  chatCredits: number;
-  recipeCredits: number;
+  actionCredits: number;
   total: number;
 } {
   const days = Math.max(0, Math.trunc(input.programDays || 0));
   const quota = Math.max(0, Math.trunc(input.dailyQuota || 0));
-  const recipes = Math.max(0, Math.trunc(input.recipeQuota ?? 0));
   const perProgram = Math.max(0, Math.trunc(input.programCredits || 0));
   const generations = Math.max(1, Math.round(days / (BLOCK_MONTHS * DAYS_PER_MONTH)));
   const generationCredits = generations * perProgram;
-  const chatCredits = quota * days;
-  const recipeCredits = recipes * days;
+  const actionCredits = quota * days;
   return {
     generations,
     generationCredits,
-    chatCredits,
-    recipeCredits,
-    total: generationCredits + chatCredits + recipeCredits,
+    actionCredits,
+    total: generationCredits + actionCredits,
   };
 }
 
@@ -405,13 +403,11 @@ export interface PlanMaxCost {
   generations: number;
   /** Coût des générations de programme, en euros. Toujours borné. */
   programEur: number;
-  /** Messages du chat et alternatives d'exercice. `null` si le plafond est illimité. */
-  messagesEur: number | null;
-  /** Régénérations de recettes. `null` si le plafond est illimité. */
-  recipesEur: number | null;
+  /** Les actions du client, au prix de la plus chère. `null` si le quota est illimité. */
+  actionsEur: number | null;
   /** Résumé de mémoire nocturne : jamais plafonné, mais borné par la durée. */
   memoryEur: number;
-  /** Somme. `null` dès qu'un poste est illimité : le plan n'a alors pas de borne. */
+  /** Somme. `null` si le quota est illimité : le plan n'a alors pas de borne. */
   totalEur: number | null;
 }
 
@@ -430,23 +426,23 @@ export interface PlanMaxCost {
 export function planMaxCostEur(input: {
   programDays: number;
   dailyQuota: number;
-  recipeQuota: number;
 }): PlanMaxCost {
   const days = Math.max(0, Math.trunc(input.programDays || 0));
   const quota = Math.max(0, Math.trunc(input.dailyQuota || 0));
-  const recipes = Math.max(0, Math.trunc(input.recipeQuota || 0));
   const generations = Math.max(1, Math.round(days / (BLOCK_MONTHS * DAYS_PER_MONTH)));
 
   const programEur = usdToEur(generations * AI_COST_PROGRAM_USD);
   const memoryEur = usdToEur(days * AI_COST_MEMORY_USD);
-  // Un plafond à 0 veut dire « illimité » dans le formulaire d'offre : le poste
-  // n'a alors pas de borne haute, et le total non plus.
-  const messagesEur = quota > 0 ? usdToEur(quota * days * AI_COST_COACH_MSG_USD) : null;
-  const recipesEur = recipes > 0 ? usdToEur(recipes * days * AI_COST_RECIPE_USD) : null;
-  const totalEur =
-    messagesEur === null || recipesEur === null ? null : programEur + memoryEur + messagesEur + recipesEur;
+  // Le quota est unique et couvre trois actions de coûts différents. Un
+  // plafond se chiffre donc au prix de la PLUS CHÈRE, la recette : rien
+  // n'empêche un client de passer ses vingt actions du jour à régénérer des
+  // recettes, et un plafond qu'un usage réel peut dépasser n'en est pas un.
+  const actionsEur = quota > 0 ? usdToEur(quota * days * AI_COST_RECIPE_USD) : null;
+  // Un plafond à 0 veut dire « illimité » dans le formulaire d'offre : le plan
+  // n'a alors pas de borne haute.
+  const totalEur = actionsEur === null ? null : programEur + memoryEur + actionsEur;
 
-  return { generations, programEur, messagesEur, recipesEur, memoryEur, totalEur };
+  return { generations, programEur, actionsEur, memoryEur, totalEur };
 }
 
 export const PRODUCT_NAME = "My Fitness App";

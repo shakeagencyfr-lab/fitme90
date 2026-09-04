@@ -324,7 +324,6 @@ export interface CreateOfferInput {
   /** Quota journalier d'actions IA par client (0 = illimité, null = défaut du coach). */
   coachAiDailyLimit?: number | null;
   /** Régénérations de recettes / jour / client (0 = illimité, null = défaut). */
-  recipeAiDailyLimit?: number | null;
   billingType?: BillingType;
   /** Paiement unique */
   priceCents?: number | null;
@@ -378,10 +377,9 @@ export async function createOffer(tenantId: string, input: CreateOfferInput): Pr
       input.coachAi !== false && input.coachAiDailyLimit != null && Number.isFinite(input.coachAiDailyLimit)
         ? Math.max(0, Math.min(1000, Math.trunc(input.coachAiDailyLimit)))
         : null,
-    recipe_ai_daily_limit:
-      input.coachAi !== false && input.recipeAiDailyLimit != null && Number.isFinite(input.recipeAiDailyLimit)
-        ? Math.max(0, Math.min(50, Math.trunc(input.recipeAiDailyLimit)))
-        : null,
+    // La colonne survit pour les offres créées avant l'unification, mais on
+    // n'écrit plus dedans : un seul quota couvre désormais les trois actions.
+    recipe_ai_daily_limit: null,
     position: count ?? 0,
   });
   if (error) return { ok: false, error: "Création impossible." };

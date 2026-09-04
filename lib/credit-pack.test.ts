@@ -62,7 +62,7 @@ describe("planMaxCredits", () => {
     const r = planMaxCredits({ programDays: 90, dailyQuota: 20, programCredits: 10 });
     expect(r.generations).toBe(1);
     expect(r.generationCredits).toBe(10);
-    expect(r.chatCredits).toBe(1800);
+    expect(r.actionCredits).toBe(1800);
     expect(r.total).toBe(1810);
   });
   it("un 12 mois = 4 générations (une par bloc)", () => {
@@ -71,6 +71,6 @@ describe("planMaxCredits", () => {
     expect(r.total).toBe(40);
   });
   it("un quota illimité (0) ne chiffre que les générations", () => {
-    expect(planMaxCredits({ programDays: 90, dailyQuota: 0, programCredits: 10 }).chatCredits).toBe(0);
+    expect(planMaxCredits({ programDays: 90, dailyQuota: 0, programCredits: 10 }).actionCredits).toBe(0);
   });
 });

@@ -29,7 +29,6 @@ export function OfferForm({
   programCredits,
   creditMode,
   defaultQuota,
-  defaultRecipes,
   bestPack = null,
 }: {
   atLimit: boolean;
@@ -39,8 +38,6 @@ export function OfferForm({
   creditMode: boolean;
   /** Quota par défaut de la configuration IA du coach. */
   defaultQuota: number;
-  /** Régénérations de recettes par défaut (ancien réglage global du coach). */
-  defaultRecipes: number;
   /** Forfait de crédits le plus avantageux du revendeur, pour chiffrer le
    *  plafond en euros. null quand le revendeur n'en propose aucun. */
   bestPack?: BestPack | null;
@@ -52,24 +49,34 @@ export function OfferForm({
   const [price, setPrice] = useState("");
   const [coachAi, setCoachAi] = useState(true);
   const [quota, setQuota] = useState(String(defaultQuota));
-  const [recipes, setRecipes] = useState(String(defaultRecipes));
   const isSub = billing === "subscription";
   const product = PRODUCTS[months];
   const priceCents = Math.round((Number(price.replace(",", ".")) || 0) * 100);
   const perMonth = monthlyEquivalentCents(priceCents, months);
   const quotaN = Math.max(0, Math.trunc(Number(quota) || 0));
-  const recipesN = Math.max(0, Math.trunc(Number(recipes) || 0));
   const planDays = programDaysForMonths(months);
   // Coût MAXIMUM du plan pour le coach : générations (une par bloc de 3 mois)
   // + quota journalier saturé chaque jour. Il ne paie que l'usage réel.
-  const max = planMaxCredits({ programDays: planDays, dailyQuota: quotaN, programCredits, recipeQuota: recipesN });
+  const max = planMaxCredits({ programDays: planDays, dailyQuota: quotaN, programCredits });
   // Ce que ce plafond pèse en euros, au tarif le plus avantageux du revendeur.
   // Sans forfait proposé, on ne peut pas convertir : mieux vaut ne rien
   // annoncer qu'inventer un prix du crédit.
   const plafondEuros = bestPack ? Math.round(max.total * bestPack.unitCents) : null;
   // Le même plafond, converti en euros pour un coach en BYOK : c'est sur ce
   // chiffre qu'il fixe son prix de vente, pas sur un nombre de messages.
-  const maxEur = planMaxCostEur({ programDays: planDays, dailyQuota: quotaN, recipeQuota: recipesN });
+  const maxEur = planMaxCostEur({ programDays: planDays, dailyQuota: quotaN });
+
+  /**
+   * TOUT SE LIT AU MOIS.
+   *
+   * Un plan de douze mois affichait un total à trois chiffres qui ne se
+   * comparait à rien : le coach fixe un prix mensuel, il doit lire une dépense
+   * mensuelle en face. Le total sur la durée reste écrit juste en dessous,
+   * pour qui veut vérifier.
+   */
+  const plafondMensuelEuros = plafondEuros == null ? null : Math.round(plafondEuros / months);
+  const creditsParMois = Math.round(max.total / months);
+  const maxEurMensuel = maxEur.totalEur == null ? null : Math.round((maxEur.totalEur * 100) / months);
 
   if (atLimit) {
     return (
@@ -219,7 +226,7 @@ export function OfferForm({
         {coachAi ? (
           <div className="ml-3 flex flex-col gap-3 rounded-control border border-brand/30 bg-surface p-3.5">
             <label className="flex flex-col gap-1.5">
-              <MonoLabel>{tx("Messages IA par jour et par client (0 = illimité)")}</MonoLabel>
+              <MonoLabel>{tx("Actions IA par jour et par client (0 = illimité)")}</MonoLabel>
               <input
                 name="coach_ai_daily_limit"
                 type="number"
@@ -230,25 +237,17 @@ export function OfferForm({
                 onChange={(e) => setQuota(e.target.value)}
                 className="w-full max-w-[160px] rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
               />
+              {/* Un seul nombre, et la liste de ce qu'il couvre. Il y avait
+                  deux réglages : le coach devait décider deux fois, et le
+                  client se heurtait à deux murs sans savoir lequel il
+                  approchait. */}
               <span className="text-[12px] leading-relaxed text-muted-2">
-                {tx("Messages du chat et alternatives d'exercice. Le compteur du client se remet à ce quota chaque jour à minuit, rien ne s'accumule. Tu n'es débité que de ce qu'il utilise vraiment.")}</span>
-            </label>
-            {/* Le plafond recettes vivait dans un écran de réglages à part. Il
-                se décide ici, avec le reste de ce que l'offre inclut. */}
-            <label className="flex flex-col gap-1.5">
-              <MonoLabel>{tx("Recettes régénérées par jour et par client (0 = illimité)")}</MonoLabel>
-              <input
-                name="recipe_ai_daily_limit"
-                type="number"
-                min={0}
-                max={50}
-                inputMode="numeric"
-                value={recipes}
-                onChange={(e) => setRecipes(e.target.value)}
-                className="w-full max-w-[160px] rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
-              />
-              <span className="text-[12px] leading-relaxed text-muted-2">
-                {tx("Compté à part des messages : le modèle recettes produit des réponses plus longues, donc plus chères.")}</span>
+                {tx("Un seul compteur pour les trois actions du client :")}{" "}
+                <span className="text-body">{tx("message au Coach IA")}</span>,{" "}
+                <span className="text-body">{tx("recette régénérée")}</span>,{" "}
+                <span className="text-body">{tx("alternative à un exercice")}</span>.{" "}
+                {tx("Il se remet à ce quota chaque jour à minuit, rien ne s'accumule. Tu n'es débité que de ce que le client utilise vraiment, et il voit son solde dans l'app.")}
+              </span>
             </label>
             <div className="flex flex-col gap-2 rounded-control border border-line-4 bg-surface-2 p-3">
               <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">{tx("Coût maximum de ce plan")}</span>
@@ -256,28 +255,32 @@ export function OfferForm({
                 /* Coach sous crédits IA : il ne voit jamais Anthropic, son
                    plafond se lit dans la seule unité qu'il achète. */
                 <>
+                  {/* PAR MOIS, en gros. Un total sur douze mois donne un
+                      nombre qui fait peur et qu'on ne compare à rien ; le prix
+                      du plan, lui, se pense au mois. */}
                   <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                    <span className="font-archivo text-[22px] font-extrabold leading-none text-ink">
-                      {max.total.toLocaleString("fr-FR")} {tx("crédits IA")}
-                    </span>
-                    {/* Un plafond en crédits ne dit rien tant qu'on ne sait pas
-                        ce qu'il pèse en euros : c'est ce chiffre-là qu'on
-                        compare au prix du plan qu'on est en train de fixer. */}
-                    {plafondEuros != null ? (
-                      <span className="font-archivo text-[16px] font-bold leading-none text-muted">
-                        ≈ {formatEuros(plafondEuros)}
+                    {plafondMensuelEuros != null ? (
+                      <span className="font-archivo text-[24px] font-extrabold leading-none text-ink">
+                        ≈ {formatEuros(plafondMensuelEuros)}
+                        <span className="ml-1 font-mono text-[11px] font-normal uppercase tracking-[0.08em] text-muted-2">
+                          {tx("par mois et par client")}
+                        </span>
                       </span>
-                    ) : null}
+                    ) : (
+                      <span className="font-archivo text-[24px] font-extrabold leading-none text-ink">
+                        {creditsParMois.toLocaleString("fr-FR")} {tx("crédits / mois")}
+                      </span>
+                    )}
                   </span>
                   <span className="text-[12.5px] leading-[1.6] text-muted">
-                    {tx("Si le client sature tout, sur toute la durée du plan :")} {max.generations} {tx("génération")}
-                    {max.generations > 1 ? "s" : ""} {tx("de programme")} ({max.generationCredits.toLocaleString("fr-FR")}){" "}
+                    {tx("Soit")} {max.total.toLocaleString("fr-FR")} {tx("crédits")}
+                    {plafondEuros != null ? ` (${formatEuros(plafondEuros)})` : ""}{" "}
+                    {tx("sur les")} {months} {tx("mois du plan, si le client sature tout :")}{" "}
+                    {max.generations} {tx("génération")}{max.generations > 1 ? "s" : ""}{" "}
+                    {tx("de programme")} ({max.generationCredits.toLocaleString("fr-FR")}){" "}
                     {quotaN > 0
-                      ? `+ ${max.chatCredits.toLocaleString("fr-FR")} ${tx("messages")}`
-                      : `+ ${tx("un chat sans plafond")}`}{" "}
-                    {recipesN > 0
-                      ? `+ ${max.recipeCredits.toLocaleString("fr-FR")} ${tx("recettes")}`
-                      : `+ ${tx("des recettes sans plafond")}`}
+                      ? `+ ${max.actionCredits.toLocaleString("fr-FR")} ${tx("actions")}`
+                      : `+ ${tx("des actions sans plafond")}`}
                     .
                   </span>
                   {bestPack ? (
@@ -293,43 +296,43 @@ export function OfferForm({
                       {tx("Ton revendeur ne propose aucun forfait de crédits pour l'instant : impossible de chiffrer ce plafond en euros.")}
                     </span>
                   )}
-                  {quotaN === 0 || recipesN === 0 ? (
+                  {quotaN === 0 ? (
                     <span className="text-[12.5px] leading-[1.6] text-muted-2">
-                      {tx("Un plafond laissé à 0 ouvre la dépense : le total ci-dessus ne couvre alors que le reste.")}</span>
+                      {tx("Un quota laissé à 0 ouvre la dépense : le total ci-dessus ne couvre alors que les générations de programme.")}</span>
                   ) : null}
                 </>
               ) : (
                 /* Coach en BYOK : c'est sa propre clé Anthropic qui est
                    débitée, donc des euros, pas des crédits. */
                 <>
-                  <span className="font-archivo text-[22px] font-extrabold leading-none text-ink">
-                    {maxEur.totalEur == null
+                  <span className="font-archivo text-[24px] font-extrabold leading-none text-ink">
+                    {maxEurMensuel == null
                       ? tx("Non borné")
-                      : `≈ ${formatEuros(Math.round(maxEur.totalEur * 100))}`}
-                    {maxEur.totalEur == null ? null : (
-                      <span className="ml-1.5 font-mono text-[11px] font-normal uppercase tracking-[0.08em] text-muted-2">
-                        {tx("par client")}
+                      : `≈ ${formatEuros(maxEurMensuel)}`}
+                    {maxEurMensuel == null ? null : (
+                      <span className="ml-1 font-mono text-[11px] font-normal uppercase tracking-[0.08em] text-muted-2">
+                        {tx("par mois et par client")}
                       </span>
                     )}
                   </span>
                   {maxEur.totalEur == null ? (
                     <span className="text-[12.5px] leading-[1.6] text-muted">
-                      {tx("Un plafond laissé à 0 (illimité) rend la dépense impossible à borner. Les générations de programme coûtent")}{" "}
+                      {tx("Un quota laissé à 0 (illimité) rend la dépense impossible à borner. Les générations de programme coûtent")}{" "}
                       {`≈ ${formatEuros(Math.round((maxEur.programEur + maxEur.memoryEur) * 100))}`}, {tx("le reste dépend de l'usage du client.")}</span>
                   ) : (
                     <span className="text-[12.5px] leading-[1.6] text-muted">
-                      {tx("Sur ta propre clé Anthropic, si le client sature ses deux plafonds tous les jours pendant")} {planDays}{" "}
-                      {tx("jours :")} {max.generations} {tx("génération")}{max.generations > 1 ? "s" : ""}{" "}
-                      {`≈ ${formatEuros(Math.round(maxEur.programEur * 100))}`}, {max.chatCredits.toLocaleString("fr-FR")}{" "}
-                      {tx("messages")} {`≈ ${formatEuros(Math.round(maxEur.messagesEur! * 100))}`},{" "}
-                      {max.recipeCredits.toLocaleString("fr-FR")} {tx("recettes")}{" "}
-                      {`≈ ${formatEuros(Math.round(maxEur.recipesEur! * 100))}`}, {tx("mémoire")}{" "}
+                      {tx("Soit")} {`≈ ${formatEuros(Math.round(maxEur.totalEur * 100))}`} {tx("sur les")} {months}{" "}
+                      {tx("mois du plan, sur ta propre clé Anthropic, si le client sature son quota tous les jours pendant")}{" "}
+                      {planDays} {tx("jours :")} {max.generations} {tx("génération")}{max.generations > 1 ? "s" : ""}{" "}
+                      {`≈ ${formatEuros(Math.round(maxEur.programEur * 100))}`}, {max.actionCredits.toLocaleString("fr-FR")}{" "}
+                      {tx("actions")} {`≈ ${formatEuros(Math.round(maxEur.actionsEur! * 100))}`}, {tx("mémoire")}{" "}
                       {`≈ ${formatEuros(Math.round(maxEur.memoryEur * 100))}`}.
                     </span>
                   )}
                   {maxEur.totalEur == null ? null : (
                     <span className="text-[12.5px] leading-[1.6] text-muted-2">
-                      {tx("C'est un plafond de sécurité, pas une prévision : personne ne sature son quota tous les jours. La dépense réellement observée tourne autour d'un dixième de ce montant.")}</span>
+                      {tx("Les actions sont comptées au prix de la plus chère, la recette : rien n'empêche un client de passer son quota du jour à en régénérer.")}{" "}
+                      {tx("C'est un plafond de sécurité, pas une prévision : la dépense réellement observée tourne autour d'un dixième de ce montant.")}</span>
                   )}
                 </>
               )}

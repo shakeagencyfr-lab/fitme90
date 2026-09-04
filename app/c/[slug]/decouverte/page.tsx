@@ -5,6 +5,7 @@ import { LeadMagnetForm } from "@/components/lead-magnet-form";
 import { themeProps } from "@/components/tenant-theme";
 import { Reveal, RevealGroup } from "@/components/reveal";
 import { ScrollMarquee } from "@/components/landing-templates/scroll-fx";
+import { ThemeSwitch } from "@/components/theme-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -29,24 +30,24 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
  */
 const BENEFITS = [
   {
-    titre: "Une semaine complète",
-    detail: "Jour par jour, repos compris. Rien à deviner, rien à composer soi-même.",
+    titre: "Une semaine qui tient dans ton créneau",
+    detail: "Jour par jour, repos compris, et un nombre d'exercices calculé pour finir à l'heure que tu as annoncée.",
   },
   {
     titre: "L'échauffement et la charge",
     detail: "Pour chaque exercice : par quoi commencer, quelle charge viser, et la consigne technique qui compte.",
   },
   {
-    titre: "Le plan B quand la machine est prise",
-    detail: "Une alternative pour chaque mouvement, pour ne pas sauter la séance à cause d'une salle pleine.",
+    titre: "Adapté à tes articulations",
+    detail: "Dos, genoux ou épaules sensibles : les mouvements qui chargent la zone sont écartés et remplacés, pas simplement supprimés.",
   },
   {
-    titre: "La progression de la semaine d'après",
-    detail: "Ce qu'il faut augmenter, de combien, et à quel moment. C'est là que la plupart des gens s'arrêtent.",
+    titre: "Le plan des quatre semaines",
+    detail: "Ce qu'il faut augmenter, de combien, et à quel moment, semaine par semaine. C'est là que la plupart des gens s'arrêtent.",
   },
   {
-    titre: "Une journée type et tes protéines",
-    detail: "Une liste de courses, des repas simples, et ta cible en grammes calculée sur ton poids.",
+    titre: "Tes calories et tes macros, calculées",
+    detail: "Calories du jour, protéines, glucides, lipides et eau, à partir de ton sexe, ton âge, ta taille et ton poids. Pas d'une moyenne.",
   },
   {
     titre: "Un tableau de suivi à imprimer",
@@ -56,9 +57,9 @@ const BENEFITS = [
 
 /** Le parcours, en trois temps. Une vraie séquence, d'où la numérotation. */
 const ETAPES = [
-  { n: "01", titre: "Cinq questions", detail: "Objectif, niveau, nombre de séances, matériel, poids. Trente secondes." },
-  { n: "02", titre: "Le document arrive", detail: "Généré tout de suite, envoyé par e-mail, prêt à imprimer." },
-  { n: "03", titre: "Tu t'entraînes", detail: "Sept jours calibrés pour toi. Sans compte à créer, sans engagement." },
+  { n: "01", titre: "Trois écrans", detail: "Ton entraînement, ta pratique, tes mesures. Une minute, montre en main." },
+  { n: "02", titre: "Le document arrive", detail: "Calculé tout de suite à partir de tes réponses, prêt à imprimer." },
+  { n: "03", titre: "Tu t'entraînes", detail: "Une semaine calibrée pour toi, et le plan des trois suivantes." },
 ];
 
 const JOURS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
@@ -85,9 +86,14 @@ export default async function DecouvertePage({ params }: { params: Promise<{ slu
               <span className="font-archivo text-[18px] font-extrabold tracking-[-0.02em] text-ink">{lm.name}</span>
             )}
           </Link>
-          <Link href={`/c/${lm.slug}`} className="underline-grow text-[13.5px] font-semibold text-muted hover:text-ink">
-            Voir la page ↗
-          </Link>
+          <span className="flex items-center gap-2">
+            {/* La page suit déjà le thème du visiteur ; encore faut-il qu'il
+                puisse en changer sans quitter la page. */}
+            <ThemeSwitch />
+            <Link href={`/c/${lm.slug}`} className="underline-grow text-[13.5px] font-semibold text-muted hover:text-ink">
+              Voir la page ↗
+            </Link>
+          </span>
         </div>
       </header>
 
@@ -112,8 +118,9 @@ export default async function DecouvertePage({ params }: { params: Promise<{ slu
 
             <Reveal delay={140}>
               <p className="max-w-[52ch] text-[clamp(16px,1.6vw,19px)] leading-[1.55] text-muted">
-                Réponds à cinq questions et reçois immédiatement un document complet, prêt à imprimer.
-                Pas une liste d&apos;exercices : un plan de semaine qu&apos;on peut suivre seul, sans engagement.
+                Réponds à quelques questions et reçois immédiatement un document complet, prêt à imprimer.
+                Pas une liste d&apos;exercices : une semaine calibrée sur ton créneau, ton matériel et tes articulations,
+                avec tes calories et tes macros calculées.
               </p>
             </Reveal>
 

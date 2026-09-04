@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { recordCall } from "@/lib/ratelimit";
-import { checkCoachAiBudget } from "@/lib/coach-ai-budget";
+import { checkClientAiBudget } from "@/lib/coach-ai-budget";
 import { checkAiAllowance, chargeAiUsage, coachUsageToCharge } from "@/lib/credits";
 import { MODELS, textOf, parseJsonLoose, effortConfig, anthropic } from "@/lib/anthropic";
 import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
   const coachTenant = ctx.profile?.tenant_id ?? null;
   // Quota journalier du plan, dans tous les modes : le coach borne ce qu'un
   // client peut lui coûter par jour, et le compteur repart à minuit (Paris).
-  const budget = await checkCoachAiBudget(ctx.userId, coachTenant);
+  const budget = await checkClientAiBudget(ctx.userId, coachTenant);
   if (!budget.ok) {
     const at = new Date(budget.resetsAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
     return NextResponse.json(

@@ -430,16 +430,12 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
   const vipChat = formData.get("vip_chat") === "on";
   // Le Coach IA est inclus par défaut ; la case l'exclut si décochée.
   const coachAi = formData.get("coach_ai") === "on";
-  // Quota journalier d'actions IA par client sur ce plan (vide = défaut du coach).
-  const recipesRaw = String(formData.get("recipe_ai_daily_limit") ?? "").trim();
-  const recipeAiDailyLimit = recipesRaw === "" ? null : Number(recipesRaw);
+  // Quota journalier d'actions IA par client sur ce plan (vide = défaut du
+  // coach). Un seul nombre : il couvre messages, recettes et alternatives.
   const quotaRaw = String(formData.get("coach_ai_daily_limit") ?? "").trim();
   const coachAiDailyLimit = quotaRaw === "" ? null : Number(quotaRaw);
-  if (recipeAiDailyLimit != null && (!Number.isFinite(recipeAiDailyLimit) || recipeAiDailyLimit < 0)) {
-    return { error: "Plafond de recettes invalide." };
-  }
   if (coachAiDailyLimit != null && (!Number.isFinite(coachAiDailyLimit) || coachAiDailyLimit < 0)) {
-    return { error: "Quota de messages invalide." };
+    return { error: "Quota d'actions IA invalide." };
   }
 
   // Parse un montant en euros (« 190 » ou « 29,90 ») → centimes, ou null si vide.
@@ -463,7 +459,6 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
     vipChat,
     coachAi,
     coachAiDailyLimit,
-    recipeAiDailyLimit,
     billingType,
     priceCents: price.cents,
     priceMonthCents: month.cents,
