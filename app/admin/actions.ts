@@ -31,7 +31,7 @@ import { cancelTenantPlan, reactivateTenantPlan, syncTenantSubscription } from "
 import { deleteOwnCoachAccount } from "@/lib/account-deletion";
 import { setAffiliation } from "@/lib/affiliation";
 import { setProspectStatus, deleteProspect } from "@/lib/prospects";
-import { createCreditPack, setCreditPackActive, deleteCreditPack } from "@/lib/credits";
+import { createCreditPack, setCreditPackActive, deleteCreditPack, canSetProgramCredits } from "@/lib/credits";
 import { setResellerWhitelabelPrice } from "@/lib/whitelabel";
 import { setTenantSmtp, clearTenantSmtp, testSmtp } from "@/lib/smtp";
 import { saveTenantBranding, saveTenantIdentity, saveTenantTheme, uploadTenantAsset, clearTenantAsset, type AssetKind } from "@/lib/branding";
@@ -1074,15 +1074,28 @@ export async function saveResellerCredits(_prev: ResellerAiState, formData: Form
   if (!Number.isInteger(price) || price < 0 || price > 1000000) {
     return { error: "Prix du crédit IA invalide." };
   }
-  const programCredits = Number(String(formData.get("ai_program_credits") ?? "").trim());
-  if (!Number.isInteger(programCredits) || programCredits < 1 || programCredits > 500) {
-    return { error: "Nombre de crédits par génération invalide (1 à 500)." };
+  // Le nombre de crédits d'une génération est une unité de compte, pas un prix.
+  // Seul celui qui paie l'IA en euros la définit ; un revendeur qui achète ses
+  // crédits la reçoit de son fournisseur. La garde est ICI, côté serveur, et
+  // pas seulement dans le formulaire : masquer un champ n'empêche pas de le
+  // poster.
+  const libre = await canSetProgramCredits(tenantId);
+  let programCredits: number | null = null;
+  if (libre) {
+    const n = Number(String(formData.get("ai_program_credits") ?? "").trim());
+    if (!Number.isInteger(n) || n < 1 || n > 500) {
+      return { error: "Nombre de crédits par génération invalide (1 à 500)." };
+    }
+    programCredits = n;
   }
 
   const admin = createAdminClient();
   const { error } = await admin
     .from("tenants")
-    .update({ ai_credit_price_cents: price, ai_program_credits: programCredits })
+    .update({
+      ai_credit_price_cents: price,
+      ...(programCredits == null ? {} : { ai_program_credits: programCredits }),
+    })
     .eq("id", tenantId);
   if (error) return { error: "Enregistrement impossible." };
 
