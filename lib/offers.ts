@@ -1,4 +1,5 @@
 import "server-only";
+import { tenantAiReady } from "@/lib/ai-readiness";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MAX_OFFERS_PER_TENANT, isProductDuration } from "@/lib/config";
 import { normalizeTheme, withPrimary, type TenantTheme } from "@/lib/theme";
@@ -176,13 +177,18 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
     }>();
   if (!tenant) return null;
 
-  // Le coach peut encaisser si sa clé Stripe (BYOK) est configurée.
-  const { data: secret } = await admin
-    .from("tenant_secrets")
-    .select("stripe_key_enc")
-    .eq("tenant_id", tenant.id)
-    .maybeSingle<{ stripe_key_enc: string | null }>();
-  const chargesEnabled = !!secret?.stripe_key_enc;
+  // Deux conditions pour vendre, et non une seule. L'encaissement ne suffit
+  // pas : sans IA disponible au bout de la chaîne de fourniture, le client
+  // paierait un programme que l'application ne saurait pas générer.
+  const [{ data: secret }, aiReady] = await Promise.all([
+    admin
+      .from("tenant_secrets")
+      .select("stripe_key_enc")
+      .eq("tenant_id", tenant.id)
+      .maybeSingle<{ stripe_key_enc: string | null }>(),
+    tenantAiReady(tenant.id),
+  ]);
+  const chargesEnabled = !!secret?.stripe_key_enc && aiReady;
 
   const [{ data }, { data: avis }] = await Promise.all([
     admin

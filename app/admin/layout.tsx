@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { LocaleProvider } from "@/components/locale-provider";
-import { setRequestLocale } from "@/lib/i18n/request";
+import { setRequestLocale, tx } from "@/lib/i18n/request";
 import { resolveLocale, tenantLocale } from "@/lib/i18n/server";
 import { getAdminOrNull } from "@/lib/admin";
 import { AdminShell } from "@/components/admin-shell";
@@ -13,6 +13,8 @@ import { clientUsesCredits, getWallet, resellerSupply } from "@/lib/credits";
 import { parentDashboardBrand, platformBrand } from "@/lib/branding";
 import type { Metadata } from "next";
 import { CoachFreezeBanner } from "@/components/coach-freeze-banner";
+import { tenantAiReady, readinessMessage } from "@/lib/ai-readiness";
+import { tenantStripeStatus } from "@/lib/coach-payments";
 import { SupportReturnBar } from "@/components/support-return-bar";
 
 // Titre neutre : le dashboard est en marque blanche (marque du parent affichée
@@ -46,6 +48,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       ])
     : [[], 0, null, { frozen: false, status: null, suspended: false }, { costUsd: 0, calls: 0, sinceIso: "" }, null, false];
   const kind = node?.kind ?? "coach";
+  // Un coach ne doit pas pouvoir promettre ce que son espace ne livrera pas :
+  // sans IA au bout de sa chaîne de fourniture, le programme ne se générera
+  // pas après le paiement.
+  const venteBloquee =
+    kind === "coach" && tenantId
+      ? readinessMessage({
+          aiReady: await tenantAiReady(tenantId),
+          chargesEnabled: (await tenantStripeStatus(tenantId)).configured,
+        })
+      : null;
   // Langue du dashboard : choix de la personne (cookie), sinon langue du tenant.
   const locale = await resolveLocale(await tenantLocale(tenantId));
   setRequestLocale(locale);
@@ -73,6 +85,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         brandTheme={parentBrand?.theme ?? null}
       >
         {freeze.frozen ? <CoachFreezeBanner suspended={freeze.suspended} /> : null}
+        {/* Ce qui empêche de vendre, dit avant que le coach le découvre par un
+            client mécontent. Masqué pour un revendeur ou la plateforme : ils ne
+            vendent pas de programmes. */}
+        {kind === "coach" && !freeze.frozen && venteBloquee ? (
+          <div className="mb-5 flex flex-col gap-1.5 rounded-card border border-alert-line bg-alert p-4">
+            <span className="font-archivo font-bold text-[15px] text-alert-ink">
+              {tx("Tes offres ne sont pas encore en vente")}
+            </span>
+            <p className="text-[13.5px] leading-relaxed text-alert-ink">{venteBloquee}</p>
+          </div>
+        ) : null}
         {children}
       </AdminShell>
       {/* Invite à installer l'app (Android : invite native ; iOS : marche à suivre). */}

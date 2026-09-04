@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionContext } from "@/lib/guard";
 import { createClient } from "@/lib/supabase/server";
 import { clientOffer, subscriptionPrice } from "@/lib/offers";
+import { tenantAiReady } from "@/lib/ai-readiness";
 import { stripeForTenant } from "@/lib/coach-payments";
 import { applyPendingCoachSelection } from "@/lib/tenant";
 import { validatePromo } from "@/lib/promo";
@@ -59,10 +60,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Aucune offre sélectionnée." }, { status: 400 });
   }
 
-  const stripe = await stripeForTenant(offer.tenant_id);
+  // Deux verrous avant d'encaisser, pas un seul. Sans IA disponible au bout de
+  // la chaîne de fourniture, ce paiement achèterait un programme que
+  // l'application ne saurait pas générer : mieux vaut refuser la vente que
+  // rembourser après coup.
+  const [stripe, aiReady] = await Promise.all([
+    stripeForTenant(offer.tenant_id),
+    tenantAiReady(offer.tenant_id),
+  ]);
   if (!stripe) {
     return NextResponse.json(
       { error: "Le coach n'a pas encore configuré ses paiements." },
+      { status: 400 },
+    );
+  }
+  if (!aiReady) {
+    return NextResponse.json(
+      { error: "Ce coach n'a pas terminé la configuration de son espace. Contacte-le avant de payer." },
       { status: 400 },
     );
   }
