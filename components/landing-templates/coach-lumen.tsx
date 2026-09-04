@@ -13,6 +13,7 @@ import { AuthorEngine } from "@/components/landing-templates/author-engine";
 import { offerCardCopy, landingCopy, type LandingCopy, type Audience } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
 import { themeVars, themeAttrs } from "@/lib/theme";
+import { ThemeSwitch } from "@/components/theme-toggle";
 
 // Template « Lumen » : design clair, éditorial et aéré. Même contenu que Onyx,
 // habillage lumineux (fond papier chaud, encre sombre, accent de marque).
@@ -42,7 +43,7 @@ function LumenAppCard({ name, L }: { name: string; L: LandingCopy }) {
   return (
     <div className="relative mx-auto w-full max-w-[380px]">
       <div className="rounded-[28px] border border-black/8 bg-white p-4 shadow-[0_40px_90px_-30px_rgba(30,20,10,.35)]">
-        <div className="rounded-[20px] bg-[#faf8f5] p-4">
+        <div className="rounded-[20px] bg-[var(--lp-warm)] p-4">
           <div className="flex items-center justify-between">
             <span className="font-archivo text-[13px] font-bold tracking-[-0.01em] text-ink">{name}</span>
             <span className="flex size-8 items-center justify-center rounded-full bg-brand/12 text-brand"><S.spark className="h-4 w-4" /></span>
@@ -175,7 +176,7 @@ export function CoachLumen({ tenant, offers, leadMagnet = false, locale = "fr" }
 
   return (
     <div
-      className="min-h-dvh scroll-smooth bg-[#f6f4ef] pb-[76px] text-ink sm:pb-0"
+      className="min-h-dvh scroll-smooth bg-[var(--lp-warm-2)] pb-[76px] text-ink sm:pb-0"
       style={
         {
           ...themeVars(tenant.theme),
@@ -197,7 +198,7 @@ export function CoachLumen({ tenant, offers, leadMagnet = false, locale = "fr" }
       />
 
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-black/8 bg-[#f6f4ef]/80 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-black/8 bg-[var(--lp-warm-2)]/80 backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
           <Link href="#top" className="flex items-center"><Brand tenant={tenant} imgClass="h-11 sm:h-14" /></Link>
           <nav className="hidden items-center gap-6 md:flex">
@@ -229,6 +230,7 @@ export function CoachLumen({ tenant, offers, leadMagnet = false, locale = "fr" }
               cta={offers.length > 0 ? { href: "#offres", label: L.seePrograms } : undefined}
             />
             <span className="hidden md:block"><LangSwitch compact /></span>
+            <ThemeSwitch className="hidden md:inline-flex" />
             <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-ink/70 transition-colors hover:text-ink sm:inline">
               {L.login}
             </Link>
@@ -332,7 +334,7 @@ export function CoachLumen({ tenant, offers, leadMagnet = false, locale = "fr" }
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2.5">
                 {["Rack à squat", "Haltères 2–40 kg", "Poulie haute", "Banc réglable", "Barre EZ", "Kettlebells"].map((m) => (
-                  <span key={m} className="inline-flex items-center gap-2 rounded-xl border border-black/8 bg-[#faf8f5] px-3 py-2.5 text-[13px] text-ink/80">
+                  <span key={m} className="inline-flex items-center gap-2 rounded-xl border border-black/8 bg-[var(--lp-warm)] px-3 py-2.5 text-[13px] text-ink/80">
                     <S.check className="h-4 w-4 shrink-0 text-brand" /> {m}
                   </span>
                 ))}
@@ -394,7 +396,7 @@ export function CoachLumen({ tenant, offers, leadMagnet = false, locale = "fr" }
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2.5">
                 {[["Prot.", "42 g"], ["Gluc.", "58 g"], ["Lip.", "16 g"]].map(([k, v]) => (
-                  <div key={k} className="rounded-xl border border-black/8 bg-[#faf8f5] p-3 text-center">
+                  <div key={k} className="rounded-xl border border-black/8 bg-[var(--lp-warm)] p-3 text-center">
                     <div className="font-archivo text-[17px] font-extrabold text-ink">{v}</div>
                     <div className="text-[10px] text-ink/45">{k}</div>
                   </div>
@@ -432,7 +434,7 @@ export function CoachLumen({ tenant, offers, leadMagnet = false, locale = "fr" }
             <h2 className={`${sectionTitle} max-w-[16ch]`}>{L.forWhoTitle}</h2>
             <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {L.forWho.map((w) => (
-                <div key={w.title} className="flex items-start gap-3 rounded-[18px] border border-black/8 bg-[#faf8f5] p-5">
+                <div key={w.title} className="flex items-start gap-3 rounded-[18px] border border-black/8 bg-[var(--lp-warm)] p-5">
                   <S.check className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
                   <div className="flex flex-col gap-1">
                     <div className="font-archivo text-[15.5px] font-semibold leading-snug text-ink">{w.title}</div>
@@ -508,7 +510,7 @@ export function CoachLumen({ tenant, offers, leadMagnet = false, locale = "fr" }
               <h2 className={sectionTitle}>{L.programsTitle}</h2>
             </Reveal>
             {offers.length === 0 ? (
-              <div className="mx-auto mt-10 max-w-[520px] rounded-[20px] border border-black/8 bg-[#faf8f5] p-6 text-center text-[15px] text-ink/60">
+              <div className="mx-auto mt-10 max-w-[520px] rounded-[20px] border border-black/8 bg-[var(--lp-warm)] p-6 text-center text-[15px] text-ink/60">
                 {L.noOffer}
               </div>
             ) : (
@@ -528,7 +530,7 @@ export function CoachLumen({ tenant, offers, leadMagnet = false, locale = "fr" }
             )}
 
             {tenant.chargesEnabled && offers.some((o) => o.billing_type !== "subscription") ? (
-              <div className="mx-auto mt-10 flex max-w-[560px] flex-col items-center gap-3 rounded-[24px] border border-black/8 bg-[#faf8f5] p-7 text-center">
+              <div className="mx-auto mt-10 flex max-w-[560px] flex-col items-center gap-3 rounded-[24px] border border-black/8 bg-[var(--lp-warm)] p-7 text-center">
                 <div className="font-archivo text-[20px] font-bold tracking-[-0.02em] text-ink">
                   {L.giftTitle}
                 </div>
@@ -584,7 +586,7 @@ export function CoachLumen({ tenant, offers, leadMagnet = false, locale = "fr" }
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-black/8 bg-[#f6f4ef]">
+      <footer className="border-t border-black/8 bg-[var(--lp-warm-2)]">
         <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 px-5 py-12 sm:px-8">
           <Brand tenant={tenant} imgClass="h-10" textClass="text-[18px]" />
           <p className="max-w-[70ch] text-[13px] leading-[1.6] text-ink/50">
@@ -604,7 +606,7 @@ export function CoachLumen({ tenant, offers, leadMagnet = false, locale = "fr" }
 
       {/* CTA collante mobile */}
       {offers.length > 0 ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-black/8 bg-[#f6f4ef]/92 px-4 py-3 backdrop-blur-xl sm:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-black/8 bg-[var(--lp-warm-2)]/92 px-4 py-3 backdrop-blur-xl sm:hidden">
           <a href="#offres" className="tap flex w-full items-center justify-center gap-2 rounded-btn bg-brand py-3.5 text-[15px] font-semibold text-white active:scale-[0.98]">
             {L.seePrograms} <S.arrow className="h-4 w-4" />
           </a>

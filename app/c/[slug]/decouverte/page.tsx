@@ -5,6 +5,7 @@ import { LeadMagnetForm } from "@/components/lead-magnet-form";
 import { themeProps } from "@/components/tenant-theme";
 import { Reveal, RevealGroup } from "@/components/reveal";
 import { ScrollMarquee } from "@/components/landing-templates/scroll-fx";
+import { ThemeSwitch } from "@/components/theme-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -85,9 +86,14 @@ export default async function DecouvertePage({ params }: { params: Promise<{ slu
               <span className="font-archivo text-[18px] font-extrabold tracking-[-0.02em] text-ink">{lm.name}</span>
             )}
           </Link>
-          <Link href={`/c/${lm.slug}`} className="underline-grow text-[13.5px] font-semibold text-muted hover:text-ink">
-            Voir la page ↗
-          </Link>
+          <span className="flex items-center gap-2">
+            {/* La page suit déjà le thème du visiteur ; encore faut-il qu'il
+                puisse en changer sans quitter la page. */}
+            <ThemeSwitch />
+            <Link href={`/c/${lm.slug}`} className="underline-grow text-[13.5px] font-semibold text-muted hover:text-ink">
+              Voir la page ↗
+            </Link>
+          </span>
         </div>
       </header>
 

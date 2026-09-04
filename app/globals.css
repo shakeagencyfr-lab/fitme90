@@ -415,6 +415,20 @@ input:not([type="checkbox"]):not([type="radio"]) {
   .auto-marquee { animation: none; }
 }
 
+/* Fonds crème des landings claires (Lumen, Sage, Aurora).
+   Codés en dur, ils restaient clairs en mode sombre alors que le texte
+   posé dessus, lui, passait au clair : le bloc devenait illisible. Deux
+   variables suffisent, les nuances d'origine (#faf8f5 / #faf8f3 / #faf8f4)
+   ne se distinguaient pas à l'oeil. */
+:root {
+  --lp-warm: #faf8f5;
+  --lp-warm-2: #f6f4ef;
+}
+:root.dark {
+  --lp-warm: #131519;
+  --lp-warm-2: #191c21;
+}
+
 /* ================================================================== *
  * PAGE DU MINI-PROGRAMME GRATUIT
  *

@@ -441,6 +441,7 @@ export const en: Shape<typeof fr> = {
     startDate: "Program start date",
     startDateHint: "Your program countdown and calendar start on this date. Changing it realigns the agenda, sessions and nutrition.",
     startDateSaved: "Start date updated.",
+    theme: "Switch theme",
     light: "Light",
     dark: "Dark",
     title: "Your profile",

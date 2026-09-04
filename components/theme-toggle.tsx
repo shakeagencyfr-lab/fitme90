@@ -50,3 +50,33 @@ export function ThemeToggle({ className }: { className?: string }) {
     </div>
   );
 }
+
+/**
+ * Bascule compacte, pour les en-têtes publics.
+ *
+ * Un seul bouton : il montre la destination (une lune en clair, un soleil en
+ * sombre) plutôt que l'état courant, parce que c'est ce qu'on va obtenir en
+ * cliquant qui intéresse le visiteur.
+ *
+ * Aucun état React, comme le sélecteur complet : les deux icônes sont rendues
+ * et le CSS en masque une. Un composant qui lirait le thème au montage
+ * afficherait la mauvaise icône le temps de l'hydratation.
+ */
+export function ThemeSwitch({ className }: { className?: string }) {
+  const t = useT();
+  return (
+    <button
+      type="button"
+      onClick={() => apply(document.documentElement.classList.contains("dark") ? "light" : "dark")}
+      aria-label={t("profile.theme")}
+      title={t("profile.theme")}
+      className={[
+        "tap inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-current/15 text-current opacity-70 transition-opacity hover:opacity-100",
+        className ?? "",
+      ].join(" ")}
+    >
+      <span className="dark:hidden">{MoonIcon}</span>
+      <span className="hidden dark:inline">{SunIcon}</span>
+    </button>
+  );
+}

@@ -14,6 +14,7 @@ import { AuthorEngine } from "@/components/landing-templates/author-engine";
 import { offerCardCopy, landingCopy, type LandingCopy, type Audience } from "@/components/landing-templates/coach-copy";
 import { makeT, type Locale } from "@/lib/i18n";
 import { themeVars, themeAttrs } from "@/lib/theme";
+import { ThemeSwitch } from "@/components/theme-toggle";
 
 // Template « Sage » : calme, éditorial, beaucoup d'air.
 //
@@ -57,7 +58,7 @@ function SageAppCard({ name, L }: { name: string; L: LandingCopy }) {
   return (
     <div className="relative mx-auto w-full max-w-[360px]">
       <div className="rounded-[34px] border border-ink/8 bg-white p-4 shadow-[0_50px_100px_-50px_rgba(35,33,29,.5)]">
-        <div className="rounded-[26px] bg-[#faf8f3] p-4">
+        <div className="rounded-[26px] bg-[var(--lp-warm)] p-4">
           <div className="flex items-center justify-between">
             <span className="font-archivo text-[13px] font-bold tracking-[-0.01em] text-ink">{name}</span>
             <span className="flex size-8 items-center justify-center rounded-full bg-brand/10 text-brand"><S.spark className="h-4 w-4" /></span>
@@ -212,7 +213,7 @@ export function CoachSage({ tenant, offers, leadMagnet = false, locale = "fr" }:
       {...themeAttrs(tenant.theme)}
     >
       {/* Header : très léger, presque absent */}
-      <header className="sticky top-0 z-30 border-b border-ink/8 bg-[#f4f1ea]/85 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-ink/8 bg-[var(--lp-warm-2)]/85 backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-[1040px] items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <Link href="#top" className="flex items-center"><Brand tenant={tenant} imgClass="h-10 sm:h-12" /></Link>
           <nav className="hidden items-center gap-6 md:flex">
@@ -244,11 +245,12 @@ export function CoachSage({ tenant, offers, leadMagnet = false, locale = "fr" }:
               cta={offers.length > 0 ? { href: "#offres", label: L.seePrograms } : undefined}
             />
             <span className="hidden md:block"><LangSwitch compact /></span>
+            <ThemeSwitch className="hidden md:inline-flex" />
             <Link href={`/connexion?c=${tenant.slug}`} className="hidden text-[14px] text-ink/60 transition-colors hover:text-ink sm:inline">
               {L.login}
             </Link>
             {offers.length > 0 ? (
-              <a href="#offres" className="press tap inline-flex h-10 items-center rounded-full bg-ink px-5 text-[13.5px] font-semibold text-[#f4f1ea] transition-opacity hover:opacity-85">
+              <a href="#offres" className="press tap inline-flex h-10 items-center rounded-full bg-ink px-5 text-[13.5px] font-semibold text-paper transition-opacity hover:opacity-85">
                 {L.seePrograms}
               </a>
             ) : null}
@@ -561,7 +563,7 @@ export function CoachSage({ tenant, offers, leadMagnet = false, locale = "fr" }:
 
       {/* CTA collante mobile */}
       {offers.length > 0 ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-[#f4f1ea]/92 px-4 py-3 backdrop-blur-xl sm:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-[var(--lp-warm-2)]/92 px-4 py-3 backdrop-blur-xl sm:hidden">
           <a href="#offres" className="press tap flex w-full items-center justify-center gap-2 rounded-full bg-brand py-3.5 text-[15px] font-semibold text-white">
             {L.seePrograms} <S.arrow className="h-4 w-4" />
           </a>

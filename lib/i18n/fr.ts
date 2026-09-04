@@ -442,6 +442,7 @@ export const fr = {
     startDate: "Date de début du programme",
     startDateHint: "Le décompte de ton programme et ton calendrier partent de cette date. La modifier recale l'agenda, les séances et la nutrition.",
     startDateSaved: "Date de début mise à jour.",
+    theme: "Changer de thème",
     light: "Clair",
     dark: "Sombre",
     title: "Ton profil",
