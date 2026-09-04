@@ -415,6 +415,87 @@ input:not([type="checkbox"]):not([type="radio"]) {
   .auto-marquee { animation: none; }
 }
 
+/* ================================================================== *
+ * PAGE DU MINI-PROGRAMME GRATUIT
+ *
+ * Trois effets, et pas un de plus. Chacun sert la lecture : la lueur donne
+ * de la profondeur au héros pleine largeur, le point qui bat signale que
+ * l'offre est vivante, les pastilles de jours montrent la semaine promise.
+ * Tous s'arrêtent pour qui a demandé moins de mouvement, et tous partent de
+ * la couleur du coach plutôt que de la nôtre.
+ * ================================================================== */
+
+/* Lueur de fond, lente. `background-position` seule est animée : c'est une
+   propriété que le compositeur traite sans recalcul de mise en page. */
+@keyframes lm-aurore {
+  0% { background-position: 12% 0%, 88% 12%; }
+  50% { background-position: 30% 18%, 66% 0%; }
+  100% { background-position: 12% 0%, 88% 12%; }
+}
+.lm-aurora::before {
+  content: "";
+  position: absolute;
+  inset: -30% -10% auto -10%;
+  height: 150%;
+  z-index: -1;
+  background-image:
+    radial-gradient(38% 46% at 20% 8%, color-mix(in srgb, var(--color-brand) 22%, transparent), transparent 70%),
+    radial-gradient(34% 42% at 82% 14%, color-mix(in srgb, var(--color-accent) 16%, transparent), transparent 72%);
+  background-repeat: no-repeat;
+  background-size: 120% 120%, 120% 120%;
+  animation: lm-aurore 26s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Le point de la pastille « offert par ». Un battement, pas un clignotement :
+   ce qui clignote se lit comme une erreur. */
+@keyframes lm-battement {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.72); }
+}
+.lm-pulse { animation: lm-battement 2.4s ease-in-out infinite; }
+
+/* Les sept jours arrivent l'un après l'autre (délai posé en style inline).
+   Pas de mode de remplissage persistant : il laisse les navigateurs traiter
+   l'élément comme transformé bien après la fin, et tout descendant en
+   position fixe prendrait alors cet élément pour repère. */
+@keyframes lm-jour {
+  from { opacity: 0; transform: translateY(10px) scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+.lm-jour { animation: lm-jour 460ms var(--ease-out-soft) backwards; }
+
+/* Le mot souligné du titre : un trait qui se trace au chargement. */
+@keyframes lm-trait {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.lm-souligne {
+  position: relative;
+  white-space: nowrap;
+}
+.lm-souligne::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.06em;
+  height: 0.11em;
+  border-radius: 999px;
+  background: var(--color-brand);
+  transform-origin: left center;
+  animation: lm-trait 700ms var(--ease-out-soft) 420ms backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lm-aurora::before,
+  .lm-pulse,
+  .lm-jour,
+  .lm-souligne::after {
+    animation: none;
+  }
+}
+
 /* Menu mobile des landings. Le voile se fond, le panneau descend, puis les
    lignes arrivent l'une après l'autre (délai posé en style inline). */
 @keyframes nav-veil { from { opacity: 0; } to { opacity: 1; } }
