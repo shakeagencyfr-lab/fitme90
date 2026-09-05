@@ -1,5 +1,6 @@
 "use server";
 
+import { safeLocalPath } from "@/lib/safe-url";
 import { redirect } from "next/navigation";
 import { getT } from "@/lib/i18n/server";
 import type { TFn } from "@/lib/i18n";
@@ -95,8 +96,9 @@ export async function signInAction(
   }
   if (coach) redirect("/admin");
 
-  const next = String(formData.get("suite") || "/app");
-  redirect(next.startsWith("/") ? next : "/app");
+  // Où atterrir ensuite : un chemin du site, jamais une adresse d'ailleurs
+  // (« //evil.com » commence aussi par « / »).
+  redirect(safeLocalPath(formData.get("suite"), "/app"));
 }
 
 export async function signUpAction(

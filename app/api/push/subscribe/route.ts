@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
+import { safePushEndpoint } from "@/lib/safe-url";
 
 export const runtime = "nodejs";
 
@@ -24,10 +25,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Abonnement invalide" }, { status: 400 });
   }
 
+  // Le serveur postera sur cette adresse : HTTPS vers un vrai service push,
+  // jamais une adresse interne glissée par un appel direct à l'API.
+  const endpoint = safePushEndpoint(body.endpoint);
+  if (!endpoint) return NextResponse.json({ error: "Abonnement invalide" }, { status: 400 });
+
   const supabase = await createClient();
   const { error } = await supabase.from("push_subscriptions").upsert(
     {
-      endpoint: body.endpoint,
+      endpoint,
       user_id: ctx.userId,
       p256dh: body.keys.p256dh,
       auth: body.keys.auth,

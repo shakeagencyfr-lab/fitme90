@@ -565,6 +565,8 @@ create table if not exists public.exercise_media (
 
 create table if not exists public.shop_products (
   id uuid not null default gen_random_uuid(),
+  -- Boutique PAR TENANT : chaque coach a la sienne.
+  tenant_id uuid references public.tenants(id) on delete cascade,
   title text not null,
   description text not null default ''::text,
   image_url text not null default ''::text,
@@ -681,6 +683,7 @@ create index if not exists profiles_referred_by_idx on public.profiles (referred
 create index if not exists profiles_subscription_idx on public.profiles (subscription_id) where (subscription_id is not null);
 create index if not exists promo_codes_tenant_idx on public.promo_codes (tenant_id);
 create index if not exists prospects_tenant_idx on public.prospects (tenant_id, created_at desc);
+create index if not exists shop_products_tenant_idx on public.shop_products (tenant_id, position);
 create index if not exists push_subscriptions_user_id_idx on public.push_subscriptions (user_id);
 create index if not exists scheduled_pushes_due_idx on public.scheduled_pushes (send_at) where (sent_at is null);
 create index if not exists scheduled_pushes_tenant_idx on public.scheduled_pushes (tenant_id);
@@ -757,33 +760,52 @@ begin
   end loop;
 end $$;
 
--- Tables SERVER-ONLY : aucune policy, droits révoqués à anon/authenticated.
--- Tout accès passe par le service_role (code serveur). (profiles / tenants /
--- offers NE sont PAS ici : le client y a un accès en lecture, voir section 6.)
+-- Droits de table : TOUT est révoqué à anon et authenticated, puis chaque
+-- rôle ne reçoit que ce que ses policies (section 6) encadrent. Les tables
+-- naissent sinon avec tous les privilèges (défaut Supabase), TRUNCATE compris,
+-- que le RLS n'arrête pas. anon n'a rien : les pages publiques lisent via le
+-- service role. Tout ce qui n'est pas listé ci-dessous est SERVER-ONLY.
 do $$
-declare t text;
+declare r record;
 begin
-  foreach t in array array[
-    'plans','tenant_secrets','coach_config','prospects',
-    'credit_wallets','credit_ledger','credit_packs',
-    'coach_notes','coach_notifications','vip_messages','scheduled_pushes',
-    'ai_calls','gift_codes','promo_codes','exercise_guides','exercise_media','shop_products',
-    'support_access_log'
-  ]
-  loop
-    execute format('revoke all on public.%I from anon, authenticated;', t);
+  for r in select tablename from pg_tables where schemaname = 'public' loop
+    execute format('revoke all on public.%I from anon, authenticated;', r.tablename);
   end loop;
 end $$;
 
 -- Tables « données du client » : le rôle authenticated a besoin des privilèges
--- de table pour que les policies (section 6) s'appliquent réellement.
+-- de table pour que les policies own_rows (section 6) s'appliquent réellement.
 grant select, insert, update, delete on
   public.questionnaires, public.equipment, public.session_logs, public.weights,
   public.measurements, public.photos, public.shopping_checks, public.push_subscriptions,
-  public.programs, public.coach_conversations, public.coach_messages
+  public.programs, public.coach_conversations, public.coach_messages,
+  public.client_memory, public.client_recipes
   to authenticated;
-grant select, update on public.profiles to authenticated;
-grant select on public.tenants, public.offers to authenticated;
+
+-- profiles : lecture de sa ligne ; écriture de ses mesures, sa langue et sa
+-- préférence de paiement. Jamais role, tenant_id, paid ni l'abonnement : ces
+-- colonnes ne s'écrivent que côté serveur (service role).
+grant select on public.profiles to authenticated;
+grant update (name, sex, age, height_cm, rest_hr, photo_consent_at, language, selected_interval)
+  on public.profiles to authenticated;
+
+-- tenants : les colonnes de marque de SON coach, rien de sa gestion (parent,
+-- Stripe, e-mails de notification, palier, suspension, droits).
+grant select (id, slug, name, kind, brand_color, tagline, headline, logo_url, logo_dark_url,
+  favicon_url, app_icon_url, app_name, theme, language, business_type, support_email,
+  terms_url, privacy_url, hide_powered_by, landing_template, subdomain, custom_domain,
+  about_enabled, about_title, about_text, about_photo_url, address, phone, website_url,
+  opening_hours, web_enabled, web_slug)
+  on public.tenants to authenticated;
+
+-- offers : les offres de son coach (déjà publiques sur la page de vente).
+grant select on public.offers to authenticated;
+
+-- Le débit de crédits n'est pas une fonction à appeler depuis le navigateur.
+revoke all on function public.debit_credit(uuid, integer) from public, anon, authenticated;
+
+-- Les prochaines tables naissent sans droit pour anon ni authenticated.
+alter default privileges for role postgres in schema public revoke all on tables from anon, authenticated;
 
 -- =====================================================================
 -- 6. POLICIES — accès client à ses propres données ((select auth.uid()))

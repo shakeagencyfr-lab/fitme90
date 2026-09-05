@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cronAuthorized } from "@/lib/cron-auth";
 import { syncAllSubscriptions } from "@/lib/subscription";
 import { syncAllTenantSubscriptions } from "@/lib/tenant-billing";
 import { syncWhitelabelSubscriptions } from "@/lib/whitelabel-billing";
@@ -19,15 +20,10 @@ export const maxDuration = 300; // la régénération appelle le modèle (peut �
 // 2) construit le BLOC SUIVANT (3 cycles) des clients dont la fin de bloc
 //    approche : produit 12 mois (4 blocs) et abonnés mensuels en règle. Chaque
 //    bloc est bâti sur le vécu du précédent (lib/blocks.ts).
-// Protégé par CRON_SECRET (Vercel envoie « Authorization: Bearer <secret> »).
+// Protégé par CRON_SECRET (Vercel envoie « Authorization: Bearer <secret> ») ;
+// sans secret configuré, la route refuse tout (lib/cron-auth.ts).
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-    }
-  }
+  if (!cronAuthorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   // Notifications programmées : le plan Hobby n'autorise qu'un cron par jour,
   // alors on vide la file à chaque passage de N'IMPORTE quel cron. Vider la
   // file n'envoie que ce qui est dû, la répétition est donc sans effet de bord.

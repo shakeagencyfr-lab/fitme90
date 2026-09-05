@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cronAuthorized } from "@/lib/cron-auth";
 import { vapidReady } from "@/lib/push";
 import { dispatchScheduledPushes } from "@/lib/scheduled-push";
 
@@ -15,13 +16,7 @@ export const maxDuration = 60;
 // est au pire de quelques heures. Passer à un envoi à l'heure dite demande le
 // plan Pro (crons à la minute) ou un ordonnanceur externe.
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-    }
-  }
+  if (!cronAuthorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   if (!vapidReady()) {
     return NextResponse.json({ error: "VAPID non configuré" }, { status: 503 });
   }
