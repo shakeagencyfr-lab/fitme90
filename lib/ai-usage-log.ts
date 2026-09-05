@@ -41,6 +41,17 @@ export interface UsageRow {
   parts: CostParts;
   /** Poste dominant, pour dire d'un mot d'où vient la facture de la ligne. */
   driver: CostDriver;
+  /**
+   * Identifiant de la requête Anthropic. C'est l'accroche du rapprochement :
+   * la même chaîne figure dans la console Anthropic, en face du même montant.
+   */
+  requestId: string | null;
+  /**
+   * Vrai pour les appels SUPPLÉMENTAIRES d'une même action : le second tour
+   * d'outils d'un message, la relance d'une génération. Ils coûtent, donc ils
+   * figurent, mais ils ne sont pas un geste de plus du client.
+   */
+  continuation: boolean;
 }
 
 /**
@@ -118,6 +129,7 @@ export function actionLabel(action: string | null, route: string): string {
     case "bloc": return "Bloc suivant du programme";
     case "analyse-salle": return "Analyse photo de la salle";
     case "memoire": return "Résumé de mémoire (nuit)";
+    case "verif-cle": return "Vérification de la clé API";
     default: break;
   }
   // Historique antérieur à la colonne `action` : le route reste parlant.
@@ -143,7 +155,7 @@ export function modelLabel(model: string): string {
 /** Modèle réellement appelé, ou déduit du route pour les lignes antérieures. */
 function modelOf(model: string | null, route: string): string {
   if (model) return model;
-  if (route === "generate" || route === "block") return MODELS.generate;
+  if (route === "generate" || route === "block" || route === "key-test") return MODELS.generate;
   if (route === "recipes") return MODELS.recipes;
   if (route === "analyze-gym") return MODELS.analyzeGym;
   return MODELS.coach;
@@ -179,6 +191,8 @@ interface RawRow extends CostRow {
   model: string | null;
   action: string | null;
   credits: number | null;
+  request_id: string | null;
+  counts_for_quota: boolean | null;
 }
 
 // `cache_write_1h_tokens` FAIT PARTIE DE LA LISTE, et ce n'est pas un détail.
@@ -188,7 +202,7 @@ interface RawRow extends CostRow {
 // autres écrans (coût du mois, marges) lisaient la bonne colonne et donnaient
 // un total sans rapport avec la somme des lignes.
 export const COLS =
-  "id, created_at, user_id, tenant_id, route, action, model, credits, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cache_write_1h_tokens";
+  "id, created_at, user_id, tenant_id, route, action, model, credits, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cache_write_1h_tokens, request_id, counts_for_quota";
 
 /**
  * Une page d'historique pour un étage. Trois requêtes au plus : les appels, les
@@ -267,6 +281,10 @@ export async function usageHistory(
       costUsd: parts.total,
       parts,
       driver: costDriver(parts),
+      requestId: r.request_id,
+      // Les lignes d'avant ce découpage valent une action chacune (la colonne
+      // vaut `true` par défaut) : aucune d'elles n'est une suite.
+      continuation: r.counts_for_quota === false,
     };
   });
 

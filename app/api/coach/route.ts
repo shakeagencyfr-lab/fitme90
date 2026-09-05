@@ -4,10 +4,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
-import { recordCall, checkActionLimit, WEEK_MS } from "@/lib/ratelimit";
+import { recordCalls, checkActionLimit, WEEK_MS } from "@/lib/ratelimit";
 import { checkClientAiBudget } from "@/lib/coach-ai-budget";
 import { checkAiAllowance, chargeAiUsage, coachUsageToCharge } from "@/lib/credits";
-import { MODELS, textOf, parseJsonLoose, effortConfig, anthropic } from "@/lib/anthropic";
+import { MODELS, textOf, parseJsonLoose, effortConfig, anthropic, apiCallOf, type ApiCall } from "@/lib/anthropic";
 import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
 import { clientCoachAiIncluded } from "@/lib/offers";
@@ -401,20 +401,16 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     },
   ];
 
-  const totalUsage = {
-    input_tokens: 0,
-    output_tokens: 0,
-    cache_read_tokens: 0,
-    /** Écritures dans le cache court (5 min). */
-    cache_write_tokens: 0,
-    /** Écritures dans le cache long (1 h), facturées 200 % au lieu de 125 %. */
-    cache_write_1h_tokens: 0,
-  };
+  // UN message du client, ce sont un à trois appels au modèle : la réponse, et
+  // un appel de plus par tour d'outils. Ils sont retenus un par un, et non
+  // additionnés : le journal doit montrer la facture Anthropic telle qu'elle
+  // est, avec le modèle et l'identifiant de requête de chacun.
+  const coachCalls: ApiCall[] = [];
   // Une régénération lancée depuis le chat appelle le modèle de GÉNÉRATION,
-  // pas celui du coach. Ses jetons sont comptés à part : versés dans
-  // `totalUsage`, ils auraient été tarifés au prix de Haiku alors qu'ils
-  // coûtent ceux de Sonnet, et le journal sous-évaluait l'appel de moitié.
-  const genUsage = { input_tokens: 0, output_tokens: 0 };
+  // pas celui du coach. Ses appels vivent dans leur propre liste : mêlés aux
+  // précédents, ils auraient été tarifés au prix de Haiku alors qu'ils coûtent
+  // ceux de Sonnet, et le journal sous-évaluait l'appel de moitié.
+  const genCalls: ApiCall[] = [];
   // `adapted` : quelque chose a changé, il faut rafraîchir les pages du client.
   // `regenerated` : le modèle a réellement reconstruit un programme, ce qui est
   // le SEUL cas qui justifie de débiter des crédits de génération.
@@ -534,18 +530,7 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
       tools,
       messages: msgs,
     });
-    totalUsage.input_tokens += m.usage.input_tokens;
-    totalUsage.output_tokens += m.usage.output_tokens;
-    totalUsage.cache_read_tokens += m.usage.cache_read_input_tokens ?? 0;
-    // L'API distingue les deux durées. On les sépare ici, sinon l'estimation de
-    // coût sous-évaluerait la facture de 60 % sur toutes les écritures longues.
-    const creation = m.usage.cache_creation;
-    if (creation) {
-      totalUsage.cache_write_tokens += creation.ephemeral_5m_input_tokens ?? 0;
-      totalUsage.cache_write_1h_tokens += creation.ephemeral_1h_input_tokens ?? 0;
-    } else {
-      totalUsage.cache_write_tokens += m.usage.cache_creation_input_tokens ?? 0;
-    }
+    coachCalls.push(apiCallOf(m));
     return m;
   }
 
@@ -596,9 +581,9 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
       "low", // rapide : tenir sous ~60 s dans la requête coach (Vercel Hobby)
       billing.key,
       ctx!.profile?.tenant_id ?? null,
+      genCalls,
     );
-    genUsage.input_tokens += result.usage.input_tokens;
-    genUsage.output_tokens += result.usage.output_tokens;
+
     const oldCycles = (program?.plan as Plan | undefined)?.cycles ?? [];
     const from = pos.blockIndex * CYCLES_PER_BLOCK;
     const fresh = result.plan.cycles ?? [];
@@ -703,6 +688,23 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
       messages = [raw.trim() || (adapted ? "J'ai adapté ton programme." : "Je n'ai pas de réponse pour l'instant.")];
     }
   } catch {
+    // Le modèle a pu répondre plusieurs fois avant l'échec : ces appels sont
+    // facturés par Anthropic. Ils entrent au journal, sans crédit ni quota,
+    // sinon le client paierait un message qu'il n'a jamais reçu.
+    await recordCalls(ctx.userId, "coach", coachCalls, {
+      tenantId: coachTenant,
+      action: "message",
+      credits: 0,
+      countsForQuota: false,
+    }).catch(() => {});
+    if (genCalls.length) {
+      await recordCalls(ctx.userId, "block", genCalls, {
+        tenantId: coachTenant,
+        action: "adaptation",
+        credits: 0,
+        countsForQuota: false,
+      }).catch(() => {});
+    }
     return NextResponse.json(
       { error: t("srv.coachDown") },
       { status: 502 },
@@ -739,9 +741,8 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
   }
   // Enregistré APRÈS le débit : l'historique porte les crédits réellement
   // prélevés, pas une estimation refaite à côté.
-  await recordCall(ctx.userId, "coach", totalUsage, {
+  await recordCalls(ctx.userId, "coach", coachCalls, {
     tenantId: coachTenant,
-    model: MODELS.coach,
     action: "message",
     credits: charged,
   });
@@ -750,12 +751,14 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
   // conversation qui coûte le prix d'un programme sans dire pourquoi. Zéro
   // crédit : elle n'est pas facturée, elle est absorbée, et cette ligne est ce
   // qui rend le montant absorbé lisible.
-  if (regenerated) {
-    await recordCall(ctx.userId, "block", genUsage, {
+  if (genCalls.length) {
+    await recordCalls(ctx.userId, "block", genCalls, {
       tenantId: coachTenant,
-      model: MODELS.generate,
       action: "adaptation",
       credits: 0,
+      // Une adaptation qui a échoué à mi-chemin ne doit pas manger le plafond
+      // hebdomadaire : seule celle qui a abouti compte.
+      countsForQuota: regenerated,
     });
   }
 

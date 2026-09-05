@@ -1,7 +1,7 @@
 import "server-only";
 import { aiLanguageInstruction, type Locale } from "./i18n";
 import { z } from "zod";
-import { anthropic, MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
+import { anthropic, MODELS, textOf, parseJsonLoose, effortConfig, apiCallOf, type ApiCall } from "@/lib/anthropic";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
 import { restPatternFromTrainDays, isRestDay } from "@/lib/schedule";
 import { scheduledTrainingDays } from "@/lib/streak";
@@ -487,8 +487,17 @@ export function buildBrief({ answers, trainDays, equipment, priorCycleNote, prog
 
 export interface GenerateResult {
   plan: Plan;
+  /** Modèle qui a produit le plan retenu, tel que l'API l'a servi. */
   model: string;
-  usage: { input_tokens: number; output_tokens: number };
+  /**
+   * TOUS les appels passés à l'API, y compris celui dont le plan a été jeté.
+   *
+   * C'était un total unique auparavant, et ce total mentait deux fois : la
+   * relance dont le résultat n'était pas retenu disparaissait du journal alors
+   * qu'Anthropic l'avait facturée (une génération entière, environ 0,29 $), et
+   * les jetons de cache n'étaient pas comptés du tout.
+   */
+  calls: ApiCall[];
 }
 
 /**
@@ -502,6 +511,15 @@ export async function generateProgram(
   effort: "low" | "medium" | "high" = "high",
   apiKey?: string,
   tenantId: string | null = null,
+  /**
+   * Tableau que l'appelant fournit et que l'on remplit AU FIL des appels.
+   *
+   * Il appartient à l'appelant précisément pour qu'une génération qui échoue
+   * laisse quand même sa trace : si cette fonction lève (JSON invalide, schéma
+   * refusé), le contenu de `journal` est déjà chez lui, et il journalise ce
+   * qu'Anthropic a facturé avant l'échec.
+   */
+  journal: ApiCall[] = [],
 ): Promise<GenerateResult> {
   const client = anthropic(apiKey);
   // Méthodologie propre au tenant (base evidence-based, ou méthode du coach).
@@ -538,15 +556,16 @@ export async function generateProgram(
       ],
     });
     const message = await stream.finalMessage();
+    // Journalisé AVANT la validation : le plan peut être refusé, la facture,
+    // elle, est déjà partie. En streaming l'identifiant de requête vit sur le
+    // flux et non sur le message final, d'où le second argument.
+    const call = apiCallOf(message, stream.request_id);
+    journal.push(call);
     const plan = relabelCycles(
       normalizePlan(planSchema.parse(parseJsonLoose(textOf(message)))),
       firstCycleIndex,
     );
-    return {
-      plan,
-      inTok: message.usage.input_tokens,
-      outTok: message.usage.output_tokens,
-    };
+    return { plan, call };
   };
 
   // Le bon nombre de cycles, chacun avec le bon nombre de séances distinctes.
@@ -554,7 +573,7 @@ export async function generateProgram(
     (p.cycles?.length ?? 0) >= wantCycles &&
     (p.cycles ?? []).every((c) => (c.sessions?.length ?? 0) >= wantSessions);
 
-  let { plan, inTok, outTok } = await runOnce("");
+  let { plan, call: retenu } = await runOnce("");
   // Garde-fou périodisation : si un cycle manque de séances distinctes (bug
   // « même séance partout »), on relance une fois avec une consigne explicite
   // (1re génération uniquement, où le budget temps le permet).
@@ -565,17 +584,13 @@ export async function generateProgram(
       );
       if (cyclesOk(retry.plan)) {
         plan = retry.plan;
-        inTok += retry.inTok;
-        outTok += retry.outTok;
+        retenu = retry.call;
       }
     } catch {
-      /* on garde le 1er plan si la relance échoue */
+      // On garde le 1er plan si la relance échoue. L'appel raté, lui, est déjà
+      // dans `journal` : il a été facturé, il doit se voir.
     }
   }
 
-  return {
-    plan,
-    model: MODELS.generate,
-    usage: { input_tokens: inTok, output_tokens: outTok },
-  };
+  return { plan, model: retenu.model, calls: journal };
 }

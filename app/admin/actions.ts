@@ -145,7 +145,7 @@ export async function saveAnthropicKey(_prev: ByokState, formData: FormData): Pr
     return { error: "Clé invalide : une clé Anthropic commence par « sk-ant- »." };
   }
 
-  const test = await testAnthropicKey(key);
+  const test = await testAnthropicKey(key, { userId: ctx.userId, tenantId });
   if (!test.ok) {
     return { error: `La clé n'a pas fonctionné : ${test.error ?? "vérifie qu'elle est active."}` };
   }

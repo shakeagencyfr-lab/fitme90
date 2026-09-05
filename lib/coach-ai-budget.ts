@@ -204,6 +204,9 @@ export async function checkClientAiBudget(userId: string, tenantId: string | nul
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
     .in("route", [...CLIENT_AI_ROUTES])
+    // Une ligne par appel API depuis que le journal miroite la facture : seule
+    // celle qui porte l'action compte comme un message consommé.
+    .eq("counts_for_quota", true)
     .gte("created_at", parisDayStart().toISOString());
   const used = count ?? 0;
   return { ok: used < limit, used, limit, remaining: Math.max(0, limit - used), resetsAt };

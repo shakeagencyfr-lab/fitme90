@@ -3,8 +3,8 @@ import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
-import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
-import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
+import { checkLimit, recordCalls, DAY_MS } from "@/lib/ratelimit";
+import { MODELS, textOf, parseJsonLoose, effortConfig, apiCallOf, type ApiCall } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
 import { saveClientRecipes } from "@/lib/recipes-store";
 import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
@@ -97,6 +97,9 @@ Consignes : 4 à 7 étapes concrètes, quantités précises, macros estimées, u
     { type: "text", text: user },
   ];
 
+  // Retenu hors du bloc utile : dès que l'API répond, elle facture, même si sa
+  // réponse se révèle ensuite inexploitable. Le journal doit le montrer.
+  let call: ApiCall | null = null;
   try {
     const message = await (await anthropicForUser(ctx.userId)).messages.create({
       model: MODELS.recipes,
@@ -105,20 +108,36 @@ Consignes : 4 à 7 étapes concrètes, quantités précises, macros estimées, u
       system,
       messages: [{ role: "user", content }],
     });
+    call = apiCallOf(message);
     const out = recipesSchema.parse(parseJsonLoose(textOf(message)));
     if (!out.recipes.length) {
+      // Photo illisible : rien n'est facturé au client, mais l'appel a bien eu
+      // lieu et il est journalisé tel quel.
+      await recordCalls(ctx.userId, "recipes", [call], {
+        tenantId: coachTenant,
+        action: "recette-photo",
+        credits: 0,
+        countsForQuota: false,
+      });
       return NextResponse.json({ error: "Aucun aliment reconnu sur la photo. Réessaie avec une photo plus nette." }, { status: 200 });
     }
-    await recordCall(
-      ctx.userId,
-      "recipes",
-      { input_tokens: message.usage.input_tokens, output_tokens: message.usage.output_tokens },
-      { tenantId: coachTenant, model: MODELS.recipes, action: "recette-photo", credits: allowance.coachCost },
-    );
+    await recordCalls(ctx.userId, "recipes", [call], {
+      tenantId: coachTenant,
+      action: "recette-photo",
+      credits: allowance.coachCost,
+    });
     await chargeAiUsage(coachTenant, "action", "recipe", ctx.userId);
     await saveClientRecipes(ctx.userId, out.recipes);
     return NextResponse.json({ recipes: out.recipes });
   } catch {
+    if (call) {
+      await recordCalls(ctx.userId, "recipes", [call], {
+        tenantId: coachTenant,
+        action: "recette-photo",
+        credits: 0,
+        countsForQuota: false,
+      }).catch(() => {});
+    }
     return NextResponse.json({ error: "Analyse de la photo indisponible." }, { status: 502 });
   }
 }

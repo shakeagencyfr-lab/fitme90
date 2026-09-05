@@ -3,8 +3,8 @@ import { makeT } from "@/lib/i18n";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { getSessionContext } from "@/lib/guard";
-import { checkLimit, recordCall } from "@/lib/ratelimit";
-import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
+import { checkLimit, recordCalls } from "@/lib/ratelimit";
+import { MODELS, textOf, parseJsonLoose, effortConfig, apiCallOf, type ApiCall } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
 import { LIMIT_ANALYZE_GYM_TOTAL, GYM_PHOTOS_PER_BATCH } from "@/lib/config";
 import { EQUIPMENT_FAMILIES } from "@/lib/equipment";
@@ -97,6 +97,9 @@ export async function POST(req: NextRequest) {
     text: `Examine les ${parsed.data.images.length} photos une par une, puis liste le matériel utilisable pour un programme d'entraînement.`,
   });
 
+  // Retenu hors du bloc utile : l'appel est facturé dès qu'il répond, même si
+  // sa réponse ne passe pas la validation.
+  let call: ApiCall | null = null;
   try {
     const message = await (await anthropicForUser(ctx.userId)).messages.create({
       model: MODELS.analyzeGym,
@@ -105,15 +108,23 @@ export async function POST(req: NextRequest) {
       system,
       messages: [{ role: "user", content }],
     });
+    call = apiCallOf(message);
     const result = resultSchema.parse(parseJsonLoose(textOf(message)));
-    await recordCall(
-      ctx.userId,
-      "analyze-gym",
-      { input_tokens: message.usage.input_tokens, output_tokens: message.usage.output_tokens },
-      { tenantId: ctx.profile?.tenant_id ?? null, model: MODELS.analyzeGym, action: "analyse-salle", credits: 0 },
-    );
+    await recordCalls(ctx.userId, "analyze-gym", [call], {
+      tenantId: ctx.profile?.tenant_id ?? null,
+      action: "analyse-salle",
+      credits: 0,
+    });
     return NextResponse.json({ equipment: result.equipment });
   } catch {
+    if (call) {
+      await recordCalls(ctx.userId, "analyze-gym", [call], {
+        tenantId: ctx.profile?.tenant_id ?? null,
+        action: "analyse-salle",
+        credits: 0,
+        countsForQuota: false,
+      }).catch(() => {});
+    }
     return NextResponse.json(
       { error: t("srv.analyzeDown") },
       { status: 502 },

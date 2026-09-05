@@ -130,7 +130,11 @@ it.skipIf(!UTILISABLE)(
         const res = await generateProgram(BRIEF, r.effort, CLE, null);
         const secondes = (Date.now() - t0) / 1000;
         const tarif = TARIFS[r.model] ?? TARIFS["claude-opus-5"];
-        const usd = (res.usage.input_tokens * tarif.in + res.usage.output_tokens * tarif.out) / 1_000_000;
+        // Tous les appels du run, relance jetée comprise : c'est ce que la
+        // facture porte, et donc ce qu'il faut comparer d'un modèle à l'autre.
+        const inTok = res.calls.reduce((n, c) => n + c.usage.input_tokens, 0);
+        const outTok = res.calls.reduce((n, c) => n + c.usage.output_tokens, 0);
+        const usd = (inTok * tarif.in + outTok * tarif.out) / 1_000_000;
         const m = planMetrics(res.plan as Plan);
         const c = planConformity(res.plan as Plan, wantCycles, wantSessions);
         const ce = constraintEcho(res.plan as Plan, ZONES);
@@ -152,8 +156,8 @@ it.skipIf(!UTILISABLE)(
           model: r.model,
           effort: r.effort,
           secondes,
-          inTok: res.usage.input_tokens,
-          outTok: res.usage.output_tokens,
+          inTok,
+          outTok,
           usd,
           eur: usdToEur(usd),
           conforme: c.cyclesOk && c.sessionsOk ? "oui" : `non (${c.cyclesOk ? "" : "cycles "}${c.sessionsOk ? "" : "séances"})`.trim(),

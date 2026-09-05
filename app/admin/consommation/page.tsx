@@ -131,7 +131,10 @@ export default async function AdminUsagePage({
                           {scope === "network" ? r.personName ?? r.personEmail ?? "·" : r.personEmail ?? ""}
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 text-body">{r.action}</td>
+                      <td className="px-3 py-2.5 text-body">
+                        {r.action}
+                        {r.continuation ? <Suite /> : null}
+                      </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-muted">{modelLabel(r.model)}</td>
                       <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-muted">
                         {r.inputTokens.toLocaleString("fr-FR")} / {r.outputTokens.toLocaleString("fr-FR")}
@@ -143,6 +146,7 @@ export default async function AdminUsagePage({
                       </td>
                       <td className="px-3 py-2.5 tabular-nums font-semibold text-ink">
                         {r.credits > 0 ? r.credits : <span className="font-normal text-muted-2">·</span>}
+                        <RequestId id={r.requestId} />
                       </td>
                     </tr>
                   ))}
@@ -170,7 +174,10 @@ function MobileRow({ row, showAccount }: { row: UsageRow; showAccount: boolean }
   return (
     <div className="flex flex-col gap-1 border-b border-line-2 px-5 py-3 last:border-0">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="font-semibold text-[14px] text-ink">{row.action}</span>
+        <span className="font-semibold text-[14px] text-ink">
+          {row.action}
+          {row.continuation ? <Suite /> : null}
+        </span>
         <span className="whitespace-nowrap tabular-nums text-[13px] text-ink">{formatEurPrecise(usdToEur(row.costUsd))}</span>
       </div>
       <div className="text-[12.5px] text-body">
@@ -192,6 +199,37 @@ function MobileRow({ row, showAccount }: { row: UsageRow; showAccount: boolean }
           </>
         ) : null}
       </div>
+      <RequestId id={row.requestId} />
+    </div>
+  );
+}
+
+/**
+ * Marque un appel qui prolonge l'action de la ligne précédente : le second tour
+ * d'outils d'un message, la relance d'une génération. Sans elle, on lirait deux
+ * messages là où le client n'en a envoyé qu'un.
+ */
+function Suite() {
+  return (
+    <span
+      title="Appel supplémentaire de la même action : il coûte, mais il ne compte pas comme une action de plus."
+      className="ml-1.5 rounded-pill bg-surface-2 px-1.5 py-0.5 align-middle font-mono text-[9.5px] uppercase tracking-[0.1em] text-muted-2"
+    >
+      suite
+    </span>
+  );
+}
+
+/**
+ * L'identifiant de requête Anthropic. C'est lui qui rend le journal
+ * vérifiable : la même chaîne se retrouve dans la console Anthropic, en face
+ * du même montant. Discret par défaut, il ne sert qu'au moment où l'on doute.
+ */
+function RequestId({ id }: { id: string | null }) {
+  if (!id) return null;
+  return (
+    <div className="font-mono text-[10px] leading-[1.4] text-muted-2" title={id}>
+      {id.length > 16 ? `${id.slice(0, 16)}…` : id}
     </div>
   );
 }

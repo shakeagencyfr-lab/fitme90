@@ -1,6 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import { anthropic, MODELS } from "@/lib/anthropic";
+import { anthropic, MODELS, apiCallOf } from "@/lib/anthropic";
+import { recordCalls } from "@/lib/ratelimit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptSecret, decryptSecret, keyHint, secretsEncryptionReady } from "@/lib/crypto";
 import { attachReferral } from "@/lib/affiliation";
@@ -207,18 +208,37 @@ export async function tenantKeyStatus(tenantId: string): Promise<TenantKeyStatus
   };
 }
 
-/** Vérifie qu'une clé Anthropic fonctionne (petit appel peu coûteux). */
-export async function testAnthropicKey(key: string): Promise<{ ok: boolean; error?: string }> {
+/**
+ * Vérifie qu'une clé Anthropic fonctionne (petit appel peu coûteux).
+ *
+ * Peu coûteux n'est pas gratuit : ce ping figure sur la facture Anthropic du
+ * coach. Il figure donc aussi au journal dès qu'on sait à qui l'attribuer, sans
+ * quoi le journal cesserait d'être le miroir de la facture pour quelques
+ * centimes par an.
+ */
+export async function testAnthropicKey(
+  key: string,
+  auteur?: { userId: string; tenantId: string | null },
+): Promise<{ ok: boolean; error?: string }> {
   try {
     const client = anthropic(key);
     // On teste avec le MÊME modèle que la génération : ainsi une clé validée ici
     // fonctionne à coup sûr en production (pas de faux négatif lié à un modèle
     // indisponible sur le compte du coach).
-    await client.messages.create({
+    const message = await client.messages.create({
       model: MODELS.generate,
       max_tokens: 4,
       messages: [{ role: "user", content: "ping" }],
     });
+    if (auteur) {
+      // Hors quota : personne n'a demandé de message, on a validé une clé.
+      await recordCalls(auteur.userId, "key-test", [apiCallOf(message)], {
+        tenantId: auteur.tenantId,
+        action: "verif-cle",
+        credits: 0,
+        countsForQuota: false,
+      }).catch(() => {});
+    }
     return { ok: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Clé invalide.";
