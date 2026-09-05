@@ -5,7 +5,19 @@ import { Button, Alert } from "@/components/ui";
 
 // Lance le paiement d'une offre coach sur le compte Stripe DU COACH (BYOK).
 // `allowPromo` affiche un champ code promo (paiement unique uniquement).
-export function CoachCheckoutButton({ priceLabel, allowPromo = false }: { priceLabel: string; allowPromo?: boolean }) {
+export function CoachCheckoutButton({
+  priceLabel,
+  allowPromo = false,
+  mode,
+  ctaLabel,
+}: {
+  priceLabel: string;
+  allowPromo?: boolean;
+  /** « once » ou « month » : la façon de payer choisie sur la page. */
+  mode?: "once" | "month";
+  /** Libellé du bouton, sinon « Payer X et débloquer ». */
+  ctaLabel?: string;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [showPromo, setShowPromo] = useState(false);
@@ -18,7 +30,7 @@ export function CoachCheckoutButton({ priceLabel, allowPromo = false }: { priceL
       const res = await fetch("/api/coach/checkout", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ code: code.trim() }),
+        body: JSON.stringify({ code: code.trim(), mode }),
       });
       const data = await res.json();
       if (!res.ok || !data.url) throw new Error(data.error || "Paiement indisponible.");
@@ -55,7 +67,7 @@ export function CoachCheckoutButton({ priceLabel, allowPromo = false }: { priceL
       ) : null}
 
       <Button onClick={pay} loading={busy} full className="h-[54px] text-[16px]">
-        Payer {priceLabel} et débloquer
+        {ctaLabel ?? `Payer ${priceLabel} et débloquer`}
       </Button>
       <p className="text-[12.5px] text-muted-2 text-center">
         Paiement sécurisé par Stripe. Aucune donnée de carte ne transite par l&apos;app.

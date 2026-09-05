@@ -386,13 +386,18 @@ export interface CreateOfferInput {
   coachAi?: boolean;
   /** Quota journalier d'actions IA par client (0 = illimité, null = défaut du coach). */
   coachAiDailyLimit?: number | null;
-  /** Régénérations de recettes / jour / client (0 = illimité, null = défaut). */
-  billingType?: BillingType;
-  /** Paiement unique */
+  /**
+   * Un programme se paie EN UNE FOIS (`priceCents`) et/ou EN N MENSUALITÉS
+   * (`priceMonthCents` × durée en mois). Au moins un des deux. Avec les deux,
+   * la page de vente montre une bascule, et le coach peut rendre le paiement
+   * en une fois plus avantageux.
+   */
   priceCents?: number | null;
-  /** Abonnement */
   priceMonthCents?: number | null;
+  /** Historique : plus proposé à la création. */
   priceYearCents?: number | null;
+  /** Historique : dérivé des prix quand il n'est pas donné. */
+  billingType?: BillingType;
 }
 
 function validCents(c: number | null | undefined): boolean {
@@ -406,17 +411,19 @@ export async function createOffer(tenantId: string, input: CreateOfferInput): Pr
     return { ok: false, error: "Choisis un produit : 3 mois ou 12 mois." };
   }
 
-  const billingType: BillingType = input.billingType === "subscription" ? "subscription" : "one_time";
-  const priceCents = input.priceCents ?? null;
-  const priceMonthCents = input.priceMonthCents ?? null;
-  const priceYearCents = input.priceYearCents ?? null;
+  const priceCents = input.priceCents && input.priceCents > 0 ? input.priceCents : null;
+  const priceMonthCents = input.priceMonthCents && input.priceMonthCents > 0 ? input.priceMonthCents : null;
 
-  if (!validCents(priceCents) || !validCents(priceMonthCents) || !validCents(priceYearCents)) {
+  if (!validCents(input.priceCents) || !validCents(input.priceMonthCents)) {
     return { ok: false, error: "Prix invalide." };
   }
-  if (billingType === "subscription" && priceMonthCents == null && priceYearCents == null) {
-    return { ok: false, error: "Renseigne au moins un prix (mensuel ou annuel)." };
+  if (priceCents == null && priceMonthCents == null) {
+    return { ok: false, error: "Renseigne au moins un prix : en une fois, ou par mois." };
   }
+  // La colonne survit pour les lectures d'avant : « one_time » dès qu'on peut
+  // payer en une fois (les cartes cadeaux et l'achat offert en dépendent),
+  // « subscription » quand seules les mensualités existent.
+  const billingType: BillingType = priceCents != null ? "one_time" : "subscription";
 
   const admin = createAdminClient();
   const { count } = await admin
@@ -431,9 +438,9 @@ export async function createOffer(tenantId: string, input: CreateOfferInput): Pr
     name: trimmed,
     duration_months: input.durationMonths,
     billing_type: billingType,
-    price_cents: billingType === "one_time" ? priceCents : null,
-    price_month_cents: billingType === "subscription" ? priceMonthCents : null,
-    price_year_cents: billingType === "subscription" ? priceYearCents : null,
+    price_cents: priceCents,
+    price_month_cents: priceMonthCents,
+    price_year_cents: null,
     vip_chat: !!input.vipChat,
     coach_ai: input.coachAi !== false,
     coach_ai_daily_limit:

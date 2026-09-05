@@ -74,6 +74,7 @@ type ProfileRow = {
   selected_interval: string | null;
   subscription_interval: string | null;
   subscription_status: string | null;
+  subscription_id: string | null;
 };
 
 type OfferRow = {
@@ -99,7 +100,9 @@ function toSaleRows(profiles: readonly ProfileRow[], offers: readonly OfferRow[]
       createdAt: p.created_at,
       paid: p.paid === true,
       offerName: o?.name ?? null,
-      billingType: o?.billing_type === "subscription" ? "subscription" : o ? "one_time" : null,
+      // Ce que CE client paie, pas ce que l'offre permet : une offre qui
+      // propose les deux se vend en une fois à l'un et en mensualités à l'autre.
+      billingType: p.subscription_id ? "subscription" : o ? "one_time" : null,
       priceCents: o?.price_cents ?? null,
       priceMonthCents: o?.price_month_cents ?? null,
       priceYearCents: o?.price_year_cents ?? null,
@@ -119,7 +122,7 @@ export async function coachDashboard(tenantId: string, now: Date = new Date()): 
   const [{ data: profiles }, { data: offers }, { data: prospects }, capacity, ai, wallet, orders, view] = await Promise.all([
     admin
       .from("profiles")
-      .select("created_at, paid, selected_offer_id, selected_interval, subscription_interval, subscription_status")
+      .select("created_at, paid, selected_offer_id, selected_interval, subscription_interval, subscription_status, subscription_id")
       .eq("tenant_id", tenantId)
       .eq("role", "client")
       .returns<ProfileRow[]>(),

@@ -7,7 +7,7 @@ import Link from "next/link";
 import { type Offer, type PublicTenant } from "@/lib/offers";
 import { formatEuros, DEFAULT_BRAND_COLOR } from "@/lib/config";
 import { S } from "@/components/landing-icons";
-import { SubscriptionPrice } from "@/components/subscription-price";
+import { OfferPrice } from "@/components/offer-price";
 import { Reveal, RevealGroup } from "@/components/reveal";
 import {
   ScrollProgress,
@@ -101,7 +101,6 @@ function AppCard({ name, L }: { name: string; L: LandingCopy }) {
 }
 
 function OfferCard({ offer, offers, slug, chargesEnabled, locale, audience }: { offer: Offer; offers: Offer[]; slug: string; chargesEnabled: boolean; locale: Locale; audience: Audience }) {
-  const isSub = offer.billing_type === "subscription";
   const copy = offerCardCopy(offer, offers, makeT(locale));
   const L = landingCopy(locale, audience);
   const featured = copy.featured;
@@ -119,21 +118,26 @@ function OfferCard({ offer, offers, slug, chargesEnabled, locale, audience }: { 
           {copy.pitch ? <p className="text-[14px] leading-[1.5] text-white/55">{copy.pitch}</p> : null}
         </div>
 
-        {isSub ? (
-          <SubscriptionPrice slug={slug} offerId={offer.id} priceMonthCents={offer.price_month_cents} priceYearCents={offer.price_year_cents} chargesEnabled={chargesEnabled} variant="dark" />
-        ) : (
-          <div className="flex flex-col gap-1">
-            <div className="flex items-end gap-2">
-              <span className="font-archivo text-[clamp(40px,7vw,56px)] font-extrabold leading-none tracking-[-0.04em] text-white">
-                {formatEuros(offer.price_cents)}
-              </span>
-              <span className="pb-2 font-mono text-[11px] uppercase tracking-[0.12em] text-white/40">{L.oneTime}</span>
-            </div>
-            {copy.perMonthCents > 0 ? (
-              <span className="text-[13px] text-white/50">{L.perMonthOn(formatEuros(copy.perMonthCents), offer.duration_months)}</span>
-            ) : null}
-          </div>
-        )}
+        <OfferPrice
+          slug={slug}
+          offerId={offer.id}
+          onceCents={offer.price_cents}
+          monthlyCents={offer.price_month_cents}
+          months={offer.duration_months}
+          chargesEnabled={chargesEnabled}
+          variant="dark"
+          labels={{
+            oneTime: L.oneTime,
+            perMonthOn: copy.perMonthCents > 0 ? L.perMonthOn(formatEuros(copy.perMonthCents), offer.duration_months) : null,
+            payOnce: L.payOnce,
+            payInstallments: L.payInstallments(offer.duration_months),
+            perMonthTimes: L.perMonthTimes(offer.duration_months),
+            autoStop: L.autoStop(offer.duration_months),
+            totalOver: offer.price_month_cents != null ? L.totalOver(formatEuros(offer.price_month_cents * offer.duration_months), offer.duration_months) : null,
+            choose: L.choose,
+            soon: L.soon,
+          }}
+        >
 
         <ul className="flex flex-1 flex-col gap-2 border-t border-white/12 pt-4">
           {copy.bullets.map((it) => (
@@ -144,14 +148,7 @@ function OfferCard({ offer, offers, slug, chargesEnabled, locale, audience }: { 
           ))}
         </ul>
 
-        {!isSub &&
-          (chargesEnabled ? (
-            <Link href={`/inscription?c=${slug}&offer=${offer.id}`} className="press tap inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-btn bg-brand px-5 text-[15px] font-semibold text-white hover:bg-brand-hover">
-              {L.choose} <S.arrow className="h-4.5 w-4.5 shrink-0" />
-            </Link>
-          ) : (
-            <span className="inline-flex h-[52px] items-center justify-center rounded-btn border border-white/12 px-6 text-[14px] text-white/35">{L.soon}</span>
-          ))}
+        </OfferPrice>
       </article>
     </Tilt>
   );

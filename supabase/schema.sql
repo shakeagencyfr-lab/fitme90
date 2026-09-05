@@ -133,6 +133,13 @@ create table if not exists public.profiles (
   subscription_current_period_end timestamptz,
   subscription_synced_at timestamptz,
   subscription_cancel_at_period_end boolean not null default false,
+  -- Un programme se paie en une fois ou en N mensualites (N = sa duree en
+  -- mois) qui s'arretent d'elles-memes : Stripe porte la date d'arret
+  -- (`cancel_at`), relue par le cron. `paid_in_full` dit que toutes les
+  -- mensualites sont passees : l'acces suit alors la duree du programme.
+  subscription_cancel_at timestamptz,
+  subscription_installments integer,
+  subscription_paid_in_full boolean not null default false,
   referral_code text,
   referred_by uuid,
   -- Compte client INTERNE : cree et tenu par le coach, sans adresse e-mail.
@@ -143,7 +150,9 @@ create table if not exists public.profiles (
   managed_by_coach boolean not null default false,
   constraint profiles_pkey primary key (id),
   constraint profiles_language_check check (language is null or language = any (array['fr','en'])),
-  constraint profiles_selected_interval_check check (selected_interval = any (array['month','year']))
+  -- « once » = en une fois, « month » = en mensualites ; « year » n'est plus
+  -- propose, il reste lisible pour l'historique.
+  constraint profiles_selected_interval_check check (selected_interval is null or selected_interval = any (array['once','month','year']))
 );
 
 create table if not exists public.plans (

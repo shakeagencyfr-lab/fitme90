@@ -140,6 +140,12 @@ export interface LandingCopy {
   perMonthOn: (amount: string, months: number) => string;
   choose: string;
   soon: string;
+  /** Bascule et mentions du paiement en N mensualités. */
+  payOnce: string;
+  payInstallments: (n: number) => string;
+  perMonthTimes: (n: number) => string;
+  autoStop: (n: number) => string;
+  totalOver: (amount: string, n: number) => string;
   mockCoach: string;
   mockCoachSub: string;
   mockSession: string;
@@ -267,6 +273,11 @@ const FR: Omit<LandingCopy, "features"> & { features: Feature[] } = {
   perMonthOn: (amount, months) => `soit ${amount}/mois sur ${months} mois`,
   choose: "Choisir ce programme",
   soon: "Bientôt disponible",
+  payOnce: "En 1 fois",
+  payInstallments: (n) => `En ${n} fois`,
+  perMonthTimes: (n) => `/mois × ${n}`,
+  autoStop: (n) => `${n} paiements, puis plus rien : l'arrêt est automatique.`,
+  totalOver: (amount, n) => `soit ${amount} au total sur ${n} mois`,
   mockCoach: "Coach IA",
   mockCoachSub: "répond en direct",
   mockSession: "Séance du jour",
@@ -394,6 +405,11 @@ const EN: Omit<LandingCopy, "features"> & { features: Feature[] } = {
   perMonthOn: (amount, months) => `that is ${amount}/month over ${months} months`,
   choose: "Choose this program",
   soon: "Coming soon",
+  payOnce: "Pay once",
+  payInstallments: (n) => `In ${n} payments`,
+  perMonthTimes: (n) => `/month × ${n}`,
+  autoStop: (n) => `${n} payments, then nothing more: it stops by itself.`,
+  totalOver: (amount, n) => `that is ${amount} in total over ${n} months`,
   mockCoach: "AI coach",
   mockCoachSub: "replies live",
   mockSession: "Today's session",

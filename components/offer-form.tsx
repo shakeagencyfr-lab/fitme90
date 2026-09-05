@@ -51,13 +51,13 @@ export function OfferForm({
   const tx = usePhrase();
   const [state, action, pending] = useActionState(addOffer, {} as OfferState);
   const [months, setMonths] = useState<OfferDurationMonths>(12);
-  const [billing, setBilling] = useState<"one_time" | "subscription">("one_time");
   const [price, setPrice] = useState("");
+  const [monthly, setMonthly] = useState("");
   const [coachAi, setCoachAi] = useState(true);
   const [quota, setQuota] = useState(String(defaultQuota));
-  const isSub = billing === "subscription";
   const product = PRODUCTS[months];
   const priceCents = Math.round((Number(price.replace(",", ".")) || 0) * 100);
+  const monthlyCents = Math.round((Number(monthly.replace(",", ".")) || 0) * 100);
   const perMonth = monthlyEquivalentCents(priceCents, months);
   const quotaSaisi = Math.max(0, Math.trunc(Number(quota) || 0));
   /**
@@ -137,35 +137,6 @@ export function OfferForm({
         </span>
       </div>
 
-      {/* Choix du mode de paiement */}
-      <input type="hidden" name="billing_type" value={billing} />
-      <div className="flex flex-col gap-1.5">
-        <MonoLabel>{tx("Paiement")}</MonoLabel>
-        <div className="grid grid-cols-2 gap-2">
-          {([
-            ["one_time", "Paiement unique", "Le client paie une fois"],
-            ["subscription", "Mensuel", "Prix par mois, sans engagement"],
-          ] as const).map(([val, title, desc]) => {
-            const on = billing === val;
-            return (
-              <button
-                key={val}
-                type="button"
-                onClick={() => setBilling(val)}
-                aria-pressed={on}
-                className={[
-                  "tap flex flex-col items-start gap-0.5 rounded-control border px-3.5 py-3 text-left transition-colors",
-                  on ? "border-brand bg-brand/[0.06] ring-1 ring-brand/25" : "border-line-4 hover:border-ink",
-                ].join(" ")}
-              >
-                <span className="font-semibold text-[14px] text-ink">{title}</span>
-                <span className="text-[12px] text-muted-2">{desc}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       <label className="flex flex-col gap-1.5">
         <MonoLabel>{tx("Intitulé")}</MonoLabel>
         <input
@@ -177,27 +148,15 @@ export function OfferForm({
         />
       </label>
 
-      {isSub ? (
-        <>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1.5">
-              <MonoLabel>{tx("Prix / mois (€)")}</MonoLabel>
-              <input type="text" inputMode="decimal" name="price_month_euros" placeholder={months === 12 ? "49" : "69"}
-                className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink" />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <MonoLabel>{tx("Prix / an (€), optionnel")}</MonoLabel>
-              <input type="text" inputMode="decimal" name="price_year_euros" placeholder="490"
-                className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink" />
-            </label>
-          </div>
-          <div className="rounded-control border border-line-4 bg-surface-2 p-3.5 text-[12.5px] leading-relaxed text-muted">
-            <span className="font-semibold text-body">{tx("Mensuel, sans engagement.")}</span> {tx("Le client règle chaque mois, sur ton compte Stripe, et peut arrêter quand il veut. Le programme suit la structure du produit «")} {months} {tx("mois » et continue d'évoluer par blocs tant que l'abonnement est actif. Avec un prix annuel en plus, le client voit un comparateur d'économies.")}</div>
-        </>
-      ) : (
-        <>
-          <label className="flex flex-col gap-1.5">
-            <MonoLabel>{tx("Prix (€)")}</MonoLabel>
+      {/* Deux prix, au moins un. En une fois, ou en N mensualités (N = la
+          durée) qui s'arrêtent d'elles-mêmes chez Stripe. Les deux à la fois
+          font apparaître une bascule sur la page de vente, et le coach peut
+          rendre le paiement en une fois plus avantageux. */}
+      <div className="flex flex-col gap-2">
+        <MonoLabel>{tx("Prix")}</MonoLabel>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
+            <span className="text-[13.5px] font-semibold text-ink">{tx("En une fois (€)")}</span>
             <input
               type="text"
               inputMode="decimal"
@@ -205,22 +164,59 @@ export function OfferForm({
               placeholder={months === 12 ? "490" : "190"}
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              className="w-full max-w-[240px] rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
+              className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
             />
+            <span className="text-[12px] leading-relaxed text-muted-2">
+              {tx("Un seul paiement, sur ton compte Stripe.")}
+              {perMonth > 0 ? (
+                <>
+                  {" "}{tx("Sur sa page, le client verra aussi l'équivalent :")} <span className="text-body">{formatEuros(perMonth)}{tx("/mois")}</span>.
+                </>
+              ) : null}
+            </span>
           </label>
-          <span className="-mt-1 text-[12px] leading-relaxed text-muted-2">
-            {tx("Le client paiera ce montant une fois, directement sur ton compte Stripe.")}{perMonth > 0 ? (
-              <>
-                {" "}{tx("Sur sa page, il verra aussi l'équivalent :")}{" "}
-                <span className="text-body">{formatEuros(perMonth)}{tx("/mois")}</span>.
-                {months === 12
-                  ? " Pour que le 12 mois soit évident, vise 2,5 à 3 fois le prix de ton 3 mois, pas 4."
-                  : ""}
-              </>
-            ) : null}
+          <label className="flex flex-col gap-1.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
+            <span className="text-[13.5px] font-semibold text-ink">{tx("Par mois (€), en")} {months} {tx("fois")}</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              name="price_month_euros"
+              placeholder={months === 12 ? "49" : "69"}
+              value={monthly}
+              onChange={(e) => setMonthly(e.target.value)}
+              className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
+            />
+            <span className="text-[12px] leading-relaxed text-muted-2">
+              {monthlyCents > 0 ? (
+                <>
+                  {months} {tx("prélèvements de")} <span className="text-body">{formatEuros(monthlyCents)}</span>, {tx("soit")}{" "}
+                  <span className="text-body">{formatEuros(monthlyCents * months)}</span> {tx("au total.")}{" "}
+                </>
+              ) : null}
+              {tx("Stripe s'arrête tout seul après le dernier prélèvement : rien à résilier, ni pour toi ni pour le client.")}
+            </span>
+          </label>
+        </div>
+        {priceCents > 0 && monthlyCents > 0 ? (
+          <span className="text-[12.5px] leading-relaxed text-muted">
+            {tx("Les deux prix sont posés : le client choisira sur ta page.")}{" "}
+            {monthlyCents * months > priceCents
+              ? `${tx("Payer en une fois lui fait économiser")} ${formatEuros(monthlyCents * months - priceCents)}.`
+              : monthlyCents * months < priceCents
+                ? tx("Attention : les mensualités reviennent moins cher que le paiement en une fois.")
+                : tx("Même montant dans les deux cas.")}
           </span>
-        </>
-      )}
+        ) : (
+          <span className="text-[12.5px] leading-relaxed text-muted-2">
+            {tx("Renseigne au moins un des deux. Avec les deux, une bascule « En 1 fois / En N fois » apparaît sur ta page.")}
+          </span>
+        )}
+        {months === 12 && perMonth > 0 ? (
+          <span className="text-[12px] leading-relaxed text-muted-2">
+            {tx("Pour que le 12 mois soit évident, vise 2,5 à 3 fois le prix de ton 3 mois, pas 4.")}
+          </span>
+        ) : null}
+      </div>
 
       {/* Inclusions (upsells par plan) */}
       <div className="flex flex-col gap-2">

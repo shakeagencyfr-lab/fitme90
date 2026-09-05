@@ -2,9 +2,10 @@ import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/guard";
 import { Card, MonoLabel } from "@/components/ui";
 import { CheckoutButton } from "@/components/checkout-button";
-import { CoachCheckoutButton } from "@/components/coach-checkout-button";
+import { PaymentChoice } from "@/components/payment-choice";
 import { RedeemForm } from "@/components/redeem-form";
-import { clientOffer, subscriptionPrice } from "@/lib/offers";
+import { clientOffer } from "@/lib/offers";
+import { paymentModes } from "@/lib/installments";
 import { createClient } from "@/lib/supabase/server";
 import { PRICE_EUR, COACH_CREDENTIAL, GRACE_DAYS, formatEuros, programDaysForMonths, monthlyEquivalentCents } from "@/lib/config";
 import { getT, userLocale } from "@/lib/i18n/server";
@@ -41,79 +42,37 @@ export default async function PaiementPage() {
   const offer = await clientOffer(ctx.userId);
   const { t } = await getT(await userLocale(ctx.userId));
 
-  // Offre en ABONNEMENT (mensuel / annuel).
-  if (offer && offer.billing_type === "subscription") {
+  // Offre d'un coach : en une fois, ou en N mensualités qui s'arrêtent
+  // d'elles-mêmes. Le client a choisi sur la page de vente ; il peut encore
+  // changer ici, au moment de sortir sa carte.
+  if (offer && paymentModes(offer).length > 0) {
     const supabase = await createClient();
     const { data: prof } = await supabase
       .from("profiles")
       .select("selected_interval")
       .eq("id", ctx.userId)
       .maybeSingle<{ selected_interval: string | null }>();
-    const interval: "month" | "year" =
-      prof?.selected_interval === "year" && offer.price_year_cents != null
-        ? "year"
-        : offer.price_month_cents != null
-          ? "month"
-          : "year";
-    const cents = subscriptionPrice(offer, interval);
-    if (cents != null && cents > 0) {
-      const suffix = interval === "year" ? t("payment.perYear") : t("payment.perMonth");
-      return (
-        <div className="mx-auto flex max-w-[520px] flex-col gap-6 py-4">
-          <header className="flex flex-col gap-2">
-            <MonoLabel className="text-brand">{offer.name}</MonoLabel>
-            <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-              {formatEuros(cents)}{suffix}
-            </h1>
-            <p className="text-[15px] leading-[1.6] text-muted">
-              {interval === "year" ? t("payment.subYearly") : t("payment.subMonthly")}
-            </p>
-          </header>
-          <CoachCheckoutButton priceLabel={`${formatEuros(cents)}${suffix}`} />
-          <GiftBlock label={t("common.or")} />
-          <p className="text-[12px] text-muted-2 leading-relaxed">{t("payment.subNote")}</p>
-        </div>
-      );
-    }
-  }
-
-  // Offre à PAIEMENT UNIQUE.
-  if (offer && offer.price_cents != null && offer.price_cents > 0) {
     const durationLabel = durLabel(offer.duration_months, t);
     const product = productCopy(offer.duration_months, t);
-    const perMonth = monthlyEquivalentCents(offer.price_cents, offer.duration_months);
+    const perMonth = offer.price_cents != null ? monthlyEquivalentCents(offer.price_cents, offer.duration_months) : 0;
     return (
-      <div className="mx-auto flex max-w-[520px] flex-col gap-6 py-4">
-        <header className="flex flex-col gap-2">
-          <MonoLabel className="text-brand">{product ? `${offer.name} · ${product.promise}` : offer.name}</MonoLabel>
-          <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
-            {t("payment.once", { price: formatEuros(offer.price_cents) })}
-          </h1>
-          {perMonth > 0 && offer.duration_months > 1 ? (
-            <p className="text-[14px] text-muted-2">
-              {t("payment.perMonthEq", { amount: formatEuros(perMonth), duration: durationLabel })}
-            </p>
-          ) : null}
-          <p className="text-[15px] leading-[1.6] text-muted">
-            {product
-              ? product.pitch
-              : t("payment.genericPitch", { duration: durationLabel, days: programDaysForMonths(offer.duration_months) })}
-          </p>
-        </header>
-        {product ? (
-          <Card className="flex flex-col gap-3">
-            {product.bullets.map((t) => (
-              <div key={t} className="flex items-start gap-2.5 text-[14.5px] text-body">
-                <span className="text-brand mt-0.5" aria-hidden>✓</span>
-                <span>{t}</span>
-              </div>
-            ))}
-          </Card>
-        ) : null}
-        <CoachCheckoutButton priceLabel={formatEuros(offer.price_cents)} allowPromo />
-        <GiftBlock label={t("common.or")} />
-        <p className="text-[12px] text-muted-2 leading-relaxed">{t("payment.legalNote")}</p>
-      </div>
+      <>
+        <PaymentChoice
+          offerName={offer.name}
+          eyebrow={product ? `${offer.name} · ${product.promise}` : offer.name}
+          pitch={product ? product.pitch : t("payment.genericPitch", { duration: durationLabel, days: programDaysForMonths(offer.duration_months) })}
+          bullets={product ? product.bullets : []}
+          onceCents={offer.price_cents}
+          monthlyCents={offer.price_month_cents}
+          months={offer.duration_months}
+          initialMode={prof?.selected_interval === "month" || prof?.selected_interval === "year" ? "month" : "once"}
+          perMonthEq={perMonth > 0 && offer.duration_months > 1 ? t("payment.perMonthEq", { amount: formatEuros(perMonth), duration: durationLabel }) : null}
+        />
+        <div className="mx-auto flex max-w-[520px] flex-col gap-6">
+          <GiftBlock label={t("common.or")} />
+          <p className="text-[12px] text-muted-2 leading-relaxed">{t("payment.legalNote")} {t("payment.subNote")}</p>
+        </div>
+      </>
     );
   }
 

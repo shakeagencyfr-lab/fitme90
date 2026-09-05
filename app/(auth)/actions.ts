@@ -144,7 +144,7 @@ export async function signUpAction(
   const data: Record<string, string> = {};
   if (coachSlug) data.coach_slug = coachSlug;
   if (offerId) data.offer_id = offerId;
-  if (interval === "month" || interval === "year") data.interval = interval;
+  if (interval === "month" || interval === "year" || interval === "once") data.interval = interval;
   if (/^[A-Z0-9]{4,16}$/.test(ref)) data.ref = ref;
 
   const supabase = await createClient();

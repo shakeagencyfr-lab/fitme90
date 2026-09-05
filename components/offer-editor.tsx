@@ -63,8 +63,7 @@ export function OfferEditor({
     offer.coach_ai_daily_limit == null ? String(defaultQuota) : String(offer.coach_ai_daily_limit),
   );
 
-  const isSub = offer.billing_type === "subscription";
-  const months = isSub ? 12 : offer.duration_months;
+  const months = offer.duration_months;
   const quotaN = Math.max(0, Math.trunc(Number(quota) || 0));
 
   /**
@@ -97,9 +96,7 @@ export function OfferEditor({
 
   const illimite = effectif <= 0;
 
-  const durationLabel = isSub
-    ? tx("Sans durée fixe")
-    : `${offer.duration_months === 12 ? "1 an" : `${offer.duration_months} mois`} · ${programDaysForMonths(offer.duration_months)} ${tx("jours")}`;
+  const durationLabel = `${offer.duration_months === 12 ? "1 an" : `${offer.duration_months} mois`} · ${programDaysForMonths(offer.duration_months)} ${tx("jours")}`;
 
   return (
     <div className="flex flex-col gap-3 rounded-card border border-line-2 bg-surface-2 p-4">
@@ -107,7 +104,7 @@ export function OfferEditor({
         <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-archivo font-bold text-[16px] text-ink">{offer.name}</span>
-            <Pill>{isSub ? tx("Abonnement") : tx("Paiement unique")}</Pill>
+            <Pill>{paymentPill(offer, tx)}</Pill>
             {!offer.is_active ? <Pill>{tx("Inactif")}</Pill> : null}
             {offer.is_active && !offer.is_listed ? <Pill>{tx("Masqué")}</Pill> : null}
             {offer.coach_ai ? (
@@ -369,12 +366,20 @@ function Pill({ children, tone = "muted" }: { children: React.ReactNode; tone?: 
   );
 }
 
+/** « 190 € en 1 fois ou 3 × 69 €/mois » : les deux façons de payer, telles que vendues. */
 function priceLabel(o: Offer): string {
-  if (o.billing_type === "subscription") {
-    const parts: string[] = [];
-    if (o.price_month_cents != null) parts.push(`${formatEuros(o.price_month_cents)}/mois`);
-    if (o.price_year_cents != null) parts.push(`${formatEuros(o.price_year_cents)}/an`);
-    return parts.join(" ou ") || "Sans prix";
-  }
-  return formatEuros(o.price_cents);
+  const parts: string[] = [];
+  if (o.price_cents != null && o.price_cents > 0) parts.push(`${formatEuros(o.price_cents)} en 1 fois`);
+  if (o.price_month_cents != null && o.price_month_cents > 0) parts.push(`${o.duration_months} × ${formatEuros(o.price_month_cents)}/mois`);
+  // Offre d'avant, à l'année : plus proposée, encore lisible.
+  if (o.price_year_cents != null && o.price_year_cents > 0) parts.push(`${formatEuros(o.price_year_cents)}/an`);
+  return parts.join(" ou ") || "Sans prix";
+}
+
+function paymentPill(o: Offer, tx: (s: string) => string): string {
+  const once = o.price_cents != null && o.price_cents > 0;
+  const monthly = o.price_month_cents != null && o.price_month_cents > 0;
+  if (once && monthly) return tx("En 1 fois ou en mensualités");
+  if (monthly) return tx("Mensualités");
+  return tx("Paiement unique");
 }

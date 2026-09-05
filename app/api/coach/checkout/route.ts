@@ -1,27 +1,14 @@
 import { NextResponse } from "next/server";
 import { getSessionContext } from "@/lib/guard";
 import { createClient } from "@/lib/supabase/server";
-import { clientOffer, subscriptionPrice } from "@/lib/offers";
+import { clientOffer } from "@/lib/offers";
+import { installmentCount, paymentModes, resolvePaymentMode } from "@/lib/installments";
 import { tenantAiReady } from "@/lib/ai-readiness";
 import { stripeForTenant } from "@/lib/coach-payments";
 import { applyPendingCoachSelection } from "@/lib/tenant";
 import { validatePromo } from "@/lib/promo";
 
 export const runtime = "nodejs";
-
-// Résout l'intervalle d'abonnement effectif : préférence du client si le prix
-// existe, sinon le seul intervalle disponible.
-function resolveInterval(
-  preferred: string | null,
-  hasMonth: boolean,
-  hasYear: boolean,
-): "month" | "year" | null {
-  if (preferred === "year" && hasYear) return "year";
-  if (preferred === "month" && hasMonth) return "month";
-  if (hasMonth) return "month";
-  if (hasYear) return "year";
-  return null;
-}
 
 // Paiement d'une offre coach : la session Stripe est créée sur le compte DU
 // COACH (clé BYOK). La plateforme ne touche pas l'argent, aucune commission,
@@ -34,11 +21,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Programme déjà débloqué" }, { status: 409 });
   }
 
-  // Code promo éventuel (appliqué au paiement unique).
+  // Code promo éventuel (appliqué au paiement en une fois), et façon de payer
+  // choisie sur la page (« once » ou « month »), qui prime sur la préférence
+  // enregistrée à l'inscription.
   let promoRaw = "";
+  let modeRaw: string | null = null;
   try {
     const body = await req.json();
     if (body && typeof body.code === "string") promoRaw = body.code;
+    if (body && typeof body.mode === "string") modeRaw = body.mode;
   } catch {
     /* corps vide : pas de code */
   }
@@ -86,24 +77,31 @@ export async function POST(req: Request) {
   const successUrl = `${site}/generation?coach_paid=1&session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${site}/app/paiement?annule=1`;
 
+  // En une fois, ou en N mensualités (N = la durée du programme). La
+  // préférence enregistrée à l'inscription sert de défaut ; la page de
+  // paiement peut en changer.
+  const modes = paymentModes(offer);
+  const supabase = await createClient();
+  const { data: prof } = await supabase
+    .from("profiles")
+    .select("selected_interval")
+    .eq("id", ctx.userId)
+    .maybeSingle<{ selected_interval: string | null }>();
+  const mode = resolvePaymentMode(modeRaw ?? prof?.selected_interval ?? null, modes);
+  if (!mode) {
+    return NextResponse.json({ error: "Cette offre n'a pas de prix." }, { status: 400 });
+  }
+  if (modeRaw && (modeRaw === "once" || modeRaw === "month")) {
+    await supabase.from("profiles").update({ selected_interval: modeRaw }).eq("id", ctx.userId);
+  }
+
   try {
-    if (offer.billing_type === "subscription") {
-      // Intervalle choisi par le client (profiles.selected_interval), sinon défaut.
-      const supabase = await createClient();
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("selected_interval")
-        .eq("id", ctx.userId)
-        .maybeSingle<{ selected_interval: string | null }>();
-      const interval = resolveInterval(
-        prof?.selected_interval ?? null,
-        offer.price_month_cents != null,
-        offer.price_year_cents != null,
-      );
-      const amount = interval ? subscriptionPrice(offer, interval) : null;
-      if (!interval || amount == null || amount <= 0) {
-        return NextResponse.json({ error: "Cette offre n'a pas de prix d'abonnement." }, { status: 400 });
-      }
+    if (mode === "installments") {
+      const amount = offer.price_month_cents ?? 0;
+      const count = installmentCount(offer);
+      // Un abonnement mensuel chez Stripe, dont la date d'arrêt est posée au
+      // retour du paiement (`cancel_at`) et relue par le cron : exactement N
+      // factures, puis plus rien, sans démarche du client.
       const checkout = await stripe.checkout.sessions.create({
         mode: "subscription",
         client_reference_id: ctx.userId,
@@ -114,20 +112,23 @@ export async function POST(req: Request) {
             price_data: {
               currency,
               unit_amount: amount,
-              recurring: { interval },
-              product_data: { name: offer.name },
+              recurring: { interval: "month" },
+              product_data: { name: `${offer.name} (${count} mensualités)` },
             },
           },
         ],
-        metadata: { user_id: ctx.userId, offer_id: offer.id },
-        subscription_data: { metadata: { user_id: ctx.userId, offer_id: offer.id } },
+        metadata: { user_id: ctx.userId, offer_id: offer.id, installments: String(count) },
+        subscription_data: {
+          metadata: { user_id: ctx.userId, offer_id: offer.id, installments: String(count) },
+          description: `${offer.name} : ${count} mensualités, arrêt automatique après la dernière.`,
+        },
         success_url: successUrl,
         cancel_url: cancelUrl,
       });
       return NextResponse.json({ url: checkout.url });
     }
 
-    // Paiement unique (comportement historique).
+    // Paiement en une fois.
     if (offer.price_cents == null || offer.price_cents <= 0) {
       return NextResponse.json({ error: "Cette offre n'a pas de prix." }, { status: 400 });
     }
