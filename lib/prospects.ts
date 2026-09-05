@@ -84,15 +84,28 @@ export async function createProspect(tenantId: string, input: CreateProspectInpu
   if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return false;
 
   const admin = createAdminClient();
-  const { error } = await admin.from("prospects").insert({
-    tenant_id: tenantId,
+  const row = {
     name,
-    email,
     goal: isGoal(input.goal) ? input.goal : null,
     level: isLevel(input.level) ? input.level : null,
     days: Number.isFinite(input.days) ? Math.max(1, Math.min(7, Math.round(input.days))) : null,
     equipment: isEquipment(input.equipment) ? input.equipment : null,
-  });
+  };
+  // Une adresse, une fiche : le formulaire est public, et le rejouer avec la
+  // même adresse ne doit ni remplir le CRM de doublons, ni relancer autant de
+  // fois la même personne. Une deuxième demande met la fiche à jour.
+  const { data: existing } = await admin
+    .from("prospects")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .ilike("email", email)
+    .limit(1)
+    .maybeSingle<{ id: string }>();
+  if (existing) {
+    const { error } = await admin.from("prospects").update(row).eq("id", existing.id);
+    return !error;
+  }
+  const { error } = await admin.from("prospects").insert({ tenant_id: tenantId, email, ...row });
   return !error;
 }
 

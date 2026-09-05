@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { safeLocalPath } from "@/lib/safe-url";
 
 // Accès d'assistance (« master admin ») et liens de connexion à usage unique.
 //
@@ -54,7 +55,7 @@ export async function loginLinkForUser(userId: string, next: string, origin: str
   const hashed = data?.properties?.hashed_token;
   if (error || !hashed) return null;
 
-  const safeNext = next.startsWith("/") ? next : "/admin";
+  const safeNext = safeLocalPath(next, "/admin");
   const q = new URLSearchParams({ token_hash: hashed, type: "magiclink", next: safeNext });
   return `${origin.replace(/\/+$/, "")}/auth/confirm?${q.toString()}`;
 }

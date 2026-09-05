@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cronAuthorized } from "@/lib/cron-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPush, vapidReady, type StoredSub, type PushPayload } from "@/lib/push";
 import { dispatchScheduledPushes } from "@/lib/scheduled-push";
@@ -17,7 +18,8 @@ export const maxDuration = 60;
 
 // Cron quotidien (voir vercel.json) : envoie le rappel « séance du jour » aux
 // abonnés dont un entraînement est prévu aujourd'hui et pas encore validé.
-// Protégé par CRON_SECRET (Vercel envoie « Authorization: Bearer <secret> »).
+// Protégé par CRON_SECRET (Vercel envoie « Authorization: Bearer <secret> ») ;
+// sans secret configuré, la route refuse tout (lib/cron-auth.ts).
 
 interface SubRow {
   endpoint: string;
@@ -27,13 +29,7 @@ interface SubRow {
 }
 
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-    }
-  }
+  if (!cronAuthorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   if (!vapidReady()) {
     return NextResponse.json({ error: "VAPID non configuré" }, { status: 503 });
   }

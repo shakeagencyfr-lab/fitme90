@@ -186,6 +186,9 @@ export async function addCoachNote(_prev: NoteState, formData: FormData): Promis
   const body = String(formData.get("body") ?? "").trim().slice(0, 4000);
   if (!clientId) return { error: "Client introuvable." };
   if (!body) return { error: "Écris une note." };
+  // Une note ne se pose que sur SON client : un identifiant venu d'ailleurs
+  // n'a rien à faire ici.
+  if (!ctx.profile?.tenant_id || !(await isOwnClient(ctx.profile.tenant_id, clientId))) return { error: "Client introuvable." };
   const admin = createAdminClient();
   const { error } = await admin.from("coach_notes").insert({
     client_id: clientId,
@@ -204,9 +207,10 @@ export async function deleteCoachNote(formData: FormData): Promise<void> {
   if (!ctx) return;
   const id = String(formData.get("id") ?? "");
   const clientId = String(formData.get("client_id") ?? "");
-  if (!id) return;
+  if (!id || !ctx.profile?.tenant_id) return;
   const admin = createAdminClient();
-  await admin.from("coach_notes").delete().eq("id", id);
+  // Cloisonnement : on n'efface qu'une note de SON tenant.
+  await admin.from("coach_notes").delete().eq("id", id).eq("tenant_id", ctx.profile.tenant_id);
   if (clientId) revalidatePath(`/admin/clients/${clientId}`);
 }
 
@@ -799,7 +803,7 @@ export async function setShopEnabled(_prev: ShopState, formData: FormData): Prom
 /** Ajoute un produit à la boutique (image via URL, lien vers la boutique externe). */
 export async function addShopProduct(_prev: ShopState, formData: FormData): Promise<ShopState> {
   const ctx = await getAdminOrNull();
-  if (!ctx) return { error: "Accès refusé." };
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
   const title = String(formData.get("title") ?? "").trim().slice(0, 120);
   const description = String(formData.get("description") ?? "").trim().slice(0, 500);
   const image_url = String(formData.get("image_url") ?? "").trim().slice(0, 1000);
@@ -812,7 +816,7 @@ export async function addShopProduct(_prev: ShopState, formData: FormData): Prom
   const admin = createAdminClient();
   const { error } = await admin
     .from("shop_products")
-    .insert({ title, description, image_url, link_url, position });
+    .insert({ tenant_id: ctx.profile.tenant_id, title, description, image_url, link_url, position });
   if (error) return { error: "Ajout impossible." };
   revalidatePath("/admin/shop");
   revalidatePath("/app/shop");
@@ -822,11 +826,12 @@ export async function addShopProduct(_prev: ShopState, formData: FormData): Prom
 /** Supprime un produit (form action directe). */
 export async function deleteShopProduct(formData: FormData): Promise<void> {
   const ctx = await getAdminOrNull();
-  if (!ctx) return;
+  if (!ctx?.profile?.tenant_id) return;
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   const admin = createAdminClient();
-  await admin.from("shop_products").delete().eq("id", id);
+  // Chaque coach ne retire que SES produits.
+  await admin.from("shop_products").delete().eq("id", id).eq("tenant_id", ctx.profile.tenant_id);
   revalidatePath("/admin/shop");
   revalidatePath("/app/shop");
 }

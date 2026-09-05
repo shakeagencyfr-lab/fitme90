@@ -12,7 +12,7 @@ export default async function ShopPage() {
 
   const [enabled, products] = await Promise.all([
     isShopEnabled(ctx.profile?.tenant_id ?? null),
-    getShopProducts(),
+    getShopProducts(ctx.profile?.tenant_id ?? null),
   ]);
   if (!enabled) redirect("/app");
   const { t } = await getT(await userLocale(ctx.userId));

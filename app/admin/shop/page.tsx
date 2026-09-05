@@ -7,6 +7,6 @@ export const metadata = { title: "Boutique, Admin" };
 export default async function AdminShopPage() {
   const ctx = await getAdminOrNull();
   const tenantId = ctx?.profile?.tenant_id ?? null;
-  const [enabled, products] = await Promise.all([isShopEnabled(tenantId), getShopProducts()]);
+  const [enabled, products] = await Promise.all([isShopEnabled(tenantId), getShopProducts(tenantId)]);
   return <ShopAdmin enabled={enabled} products={products} />;
 }

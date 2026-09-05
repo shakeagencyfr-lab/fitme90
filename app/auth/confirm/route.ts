@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { safeLocalPath } from "@/lib/safe-url";
 import { applyPendingCoachSelection } from "@/lib/tenant";
 import { provisionCoachIfPending, provisionResellerIfPending } from "@/lib/coach-onboarding";
 
@@ -30,8 +31,7 @@ export async function GET(request: NextRequest) {
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
   const code = searchParams.get("code");
-  const nextParam = searchParams.get("next") ?? "/app";
-  const next = nextParam.startsWith("/") ? nextParam : "/app";
+  const next = safeLocalPath(searchParams.get("next"), "/app");
 
   const supabase = await createClient();
 
