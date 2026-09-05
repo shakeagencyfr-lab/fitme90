@@ -175,14 +175,26 @@ export const LIMIT_ANALYZE_GYM_TOTAL = 40;
 // figurent donc plus ici, non pas parce qu'on a cessé de les mesurer, mais
 // parce qu'elles coûtent zéro.
 //
-// Mesures par appel :
-//   message coach, 1er d'une session  0,0097 $   (écriture du cache)
-//   message coach, suivants           0,0021 $   (lecture du cache)
-//   message déclenchant un outil      0,0048 $
-//   adaptation du programme           0,0706 $   (1 crédit + 10 crédits)
-//   génération de programme (Opus 5)  0,3882 $   (mesuré avant la bascule)
-//   génération de programme (Sonnet 5) 0,1553 $  (mêmes jetons, tarif / 2,5)
-//   résumé de mémoire (cron nocturne) 0,0029 $   par client actif et par jour
+// Mesures par appel, relevées le 5 septembre 2026 sur des appels réels :
+//   génération de programme (Sonnet 5) 0,2921 $  (12 110 entrée, 26 788 sortie)
+//   analyse photo de la salle          0,0110 $  (par lot de photos)
+//   message coach, cache réparé        0,0040 $  (estimation, voir plus bas)
+//   adaptation du programme            0,0706 $  (1 crédit + 10 crédits)
+//   résumé de mémoire (cron nocturne)  0,0029 $  par client actif et par jour
+//
+// DEUX LEÇONS DE CES MESURES, qui valent d'être écrites ici.
+//
+// La génération coûte le DOUBLE de ce qu'on avait estimé, et ce n'est pas la
+// faute du modèle. L'ancienne mesure Opus (0,3882 $) portait sur un programme
+// qui produisait ~13 000 jetons ; le programme actuel en produit 26 788. Le
+// rapport de 2,5 entre Opus et Sonnet est exact (la même génération aurait
+// coûté 0,7303 $ sur Opus), c'est le livrable qui a grossi.
+//
+// Le message au Coach IA a été mesuré à 0,0178 $, soit trois fois et demie la
+// constante ci-dessous, à cause d'un point de reprise de cache posé sur du
+// contenu mouvant : 87 % de la facture partait en réécritures. Corrigé dans
+// app/api/coach/route.ts. La constante reste à 0,005 $, au-dessus de
+// l'estimation d'après correction : une constante de budget doit majorer.
 /** Coût estimé d'UN message Coach IA. Moyenne d'une session réelle : une
  * écriture de cache pour deux à trois lectures. */
 export const AI_COST_COACH_MSG_USD = 0.005;
@@ -194,12 +206,13 @@ export const AI_COST_COACH_MSG_USD = 0.005;
  * le crédit et le message se confondent désormais.
  */
 export const AI_COST_ACTION_USD = AI_COST_COACH_MSG_USD;
-/** Coût estimé d'UNE génération de programme (Sonnet 5), arrondi au-dessus. */
-export const AI_COST_PROGRAM_USD = 0.16;
+/** Coût MESURÉ d'UNE génération de programme (Sonnet 5), arrondi au-dessus. */
+export const AI_COST_PROGRAM_USD = 0.3;
 /** Ancien alias (échange générique), conservé pour compat, aligné sur le chat. */
 export const AI_COST_PER_MSG_USD = AI_COST_COACH_MSG_USD;
-/** Coût IA d'onboarding d'un client (génération programme + analyse salle). */
-export const AI_COST_ONBOARDING_USD = 0.16;
+/** Coût IA d'onboarding d'un client : génération du programme (0,2921 $) plus
+ * un lot de photos de salle analysé (0,0110 $), arrondi au-dessus. */
+export const AI_COST_ONBOARDING_USD = 0.32;
 /**
  * Coût MOYEN d'un crédit consommé. Une seule action en consomme un, il n'y a
  * donc plus de mix à pondérer : c'est le prix d'un message.
@@ -210,8 +223,10 @@ export const AI_COST_CREDIT_USD = AI_COST_COACH_MSG_USD;
  * Non débité en crédits, c'est une charge système. */
 export const AI_COST_MEMORY_USD = 0.003;
 
-/** Coût IA récurrent estimé par client et par mois (usage typique modéré). */
-export const AI_COST_PER_CLIENT_MONTH_USD = 1.2;
+/** Coût IA récurrent estimé par client et par mois (usage typique modéré) :
+ * 8 messages par jour sur 26 jours actifs, plus le résumé de mémoire, plus la
+ * génération d'un bloc amortie sur ses trois mois. */
+export const AI_COST_PER_CLIENT_MONTH_USD = 1.3;
 
 // Taux de conversion indicatif USD→EUR pour afficher un coût lisible en euros
 // (le tarif Anthropic est en USD, la revente du revendeur en EUR). Approx.

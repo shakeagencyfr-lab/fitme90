@@ -279,16 +279,23 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
   // Cache de prompt en DURÉE LONGUE (1 heure) plutôt que les 5 minutes par
   // défaut. Une conversation avec un coach n'est pas une rafale : le client
   // écrit, réfléchit, répond dix minutes plus tard. Avec 5 minutes, le cache
-  // avait expiré à chaque tour et on repayait l'écriture du contexte entier à
+  // aurait expiré entre deux tours et on repaierait l'écriture du contexte à
   // chaque message. Une écriture longue coûte 200 % d'un token d'entrée au lieu
-  // de 125 %, mais elle n'a lieu qu'une fois par heure au lieu d'une fois par
-  // message espacé : au-delà du deuxième message, c'est gagnant.
+  // de 125 %, mais elle n'a lieu qu'une fois par heure : à partir du troisième
+  // message dans l'heure, c'est gagnant.
   //
-  // DEUX points de reprise, parce que les deux blocs ne changent pas au même
-  // rythme. Le premier (persona, profil, programme) tient des jours. Le second
-  // (date du jour, retards, séances validées) change quand le client valide une
-  // séance, mais reste stable pendant toute une conversation : le mettre en
-  // cache aussi évite de repayer 2 500 tokens à chaque message.
+  // DEUX points de reprise, et DEUX SEULEMENT. Ils portent tous les deux sur du
+  // contenu STABLE d'un message à l'autre, ce qui est la condition pour que le
+  // cache serve à quelque chose : le premier bloc (persona, profil, programme)
+  // tient des jours, le second (date du jour, retards, séances validées) change
+  // quand le client valide une séance mais reste identique pendant toute une
+  // conversation.
+  //
+  // Ne JAMAIS poser un troisième point de reprise dans les messages. Le cache
+  // fonctionne par préfixe : un repère posé sur du contenu qui bouge ne se
+  // retrouve jamais, tout est réécrit au double du tarif, et le cache finit par
+  // coûter plus cher que pas de cache du tout. C'est exactement ce qui s'est
+  // produit ici (voir le commentaire sur `convo` plus bas).
   const longCache = { type: "ephemeral", ttl: "1h" } as const;
   const system: Anthropic.TextBlockParam[] = [
     { type: "text", text: systemStable, cache_control: longCache },
@@ -590,17 +597,29 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     return `Programme régénéré en tenant compte de : « ${contrainte} ». Les exercices contre-indiqués ont été remplacés par des alternatives sûres. Confirme-le au client et invite-le à consulter si la douleur persiste.`;
   }
 
-  // L'historique aussi est mis en cache, avec un point de reprise sur le
-  // DERNIER tour passé. Sans lui, les vingt-quatre messages précédents étaient
-  // renvoyés et refacturés plein tarif à chaque nouveau message, et la note
-  // grossissait avec la conversation. Avec, seul le tour courant est payé au
-  // prix fort ; le reste est relu à 10 %.
-  const passe: Anthropic.MessageParam[] = past.map((m, i) =>
-    i === past.length - 1
-      ? { role: m.role, content: [{ type: "text" as const, text: m.content, cache_control: longCache }] }
-      : { role: m.role, content: m.content },
-  );
-  const convo: Anthropic.MessageParam[] = [...passe, { role: "user" as const, content: userContent }];
+  // L'HISTORIQUE N'EST PAS MIS EN CACHE, et c'est délibéré.
+  //
+  // Il l'a été, avec un point de reprise sur le dernier tour passé, pour ne pas
+  // refacturer les vingt-quatre messages précédents à chaque nouveau message.
+  // L'intention était juste, le résultat inverse : le cache fonctionne par
+  // PRÉFIXE, et un point de reprise posé sur le dernier tour se déplace à
+  // chaque échange. Anthropic ne retrouvait donc jamais l'entrée précédente et
+  // réécrivait tout le contexte, au double du tarif plein (200 % pour une
+  // écriture longue durée).
+  //
+  // Mesuré sur quatre messages réels : 0,062 $ d'écritures de cache sur
+  // 0,071 $ de facture, soit 87 %, quand les lectures n'avaient fait gagner
+  // que 0,002 $. Les mêmes messages sans aucun cache : 0,038 $. Le cache
+  // coûtait presque le double de ne rien faire.
+  //
+  // Seul ce qui NE BOUGE PAS entre deux messages est donc mis en cache (les
+  // deux blocs système ci-dessus) : là, l'écriture a lieu une fois et les
+  // relectures suivantes coûtent 10 %. L'historique, lui, repasse au tarif
+  // plein, ce qui reste deux fois moins cher que de le réécrire en cache.
+  const convo: Anthropic.MessageParam[] = [
+    ...past.map((m) => ({ role: m.role, content: m.content })),
+    { role: "user" as const, content: userContent },
+  ];
 
   async function execTool(name: string, input: unknown): Promise<string> {
     if (name === "adapter_programme") {

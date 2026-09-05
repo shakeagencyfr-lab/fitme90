@@ -70,7 +70,7 @@ export function driverLabel(driver: CostDriver, parts: CostParts): string {
     case "sortie":
       return `Réponse longue : la sortie fait ${share} % du coût (elle vaut 5 fois une entrée).`;
     case "cache-ecrit":
-      return `Cache écrit : ${share} % du coût. Premier échange, ou reprise après 5 min de pause.`;
+      return `Cache écrit : ${share} % du coût. Une écriture vaut 125 % d'une entrée sur le cache court, 200 % sur le cache long.`;
     case "cache-lu":
       return `Cache lu : ${share} % du coût. Le contexte était déjà en mémoire, donc facturé 10 %.`;
     default:
@@ -181,8 +181,14 @@ interface RawRow extends CostRow {
   credits: number | null;
 }
 
-const COLS =
-  "id, created_at, user_id, tenant_id, route, action, model, credits, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens";
+// `cache_write_1h_tokens` FAIT PARTIE DE LA LISTE, et ce n'est pas un détail.
+// Il manquait : `costParts` recevait donc `undefined` pour les écritures de
+// cache longue durée et les comptait pour zéro. Le journal affichait 0,0018 €
+// sur un message qui en coûtait 0,0163, soit dix fois moins, pendant que les
+// autres écrans (coût du mois, marges) lisaient la bonne colonne et donnaient
+// un total sans rapport avec la somme des lignes.
+export const COLS =
+  "id, created_at, user_id, tenant_id, route, action, model, credits, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cache_write_1h_tokens";
 
 /**
  * Une page d'historique pour un étage. Trois requêtes au plus : les appels, les
@@ -253,7 +259,10 @@ export async function usageHistory(
       inputTokens: r.input_tokens ?? 0,
       outputTokens: r.output_tokens ?? 0,
       cacheReadTokens: r.cache_read_tokens ?? 0,
-      cacheWriteTokens: r.cache_write_tokens ?? 0,
+      // Les deux durées d'écriture réunies : le lecteur veut savoir combien de
+      // jetons ont été écrits, pas dans quel seau ils sont tombés. Le PRIX,
+      // lui, reste distinct (200 % contre 125 %) et vit dans `parts`.
+      cacheWriteTokens: (r.cache_write_tokens ?? 0) + (r.cache_write_1h_tokens ?? 0),
       credits: r.credits ?? 0,
       costUsd: parts.total,
       parts,
