@@ -128,6 +128,12 @@ create table if not exists public.profiles (
   subscription_cancel_at_period_end boolean not null default false,
   referral_code text,
   referred_by uuid,
+  -- Compte client INTERNE : cree et tenu par le coach, sans adresse e-mail.
+  -- L'utilisateur auth existe (tout pointe vers auth.users) avec une adresse
+  -- technique jamais joignable ; c'est `email` a NULL qui fait foi, et c'est
+  -- de lui que part tout envoi. Le drapeau dit que l'absence d'adresse est un
+  -- choix, et que le paiement a ete encaisse par le coach hors Stripe.
+  managed_by_coach boolean not null default false,
   constraint profiles_pkey primary key (id),
   constraint profiles_language_check check (language is null or language = any (array['fr','en'])),
   constraint profiles_selected_interval_check check (selected_interval = any (array['month','year']))
@@ -815,6 +821,9 @@ alter table public.orders enable row level security;
 create index if not exists profiles_tenant_idx on public.profiles (tenant_id);
 create index if not exists profiles_tenant_role_idx on public.profiles (tenant_id, role);
 create index if not exists profiles_selected_offer_idx on public.profiles (selected_offer_id);
+-- Les fiches internes se retrouvent a la volee dans la liste d'un coach.
+create index if not exists profiles_tenant_managed_idx
+  on public.profiles (tenant_id) where managed_by_coach;
 create index if not exists programs_user_idx on public.programs (user_id);
 create index if not exists questionnaires_user_idx on public.questionnaires (user_id);
 create index if not exists weights_user_idx on public.weights (user_id);
