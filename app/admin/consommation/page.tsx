@@ -3,7 +3,7 @@ import { tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { tenantNode } from "@/lib/hierarchy";
 import { usageHistory, scopeAccounts, modelLabel, driverLabel, type UsageRow } from "@/lib/ai-usage-log";
-import { formatUsd } from "@/lib/ai-cost";
+import { formatUsdPrecise } from "@/lib/ai-cost";
 import { usdToEur, formatEurPrecise } from "@/lib/config";
 import { Card, MonoLabel } from "@/components/ui";
 import { UsageFilters } from "@/components/usage-filters";
@@ -83,7 +83,7 @@ export default async function AdminUsagePage({
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Metric label={tx("Appels IA")} value={totals.calls.toLocaleString("fr-FR")} />
-        <Metric label={tx("Coût Anthropic")} value={formatUsd(totals.costUsd)} sub={formatEurPrecise(usdToEur(totals.costUsd))} />
+        <Metric label={tx("Coût Anthropic")} value={formatUsdPrecise(totals.costUsd)} sub={formatEurPrecise(usdToEur(totals.costUsd))} />
         <Metric
           label={tx("Tokens")}
           value={`${((totals.inputTokens + totals.outputTokens) / 1000).toFixed(1)} k`}
@@ -141,7 +141,8 @@ export default async function AdminUsagePage({
                         <CacheBadges read={r.cacheReadTokens} write={r.cacheWriteTokens} />
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5">
-                        <div className="tabular-nums text-ink">{formatEurPrecise(usdToEur(r.costUsd))}</div>
+                        <div className="tabular-nums text-ink">{formatUsdPrecise(r.costUsd)}</div>
+                        <div className="tabular-nums text-[11px] text-muted-2">{formatEurPrecise(usdToEur(r.costUsd))}</div>
                         <div className="text-[11px] text-muted-2">{DRIVER_SHORT[r.driver]}</div>
                       </td>
                       <td className="px-3 py-2.5 tabular-nums font-semibold text-ink">
@@ -165,7 +166,7 @@ export default async function AdminUsagePage({
       </Card>
 
       <p className="text-[12px] leading-[1.6] text-muted-2">
-        {tx("Coût estimé d'après les tarifs publics Anthropic et les tokens réellement consommés. Deux ratios expliquent l'essentiel des écarts entre deux lignes : une sortie coûte 5 fois une entrée, et une écriture de cache 12,5 fois une lecture (125 % contre 10 % du prix d'entrée). Le cache s'écrit au premier échange d'une conversation puis se relit pendant 5 minutes. Ce coût sert au pilotage, pas à la facturation ; les crédits, eux, sont le débit réel du portefeuille.")}</p>
+        {tx("Les montants sont en DOLLARS, la monnaie dans laquelle Anthropic facture : c'est ce chiffre-là qui se compare à ta console Anthropic, ligne à ligne par l'identifiant de requête. L'euro dessous n'est qu'une conversion indicative, à taux fixe. Le coût est calculé sur les tarifs publics et les tokens réellement consommés. Deux ratios expliquent l'essentiel des écarts entre deux lignes : une sortie coûte 5 fois une entrée, et une écriture de cache 12,5 fois une lecture (125 % contre 10 % du prix d'entrée). Le cache s'écrit au premier échange d'une conversation puis se relit pendant 5 minutes. Ce coût sert au pilotage, pas à la facturation ; les crédits, eux, sont le débit réel du portefeuille.")}</p>
     </div>
   );
 }
@@ -178,7 +179,10 @@ function MobileRow({ row, showAccount }: { row: UsageRow; showAccount: boolean }
           {row.action}
           {row.continuation ? <Suite /> : null}
         </span>
-        <span className="whitespace-nowrap tabular-nums text-[13px] text-ink">{formatEurPrecise(usdToEur(row.costUsd))}</span>
+        <span className="whitespace-nowrap text-right">
+          <span className="block tabular-nums text-[13px] text-ink">{formatUsdPrecise(row.costUsd)}</span>
+          <span className="block tabular-nums text-[11px] text-muted-2">{formatEurPrecise(usdToEur(row.costUsd))}</span>
+        </span>
       </div>
       <div className="text-[12.5px] text-body">
         {showAccount ? `${row.accountName} · ` : ""}
