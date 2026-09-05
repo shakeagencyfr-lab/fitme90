@@ -49,10 +49,17 @@ describe("constantes de coût IA", () => {
     expect(AI_COST_ACTION_USD).toBe(AI_COST_COACH_MSG_USD);
   });
 
-  it("garde la génération de programme au tarif Sonnet, pas Opus", () => {
-    // Opus 5 mesuré à 0,3882 $ ; Sonnet 5 coûte 2,5 fois moins par jeton.
-    expect(AI_COST_PROGRAM_USD).toBeLessThan(0.2);
-    expect(AI_COST_PROGRAM_USD).toBeGreaterThan(0.15);
+  it("colle à la génération mesurée, et reste très loin du tarif Opus", () => {
+    // Mesure du 5 septembre 2026 : 12 110 jetons d'entrée, 26 788 de sortie.
+    const entree = 12110, sortie = 26788;
+    const surSonnet = (entree * 2 + sortie * 10) / 1e6;   // 0,2921 $
+    const surOpus = (entree * 5 + sortie * 25) / 1e6;     // 0,7303 $
+    // La constante majore la mesure sans la dépasser d'un facteur.
+    expect(AI_COST_PROGRAM_USD).toBeGreaterThanOrEqual(surSonnet);
+    expect(AI_COST_PROGRAM_USD).toBeLessThan(surSonnet * 1.3);
+    // Et elle reste sous la moitié de ce que la même génération aurait coûté
+    // sur Opus : c'est ça, l'économie de la bascule.
+    expect(AI_COST_PROGRAM_USD).toBeLessThan(surOpus / 2);
   });
 
   it("compte les crédits indépendamment des tarifs", () => {
