@@ -1,26 +1,23 @@
 import { describe, it, expect } from "vitest";
 import { coachUsageToCharge } from "./credits";
 
-// Trois outils du coach modifient le programme, mais un seul rappelle le
-// modèle. Confondre les trois faisait débiter 10 crédits de génération pour un
-// recalcul déterministe, soit 4 € au tarif par défaut contre 0,0044 € de conso
-// réelle. Ces tests verrouillent la distinction.
+// Une réponse du coach coûte UN crédit, quoi qu'elle ait fait. Y compris quand
+// le client signale une blessure et que le chat reconstruit un bloc entier :
+// une adaptation est subie, pas achetée, et la facturer comme une génération
+// (50 crédits, 20 € au tarif par défaut) dissuaderait de signaler la douleur.
+// Le fournisseur absorbe, le journal d'utilisation garde la trace du coût.
 describe("coachUsageToCharge", () => {
-  it("débite une génération quand le modèle a vraiment régénéré le programme", () => {
-    expect(coachUsageToCharge(true)).toEqual(["action", "program"]);
+  it("ne débite qu'une action, jamais une génération", () => {
+    expect(coachUsageToCharge()).toEqual(["action"]);
   });
 
-  it("ne débite que le message pour un changement de jours ou de nutrition", () => {
-    // Ces deux outils recalculent le plan sans aucun appel IA.
-    expect(coachUsageToCharge(false)).toEqual(["action"]);
+  it("ne débite jamais de génération depuis le chat", () => {
+    // La régression à éviter : réintroduire "program" ici referait payer 50
+    // crédits une adaptation que le produit doit encourager.
+    expect(coachUsageToCharge()).not.toContain("program");
   });
 
-  it("débite toujours le message, quoi qu'il arrive", () => {
-    expect(coachUsageToCharge(true)).toContain("action");
-    expect(coachUsageToCharge(false)).toContain("action");
-  });
-
-  it("ne débite jamais une génération sans régénération réelle", () => {
-    expect(coachUsageToCharge(false)).not.toContain("program");
+  it("débite toujours le message", () => {
+    expect(coachUsageToCharge()).toContain("action");
   });
 });

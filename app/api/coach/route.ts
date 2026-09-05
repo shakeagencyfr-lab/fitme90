@@ -713,17 +713,12 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
       .eq("title", "Nouvelle conversation");
   }
   // Modèle crédits : on débite APRÈS la réponse réussie (jamais de surdébit).
-  // Seule une VRAIE régénération ajoute le coût d'une génération : un changement
-  // de jours ou une modification nutrition sont déterministes et ne coûtent que
-  // le message.
-  // Deux compteurs et non un : le message et la régénération partent dans deux
-  // lignes de journal distinctes, chacune avec les crédits qui la concernent.
+  // Un crédit, quoi qu'ait fait la réponse, régénération comprise : le
+  // fournisseur absorbe l'adaptation plutôt que de la facturer au client
+  // blessé (voir coachUsageToCharge).
   let charged = 0;
-  let chargedProgram = 0;
-  for (const kind of coachUsageToCharge(regenerated)) {
-    const n = await chargeAiUsage(coachTenant, kind, kind === "program" ? "generate" : "message", ctx.userId);
-    if (kind === "program") chargedProgram += n;
-    else charged += n;
+  for (const kind of coachUsageToCharge()) {
+    charged += await chargeAiUsage(coachTenant, kind, "message", ctx.userId);
   }
   // Enregistré APRÈS le débit : l'historique porte les crédits réellement
   // prélevés, pas une estimation refaite à côté.
@@ -733,16 +728,17 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     action: "message",
     credits: charged,
   });
-  // La régénération est un appel de génération : elle a son propre modèle, son
-  // propre tarif et ses propres crédits. Une ligne à part, donc, sans quoi le
-  // journal montre une conversation qui coûte le prix d'un programme sans dire
-  // pourquoi.
+  // La régénération est un appel de génération : elle a son propre modèle et
+  // son propre tarif. Une ligne à part, donc, sans quoi le journal montre une
+  // conversation qui coûte le prix d'un programme sans dire pourquoi. Zéro
+  // crédit : elle n'est pas facturée, elle est absorbée, et cette ligne est ce
+  // qui rend le montant absorbé lisible.
   if (regenerated) {
     await recordCall(ctx.userId, "block", genUsage, {
       tenantId: coachTenant,
       model: MODELS.generate,
       action: "bloc",
-      credits: chargedProgram,
+      credits: 0,
     });
   }
 

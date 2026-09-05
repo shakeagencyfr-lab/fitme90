@@ -432,16 +432,27 @@ async function parentOf(tenantId: string): Promise<string | null> {
 export type AiUsageKind = "action" | "program";
 
 /**
- * Ce qu'une réponse du coach doit débiter, selon ce qui s'est RÉELLEMENT passé.
+ * Ce qu'une réponse du coach doit débiter : UN CRÉDIT, toujours.
  *
- * Trois outils modifient le programme, mais un seul rappelle le modèle :
- * `adapter_programme` régénère un bloc entier (coût réel mesuré 0,0706 $), là
- * où le changement de jours et la modification nutrition sont des recalculs
- * DÉTERMINISTES, sans appel IA. Les débiter comme une génération faisait payer
- * 10 crédits, soit 4 € au tarif par défaut, pour 0,0044 € de conso réelle.
+ * Y compris quand le client signale une blessure et que `adapter_programme`
+ * reconstruit un bloc entier. Ce n'est pas un oubli, c'est une décision.
+ *
+ * Une adaptation n'est pas un achat, elle est SUBIE. Le client ne demande pas
+ * un second programme, il signale qu'il ne peut plus faire le premier. La lui
+ * facturer comme une génération (50 crédits, 20 € au tarif par défaut) revient
+ * à lui faire payer sa douleur, et surtout à le dissuader de la signaler, ce
+ * qui est exactement l'inverse de ce que ce produit doit encourager : un
+ * programme adapté à une épaule qui tient est le cœur de la promesse.
+ *
+ * Le fournisseur absorbe donc la régénération. Elle ne disparaît pas pour
+ * autant : l'appel a sa propre ligne dans le journal d'utilisation, avec ses
+ * jetons et son vrai modèle, à zéro crédit. On sait ce qu'on absorbe.
+ *
+ * Les deux autres outils (changement de jours, nutrition) n'appelaient déjà
+ * aucun modèle : ce sont des recalculs déterministes.
  */
-export function coachUsageToCharge(regenerated: boolean): AiUsageKind[] {
-  return regenerated ? ["action", "program"] : ["action"];
+export function coachUsageToCharge(): AiUsageKind[] {
+  return ["action"];
 }
 
 // La règle « qui paie » vit dans lib/ai-supply.ts, avec la résolution de clé
