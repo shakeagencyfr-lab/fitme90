@@ -189,6 +189,12 @@ export const LIMIT_ANALYZE_GYM_TOTAL = 40;
 // 0,005 $ tant que le point de reprise du cache était posé sur du contenu
 // mouvant et que 87 % de la facture partait en réécritures ; il a été corrigé
 // dans app/api/coach/route.ts, et la mesure a suivi.
+/**
+ * Date de la dernière campagne de mesure, affichée là où ces coûts servent à
+ * fixer un prix de revente. Sans elle, le fournisseur lit un chiffre sans
+ * savoir s'il date d'avant ou d'après le dernier changement de modèle.
+ */
+export const AI_COST_MEASURED_ON = "5 septembre 2026";
 /** Coût estimé d'UN message Coach IA, écriture de cache amortie sur la session. */
 export const AI_COST_COACH_MSG_USD = 0.004;
 /**

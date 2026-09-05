@@ -5,7 +5,13 @@ import { usePhrase } from "@/components/locale-provider";
 import { useActionState, useState } from "react";
 import { saveResellerCredits, type ResellerAiState } from "@/app/admin/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
-import { actionCreditMargin, programGenerationMargin, formatEuros, formatEurPrecise } from "@/lib/config";
+import {
+  actionCreditMargin,
+  programGenerationMargin,
+  formatEuros,
+  formatEurPrecise,
+  AI_COST_MEASURED_ON,
+} from "@/lib/config";
 
 interface Props {
   initialPriceCents: number;
@@ -133,7 +139,7 @@ export function ResellerCreditPricingForm({
         <p className="text-[12px] leading-[1.6] text-muted-2">
           {buyPriceCents != null
             ? `Ton coût est ton prix d'achat du crédit. Sur une génération, ton fournisseur t'en débite ${programCredits}, le nombre qu'il a fixé.`
-            : "Coût MESURÉ sur la conso réelle (table ai_calls), converti en euros à titre indicatif. Les crédits partent tous en messages de chat : recettes et alternatives d'exercice ne passent plus par un modèle. Une génération de programme coûte bien plus qu'un message : vérifie qu'elle reste rentable au nombre de crédits choisi."}
+            : `Coûts MESURÉS sur des appels réels (${AI_COST_MEASURED_ON}), convertis en euros à titre indicatif. Un crédit part toujours en message au Coach IA : recettes et alternatives d'exercice sont calculées, donc gratuites. La génération, elle, compte l'écriture du programme ET l'analyse des photos de la salle, parce qu'un client n'obtient jamais l'un sans l'autre. Vérifie qu'elle reste rentable au nombre de crédits choisi.`}
         </p>
 
         {state.error ? <Alert>{state.error}</Alert> : null}
