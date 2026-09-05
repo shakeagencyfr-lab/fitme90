@@ -1,7 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isDescendantTenant } from "@/lib/support-access";
-import { creditWallet, resellerBilling } from "@/lib/credits";
+import { creditWallet, debitWallet, resellerBilling } from "@/lib/credits";
 import { purgeUser } from "@/lib/account-deletion";
 import { stripeForTenant } from "@/lib/coach-payments";
 import { grantTenantPlan } from "@/lib/tenant-billing";
@@ -80,7 +80,41 @@ export async function canGiftCredits(actorTenantId: string, targetTenantId: stri
   return false;
 }
 
-/** Offre des crédits IA (geste commercial), tracés dans le journal comme un ajustement. */
+/**
+ * Le donneur puise-t-il dans un stock qu'il a lui-même ACHETÉ ?
+ *
+ * Toute la question est là. Un compte alimenté en crédits plateforme possède
+ * une réserve finie, payée : en donner doit la vider d'autant. Un compte qui
+ * fait tourner l'IA sur SA propre clé Anthropic n'a pas de réserve, il a une
+ * facture : les crédits qu'il accorde à ses filleuls sont une unité de compte
+ * qu'il crée, et qu'il paiera à l'usage. Confondre les deux permettait à un
+ * revendeur d'offrir plus de crédits qu'il n'en possède, en créant la
+ * différence de rien.
+ */
+async function giverHasFiniteStock(tenantId: string): Promise<boolean> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("tenants")
+    .select("ai_supply")
+    .eq("id", tenantId)
+    .maybeSingle<{ ai_supply: string | null }>();
+  return data?.ai_supply === "platform_credits";
+}
+
+/**
+ * Offre des crédits IA à un compte de sa descendance.
+ *
+ * C'EST UN TRANSFERT, PAS UNE CRÉATION, dès lors que le donneur achète
+ * lui-même ses crédits. On débite d'abord son portefeuille, atomiquement, et
+ * on ne crédite le filleul qu'ensuite : un solde insuffisant refuse le geste
+ * en annonçant ce qui reste, au lieu de faire apparaître des crédits que
+ * personne n'a payés.
+ *
+ * L'ordre compte. Créditer d'abord aurait laissé, en cas d'échec du débit, des
+ * crédits offerts sans contrepartie, c'est à dire exactement le trou qu'on
+ * ferme ici. Si c'est le crédit du filleul qui échoue, on rend au donneur ce
+ * qu'on venait de lui prendre.
+ */
 export async function giftCredits(actorTenantId: string, targetTenantId: string, amount: number): Promise<NetworkActionResult> {
   const err = await guard(actorTenantId, targetTenantId);
   if (err) return { ok: false, error: err };
@@ -88,8 +122,31 @@ export async function giftCredits(actorTenantId: string, targetTenantId: string,
   if (!(await canGiftCredits(actorTenantId, targetTenantId))) {
     return { ok: false, error: "Ce compte utilise sa propre clé IA (BYOK) : il n'a pas de portefeuille de crédits à créditer." };
   }
+
+  const ref = `gift:${actorTenantId}:${Date.now()}`;
+  const transfert = await giverHasFiniteStock(actorTenantId);
+
+  if (transfert) {
+    const pris = await debitWallet(actorTenantId, amount, "adjust", null);
+    if (!pris.ok) {
+      return {
+        ok: false,
+        error: `Crédits insuffisants : il t'en reste ${pris.remaining.toLocaleString("fr-FR")}, tu en offres ${amount.toLocaleString("fr-FR")}. Recharge ton solde ou baisse le montant.`,
+      };
+    }
+    try {
+      await creditWallet(targetTenantId, amount, "adjust", ref);
+      return { ok: true };
+    } catch {
+      // On rend ce qu'on a pris : un transfert à moitié fait est pire qu'un
+      // transfert refusé, parce que personne ne le voit.
+      await creditWallet(actorTenantId, amount, "adjust", `${ref}:rollback`).catch(() => {});
+      return { ok: false, error: "Crédit impossible. Ton solde n'a pas bougé." };
+    }
+  }
+
   try {
-    await creditWallet(targetTenantId, amount, "adjust", `gift:${actorTenantId}:${Date.now()}`);
+    await creditWallet(targetTenantId, amount, "adjust", ref);
     return { ok: true };
   } catch {
     return { ok: false, error: "Crédit impossible." };
