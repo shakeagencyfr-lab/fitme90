@@ -51,17 +51,15 @@ describe("constantes de coût IA", () => {
     expect(AI_COST_ACTION_USD).toBe(AI_COST_COACH_MSG_USD);
   });
 
-  it("colle à la génération mesurée, et reste très loin du tarif Opus", () => {
-    // Mesure du 5 septembre 2026 : 12 110 jetons d'entrée, 26 788 de sortie.
+  it("colle à la génération mesurée, au tarif Opus", () => {
+    // Jetons mesurés le 5 septembre 2026 : 12 110 en entrée, 26 788 en sortie.
+    // La génération tourne sur Opus 5 ($5 / $25 le million) : la qualité du
+    // programme prime sur l'économie que Sonnet permettait.
     const entree = 12110, sortie = 26788;
-    const surSonnet = (entree * 2 + sortie * 10) / 1e6;   // 0,2921 $
-    const surOpus = (entree * 5 + sortie * 25) / 1e6;     // 0,7303 $
+    const surOpus = (entree * 5 + sortie * 25) / 1e6; // 0,7303 $
     // La constante majore la mesure sans la dépasser d'un facteur.
-    expect(AI_COST_GENERATION_USD).toBeGreaterThanOrEqual(surSonnet);
-    expect(AI_COST_GENERATION_USD).toBeLessThan(surSonnet * 1.3);
-    // Et elle reste sous la moitié de ce que la même génération aurait coûté
-    // sur Opus : c'est ça, l'économie de la bascule.
-    expect(AI_COST_GENERATION_USD).toBeLessThan(surOpus / 2);
+    expect(AI_COST_GENERATION_USD).toBeGreaterThanOrEqual(surOpus);
+    expect(AI_COST_GENERATION_USD).toBeLessThan(surOpus * 1.3);
   });
 
   it("chiffre l'analyse des photos de salle sur sa mesure", () => {

@@ -12,16 +12,15 @@ export function anthropic(apiKey?: string) {
 // ajuster le coût sans redéploiement (ex. passer la génération en
 // claude-sonnet-5). Défaut : le modèle le plus capable.
 export const MODELS = {
-  // Génération du programme : Sonnet 5.
+  // Génération du programme : Opus 5.
   //
-  // C'était Opus 5. Le poste pesait à lui seul plus que tout le reste réuni
-  // (0,39 $ par génération, contre 0,005 $ pour un message de chat), pour un
-  // travail très encadré : le brief impose la structure, le nombre de cycles,
-  // les gabarits de séance, et un schéma JSON validé à l'arrivée. Sonnet 5
-  // coûte deux fois et demie moins cher par jeton, en entrée comme en sortie,
-  // et rend le même livrable sur une tâche aussi contrainte. Repasser sur Opus
-  // ne demande qu'une variable d'environnement.
-  generate: process.env.ANTHROPIC_MODEL_GENERATE ?? "claude-sonnet-5",
+  // Un passage sur Sonnet 5 a été tenté pour le coût (deux fois et demie
+  // moins cher par jeton). La qualité des programmes n'a pas suivi : c'est
+  // le livrable que le client paie, et celui qui fait la réputation du
+  // coach. On revient sur le modèle le plus capable et le coût est assumé
+  // dans les estimations (lib/config.ts). La variable d'environnement reste
+  // le moyen de changer sans redéploiement.
+  generate: process.env.ANTHROPIC_MODEL_GENERATE ?? "claude-opus-5",
   // Tout le reste tourne sur Haiku 4.5 : fenêtre 200k, vision incluse, et de
   // loin le meilleur rapport qualité/prix.
   //
