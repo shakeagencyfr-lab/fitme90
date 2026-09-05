@@ -186,7 +186,7 @@ export default async function AdminResellerAiPage() {
 
       <SitePriceForm
         initialCents={t?.site_addon_price_cents ?? null}
-        includedPlans={plans.filter((p) => p.site_included).map((p) => p.name)}
+        includedPlans={plans.filter((p) => p.whitelabel_included).map((p) => p.name)}
       />
 
       {/* En crédits plateforme, la fourniture est fixée : pas de choix BYOK / provider. */}

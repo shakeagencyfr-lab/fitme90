@@ -13,7 +13,8 @@ import { RevenueSimulator } from "@/components/revenue-simulator";
 import { LIcon } from "@/components/landing-icon";
 import { DEFAULT_BRAND_COLOR, formatEuros } from "@/lib/config";
 import { platformTenantId } from "@/lib/hierarchy";
-import { listPlans, type Plan } from "@/lib/plans";
+import { listSellablePlans, freePlanOffered } from "@/lib/plans";
+import { PricingProvider, PricingSwitch, PlanPrice, FreePlanCard } from "@/components/plan-pricing";
 
 export const viewport: Viewport = { themeColor: "#080a0c" };
 export const dynamic = "force-dynamic";
@@ -67,12 +68,6 @@ const FAQ = [
   { q: "Mes données et celles de mes clients sont-elles protégées ?", a: "Oui : hébergement en Union Européenne, chiffrement et cloisonnement strict entre comptes." },
 ];
 
-function priceLine(p: Plan): string {
-  const parts: string[] = [];
-  if (p.price_month_cents != null) parts.push(`${formatEuros(p.price_month_cents)}${tx("/mois")}`);
-  if (p.price_year_cents != null) parts.push(`${formatEuros(p.price_year_cents)}${tx("/an")}`);
-  return parts.join(" · ");
-}
 
 function ShowcaseVisual({ kind }: { kind: "ai" | "program" | "nutrition" }) {
   return (
@@ -111,9 +106,9 @@ export default async function Home() {
   const accent = DEFAULT_BRAND_COLOR;
   const signup = "/inscription-coach";
   const platformId = await platformTenantId();
-  const plans = platformId
-    ? (await listPlans(platformId)).filter((p) => p.is_active && (p.price_month_cents != null || p.price_year_cents != null))
-    : [];
+  const [plans, freePlan] = platformId
+    ? await Promise.all([listSellablePlans(platformId), freePlanOffered(platformId)])
+    : [[], null];
 
   const css = `
     @keyframes rlUp { from { opacity:0; transform:translateY(22px) } to { opacity:1; transform:translateY(0) } }
@@ -259,13 +254,15 @@ export default async function Home() {
       {/* Tarifs */}
       <section id="formules" className="relative z-10 border-y border-white/10 bg-white/[0.02]">
         <div className="mx-auto w-full max-w-[1160px] px-5 py-20 sm:px-8 sm:py-28">
-          <Reveal className="text-center"><span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">{tx("Tarifs")}</span><h2 className="mx-auto mt-4 max-w-[640px] font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">{tx("Ton premier client est")} <span className="text-brand">{tx("offert")}</span></h2><p className="mx-auto mt-4 max-w-[52ch] text-[16px] leading-[1.6] text-white/65">{tx("Lance ton activité sans rien payer. Tu passes à une formule seulement quand tu accueilles ton deuxième client.")}</p></Reveal>
-          {plans.length > 0 ? (
-            <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{plans.map((p, i) => (<Reveal key={p.id} delay={i * 80} className="flex flex-col gap-4 rounded-[24px] border border-white/12 bg-gradient-to-b from-white/[0.05] to-white/[0.01] p-7 transition-all hover:-translate-y-1 hover:border-brand/40"><div className="font-archivo text-[20px] font-bold">{tx(p.name)}</div><div><span className="font-archivo text-[30px] font-extrabold tracking-[-0.02em] text-brand">{priceLine(p) || tx("Sur mesure")}</span></div><div className="text-[14px] text-white/70">{p.client_limit == null ? tx("Clients illimités") : `${tx("Jusqu'à")} ${p.client_limit} ${p.client_limit > 1 ? tx("clients actifs") : tx("client actif")}`}</div>{p.setup_fee_cents > 0 ? <div className="text-[12.5px] text-white/45">+ {formatEuros(p.setup_fee_cents)} {tx("de mise en place (une fois)")}</div> : null}<Link href={signup} className="tap mt-auto inline-flex items-center justify-center rounded-btn bg-brand px-5 py-3.5 text-[14.5px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">{tx("Commencer")}</Link></Reveal>))}</div>
+          <PricingProvider plans={plans}>
+          <Reveal className="text-center"><span className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand">{tx("Tarifs")}</span>{freePlan ? (<><h2 className="mx-auto mt-4 max-w-[640px] font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">{tx("Ton premier client est")} <span className="text-brand">{tx("offert")}</span></h2><p className="mx-auto mt-4 max-w-[52ch] text-[16px] leading-[1.6] text-white/65">{tx("Lance ton activité sans rien payer. Tu passes à une formule seulement quand tu accueilles ton deuxième client.")}</p></>) : (<><h2 className="mx-auto mt-4 max-w-[640px] font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em]">{tx("Une formule pour")} <span className="text-brand">{tx("chaque taille")}</span></h2><p className="mx-auto mt-4 max-w-[52ch] text-[16px] leading-[1.6] text-white/65">{tx("Choisis le nombre de clients que tu veux suivre. Tu changes de formule quand tu grandis.")}</p></>)}<PricingSwitch tone="dark" className="mt-6" /></Reveal>
+          {plans.length > 0 || freePlan ? (
+            <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{freePlan ? <Reveal><FreePlanCard plan={freePlan} href={signup} tone="dark" className="h-full" /></Reveal> : null}{plans.map((p, i) => (<Reveal key={p.id} delay={(i + (freePlan ? 1 : 0)) * 80} className="flex flex-col gap-4 rounded-[24px] border border-white/12 bg-gradient-to-b from-white/[0.05] to-white/[0.01] p-7 transition-all hover:-translate-y-1 hover:border-brand/40"><div className="font-archivo text-[20px] font-bold">{tx(p.name)}</div><div><PlanPrice plan={p} className="font-archivo text-[30px] font-extrabold tracking-[-0.02em] text-brand" subClassName="text-[12.5px] text-white/50" /></div><div className="text-[14px] text-white/70">{p.client_limit == null ? tx("Clients illimités") : `${tx("Jusqu'à")} ${p.client_limit} ${p.client_limit > 1 ? tx("clients actifs") : tx("client actif")}`}</div>{p.setup_fee_cents > 0 ? <div className="text-[12.5px] text-white/45">+ {formatEuros(p.setup_fee_cents)} {tx("de mise en place (une fois)")}</div> : null}<Link href={signup} className="tap mt-auto inline-flex items-center justify-center rounded-btn bg-brand px-5 py-3.5 text-[14.5px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">{tx("Commencer")}</Link></Reveal>))}</div>
           ) : (
             <Reveal className="mx-auto mt-12 max-w-[480px] rounded-[24px] border border-brand/25 bg-gradient-to-b from-brand/[0.12] to-transparent p-9 text-center"><div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-brand/15 text-brand"><LIcon name="bolt" className="h-7 w-7" /></div><div className="mt-4 font-archivo text-[26px] font-extrabold">{tx("Premier client offert")}</div><p className="mt-2 text-[14.5px] leading-[1.6] text-white/65">{tx("Crée ton espace et démarre gratuitement. Tu passes à une formule quand tu grandis.")}</p><Link href={signup} className="tap mt-6 inline-flex items-center justify-center gap-2 rounded-btn bg-brand px-7 py-4 text-[15px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">{tx("Créer mon espace coach")} <LIcon name="arrow" className="h-4 w-4" /></Link></Reveal>
           )}
           <Reveal delay={120} className="mx-auto mt-10 flex max-w-[720px] flex-wrap items-center justify-center gap-x-7 gap-y-3 text-[13.5px] text-white/60">{["Sans carte bancaire", "Sans engagement", "Annule quand tu veux", "Données hébergées en UE"].map((t) => (<span key={t} className="inline-flex items-center gap-1.5"><LIcon name="check" className="h-4 w-4 text-brand" /> {tx(t)}</span>))}</Reveal>
+          </PricingProvider>
         </div>
       </section>
 

@@ -115,3 +115,25 @@ export function supplyDisplay(f: SupplyFacts): SupplyDisplay {
   if (!f.resellerSupplies) return "own_key";
   return f.model === "credits" ? "credits" : "supplied";
 }
+
+export type AiSupply = "byok" | "platform_credits";
+
+/**
+ * Champs à écrire pour basculer la fourniture d'IA d'un revendeur. Pur, testé.
+ *
+ * Vers les crédits : le revendeur fournit l'IA à ses coachs (`ai_mode=provider`)
+ * sans clé à lui, c'est celle de la plateforme qui tourne et son solde qui est
+ * débité, exactement comme un revendeur créé en crédits.
+ *
+ * Retour en BYOK : s'il n'a pas branché sa propre clé, le laisser en `provider`
+ * couperait l'IA de tous ses coachs sans rien afficher. On le repasse donc en
+ * « coachs autonomes » (chacun sa clé) et en modèle abonnement, faute de source
+ * d'IA à revendre.
+ */
+export function supplySwitchPatch(supply: AiSupply, targetHasOwnKey: boolean): Record<string, string> {
+  if (supply === "platform_credits") return { ai_supply: "platform_credits", ai_mode: "provider" };
+  return targetHasOwnKey
+    ? { ai_supply: "byok" }
+    : { ai_supply: "byok", ai_mode: "byok", reseller_model: "subscription" };
+}
+

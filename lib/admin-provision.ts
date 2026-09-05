@@ -2,6 +2,9 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { freeSlug } from "@/lib/coach-onboarding";
 import type { TenantKind } from "@/lib/hierarchy";
+import { freeTierLimit } from "@/lib/plans";
+import { applyPlanModel } from "@/lib/plan-apply";
+import { supplySwitchPatch } from "@/lib/ai-supply";
 
 // Création manuelle d'un compte enfant (revendeur ou coach) depuis le dashboard
 // réseau. On crée l'utilisateur (e-mail confirmé, sans mot de passe : il entrera
@@ -55,11 +58,7 @@ export async function createChildTenantAccount(opts: {
       name,
       kind: opts.kind,
       parent_id: opts.parentTenantId,
-      // Un revendeur en crédits plateforme fournit l'IA à ses coachs (mode
-      // provider) sans clé à lui : c'est la clé de la plateforme qui tourne.
-      ...(opts.kind === "reseller" && opts.aiSupply === "platform_credits"
-        ? { ai_supply: "platform_credits", ai_mode: "provider" }
-        : {}),
+      client_limit: await freeTierLimit(opts.parentTenantId),
     })
     .select("id")
     .maybeSingle<{ id: string }>();
@@ -73,6 +72,14 @@ export async function createChildTenantAccount(opts: {
   const patch: Record<string, string> = { tenant_id: tenant.id, role: "owner" };
   if (contactName) patch.name = contactName;
   await admin.from("profiles").update(patch).eq("id", userId);
+
+  // 4) Le modèle du palier gratuit du parent, puis le choix explicite de
+  // l'opérateur s'il en a fait un : ce qu'il vient de cocher prime sur le
+  // réglage par défaut du palier.
+  await applyPlanModel(tenant.id, null);
+  if (opts.kind === "reseller" && opts.aiSupply) {
+    await admin.from("tenants").update(supplySwitchPatch(opts.aiSupply, false)).eq("id", tenant.id);
+  }
 
   return { ok: true, userId, tenantId: tenant.id, slug };
 }

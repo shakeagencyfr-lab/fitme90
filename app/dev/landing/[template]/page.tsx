@@ -125,13 +125,20 @@ function plan(partial: Partial<Plan>): Plan {
     price_year_cents: 39000,
     client_limit: 10,
     setup_fee_cents: 0,
-    site_included: false,
+    whitelabel_included: false,
+    ai_supply: "byok",
+    coach_byok_allowed: true,
+    coach_credits_allowed: false,
+    is_free: false,
+    starter_credits: 0,
     is_active: true,
     position: 0,
     created_at: new Date().toISOString(),
     ...partial,
   };
 }
+
+const DEMO_FREE: Plan = plan({ id: "free", name: "Démarrez gratuitement", price_month_cents: null, price_year_cents: null, client_limit: 1, is_free: true, ai_supply: "credits", starter_credits: 50, position: -1 });
 
 const DEMO_PLANS: Plan[] = [
   plan({}),
@@ -155,7 +162,7 @@ export default async function LandingPreviewPage({
     const reseller = { ...DEMO_RESELLER, landingTemplate: template === "reseller-lumen" ? ("lumen" as const) : ("onyx" as const) };
     return (
       <LocaleProvider locale={locale}>
-        {template === "reseller-lumen" ? <ResellerLumen reseller={reseller} plans={DEMO_PLANS} /> : <ResellerOnyx reseller={reseller} plans={DEMO_PLANS} />}
+        {template === "reseller-lumen" ? <ResellerLumen reseller={reseller} plans={DEMO_PLANS} freePlan={DEMO_FREE} /> : <ResellerOnyx reseller={reseller} plans={DEMO_PLANS} freePlan={DEMO_FREE} />}
       </LocaleProvider>
     );
   }

@@ -121,7 +121,9 @@ export default async function AdminBillingPage({
                 {tx("Ce palier t'a été offert : tu en as toute la capacité, sans rien payer et sans échéance. Celui qui te l'a posé peut le changer à tout moment.")}</p>
             ) : !hasActiveSub ? (
               <p className="text-[12.5px] leading-[1.55] text-muted-2">
-                {tx("Tu es sur le palier gratuit : une seule place client, offerte. Les offres ci-dessous ouvrent des places supplémentaires.")}</p>
+                {cap && cap.limit === 0
+                  ? tx("Aucune place pour l'instant : choisis une formule ci-dessous pour ouvrir ton espace.")
+                  : tx("Tu es sur le palier gratuit : une seule place client, offerte. Les offres ci-dessous ouvrent des places supplémentaires.")}</p>
             ) : billing?.cancelAtPeriodEnd ? (
               <div className="mt-1 flex flex-wrap items-center gap-3">
                 <span className="text-[12.5px] text-muted-2">

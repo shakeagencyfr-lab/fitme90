@@ -31,15 +31,15 @@ export default async function ResellerLandingPage({ params }: { params: Promise<
   const data = await publicResellerBySlug(slug);
   if (!data) notFound();
 
-  const { reseller, plans } = data;
+  const { reseller, plans, freePlan } = data;
   const locale = await resolveLocale(await tenantLocale(reseller.id));
   setRequestLocale(locale);
   return (
     <LocaleProvider locale={locale}>
       {reseller.landingTemplate === "lumen" ? (
-        <ResellerLumen reseller={reseller} plans={plans} />
+        <ResellerLumen reseller={reseller} plans={plans} freePlan={freePlan} />
       ) : (
-        <ResellerOnyx reseller={reseller} plans={plans} />
+        <ResellerOnyx reseller={reseller} plans={plans} freePlan={freePlan} />
       )}
     </LocaleProvider>
   );

@@ -11,9 +11,10 @@ import type { PublicReseller } from "@/lib/reseller";
 import type { Plan } from "@/lib/plans";
 import { DEFAULT_BRAND_COLOR, formatEuros } from "@/lib/config";
 import {
-  MARQUEE, FEATURES, SHOWCASE, COMPARE_WITHOUT, COMPARE_WITH, STEPS, SECTORS, FAQ, Ic, priceLine,
+  MARQUEE, FEATURES, SHOWCASE, COMPARE_WITHOUT, COMPARE_WITH, STEPS, SECTORS, FAQ, Ic,
 } from "@/components/landing-templates/reseller-content";
 import { themeVars, themeAttrs } from "@/lib/theme";
+import { PricingProvider, PricingSwitch, PlanPrice, FreePlanCard } from "@/components/plan-pricing";
 
 // Template revendeur « Lumen » : design clair, éditorial et aéré. Même contenu
 // que Onyx, habillage lumineux. `--color-ink` figé (indépendant du thème app).
@@ -61,7 +62,7 @@ function ShowcaseVisual({ kind, name }: { kind: "ai" | "program" | "nutrition"; 
 
 const eyebrow = "font-mono text-[11px] uppercase tracking-[0.18em] text-brand";
 
-export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; plans: Plan[] }) {
+export function ResellerLumen({ reseller, plans, freePlan = null }: { reseller: PublicReseller; plans: Plan[]; freePlan?: Plan | null }) {
   const accent = reseller.brandColor || DEFAULT_BRAND_COLOR;
   const headline = reseller.headline || tx("Lance ton business de coaching. On s'occupe de la technologie.");
   const tagline =
@@ -339,19 +340,31 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
 
       {/* Tarifs */}
       <section id="formules" className="relative z-10 border-y border-black/8 bg-white">
+      <PricingProvider plans={plans}>
         <div className="mx-auto w-full max-w-[1160px] px-5 py-20 sm:px-8 sm:py-28">
           <Reveal className="text-center">
             <span className={eyebrow}>{tx("Tarifs")}</span>
-            <h2 className="mx-auto mt-4 max-w-[640px] font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em] text-ink">{tx("Ton premier client est")} <span className="text-brand">{tx("offert")}</span></h2>
-            <p className="mx-auto mt-4 max-w-[52ch] text-[16px] leading-[1.6] text-ink/65">{tx("Lance ton activité sans rien payer. Tu passes à une formule seulement quand tu accueilles ton deuxième client.")}</p>
+            {freePlan ? (
+              <>
+                <h2 className="mx-auto mt-4 max-w-[640px] font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em] text-ink">{tx("Ton premier client est")} <span className="text-brand">{tx("offert")}</span></h2>
+                <p className="mx-auto mt-4 max-w-[52ch] text-[16px] leading-[1.6] text-ink/65">{tx("Lance ton activité sans rien payer. Tu passes à une formule seulement quand tu accueilles ton deuxième client.")}</p>
+              </>
+            ) : (
+              <>
+                <h2 className="mx-auto mt-4 max-w-[640px] font-archivo text-[clamp(26px,4.5vw,42px)] font-extrabold leading-[1.08] tracking-[-0.025em] text-ink">{tx("Une formule pour")} <span className="text-brand">{tx("chaque taille")}</span></h2>
+                <p className="mx-auto mt-4 max-w-[52ch] text-[16px] leading-[1.6] text-ink/65">{tx("Choisis le nombre de clients que tu veux suivre. Tu changes de formule quand tu grandis.")}</p>
+              </>
+            )}
+            <PricingSwitch tone="light" className="mt-6" />
           </Reveal>
 
-          {plans.length > 0 ? (
+          {plans.length > 0 || freePlan ? (
             <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {freePlan ? <Reveal><FreePlanCard plan={freePlan} href={signup} tone="light" className="h-full" /></Reveal> : null}
               {plans.map((p, i) => (
-                <Reveal key={p.id} delay={i * 80} className="flex flex-col gap-4 rounded-[24px] border border-black/8 bg-[#faf8f5] p-7 transition-all hover:-translate-y-1 hover:border-brand/30">
+                <Reveal key={p.id} delay={(i + (freePlan ? 1 : 0)) * 80} className="flex flex-col gap-4 rounded-[24px] border border-black/8 bg-[#faf8f5] p-7 transition-all hover:-translate-y-1 hover:border-brand/30">
                   <div className="font-archivo text-[20px] font-bold text-ink">{tx(p.name)}</div>
-                  <div><span className="font-archivo text-[30px] font-extrabold tracking-[-0.02em] text-brand">{priceLine(p) || tx("Sur mesure")}</span></div>
+                  <div><PlanPrice plan={p} className="font-archivo text-[30px] font-extrabold tracking-[-0.02em] text-brand" subClassName="text-[12.5px] text-ink/50" /></div>
                   <div className="text-[14px] text-ink/70">{p.client_limit == null ? tx("Clients illimités") : `${tx("Jusqu'à")} ${p.client_limit} ${p.client_limit > 1 ? tx("clients actifs") : tx("client actif")}`}</div>
                   {p.setup_fee_cents > 0 ? <div className="text-[12.5px] text-ink/45">+ {formatEuros(p.setup_fee_cents)} {tx("de mise en place (une fois)")}</div> : null}
                   <Link href={signup} className="tap mt-auto inline-flex items-center justify-center rounded-btn bg-brand px-5 py-3.5 text-[14.5px] font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover active:scale-[0.98]">{tx("Commencer")}</Link>
@@ -373,6 +386,7 @@ export function ResellerLumen({ reseller, plans }: { reseller: PublicReseller; p
             ))}
           </Reveal>
         </div>
+      </PricingProvider>
       </section>
 
       {/* FAQ */}

@@ -1,6 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { listPlans, type Plan } from "@/lib/plans";
+import { listSellablePlans, freePlanOffered, type Plan } from "@/lib/plans";
 import { asLandingTemplate, type LandingTemplate } from "@/lib/offers";
 import { normalizeTheme, withPrimary, type TenantTheme } from "@/lib/theme";
 
@@ -24,6 +24,8 @@ export interface PublicReseller {
 export interface PublicResellerLanding {
   reseller: PublicReseller;
   plans: Plan[];
+  /** Le palier gratuit, s'il est proposé : c'est la première carte des tarifs. */
+  freePlan: Plan | null;
 }
 
 export async function publicResellerBySlug(slug: string): Promise<PublicResellerLanding | null> {
@@ -52,10 +54,7 @@ export async function publicResellerBySlug(slug: string): Promise<PublicReseller
     }>();
   if (!tenant) return null;
 
-  // Paliers vendables : actifs et avec au moins un prix.
-  const plans = (await listPlans(tenant.id)).filter(
-    (p) => p.is_active && (p.price_month_cents != null || p.price_year_cents != null),
-  );
+  const [plans, freePlan] = await Promise.all([listSellablePlans(tenant.id), freePlanOffered(tenant.id)]);
 
   return {
     reseller: {
@@ -71,5 +70,6 @@ export async function publicResellerBySlug(slug: string): Promise<PublicReseller
       theme: withPrimary(normalizeTheme(tenant.theme), tenant.brand_color),
     },
     plans,
+    freePlan,
   };
 }

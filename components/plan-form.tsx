@@ -2,7 +2,7 @@
 
 import { usePhrase } from "@/components/locale-provider";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { addPlan, type PlanState } from "@/app/admin/actions";
 import { Button, Alert, MonoLabel } from "@/components/ui";
 
@@ -20,6 +20,9 @@ export function PlanForm({ atLimit, unit = "clients" }: { atLimit: boolean; unit
   const tx = usePhrase();
   const comptes = unit === "comptes";
   const [state, action, pending] = useActionState(addPlan, {} as PlanState);
+  const [supply, setSupply] = useState<"byok" | "credits">("byok");
+  const [byok, setByok] = useState(true);
+  const [credits, setCredits] = useState(false);
 
   if (atLimit) {
     return (
@@ -89,17 +92,61 @@ export function PlanForm({ atLimit, unit = "clients" }: { atLimit: boolean; unit
         </label>
       </div>
 
-      {/* Inclure « Mon site » est un argument de vente pour monter en gamme :
-          la case appartient donc au palier, pas à un écran d'options séparé.
-          Elle n'a pas de sens quand on vend à des revendeurs, qui ne publient
-          pas de page de présentation d'établissement. */}
-      {comptes ? null : (
+      {/* Le palier porte son modèle : la fourniture d'IA se choisit ici, au
+          moment de le vendre, et non compte par compte après coup. */}
+      <div className="flex flex-col gap-1.5">
+        <MonoLabel>{tx("Fourniture de l'IA")}</MonoLabel>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(
+            [
+              ["byok", tx("Clé personnelle (BYOK)"), comptes ? tx("Le revendeur branche sa propre clé Anthropic et règle Anthropic directement.") : tx("Le coach branche sa propre clé Anthropic et règle Anthropic directement.")],
+              ["credits", tx("Crédits IA"), comptes ? tx("L'IA tourne sur ta clé, le revendeur t'achète des crédits et les revend avec sa marge.") : tx("L'IA tourne sur ta chaîne, le coach t'achète des crédits.")],
+            ] as const
+          ).map(([val, title, desc]) => (
+            <label
+              key={val}
+              className={[
+                "tap flex cursor-pointer flex-col gap-0.5 rounded-control border px-3.5 py-2.5 transition-colors",
+                supply === val ? "border-brand bg-brand/[0.06]" : "border-line-4 hover:border-ink/40",
+              ].join(" ")}
+            >
+              <input type="radio" name="ai_supply" value={val} checked={supply === val} onChange={() => setSupply(val)} className="sr-only" />
+              <span className="text-[14px] font-semibold text-ink">{title}</span>
+              <span className="text-[12px] leading-[1.5] text-muted-2">{desc}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Inclure la marque blanche est un argument de vente pour monter en
+          gamme : la case appartient au palier. Un revendeur l'a toujours, la
+          question ne se pose que pour les coachs. */}
+      {comptes ? (
+        <div className="flex flex-col gap-2">
+          <MonoLabel>{tx("Ce que le revendeur pourra proposer à ses coachs")}</MonoLabel>
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
+            <input type="checkbox" checked={byok} onChange={(e) => setByok(e.target.checked)} className="mt-0.5 size-4 accent-brand" />
+            <input type="hidden" name="coach_byok_allowed" value={byok ? "on" : "off"} />
+            <span className="flex flex-col gap-0.5">
+              <span className="text-[14px] font-semibold text-ink">{tx("Des coachs en clé personnelle")}</span>
+              <span className="text-[12px] leading-[1.5] text-muted-2">{tx("Chaque coach branche sa propre clé Anthropic.")}</span>
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
+            <input type="checkbox" name="coach_credits_allowed" checked={credits} onChange={(e) => setCredits(e.target.checked)} className="mt-0.5 size-4 accent-brand" />
+            <span className="flex flex-col gap-0.5">
+              <span className="text-[14px] font-semibold text-ink">{tx("La revente de crédits IA à ses coachs")}</span>
+              <span className="text-[12px] leading-[1.5] text-muted-2">{tx("Le revendeur fournit l'IA et prend sa marge sur chaque crédit. Une ligne de plus sur ton palier, et une belle opportunité pour lui.")}</span>
+            </span>
+          </label>
+        </div>
+      ) : (
         <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
-          <input type="checkbox" name="site_included" className="mt-0.5 size-4 accent-brand" />
+          <input type="checkbox" name="whitelabel_included" className="mt-0.5 size-4 accent-brand" />
           <span className="flex flex-col gap-0.5">
-            <span className="text-[14px] font-semibold text-ink">{tx("Inclure « Mon site »")}</span>
+            <span className="text-[14px] font-semibold text-ink">{tx("Inclure le pack marque blanche")}</span>
             <span className="text-[12px] leading-[1.5] text-muted-2">
-              {tx("La page de présentation publique (qui, quoi, où, quand, avis), remplie depuis la fiche Google. Décoché, les comptes de ce palier peuvent la souscrire à part si tu en fixes le prix dans Revenu IA.")}
+              {tx("Domaine personnalisé, e-mails depuis son serveur, site de présentation. Décoché, les comptes de ce palier peuvent souscrire le pack à part si tu en fixes le prix dans Revenu IA.")}
             </span>
           </span>
         </label>
@@ -109,7 +156,7 @@ export function PlanForm({ atLimit, unit = "clients" }: { atLimit: boolean; unit
         <span className="font-semibold text-body">{comptes ? tx("Comptes inclus") : tx("Clients inclus")}</span>{" "}
         {comptes
           ? tx("= le nombre de comptes coach ou salle que le revendeur pourra ouvrir sur ce palier ; laisse vide pour « illimité ». Les")
-          : tx("= le nombre de comptes clients que le compte pourra gérer sur ce palier ; laisse vide pour « illimité ». Les")}<span className="font-semibold text-body"> {tx("frais de setup")}</span> {tx("sont facturés une seule fois (utile pour les salles : paramétrage du matériel, mise en place). Renseigne au moins un prix.")}</div>
+          : tx("= le nombre de comptes clients que le compte pourra gérer sur ce palier ; laisse vide pour « illimité ». Les")}<span className="font-semibold text-body"> {tx("frais de setup")}</span> {tx("s'ajoutent à la première échéance seulement : le premier mois est majoré de ce montant, puis l'abonnement continue à son tarif. Renseigne au moins un prix ; avec les deux, la page de vente affiche une bascule mensuel / annuel.")}</div>
 
       {state.error ? <Alert>{state.error}</Alert> : null}
       {state.ok ? <Alert tone="info">{tx("Palier ajouté.")}</Alert> : null}

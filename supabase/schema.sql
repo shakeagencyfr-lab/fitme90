@@ -62,6 +62,11 @@ create table if not exists public.tenants (
   reseller_model text not null default 'subscription'::text,
   whitelabel_addon_price_cents integer,
   whitelabel_enabled boolean not null default false,
+  -- Droits EFFECTIFS d'un revendeur, recopies depuis son palier a l'achat ou
+  -- a l'octroi : peut-il proposer une cle personnelle a ses coachs, leur
+  -- revendre des credits ?
+  coach_byok_allowed boolean not null default true,
+  coach_credits_allowed boolean not null default true,
   whitelabel_sub_id text,
   whitelabel_sub_status text,
   -- Désactivation par le parent (manual) ou automatique sur impayé (payment).
@@ -150,8 +155,25 @@ create table if not exists public.plans (
   is_active boolean not null default true,
   "position" integer not null default 0,
   created_at timestamptz not null default now(),
-  constraint plans_pkey primary key (id)
+  -- Fourniture d'IA de l'acheteur : il branche sa cle (byok) ou achete ses
+  -- credits au vendeur (credits).
+  ai_supply text not null default 'byok',
+  -- Plateforme -> revendeur : ce que le revendeur pourra proposer a ses coachs.
+  coach_byok_allowed boolean not null default true,
+  coach_credits_allowed boolean not null default false,
+  -- Le pack marque blanche (domaine, SMTP, site) est inclus dans ce palier.
+  whitelabel_included boolean not null default false,
+  -- Palier GRATUIT : une ligne par vendeur, sans prix, un client inclus. La
+  -- case « proposer un palier gratuit » n'est que son is_active.
+  is_free boolean not null default false,
+  -- Credits IA offerts a l'inscription (palier gratuit en credits).
+  starter_credits integer not null default 0,
+  constraint plans_pkey primary key (id),
+  constraint plans_ai_supply_check check (ai_supply in ('byok', 'credits'))
 );
+
+create unique index if not exists plans_one_free_per_tenant
+  on public.plans (tenant_id) where is_free;
 
 create table if not exists public.offers (
   id uuid not null default gen_random_uuid(),
