@@ -28,7 +28,7 @@ interface Props {
   previewUrl: string | null;
   /** Jeton recalculé à chaque rendu serveur : force le rechargement de l'aperçu. */
   previewVersion: number;
-  /** Domaine perso verrouillé (option marque blanche non débloquée) ? */
+  /** Domaine perso verrouillé (pack marque blanche absent) ? */
   domainLocked?: boolean;
   customDomainInfo: CustomDomainInfo;
   /** Étage configuré : décide de ce que l'adresse personnalisée sert vraiment. */
@@ -173,7 +173,7 @@ export function WhiteLabelStudio({
             <div>
               <div className="font-archivo text-[14.5px] font-bold text-ink">{tx("Domaine personnalisé")}</div>
               <p className="mt-0.5 text-[12.5px] leading-[1.55] text-muted">
-                {tx("Débloque l'option")} <span className="text-body">{tx("marque blanche")}</span> {tx("(domaine perso + e-mails) auprès de ton revendeur pour brancher ton propre domaine.")}</p>
+                {tx("Ton propre nom de domaine fait partie du")} <span className="text-body">{tx("pack marque blanche")}</span> {tx(": souscris-le plus bas, ou demande à ton revendeur de l'inclure dans ton palier.")}</p>
             </div>
           </div>
         ) : (

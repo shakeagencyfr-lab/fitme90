@@ -3,7 +3,7 @@ import { getAdminOrNull } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { siteSettings, type PublicSite } from "@/lib/site";
 import { publicOffersBySlug } from "@/lib/offers";
-import { siteAllowed } from "@/lib/site-addon";
+import { whitelabelEnabled } from "@/lib/whitelabel";
 import { LocaleProvider } from "@/components/locale-provider";
 import { ThemePreviewBridge } from "@/components/theme-preview-bridge";
 import { SiteLivePreview } from "@/components/site-live-preview";
@@ -34,7 +34,7 @@ export default async function ApercuSitePage() {
   const ctx = await getAdminOrNull();
   const tenantId = ctx?.profile?.tenant_id ?? null;
   if (!tenantId) notFound();
-  if (!(await siteAllowed(tenantId))) notFound();
+  if (!(await whitelabelEnabled(tenantId))) notFound();
 
   const admin = createAdminClient();
   const [settings, { data: t }] = await Promise.all([

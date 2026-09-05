@@ -8,7 +8,9 @@ import { asLandingTemplate, asBusinessType } from "@/lib/offers";
 import { DEFAULT_BRAND_COLOR, ROOT_DOMAIN, SITE_HOST } from "@/lib/config";
 import { WhiteLabelStudio } from "@/components/white-label-studio";
 import { WhitelabelPanel } from "@/components/whitelabel-panel";
-import { coachWhitelabelState, verifyWhitelabelCheckout } from "@/lib/whitelabel";
+import { whitelabelAccess } from "@/lib/whitelabel";
+import { verifyWhitelabelCheckout } from "@/lib/whitelabel-billing";
+import { poweredByNameFor } from "@/lib/offers";
 import { tenantSmtpStatus } from "@/lib/smtp";
 import { secretsEncryptionReady } from "@/lib/crypto";
 import { Alert } from "@/components/ui";
@@ -29,12 +31,13 @@ function previewToken(parts: (string | null | undefined)[]): number {
 export default async function WhiteLabelPage({
   searchParams,
 }: {
-  searchParams: Promise<{ wl_session_id?: string; wl_annule?: string }>;
+  searchParams: Promise<{ wl_session_id?: string; wl_annule?: string; wl_erreur?: string }>;
 }) {
   const ctx = await getAdminOrNull();
   const tenantId = ctx?.profile?.tenant_id ?? null;
   const sp = await searchParams;
-  // Retour de l'abonnement upsell : on débloque la marque blanche.
+  // Retour du paiement du pack : on l'ouvre avant de lire l'accès, sinon le
+  // coach qui vient de payer retombe sur l'écran de vente.
   if (tenantId && sp.wl_session_id) {
     await verifyWhitelabelCheckout(tenantId, sp.wl_session_id);
   }
@@ -75,11 +78,16 @@ export default async function WhiteLabelPage({
   // « coach ou salle ? » ne se pose pas à cet étage.
   const businessType = kind === "platform" ? null : asBusinessType(t?.business_type);
 
-  // Marque blanche (coach uniquement) : état de l'upsell + SMTP. Le domaine perso
-  // est verrouillé tant que l'upsell est proposé par le revendeur mais pas activé.
-  const wl = kind === "coach" ? await coachWhitelabelState(tenantId) : { enabled: true, priceCents: null, subStatus: null };
-  const smtp = kind === "coach" ? await tenantSmtpStatus(tenantId) : { configured: false, host: null, from: null };
-  const domainLocked = kind === "coach" && !wl.enabled && wl.priceCents != null;
+  // Le pack marque blanche : domaine, SMTP, site, application, badge. Un coach
+  // sans le pack voit le domaine verrouillé, QUEL QUE SOIT le prix : un
+  // revendeur qui n'a pas fixé de prix n'a pas offert le pack pour autant.
+  // Plateforme et revendeurs l'ont d'office.
+  const [wl, smtp, poweredByName] = await Promise.all([
+    whitelabelAccess(tenantId),
+    kind === "coach" ? tenantSmtpStatus(tenantId) : Promise.resolve({ configured: false, host: null, from: null }),
+    kind === "coach" ? poweredByNameFor(tenantId) : Promise.resolve(""),
+  ]);
+  const domainLocked = kind === "coach" && !wl.allowed;
   const domainInfo = await customDomainInfo(t?.custom_domain ?? null);
 
   // Un thème habille les espaces de ceux qui sont EN DESSOUS. Un coach donne
@@ -130,13 +138,17 @@ export default async function WhiteLabelPage({
 
       {kind === "coach" ? (
         <>
-          {sp.wl_session_id ? <Alert tone="info">{tx("Marque blanche activée. Ton domaine et ton SMTP sont débloqués.")}</Alert> : null}
+          {sp.wl_session_id && wl.allowed ? <Alert tone="info">{tx("Pack marque blanche activé. Domaine, e-mails, site et application sont à toi.")}</Alert> : null}
           {sp.wl_annule ? <Alert>{tx("Souscription annulée.")}</Alert> : null}
           <WhitelabelPanel
-            enabled={wl.enabled}
+            allowed={wl.allowed}
+            source={wl.source}
             priceCents={wl.priceCents}
+            hidePoweredBy={wl.hidePoweredBy}
+            poweredByName={poweredByName}
             smtp={smtp}
             encryptionReady={secretsEncryptionReady()}
+            erreur={!!sp.wl_erreur}
           />
         </>
       ) : null}

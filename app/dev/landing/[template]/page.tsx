@@ -40,6 +40,7 @@ const DEMO_TENANT: PublicTenant = {
   theme: DEFAULT_THEME,
   seoTitle: null,
   seoDescription: null,
+  poweredBy: { name: "Forge Fit" },
   // Avis fictifs, de longueurs volontairement inégales : c'est ainsi qu'ils
   // arrivent d'une vraie fiche, et c'est là que la grille se casse si les
   // cartes ne s'alignent pas par le bas.

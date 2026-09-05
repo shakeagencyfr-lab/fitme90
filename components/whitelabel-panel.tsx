@@ -3,79 +3,151 @@
 import { usePhrase } from "@/components/locale-provider";
 
 import { useTransition, useActionState, useState } from "react";
-import { saveSmtp, removeSmtp, sendTestEmail, type SmtpState } from "@/app/admin/actions";
+import {
+  saveSmtp,
+  removeSmtp,
+  sendTestEmail,
+  buyWhitelabelPack,
+  toggleHidePoweredBy,
+  type SmtpState,
+  type PoweredByState,
+} from "@/app/admin/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
+import { formatEuros } from "@/lib/config";
+import type { WhitelabelSource } from "@/lib/whitelabel-rules";
 
 interface Props {
-  enabled: boolean;
+  allowed: boolean;
+  source: WhitelabelSource;
   priceCents: number | null;
+  hidePoweredBy: boolean;
+  /** Nom qui s'affiche dans le badge « Propulsé par » tant qu'il est là. */
+  poweredByName: string;
   smtp: { configured: boolean; host: string | null; from: string | null };
   encryptionReady: boolean;
+  erreur?: boolean;
 }
 
-// Panneau marque blanche (côté coach) : souscription de l'upsell si pas encore
-// débloqué, puis configuration du SMTP perso une fois l'option active.
-export function WhitelabelPanel({ enabled, priceCents, smtp, encryptionReady }: Props) {
+/**
+ * Panneau du pack marque blanche, côté coach.
+ *
+ * Sans le pack : ce qu'il contient, le prix, le bouton. Avec : d'où il vient
+ * (palier ou abonnement), la case du badge, et le SMTP. Le domaine se règle
+ * plus haut dans le studio, qui se déverrouille en même temps.
+ */
+export function WhitelabelPanel({ allowed, source, priceCents, hidePoweredBy, poweredByName, smtp, encryptionReady, erreur }: Props) {
   const tx = usePhrase();
-  if (!enabled) {
+  if (!allowed) {
     return (
-      <Card as="section" className="flex flex-col gap-3">
-        <div className="font-archivo font-bold text-[17px] text-ink">{tx("Marque blanche complète")}</div>
+      <Card as="section" className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-2">{tx("Pack marque blanche")}</span>
+          <div className="font-archivo font-bold text-[17px] text-ink">{tx("Fais disparaître notre marque derrière la tienne")}</div>
+        </div>
+        <PackContents />
         {priceCents != null ? (
-          <>
-            <p className="max-w-[70ch] text-[13px] leading-[1.6] text-muted">
-              {tx("Débloque ton")} <span className="text-body">{tx("domaine personnalisé")}</span> {tx("(ton propre nom de domaine via CNAME) et l'")}<span className="text-body">{tx("envoi d'e-mails depuis ton serveur")}</span>{" "}
-              {tx("(SMTP), pour une expérience 100 % à ta marque.")}</p>
-            <SubscribeButton priceLabel={`${(priceCents / 100).toFixed(2)} €/mois`} />
-          </>
+          <SubscribeForm priceCents={priceCents} erreur={erreur} />
         ) : (
-          <p className="text-[13px] text-muted">
-            {tx("Ton revendeur ne propose pas encore cette option. Contacte-le pour l'activer.")}</p>
+          <p className="rounded-control border border-line-4 bg-surface-2 p-3.5 text-[13px] leading-[1.6] text-muted">
+            {tx("Ton revendeur ne propose pas encore ce pack. Parle-lui-en : il peut l'inclure dans ton palier ou le vendre à part, depuis son tableau de bord.")}
+          </p>
         )}
       </Card>
     );
   }
 
   return (
-    <Card as="section" className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <span className="inline-block h-2.5 w-2.5 rounded-full bg-brand" />
-        <div className="font-archivo font-bold text-[17px] text-ink">{tx("Marque blanche active")}</div>
+    <Card as="section" className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-brand" />
+          <div className="font-archivo font-bold text-[17px] text-ink">{tx("Pack marque blanche actif")}</div>
+        </div>
+        <p className="max-w-[70ch] text-[13px] leading-[1.6] text-muted">
+          {source === "plan"
+            ? tx("Inclus dans ton palier. Ton domaine personnalisé est débloqué ci-dessus, ton site de présentation dans Mon site, et l'application s'installe à ton nom et à ton icône.")
+            : source === "addon"
+              ? tx("Souscrit auprès de ton revendeur. Ton domaine personnalisé est débloqué ci-dessus, ton site de présentation dans Mon site, et l'application s'installe à ton nom et à ton icône.")
+              : tx("Ton domaine personnalisé est débloqué ci-dessus, ton site de présentation dans Mon site, et l'application s'installe à ton nom et à ton icône.")}
+        </p>
       </div>
-      <p className="max-w-[70ch] text-[13px] leading-[1.6] text-muted">
-        {tx("Ton domaine personnalisé est débloqué (ci-dessus). Configure ici l'envoi d'e-mails depuis")} <span className="text-body">{tx("ton")}</span> {tx("serveur SMTP — tes clients recevront des e-mails à ta marque.")}</p>
-      <SmtpForm smtp={smtp} encryptionReady={encryptionReady} />
+
+      <PoweredByForm hidden={hidePoweredBy} poweredByName={poweredByName} />
+
+      <div className="flex flex-col gap-2 border-t border-line pt-4">
+        <div className="font-archivo font-bold text-[15px] text-ink">{tx("E-mails depuis ton serveur")}</div>
+        <p className="max-w-[70ch] text-[13px] leading-[1.6] text-muted">
+          {tx("Configure ici l'envoi d'e-mails depuis ton serveur SMTP : tes clients recevront leurs e-mails de ton adresse, à ta marque.")}
+        </p>
+        <SmtpForm smtp={smtp} encryptionReady={encryptionReady} />
+      </div>
     </Card>
   );
 }
 
-function SubscribeButton({ priceLabel }: { priceLabel: string }) {
+function PackContents() {
   const tx = usePhrase();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  async function go() {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/coach/whitelabel-checkout", { method: "POST" });
-      const data = (await res.json()) as { url?: string; error?: string };
-      if (data.url) {
-        window.location.href = data.url;
-        return;
-      }
-      setError(data.error ?? "Paiement indisponible.");
-    } catch {
-      setError("Réseau indisponible. Réessaie.");
-    }
-    setLoading(false);
-  }
+  const items = [
+    tx("Ton propre nom de domaine (CNAME) sur ta page de vente et l'espace de tes clients."),
+    tx("Des e-mails envoyés depuis ton serveur (SMTP), à ton adresse."),
+    tx("Un site de présentation à ton adresse, rempli depuis ta fiche Google."),
+    tx("L'application installée au nom et à l'icône de ta marque, et le badge « Propulsé par » retiré de ta page."),
+  ];
   return (
-    <div className="flex flex-col gap-1">
-      <Button type="button" onClick={go} loading={loading} className="self-start h-11">
-        {tx("Activer —")} {priceLabel}
+    <ul className="flex flex-col gap-2">
+      {items.map((a) => (
+        <li key={a} className="flex items-start gap-2.5 text-[14px] leading-[1.5] text-body">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="mt-[3px] shrink-0 text-brand" aria-hidden>
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+          {a}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function SubscribeForm({ priceCents, erreur }: { priceCents: number; erreur?: boolean }) {
+  const tx = usePhrase();
+  const [envoi, setEnvoi] = useState(false);
+  return (
+    <form action={buyWhitelabelPack} onSubmit={() => setEnvoi(true)} className="flex flex-col gap-2">
+      <input type="hidden" name="return_to" value="marque-blanche" />
+      <Button type="submit" loading={envoi} className="h-11 self-start">
+        {tx("Activer le pack pour")} {formatEuros(priceCents)}{tx(" / mois")}
       </Button>
-      {error ? <span className="text-[12px] text-[#C4471A]">{error}</span> : null}
-    </div>
+      <span className="text-[12px] text-muted-2">
+        {tx("Abonnement mensuel auprès de ton revendeur, résiliable quand tu veux. Tes réglages restent enregistrés et se rallument tels quels si tu reviens.")}
+      </span>
+      {erreur ? (
+        <span className="text-[12.5px] text-[#C4471A]">
+          {tx("Le paiement n'a pas pu démarrer. Réessaie, ou préviens ton revendeur si cela persiste.")}
+        </span>
+      ) : null}
+    </form>
+  );
+}
+
+/** La case qui retire le badge « Propulsé par » du pied de la page publique. */
+function PoweredByForm({ hidden, poweredByName }: { hidden: boolean; poweredByName: string }) {
+  const tx = usePhrase();
+  const [state, action, saving] = useActionState(toggleHidePoweredBy, {} as PoweredByState);
+  const [checked, setChecked] = useState(hidden);
+  return (
+    <form action={action} className="flex flex-col gap-2 rounded-control border border-line-4 bg-surface-2 p-3.5">
+      <label className="flex cursor-pointer items-start gap-2.5">
+        <input type="checkbox" name="hidden" checked={checked} onChange={(e) => setChecked(e.target.checked)} className="mt-0.5 size-4 accent-brand" />
+        <span className="flex flex-col gap-0.5">
+          <span className="text-[14px] font-semibold text-ink">{tx("Retirer le badge « Propulsé par")} {poweredByName} {tx("» de ma page")}</span>
+          <span className="text-[12px] leading-[1.5] text-muted-2">
+            {tx("Le pied de ta page publique ne mentionne plus personne d'autre que toi.")}
+          </span>
+        </span>
+      </label>
+      {state.error ? <Alert>{state.error}</Alert> : null}
+      {state.ok ? <Alert tone="info">{tx("Enregistré.")}</Alert> : null}
+      <Button type="submit" variant="outline" loading={saving} className="h-9 self-start">{tx("Enregistrer")}</Button>
+    </form>
   );
 }
 
@@ -97,7 +169,7 @@ function SmtpForm({ smtp, encryptionReady }: { smtp: Props["smtp"]; encryptionRe
       {smtp.configured ? (
             <>{tx("SMTP configuré")}{smtp.host ? <> : <span className="font-plex text-muted">{smtp.host}</span></> : null}.</>
           ) : (
-            <>{tx("Aucun SMTP — les e-mails partent du service par défaut.")}</>
+            <>{tx("Aucun SMTP : les e-mails partent du service par défaut.")}</>
           )}
         </span>
       </div>

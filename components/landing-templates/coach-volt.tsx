@@ -579,9 +579,11 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
             <Link href="/confidentialite" className="transition-colors hover:text-white">{L.footerPrivacy}</Link>
             <Link href="/cgv" className="transition-colors hover:text-white">{L.footerTerms}</Link>
           </nav>
-          <p className="pt-1 text-[12px] text-white/25">
-            {L.poweredBy} <span className="font-archivo font-bold text-white/50">My Fitness <span className="text-brand">App</span></span>.
-          </p>
+          {tenant.poweredBy ? (
+            <p className="pt-1 text-[12px] text-white/25">
+              {L.poweredBy} <span className="font-archivo font-bold text-white/50">{tenant.poweredBy.name}</span>.
+            </p>
+          ) : null}
         </div>
       </footer>
 

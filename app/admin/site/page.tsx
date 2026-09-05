@@ -3,7 +3,8 @@ import { tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { siteSettings } from "@/lib/site";
-import { siteAccess, verifySiteCheckout } from "@/lib/site-addon";
+import { whitelabelAccess } from "@/lib/whitelabel";
+import { verifyWhitelabelCheckout } from "@/lib/whitelabel-billing";
 import { serpApiEnabled } from "@/lib/serpapi";
 import { SITE_HOST } from "@/lib/config";
 import { SiteStudio } from "@/components/site-studio";
@@ -36,9 +37,10 @@ function previewToken(parts: (string | null | undefined)[]): number {
  * l'établissement, et c'est lui qui donne une destination à ce que l'import
  * Google rapporte : adresse, horaires, photos et avis.
  *
- * C'est une OPTION : elle s'ouvre par le palier souscrit auprès du revendeur,
- * ou par un abonnement à part. Quand elle est fermée, on montre ce qu'elle
- * apporte au lieu de griser un onglet sans rien dire.
+ * Le site fait partie du PACK marque blanche : il s'ouvre par le palier
+ * souscrit auprès du revendeur, ou par l'abonnement au pack pris à part. Quand
+ * il est fermé, on montre ce qu'il apporte au lieu de griser un onglet sans
+ * rien dire.
  */
 export default async function MonSitePage({
   searchParams,
@@ -60,15 +62,15 @@ export default async function MonSitePage({
 
   // Retour de paiement : on vérifie la session AVANT de lire l'accès, sinon le
   // coach qui vient de payer retomberait sur l'écran de vente.
-  const sessionId = typeof params.site_session_id === "string" ? params.site_session_id : "";
-  if (sessionId) await verifySiteCheckout(tenantId, sessionId);
+  const sessionId = typeof params.wl_session_id === "string" ? params.wl_session_id : "";
+  if (sessionId) await verifyWhitelabelCheckout(tenantId, sessionId);
 
-  const acces = await siteAccess(tenantId);
+  const acces = await whitelabelAccess(tenantId);
   if (!acces.allowed) {
     return (
       <div className="flex flex-col gap-5">
         <Titre />
-        <SiteLocked priceCents={acces.priceCents} erreur={"site_erreur" in params} />
+        <SiteLocked priceCents={acces.priceCents} erreur={"wl_erreur" in params} annule={"wl_annule" in params} />
       </div>
     );
   }
@@ -107,7 +109,7 @@ export default async function MonSitePage({
     <div className="flex flex-col gap-5">
       <Titre />
       {acces.source === "addon" && sessionId ? (
-        <Alert tone="info">{tx("Option activée. Ton site est à toi, il ne reste qu'à le remplir.")}</Alert>
+        <Alert tone="info">{tx("Pack marque blanche activé. Ton site est à toi, il ne reste qu'à le remplir.")}</Alert>
       ) : null}
 
       {/* La version force l'iframe à relire l'état serveur après un
