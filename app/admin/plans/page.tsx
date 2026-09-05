@@ -11,6 +11,7 @@ import { bestSupplierPack, clientUsesCredits, programCreditCost, creditPriceToda
 import { CreditScale, CreditScaleNote } from "@/components/credit-scale";
 import { readCoachConfig } from "@/lib/methodology";
 import { resellerClientDailyCap } from "@/lib/coach-ai-budget";
+import { costViewOf } from "@/lib/cost-view";
 import { Alert } from "@/components/ui";
 
 export const metadata = { title: "Plans, Admin My Fitness App" };
@@ -18,7 +19,7 @@ export const metadata = { title: "Plans, Admin My Fitness App" };
 export default async function AdminPlansPage() {
   const ctx = await getAdminOrNull();
   const tenantId = ctx?.profile?.tenant_id ?? null;
-  const [offers, creditMode, programCredits, cfg, unitCents, meilleurPack, resellerCap] = tenantId
+  const [offers, creditMode, programCredits, cfg, unitCents, meilleurPack, resellerCap, costView] = tenantId
     ? await Promise.all([
         listOffers(tenantId),
         clientUsesCredits(tenantId),
@@ -31,8 +32,12 @@ export default async function AdminPlansPage() {
         // Le plafond que le revendeur impose aux clients : sans lui à l'écran,
         // un quota relevé au-delà ne change rien et personne ne sait pourquoi.
         resellerClientDailyCap(tenantId),
+        costViewOf(tenantId),
       ])
-    : [[], false, 10, null, null, null, 0];
+    : [[], false, 10, null, null, null, 0, "usd" as const];
+  // L'IA comprise dans l'abonnement : le coach ne règle rien par action, la
+  // simulation de coût n'a rien à lui dire.
+  const aiIncluded = costView === "included";
 
   let slug: string | null = null;
   if (tenantId) {
@@ -80,6 +85,7 @@ export default async function AdminPlansPage() {
                   bestPack={meilleurPack}
                   unitCents={unitCents}
                   resellerCap={resellerCap}
+                  aiIncluded={aiIncluded}
                 />
               ))
             )}
@@ -102,6 +108,7 @@ export default async function AdminPlansPage() {
               defaultQuota={cfg?.coach_ai_daily_limit ?? 60}
               bestPack={meilleurPack}
               resellerCap={resellerCap}
+              aiIncluded={aiIncluded}
             />
           </div>
 

@@ -310,9 +310,10 @@ export async function setResellerSupply(
     .maybeSingle<{ kind: string; parent_id: string | null; ai_supply: string | null; ai_self_managed: boolean | null }>();
   if (!target || target.parent_id !== actorTenantId) return { ok: false, error: "Ce compte n'est pas rattaché à toi." };
 
-  const [{ data: actorSecret }, { data: targetSecret }] = await Promise.all([
+  const [{ data: actorSecret }, { data: targetSecret }, { data: actor }] = await Promise.all([
     admin.from("tenant_secrets").select("anthropic_key_enc").eq("tenant_id", actorTenantId).maybeSingle<{ anthropic_key_enc: string | null }>(),
     admin.from("tenant_secrets").select("anthropic_key_enc").eq("tenant_id", targetTenantId).maybeSingle<{ anthropic_key_enc: string | null }>(),
+    admin.from("tenants").select("kind, coach_byok_allowed").eq("id", actorTenantId).maybeSingle<{ kind: string | null; coach_byok_allowed: boolean | null }>(),
   ]);
 
   if (target.kind === "coach") {
@@ -320,6 +321,11 @@ export async function setResellerSupply(
     // ses offres et ses clients. Seule la source de son IA change.
     const dispense = supply === "byok";
     if (!!target.ai_self_managed === dispense) return { ok: true };
+    // Le droit de laisser un coach en clé personnelle vient du palier du
+    // revendeur, posé par la plateforme. Sans lui, pas de dispense.
+    if (dispense && actor?.kind === "reseller" && actor.coach_byok_allowed === false) {
+      return { ok: false, error: "Ton palier ne te permet pas de laisser un coach en clé personnelle : tu fournis l'IA à tout ton réseau." };
+    }
     // Dispenser un coach sans clé, c'est éteindre son IA sur-le-champ. Mieux
     // vaut le refuser que le laisser découvrir la panne par ses clients.
     if (dispense && !targetSecret?.anthropic_key_enc) {

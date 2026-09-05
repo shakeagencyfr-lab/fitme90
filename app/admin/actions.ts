@@ -5,6 +5,7 @@ import { suspendTenant, reactivateTenant, giftCredits, deleteTenantTree, setRese
 import { setSupportReturn, readSupportReturn, clearSupportReturn } from "@/lib/support-return";
 import { LANDING_TEMPLATES, BUSINESS_TYPES } from "@/lib/offers";
 import { whitelabelEnabled, setResellerWhitelabelPrice, setHidePoweredBy } from "@/lib/whitelabel";
+import { resellerRights } from "@/lib/cost-view";
 import { startWhitelabelCheckout, type WhitelabelReturn } from "@/lib/whitelabel-billing";
 import { SITE_TEMPLATES, MAX_SERVICES, MAX_SITE_PHOTOS } from "@/lib/site-templates";
 import { webSlugAvailable } from "@/lib/site";
@@ -1180,6 +1181,12 @@ export async function saveResellerAiMode(_prev: ResellerAiState, formData: FormD
 
   const mode = formData.get("ai_mode") === "provider" ? "provider" : "byok";
 
+  // Le droit de laisser ses coachs en clé personnelle vient du palier posé
+  // par la plateforme : sans lui, le revendeur fournit l'IA, point.
+  if (mode === "byok" && !(await resellerRights(tenantId)).byok) {
+    return { error: "Ton palier ne te permet pas de laisser tes coachs en clé personnelle : tu fournis l'IA à ton réseau." };
+  }
+
   // Garde-fou : le mode « revendeur d'IA » exige que le revendeur ait branché
   // SA clé Anthropic (c'est elle qui alimente tout son réseau). Sans clé, on
   // reste en BYOK.
@@ -1265,6 +1272,12 @@ export async function saveResellerModelChoice(_prev: ResellerAiState, formData: 
   if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
   const tenantId = ctx.profile.tenant_id;
   const model = formData.get("reseller_model") === "credits" ? "credits" : "subscription";
+
+  // La revente de crédits est une ligne du palier revendeur, ouverte ou non
+  // par la plateforme.
+  if (model === "credits" && !(await resellerRights(tenantId)).credits) {
+    return { error: "Ton palier ne comprend pas la revente de crédits IA à tes coachs." };
+  }
 
   if (model === "credits") {
     const key = await tenantKeyStatus(tenantId);

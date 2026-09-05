@@ -18,7 +18,25 @@ const ligne = (p: Partial<RevenueLine> = {}): RevenueLine => ({
   revenueCents: 0,
   creditsSpent: 0,
   costUsd: 0,
+  upstreamCredits: 0,
   ...p,
+});
+
+describe("base d'achat : un revendeur en crédits plateforme", () => {
+  it("mesure son coût sur les crédits que la plateforme lui a pris, jamais en dollars", () => {
+    // Le coût Anthropic est renseigné exprès : il ne doit rien changer.
+    const t = totalsOf([ligne({ revenueCents: 2000, creditsSpent: 50, costUsd: 3, upstreamCredits: 40 })], 25);
+    expect(t.basis).toBe("purchase");
+    expect(t.costEur).toBeCloseTo(10, 6);
+    expect(t.marginEur).toBeCloseTo(10, 6);
+    expect(t.costPerCreditEur).toBeCloseTo(0.2, 6);
+  });
+
+  it("sans prix d'achat, reste sur la base Anthropic", () => {
+    const t = totalsOf([ligne({ costUsd: 1, upstreamCredits: 40 })]);
+    expect(t.basis).toBe("anthropic");
+    expect(t.costEur).toBeCloseTo(0.92, 6);
+  });
 });
 
 describe("totaux", () => {
@@ -75,6 +93,7 @@ describe("totalsOf : coût par crédit non mesurable", () => {
     creditsSold: 0,
     revenueCents: 0,
     creditsSpent: 0,
+    upstreamCredits: 0,
     costUsd: 0,
     ...o,
   });

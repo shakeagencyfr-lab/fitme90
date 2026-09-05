@@ -199,6 +199,7 @@ export async function POST() {
     tenantId: coachTenant,
     action: "generation",
     credits: allowance.coachCost,
+    supplierCredits: allowance.resellerCost,
   });
   await chargeAiUsage(coachTenant, "program", "generate", ctx.userId);
 

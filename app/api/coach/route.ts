@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { recordCalls, checkActionLimit, WEEK_MS } from "@/lib/ratelimit";
 import { checkClientAiBudget } from "@/lib/coach-ai-budget";
-import { checkAiAllowance, chargeAiUsage, coachUsageToCharge } from "@/lib/credits";
+import { checkAiAllowance, chargeAiUsageDetailed, coachUsageToCharge } from "@/lib/credits";
 import { MODELS, textOf, parseJsonLoose, effortConfig, anthropic, apiCallOf, type ApiCall } from "@/lib/anthropic";
 import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
@@ -736,8 +736,11 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
   // fournisseur absorbe l'adaptation plutôt que de la facturer au client
   // blessé (voir coachUsageToCharge).
   let charged = 0;
+  let supplierCharged = 0;
   for (const kind of coachUsageToCharge()) {
-    charged += await chargeAiUsage(coachTenant, kind, "message", ctx.userId);
+    const c = await chargeAiUsageDetailed(coachTenant, kind, "message", ctx.userId);
+    charged += c.coach;
+    supplierCharged += c.supplier;
   }
   // Enregistré APRÈS le débit : l'historique porte les crédits réellement
   // prélevés, pas une estimation refaite à côté.
@@ -745,6 +748,7 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     tenantId: coachTenant,
     action: "message",
     credits: charged,
+    supplierCredits: supplierCharged,
   });
   // La régénération est un appel de génération : elle a son propre modèle et
   // son propre tarif. Une ligne à part, donc, sans quoi le journal montre une

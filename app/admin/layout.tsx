@@ -9,7 +9,8 @@ import { listCoachNotifications, unreadCoachNotifCount } from "@/lib/notificatio
 import { tenantNode } from "@/lib/hierarchy";
 import { tenantFreezeState } from "@/lib/freeze";
 import { tenantMonthlyAiUsage } from "@/lib/ai-cost";
-import { clientUsesCredits, getWallet, resellerSupply } from "@/lib/credits";
+import { getWallet } from "@/lib/credits";
+import { costViewOf } from "@/lib/cost-view";
 import { parentDashboardBrand, platformBrand } from "@/lib/branding";
 import type { Metadata } from "next";
 import { CoachFreezeBanner } from "@/components/coach-freeze-banner";
@@ -36,7 +37,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!ctx) notFound();
 
   const tenantId = ctx.profile?.tenant_id ?? null;
-  const [notifs, unread, node, freeze, aiUsage, parentBrand, useCredits] = tenantId
+  const [notifs, unread, node, freeze, aiUsage, parentBrand, view] = tenantId
     ? await Promise.all([
         listCoachNotifications(tenantId),
         unreadCoachNotifCount(tenantId),
@@ -44,9 +45,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         tenantFreezeState(tenantId),
         tenantMonthlyAiUsage(tenantId),
         parentDashboardBrand(tenantId),
-        clientUsesCredits(tenantId),
+        costViewOf(tenantId),
       ])
-    : [[], 0, null, { frozen: false, status: null, suspended: false }, { costUsd: 0, calls: 0, sinceIso: "" }, null, false];
+    : [[], 0, null, { frozen: false, status: null, suspended: false }, { costUsd: 0, calls: 0, credits: 0, supplierCredits: 0, sinceIso: "" }, null, "usd" as const];
   const kind = node?.kind ?? "coach";
   // Un coach ne doit pas pouvoir promettre ce que son espace ne livrera pas :
   // sans IA au bout de sa chaîne de fourniture, le programme ne se générera
@@ -62,10 +63,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const locale = await resolveLocale(await tenantLocale(tenantId));
   setRequestLocale(locale);
 
-  // En modèle crédits, la carte du bandeau montre le solde restant plutôt qu'une
-  // conso en dollars : ce coach ne paie pas Anthropic, il dépense des crédits.
-  const buysFromPlatform = kind === "reseller" && tenantId ? (await resellerSupply(tenantId)) === "platform_credits" : false;
-  const bal = (useCredits || buysFromPlatform) && tenantId ? await getWallet(tenantId) : null;
+  // Un compte qui achète des crédits voit son solde dans le bandeau, jamais
+  // une conso en dollars : ce chiffre-là contiendrait la marge de son
+  // fournisseur. La règle est dans lib/ai-supply, appliquée par costViewOf.
+  const bal = view === "credits" && tenantId ? await getWallet(tenantId) : null;
   const wallet = bal ? { credits: bal.credits } : null;
 
   return (
@@ -78,6 +79,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         kind={kind}
         aiCostUsd={aiUsage.costUsd}
         aiCalls={aiUsage.calls}
+        aiView={view}
         wallet={wallet}
         brandName={parentBrand?.name ?? null}
         brandLogoUrl={parentBrand?.logoUrl ?? null}

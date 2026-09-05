@@ -1,7 +1,7 @@
 import { tx } from "@/lib/i18n/request";
 import { Card, MonoLabel } from "@/components/ui";
-import { revenueReport, type RevenueLine } from "@/lib/platform-revenue";
-import { formatEurPrecise, formatEuros, usdToEur } from "@/lib/config";
+import { revenueReport, lineCostEur, type RevenueLine, type RevenueTotals } from "@/lib/platform-revenue";
+import { formatEurPrecise, formatEuros } from "@/lib/config";
 
 /**
  * Ce que la revente d'IA a rapporté ce mois-ci.
@@ -19,13 +19,21 @@ import { formatEurPrecise, formatEuros, usdToEur } from "@/lib/config";
 export async function AiRevenueSummary({
   tenantId,
   creditPriceCents,
+  purchaseCentsPerCredit = null,
 }: {
   tenantId: string;
   /** Prix auquel CE compte vend le crédit, pour la comparaison. */
   creditPriceCents: number;
+  /**
+   * Prix auquel il l'ACHÈTE à son fournisseur (revendeur en crédits
+   * plateforme). Renseigné, le coût se mesure dessus et aucun dollar Anthropic
+   * n'apparaît : ce chiffre-là contiendrait la marge de la plateforme.
+   */
+  purchaseCentsPerCredit?: number | null;
 }) {
-  const { lines, totals, sinceIso } = await revenueReport(tenantId);
+  const { lines, totals, sinceIso } = await revenueReport(tenantId, new Date(), purchaseCentsPerCredit);
   if (lines.length === 0) return null;
+  const achat = totals.basis === "purchase";
 
   const depuis = new Date(sinceIso).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
   const prix = Math.max(0, creditPriceCents) / 100;
@@ -33,7 +41,7 @@ export async function AiRevenueSummary({
   // Ni recette ni coût : trois tuiles à zéro et un rapport prix/coût n'apprennent
   // rien et se lisent comme une panne. On dit ce qui s'est passé, et le tableau
   // par compte reste dessous pour montrer d'où viendront les chiffres.
-  const rienAMesurer = totals.revenueCents === 0 && totals.costUsd === 0;
+  const rienAMesurer = totals.revenueCents === 0 && totals.costEur === 0;
 
   return (
     <div className="flex flex-col gap-3">
@@ -60,10 +68,12 @@ export async function AiRevenueSummary({
           </Sous>
         </Card>
         <Card className="flex flex-col gap-1">
-          <MonoLabel>{tx("Coût IA réel")}</MonoLabel>
-          <Chiffre>{formatEurPrecise(usdToEur(totals.costUsd))}</Chiffre>
+          <MonoLabel>{achat ? tx("Coût d'achat des crédits") : tx("Coût IA réel")}</MonoLabel>
+          <Chiffre>{formatEurPrecise(totals.costEur)}</Chiffre>
           <Sous>
-            {totals.creditsSpent.toLocaleString("fr-FR")} {tx("crédits consommés par le réseau")}
+            {achat
+              ? `${totals.upstreamCredits.toLocaleString("fr-FR")} ${tx("crédits que la plateforme t'a débités")}`
+              : `${totals.creditsSpent.toLocaleString("fr-FR")} ${tx("crédits consommés par le réseau")}`}
           </Sous>
         </Card>
         <Card className={`flex flex-col gap-1 ${totals.marginEur < 0 ? "border-alert-line bg-alert" : ""}`}>
@@ -77,7 +87,7 @@ export async function AiRevenueSummary({
       </div>
       )}
 
-      {!rienAMesurer && totals.costPerCreditEur == null && totals.creditsSpent > 0 ? (
+      {!rienAMesurer && !achat && totals.costPerCreditEur == null && totals.creditsSpent > 0 ? (
         // Des crédits partent, aucun coût en face : ce n'est pas un crédit
         // gratuit, c'est une mesure manquante. Le dire vaut mieux qu'afficher
         // 0,00 € de coût, qui laissait croire à une marge infinie.
@@ -134,7 +144,7 @@ export async function AiRevenueSummary({
             </thead>
             <tbody>
               {lines.map((l) => (
-                <Ligne key={l.tenantId} l={l} />
+                <Ligne key={l.tenantId} l={l} totals={totals} purchase={purchaseCentsPerCredit} />
               ))}
             </tbody>
           </table>
@@ -148,9 +158,10 @@ export async function AiRevenueSummary({
   );
 }
 
-function Ligne({ l }: { l: RevenueLine }) {
-  const marge = l.revenueCents / 100 - usdToEur(l.costUsd);
-  const tiret = <span className="text-muted-2">{"—"}</span>;
+function Ligne({ l, totals, purchase }: { l: RevenueLine; totals: RevenueTotals; purchase: number | null }) {
+  const cout = lineCostEur(l, totals, purchase);
+  const marge = l.revenueCents / 100 - cout;
+  const tiret = <span className="text-muted-2">·</span>;
   return (
     <tr className="border-b border-line-2 last:border-0">
       <td className="px-4 py-3">
@@ -165,7 +176,7 @@ function Ligne({ l }: { l: RevenueLine }) {
       <td className="px-4 py-3 tabular-nums text-body">{formatEuros(l.revenueCents)}</td>
       <td className="px-4 py-3 tabular-nums text-body">{l.creditsSpent.toLocaleString("fr-FR")}</td>
       <td className="px-4 py-3 tabular-nums text-body">
-        {l.onCredits ? formatEurPrecise(usdToEur(l.costUsd)) : tiret}
+        {l.onCredits ? formatEurPrecise(cout) : tiret}
       </td>
       <td className={`px-4 py-3 tabular-nums font-semibold ${marge < 0 ? "text-alert-ink" : "text-ink"}`}>
         {l.onCredits ? formatEurPrecise(marge) : <span className="font-normal">{tiret}</span>}

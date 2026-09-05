@@ -16,11 +16,20 @@ import { Button, Alert, MonoLabel } from "@/components/ui";
  * COMPTES de leur réseau ; un revendeur vend à des coachs, dont le palier
  * plafonne les CLIENTS. Une seule colonne en base, deux libellés.
  */
-export function PlanForm({ atLimit, unit = "clients" }: { atLimit: boolean; unit?: "clients" | "comptes" }) {
+export function PlanForm({
+  atLimit,
+  unit = "clients",
+  byokAllowed = true,
+}: {
+  atLimit: boolean;
+  unit?: "clients" | "comptes";
+  /** Un revendeur sans le droit de laisser ses coachs en clé perso ne vend que des paliers qui fournissent l'IA. */
+  byokAllowed?: boolean;
+}) {
   const tx = usePhrase();
   const comptes = unit === "comptes";
   const [state, action, pending] = useActionState(addPlan, {} as PlanState);
-  const [supply, setSupply] = useState<"byok" | "credits">("byok");
+  const [supply, setSupply] = useState<"byok" | "credits">(byokAllowed ? "byok" : "credits");
   const [byok, setByok] = useState(true);
   const [credits, setCredits] = useState(false);
 
@@ -102,19 +111,24 @@ export function PlanForm({ atLimit, unit = "clients" }: { atLimit: boolean; unit
               ["byok", tx("Clé personnelle (BYOK)"), comptes ? tx("Le revendeur branche sa propre clé Anthropic et règle Anthropic directement.") : tx("Le coach branche sa propre clé Anthropic et règle Anthropic directement.")],
               ["credits", tx("Crédits IA"), comptes ? tx("L'IA tourne sur ta clé, le revendeur t'achète des crédits et les revend avec sa marge.") : tx("L'IA tourne sur ta chaîne, le coach t'achète des crédits.")],
             ] as const
-          ).map(([val, title, desc]) => (
-            <label
-              key={val}
-              className={[
-                "tap flex cursor-pointer flex-col gap-0.5 rounded-control border px-3.5 py-2.5 transition-colors",
-                supply === val ? "border-brand bg-brand/[0.06]" : "border-line-4 hover:border-ink/40",
-              ].join(" ")}
-            >
-              <input type="radio" name="ai_supply" value={val} checked={supply === val} onChange={() => setSupply(val)} className="sr-only" />
-              <span className="text-[14px] font-semibold text-ink">{title}</span>
-              <span className="text-[12px] leading-[1.5] text-muted-2">{desc}</span>
-            </label>
-          ))}
+          ).map(([val, title, desc]) => {
+            const locked = val === "byok" && !byokAllowed;
+            return (
+              <label
+                key={val}
+                className={[
+                  "tap flex flex-col gap-0.5 rounded-control border px-3.5 py-2.5 transition-colors",
+                  locked ? "cursor-not-allowed border-line-4 opacity-60" : "cursor-pointer",
+                  !locked && supply === val ? "border-brand bg-brand/[0.06]" : "border-line-4 hover:border-ink/40",
+                ].join(" ")}
+              >
+                <input type="radio" name="ai_supply" value={val} checked={supply === val} disabled={locked} onChange={() => setSupply(val)} className="sr-only" />
+                <span className="text-[14px] font-semibold text-ink">{title}</span>
+                <span className="text-[12px] leading-[1.5] text-muted-2">{desc}</span>
+                {locked ? <span className="text-[12px] font-medium text-[#C4471A]">{tx("Ton palier ne le permet pas : tu fournis l'IA.")}</span> : null}
+              </label>
+            );
+          })}
         </div>
       </div>
 

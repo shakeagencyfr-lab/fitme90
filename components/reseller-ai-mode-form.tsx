@@ -20,11 +20,13 @@ interface Props {
    * déjà la dépense et le plafond n'est que du bruit à l'écran.
    */
   absorbsCost: boolean;
+  /** Le palier du revendeur lui permet-il de laisser ses coachs en clé personnelle ? */
+  byokAllowed?: boolean;
 }
 
 // Choix du mode de fourniture de l'IA du revendeur + plafond par client. Le
 // coût projeté (plafond atteint) s'affiche en direct pour piloter la marge.
-export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured, absorbsCost }: Props) {
+export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured, absorbsCost, byokAllowed = true }: Props) {
   const tx = usePhrase();
   const [state, action, saving] = useActionState(saveResellerAiMode, {} as ResellerAiState);
   const [mode, setMode] = useState<"byok" | "provider">(initialMode);
@@ -48,7 +50,9 @@ export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured, a
         <div className="grid gap-3 sm:grid-cols-2">
           <ModeCard
             active={mode === "byok"}
-            onClick={() => setMode("byok")}
+            onClick={() => byokAllowed && setMode("byok")}
+            disabled={!byokAllowed}
+            lockNote={byokAllowed ? undefined : tx("Ton palier ne le permet pas : tu fournis l'IA à tout ton réseau.")}
             title={tx("Coachs autonomes (BYOK)")}
             desc={tx("Chaque coach branche sa propre clé Anthropic et paie sa consommation IA. Tu ne factures que les abonnements.")}
           />
@@ -100,7 +104,7 @@ export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured, a
                     <>
                       {tx("Jamais plus de ≈")} <span className="font-semibold text-ink">${ceilingMonth.toFixed(0)}</span> {tx("/ client / mois, même en saturant le plafond tous les jours.")}</>
                   ) : (
-                    <span className="text-muted">{tx("Plafond désactivé (illimité) — le coût n'est pas borné.")}</span>
+                    <span className="text-muted">{tx("Plafond désactivé (illimité) : le coût n'est pas borné.")}</span>
                   )}
                 </span>
               </div>

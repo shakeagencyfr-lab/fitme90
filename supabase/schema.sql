@@ -478,9 +478,17 @@ create table if not exists public.ai_calls (
   -- chat, relance de generation). Toutes ces lignes figurent au journal, mais
   -- une seule consomme le quota du client.
   counts_for_quota boolean not null default true,
+  -- Credits factures par le fournisseur DU fournisseur pour cette action : ce
+  -- que la plateforme a debite au revendeur (0 quand personne au-dessus ne
+  -- facture). `credits` reste ce que le coach a paye ; les deux different, le
+  -- revendeur fixant son propre bareme. Un revendeur en credits plateforme lit
+  -- SA depense ici, jamais en dollars : c'est ce qui protege la marge.
+  supplier_credits integer not null default 0,
   created_at timestamptz not null default now(),
   constraint ai_calls_pkey primary key (id)
 );
+alter table public.ai_calls
+  add column if not exists supplier_credits integer not null default 0;
 
 create index if not exists ai_calls_tenant_created_idx
   on public.ai_calls (tenant_id, created_at desc);

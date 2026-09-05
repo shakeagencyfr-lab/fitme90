@@ -134,22 +134,40 @@ export function CoachView({ d }: { d: CoachDashboard }) {
         </Card>
       </div>
 
+      {/* Trois lectures, une par façon d'obtenir l'IA. Un coach qui achète
+          des crédits ne voit jamais de dollars : il y lirait la marge de son
+          revendeur. */}
       <Card className="flex flex-col gap-4">
         <MonoLabel>{tx("Consommation IA du mois")}</MonoLabel>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {d.ai.credits != null ? (
-            <Figure value={d.ai.credits.toLocaleString("fr-FR")} label={tx("crédits restants")} />
+          {d.ai.view === "credits" ? (
+            <Figure value={(d.ai.credits ?? 0).toLocaleString("fr-FR")} label={tx("crédits restants")} />
+          ) : d.ai.view === "included" ? (
+            <Figure value={tx("Comprise")} label={tx("dans ton abonnement")} />
           ) : (
             <Figure value={`≈ ${euros(Math.round(aiEur * 100))}`} label={tx("sur ta clé Anthropic")} />
           )}
           <Figure value={d.ai.calls.toLocaleString("fr-FR")} label={tx("appels IA")} />
-          <Figure
-            value={d.clients.paid > 0 ? `≈ ${euros(Math.round((aiEur * 100) / d.clients.paid))}` : "·"}
-            label={tx("par client payant")}
-          />
+          {d.ai.view === "credits" ? (
+            <Figure value={d.ai.creditsSpent.toLocaleString("fr-FR")} label={tx("crédits débités ce mois")} />
+          ) : d.ai.view === "usd" ? (
+            <Figure
+              value={d.clients.paid > 0 ? `≈ ${euros(Math.round((aiEur * 100) / d.clients.paid))}` : "·"}
+              label={tx("par client payant")}
+            />
+          ) : (
+            <Figure
+              value={d.clients.paid > 0 ? Math.round(d.ai.calls / d.clients.paid).toLocaleString("fr-FR") : "·"}
+              label={tx("appels par client payant")}
+            />
+          )}
         </div>
         <p className="text-[12.5px] leading-[1.6] text-muted">
-          {tx("Estimation à partir des tokens réellement consommés depuis le 1er du mois. Le détail par client est dans Consommation.")}</p>
+          {d.ai.view === "credits"
+            ? tx("Les crédits débités depuis le 1er du mois, action par action. Le détail par client est dans Consommation.")
+            : d.ai.view === "included"
+              ? tx("L'IA de tes clients est comprise dans ton abonnement : rien ne t'est débité par action. Le détail des appels est dans Consommation.")
+              : tx("Estimation à partir des tokens réellement consommés depuis le 1er du mois. Le détail par client est dans Consommation.")}</p>
         <Link href="/admin/consommation" className="w-fit text-[13.5px] font-semibold text-brand hover:underline">
           {tx("Voir le détail")} →
         </Link>
@@ -245,7 +263,14 @@ export function NetworkView({ d }: { d: ResellerDashboard }) {
         <Card className="flex flex-col gap-4">
           <MonoLabel>{tx("IA fournie au réseau ce mois")}</MonoLabel>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Figure value={`≈ ${euros(Math.round(aiEur * 100))}`} label={tx("coût réel")} />
+            {/* Un revendeur en crédits plateforme lit ce que la plateforme lui
+                a débité, jamais un coût Anthropic : ce chiffre contiendrait la
+                marge de la plateforme. */}
+            {d.ai.view === "credits" ? (
+              <Figure value={d.ai.creditsSpent.toLocaleString("fr-FR")} label={tx("crédits débités")} />
+            ) : (
+              <Figure value={`≈ ${euros(Math.round(aiEur * 100))}`} label={tx("coût réel")} />
+            )}
             <Figure value={d.ai.calls.toLocaleString("fr-FR")} label={tx("appels")} />
             <Figure
               value={d.ai.credits != null ? d.ai.credits.toLocaleString("fr-FR") : "·"}
@@ -253,7 +278,9 @@ export function NetworkView({ d }: { d: ResellerDashboard }) {
             />
           </div>
           <p className="text-[12.5px] leading-[1.6] text-muted">
-            {tx("Ce que tu absorbes pour les comptes auxquels tu fournis l'IA. Les comptes en BYOK paient leur propre clé et ne comptent pas ici.")}</p>
+            {d.ai.view === "credits"
+              ? tx("Ce que la plateforme t'a débité pour l'IA de tes coachs depuis le 1er du mois. Les comptes dispensés paient leur propre clé et ne comptent pas ici.")
+              : tx("Ce que tu absorbes pour les comptes auxquels tu fournis l'IA. Les comptes en BYOK paient leur propre clé et ne comptent pas ici.")}</p>
           <Link href="/admin/ia-revenu" className="w-fit text-[13.5px] font-semibold text-brand hover:underline">
             {tx("Voir mon revenu IA")} →
           </Link>

@@ -4,6 +4,8 @@ import { getAdminOrNull } from "@/lib/admin";
 import { tenantKeyStatus } from "@/lib/tenant";
 import { resellerBilling } from "@/lib/credits";
 import { supplyDisplay } from "@/lib/ai-supply";
+import { costViewOf } from "@/lib/cost-view";
+import { tenantNode } from "@/lib/hierarchy";
 import { tenantStripeStatus } from "@/lib/coach-payments";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ByokForm } from "@/components/byok-form";
@@ -25,17 +27,29 @@ export default async function AdminIntegrationsPage() {
   // fournit l'IA, c'est SA chaîne qui tourne. Sans le dire, le coach voit une
   // clé « configurée » et un compteur de dépense à zéro, et croit à une panne.
   let fourniture: "credits" | "supplied" | "own_key" = "own_key";
+  let kind: "platform" | "reseller" | "coach" = "coach";
+  let view: "usd" | "credits" | "included" = "usd";
   if (tenantId) {
     const admin = createAdminClient();
-    const { data } = await admin
-      .from("tenants")
-      .select("slug, parent_id")
-      .eq("id", tenantId)
-      .maybeSingle<{ slug: string; parent_id: string | null }>();
+    const [{ data }, node, v] = await Promise.all([
+      admin
+        .from("tenants")
+        .select("slug, parent_id")
+        .eq("id", tenantId)
+        .maybeSingle<{ slug: string; parent_id: string | null }>(),
+      tenantNode(tenantId),
+      costViewOf(tenantId),
+    ]);
     slug = data?.slug ?? null;
-    if (data?.parent_id) fourniture = supplyDisplay(await resellerBilling(data.parent_id));
+    kind = node?.kind ?? "coach";
+    view = v;
+    if (kind === "coach" && data?.parent_id) fourniture = supplyDisplay(await resellerBilling(data.parent_id));
   }
   const cleDormante = fourniture !== "own_key";
+  // La clé Anthropic ne se propose qu'à qui règle Anthropic lui-même. Un
+  // compte en crédits ou dont l'IA est comprise n'a rien à brancher : le
+  // formulaire disparaît, il revient si son fournisseur le dispense.
+  const cleProposee = view === "usd";
 
   return (
     <div className="flex flex-col gap-6">
@@ -43,7 +57,16 @@ export default async function AdminIntegrationsPage() {
         <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
           {tx("Intégrations")}</h1>
         <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
-          {tx("Tes deux clés indispensables :")} <span className="text-body">{tx("Anthropic")}</span> {tx("(l'IA de tes clients) et")} <span className="text-body">{tx("Stripe")}</span> {tx("(l'encaissement de tes offres). Sans elles, ton espace ne peut pas fonctionner.")}</p>
+          {cleProposee ? (
+            <>
+              {tx("Tes deux clés indispensables :")} <span className="text-body">{tx("Anthropic")}</span> {tx("(l'IA de tes clients) et")} <span className="text-body">{tx("Stripe")}</span> {tx("(l'encaissement de tes offres). Sans elles, ton espace ne peut pas fonctionner.")}
+            </>
+          ) : (
+            <>
+              {tx("Ta clé")} <span className="text-body">{tx("Stripe")}</span> {tx("(l'encaissement de tes offres). L'IA t'est fournie : aucune clé Anthropic à brancher.")}
+            </>
+          )}
+        </p>
       </div>
 
       {!tenantId ? (
@@ -74,21 +97,28 @@ export default async function AdminIntegrationsPage() {
 
           {cleDormante ? (
             <Alert tone="info">
-              {tx("Ton revendeur fournit l'IA de tes clients : elle tourne sur sa chaîne, pas sur ta clé.")}{" "}
+              {tx("Ton revendeur fournit l'IA de tes clients : elle tourne sur sa chaîne, pas sur une clé à toi.")}{" "}
               {fourniture === "credits"
                 ? tx("Chaque action débite ton solde de crédits, que tu suis dans « Crédits IA ».")
                 : tx("Elle est comprise dans ton abonnement : tu n'as rien à avancer.")}{" "}
               {anthropic.configured
-                ? tx("La clé enregistrée ci-dessous reste donc inutilisée tant que cette fourniture dure.")
-                : tx("Tu n'as donc aucune clé à renseigner ci-dessous.")}
+                ? tx("Une clé enregistrée auparavant reste inutilisée tant que cette fourniture dure ; tu la retrouveras si ton revendeur te dispense.")
+                : null}
+            </Alert>
+          ) : null}
+          {kind === "reseller" && !cleProposee ? (
+            <Alert tone="info">
+              {tx("L'IA de ton réseau tourne sur les crédits que tu achètes à la plateforme : aucune clé Anthropic à brancher. Ton solde et tes recharges sont dans « Mes crédits ».")}
             </Alert>
           ) : null}
 
-          <ByokForm
-            configured={anthropic.configured}
-            hint={anthropic.hint}
-            encryptionReady={anthropic.encryptionReady}
-          />
+          {cleProposee ? (
+            <ByokForm
+              configured={anthropic.configured}
+              hint={anthropic.hint}
+              encryptionReady={anthropic.encryptionReady}
+            />
+          ) : null}
 
           <StripeKeyForm
             configured={stripe.configured}

@@ -4,6 +4,7 @@ import { tenantCapacity, type TenantCapacity } from "@/lib/entitlements";
 import { listChildTenants } from "@/lib/hierarchy";
 import { tenantMonthlyAiUsage, resellerMonthlyAiUsage } from "@/lib/ai-cost";
 import { getWallet } from "@/lib/credits";
+import { costViewOf, type CostView } from "@/lib/cost-view";
 import { tenantOrders } from "@/lib/orders";
 import {
   lastMonths,
@@ -55,7 +56,15 @@ export interface CoachDashboard {
   offers: OfferTally[];
   months: MonthPoint[];
   /** Conso IA : euros du mois en BYOK, solde de crédits sinon. */
-  ai: { byokUsd: number; calls: number; credits: number | null };
+  ai: {
+    byokUsd: number;
+    calls: number;
+    credits: number | null;
+    /** Crédits débités ce mois-ci. */
+    creditsSpent: number;
+    /** Ce que ce compte a le droit de voir : dollars, crédits, ou rien. */
+    view: CostView;
+  };
 }
 
 type ProfileRow = {
@@ -107,7 +116,7 @@ export async function coachDashboard(tenantId: string, now: Date = new Date()): 
   const thisMonth = months[months.length - 1];
   const prevMonth = months[months.length - 2];
 
-  const [{ data: profiles }, { data: offers }, { data: prospects }, capacity, ai, wallet, orders] = await Promise.all([
+  const [{ data: profiles }, { data: offers }, { data: prospects }, capacity, ai, wallet, orders, view] = await Promise.all([
     admin
       .from("profiles")
       .select("created_at, paid, selected_offer_id, selected_interval, subscription_interval, subscription_status")
@@ -124,6 +133,7 @@ export async function coachDashboard(tenantId: string, now: Date = new Date()): 
     tenantMonthlyAiUsage(tenantId),
     getWallet(tenantId),
     tenantOrders(tenantId),
+    costViewOf(tenantId),
   ]);
 
   const rows = toSaleRows(profiles ?? [], offers ?? []);
@@ -183,7 +193,13 @@ export async function coachDashboard(tenantId: string, now: Date = new Date()): 
     },
     offers: offerTally(rows).slice(0, 5),
     months: mergedSeries(rows, ledger, months),
-    ai: { byokUsd: ai.costUsd, calls: ai.calls, credits: wallet.credits > 0 ? wallet.credits : null },
+    ai: {
+      byokUsd: ai.costUsd,
+      calls: ai.calls,
+      credits: view === "credits" ? wallet.credits : null,
+      creditsSpent: ai.credits,
+      view,
+    },
   };
 }
 
@@ -196,7 +212,15 @@ export interface ResellerDashboard {
   attention: Attention[];
   months: MonthPoint[];
   /** Conso IA absorbée par le revendeur quand il fournit l'IA à son réseau. */
-  ai: { byokUsd: number; calls: number; coachCount: number; credits: number | null };
+  ai: {
+    byokUsd: number;
+    calls: number;
+    coachCount: number;
+    credits: number | null;
+    /** Crédits que la plateforme a débités au revendeur ce mois-ci. */
+    creditsSpent: number;
+    view: CostView;
+  };
 }
 
 /** Synthèse chiffrée d'un revendeur ou de la plateforme. */
@@ -208,7 +232,7 @@ export async function resellerDashboard(tenantId: string, now: Date = new Date()
   const children = await listChildTenants(tenantId);
   const ids = children.map((c) => c.id);
 
-  const [{ data: raw }, { data: plans }, ai, wallet] = await Promise.all([
+  const [{ data: raw }, { data: plans }, ai, wallet, view] = await Promise.all([
     ids.length
       ? admin
           .from("tenants")
@@ -223,6 +247,7 @@ export async function resellerDashboard(tenantId: string, now: Date = new Date()
       .returns<{ id: string; name: string; price_month_cents: number | null; price_year_cents: number | null }[]>(),
     resellerMonthlyAiUsage(tenantId),
     getWallet(tenantId),
+    costViewOf(tenantId),
   ]);
 
   const planById = new Map((plans ?? []).map((p) => [p.id, p]));
@@ -273,7 +298,9 @@ export async function resellerDashboard(tenantId: string, now: Date = new Date()
       byokUsd: ai.costUsd,
       calls: ai.calls,
       coachCount: ai.coachCount,
-      credits: wallet.credits > 0 ? wallet.credits : null,
+      credits: view === "credits" ? wallet.credits : null,
+      creditsSpent: ai.supplierCredits,
+      view,
     },
   };
 }

@@ -95,8 +95,14 @@ export interface CallMeta {
   /** Modèle réellement appelé (ne plus le déduire du route). */
   model?: string | null;
   action?: AiAction;
-  /** Crédits débités par cette action (0 en BYOK). */
+  /** Crédits débités par cette action au compte (0 en BYOK). */
   credits?: number | null;
+  /**
+   * Crédits débités au FOURNISSEUR du compte par son propre fournisseur (ce
+   * que la plateforme a pris au revendeur). Un revendeur en crédits
+   * plateforme lit sa dépense ici, et n'a pas besoin de dollars pour ça.
+   */
+  supplierCredits?: number | null;
   /** Identifiant de la requête API, pour rapprocher la ligne de la facture. */
   requestId?: string | null;
   /**
@@ -127,6 +133,7 @@ export async function recordCall(
     model: meta?.model ?? null,
     action: meta?.action ?? null,
     credits: meta?.credits ?? null,
+    supplier_credits: meta?.supplierCredits ?? 0,
     request_id: meta?.requestId ?? null,
     counts_for_quota: meta?.countsForQuota ?? true,
   });
@@ -169,6 +176,7 @@ export async function recordCalls(
       model: call.model,
       action: meta?.action ?? null,
       credits: i === 0 ? (meta?.credits ?? null) : 0,
+      supplier_credits: i === 0 ? (meta?.supplierCredits ?? 0) : 0,
       request_id: call.requestId,
       counts_for_quota: i === 0 ? (meta?.countsForQuota ?? true) : false,
     })),

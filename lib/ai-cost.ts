@@ -153,6 +153,39 @@ export async function aiCostForUser(userId: string): Promise<number> {
   return m.get(userId) ?? 0;
 }
 
+/** Ce qu'un client a consommé, dans les trois unités : dollars, crédits, appels. */
+export interface UserAiUsage {
+  costUsd: number;
+  credits: number;
+  calls: number;
+}
+
+/**
+ * La même lecture que `aiCostForUsers`, mais complète : un coach en crédits
+ * lit des crédits, un coach dont l'IA est comprise lit des appels, et seul un
+ * coach sur sa propre clé lit des dollars. Une requête pour tous.
+ */
+export async function aiUsageForUsers(userIds: string[]): Promise<Map<string, UserAiUsage>> {
+  const out = new Map<string, UserAiUsage>();
+  if (userIds.length === 0) return out;
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("ai_calls")
+    .select("user_id, route, model, credits, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cache_write_1h_tokens")
+    .in("user_id", userIds)
+    .limit(100000)
+    .returns<(CostRow & { credits: number | null })[]>();
+  for (const r of data ?? []) {
+    const cur = out.get(r.user_id) ?? { costUsd: 0, credits: 0, calls: 0 };
+    out.set(r.user_id, { costUsd: cur.costUsd + rowCost(r), credits: cur.credits + (r.credits ?? 0), calls: cur.calls + 1 });
+  }
+  return out;
+}
+
+export async function aiUsageForUser(userId: string): Promise<UserAiUsage> {
+  return (await aiUsageForUsers([userId])).get(userId) ?? { costUsd: 0, credits: 0, calls: 0 };
+}
+
 /** Somme d'une Map de coûts (budget global). */
 export function totalCost(costs: Map<string, number>): number {
   let sum = 0;
@@ -186,7 +219,27 @@ export function monthStartIso(now = new Date()): string {
 export interface TenantAiUsage {
   costUsd: number;
   calls: number;
+  /** Crédits débités au compte sur la période. */
+  credits: number;
+  /** Crédits débités à son fournisseur par le fournisseur d'au-dessus. */
+  supplierCredits: number;
   sinceIso: string;
+}
+
+type UsageRowWithCredits = CostRow & { credits: number | null; supplier_credits: number | null };
+const USAGE_COLS =
+  "user_id, route, model, credits, supplier_credits, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cache_write_1h_tokens";
+
+function sumUsage(rows: UsageRowWithCredits[]): { costUsd: number; calls: number; credits: number; supplierCredits: number } {
+  let costUsd = 0;
+  let credits = 0;
+  let supplierCredits = 0;
+  for (const r of rows) {
+    costUsd += rowCost(r);
+    credits += r.credits ?? 0;
+    supplierCredits += r.supplier_credits ?? 0;
+  }
+  return { costUsd, calls: rows.length, credits, supplierCredits };
 }
 
 /**
@@ -195,7 +248,8 @@ export interface TenantAiUsage {
  */
 export async function tenantMonthlyAiUsage(tenantId: string | null): Promise<TenantAiUsage> {
   const since = monthStartIso();
-  if (!tenantId) return { costUsd: 0, calls: 0, sinceIso: since };
+  const empty: TenantAiUsage = { costUsd: 0, calls: 0, credits: 0, supplierCredits: 0, sinceIso: since };
+  if (!tenantId) return empty;
   const admin = createAdminClient();
 
   const { data: profs } = await admin
@@ -204,24 +258,26 @@ export async function tenantMonthlyAiUsage(tenantId: string | null): Promise<Ten
     .eq("tenant_id", tenantId)
     .returns<{ id: string }[]>();
   const ids = (profs ?? []).map((p) => p.id);
-  if (ids.length === 0) return { costUsd: 0, calls: 0, sinceIso: since };
+  if (ids.length === 0) return empty;
 
   const { data } = await admin
     .from("ai_calls")
-    .select("user_id, route, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cache_write_1h_tokens")
+    .select(USAGE_COLS)
     .in("user_id", ids)
     .gte("created_at", since)
     .limit(100000)
-    .returns<CostRow[]>();
+    .returns<UsageRowWithCredits[]>();
 
-  let cost = 0;
-  for (const r of data ?? []) cost += rowCost(r);
-  return { costUsd: cost, calls: (data ?? []).length, sinceIso: since };
+  return { ...sumUsage(data ?? []), sinceIso: since };
 }
 
 export interface ResellerAiUsage {
   costUsd: number;
   calls: number;
+  /** Crédits débités aux coachs du réseau. */
+  credits: number;
+  /** Crédits que la plateforme a débités au revendeur pour ces appels. */
+  supplierCredits: number;
   coachCount: number;
   sinceIso: string;
 }
@@ -233,7 +289,7 @@ export interface ResellerAiUsage {
  */
 export async function resellerMonthlyAiUsage(resellerTenantId: string | null): Promise<ResellerAiUsage> {
   const since = monthStartIso();
-  const empty: ResellerAiUsage = { costUsd: 0, calls: 0, coachCount: 0, sinceIso: since };
+  const empty: ResellerAiUsage = { costUsd: 0, calls: 0, credits: 0, supplierCredits: 0, coachCount: 0, sinceIso: since };
   if (!resellerTenantId) return empty;
   const admin = createAdminClient();
 
@@ -257,13 +313,11 @@ export async function resellerMonthlyAiUsage(resellerTenantId: string | null): P
 
   const { data } = await admin
     .from("ai_calls")
-    .select("user_id, route, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cache_write_1h_tokens")
+    .select(USAGE_COLS)
     .in("user_id", ids)
     .gte("created_at", since)
     .limit(100000)
-    .returns<CostRow[]>();
+    .returns<UsageRowWithCredits[]>();
 
-  let cost = 0;
-  for (const r of data ?? []) cost += rowCost(r);
-  return { costUsd: cost, calls: (data ?? []).length, coachCount: tenantIds.length, sinceIso: since };
+  return { ...sumUsage(data ?? []), coachCount: tenantIds.length, sinceIso: since };
 }

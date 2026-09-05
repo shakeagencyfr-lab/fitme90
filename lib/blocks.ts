@@ -168,6 +168,7 @@ export async function appendNextBlock(userId: string, force = false): Promise<Ap
       tenantId: coachTenant,
       action: "bloc",
       credits: allowance.coachCost,
+      supplierCredits: allowance.resellerCost,
     });
     await chargeAiUsage(coachTenant, "program", "block", userId);
 
