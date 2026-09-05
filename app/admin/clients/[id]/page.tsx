@@ -17,6 +17,8 @@ import { VipChat } from "@/components/vip-chat";
 import { clientVipContext, listVipMessages, markThreadRead, type VipMessage } from "@/lib/vip";
 import { aiUsageForUser, formatUsd } from "@/lib/ai-cost";
 import { costViewOf } from "@/lib/cost-view";
+import { clientReferralLinks, type ReferralPerson } from "@/lib/affiliation";
+import { clientDisplayName } from "@/lib/display-name";
 import type { Plan } from "@/lib/program";
 
 export const metadata = { title: "Fiche client" };
@@ -165,7 +167,8 @@ export default async function ClientDetailPage({
     streak = stats.streak;
   }
 
-  const displayName = profile.name || profile.email || "Client";
+  const displayName = clientDisplayName(profile.name, profile.email);
+  const parrainage = await clientReferralLinks(profile.id, profile.tenant_id ?? "");
 
   const facts: [string, string][] = [
     ["Sexe", val(profile.sex)],
@@ -269,6 +272,32 @@ export default async function ClientDetailPage({
           </span>
         </div>
       </Card>
+
+      {/* Parrainage : d'où vient ce client, et qui il a amené. Rien à
+          afficher tant qu'il n'y a ni parrain ni filleul. */}
+      {parrainage.sponsor || parrainage.referees.length > 0 ? (
+        <Card className="flex flex-col gap-3">
+          <MonoLabel>{tx("Parrainage")}</MonoLabel>
+          {parrainage.sponsor ? (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[12.5px] text-muted-2">{tx("Venu par le lien de")}</span>
+              <Personne p={parrainage.sponsor} />
+            </div>
+          ) : null}
+          {parrainage.referees.length > 0 ? (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[12.5px] text-muted-2">
+                {parrainage.referees.length} {parrainage.referees.length > 1 ? tx("filleuls amenés par ce client") : tx("filleul amené par ce client")}
+              </span>
+              <div className="flex flex-col gap-2">
+                {parrainage.referees.map((r) => (
+                  <Personne key={r.id} p={r} />
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </Card>
+      ) : null}
 
       {/* Chat VIP embarqué : le coach répond avec toutes les infos sous les yeux. */}
       {vipCtx.enabled ? (
@@ -380,5 +409,30 @@ function Stat({ label, value }: { label: string; value: string | number }) {
       <MonoLabel>{label}</MonoLabel>
       <span className="font-archivo font-extrabold text-[20px] leading-none tracking-[-0.02em] text-ink">{value}</span>
     </div>
+  );
+}
+
+/** Une personne liée par parrainage : nom, adresse, statut, lien vers sa fiche. */
+function Personne({ p }: { p: ReferralPerson }) {
+  return (
+    <Link
+      href={`/admin/clients/${p.id}`}
+      className="group flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-control border border-line-2 bg-surface-2 px-3 py-2"
+    >
+      <span className="flex flex-col leading-tight">
+        <span className="text-[14px] font-semibold text-ink group-hover:text-brand group-hover:underline">
+          {clientDisplayName(p.name, p.email)}
+        </span>
+        <span className="text-[12px] text-muted-2">{p.email || tx("Compte interne, sans e-mail")}</span>
+      </span>
+      <span className="flex items-center gap-2">
+        <span className="font-mono text-[10.5px] text-muted-2">
+          {new Date(p.joinedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
+        </span>
+        <span className={`rounded-pill px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] ${p.converted ? "bg-brand/10 text-brand" : "border border-line-4 text-muted-2"}`}>
+          {p.converted ? tx("Converti") : tx("Inscrit")}
+        </span>
+      </span>
+    </Link>
   );
 }

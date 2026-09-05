@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { getAdminOrNull } from "@/lib/admin";
+import { clientDisplayName } from "@/lib/display-name";
 import { tx } from "@/lib/i18n/request";
 import { affiliationConfig, coachAffiliationOverview } from "@/lib/affiliation";
 import { AffiliationForm } from "@/components/affiliation-form";
@@ -68,8 +70,22 @@ export default async function AdminAffiliationPage() {
             </div>
             {overview.rows.map((r, i) => (
               <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-4 py-3 last:border-0 sm:grid sm:grid-cols-[1fr_1fr_auto_auto]">
-                <span className="text-[14px] font-semibold text-ink">{r.sponsorName || "—"}</span>
-                <span className="text-[14px] text-body">{r.referredName || "Nouveau client"}</span>
+                <span className="flex flex-col leading-tight">
+                  {r.sponsorId ? (
+                    <Link href={`/admin/clients/${r.sponsorId}`} className="text-[14px] font-semibold text-ink hover:text-brand hover:underline">
+                      {clientDisplayName(r.sponsorName, r.sponsorEmail, tx("Parrain inconnu"))}
+                    </Link>
+                  ) : (
+                    <span className="text-[14px] font-semibold text-ink">{tx("Parrain inconnu")}</span>
+                  )}
+                  {r.sponsorEmail ? <span className="text-[12px] text-muted-2">{r.sponsorEmail}</span> : null}
+                </span>
+                <span className="flex flex-col leading-tight">
+                  <Link href={`/admin/clients/${r.referredId}`} className="text-[14px] text-body hover:text-brand hover:underline">
+                    {clientDisplayName(r.referredName, r.referredEmail, tx("Nouveau client"))}
+                  </Link>
+                  {r.referredEmail ? <span className="text-[12px] text-muted-2">{r.referredEmail}</span> : null}
+                </span>
                 <span className="text-[12.5px] text-muted-2">{fmtDate(r.joinedAt)}</span>
                 <span className={`rounded-pill px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] ${r.converted ? "bg-brand/10 text-brand" : "border border-line-4 text-muted-2"}`}>
                   {r.converted ? "Converti" : "Inscrit"}

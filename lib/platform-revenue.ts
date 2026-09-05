@@ -97,6 +97,9 @@ export function totalsOf(lines: RevenueLine[], purchaseCentsPerCredit: number | 
     { creditsSold: 0, revenueCents: 0, creditsSpent: 0, costUsd: 0, upstreamCredits: 0 },
   );
   const basis: CostBasis = purchaseCentsPerCredit != null ? "purchase" : "anthropic";
+  // Le coût ne porte que sur les comptes en crédits : le diviser par la conso
+  // des comptes en clé perso (qui ne coûtent rien) écrasait le coût unitaire.
+  const spentOnCredits = lines.reduce((n, l) => n + (l.onCredits ? l.creditsSpent : 0), 0);
   const coutEur = basis === "purchase" ? (t.upstreamCredits * (purchaseCentsPerCredit ?? 0)) / 100 : usdToEur(t.costUsd);
   return {
     ...t,
@@ -106,7 +109,7 @@ export function totalsOf(lines: RevenueLine[], purchaseCentsPerCredit: number | 
     // Le chiffre qui dit si le crédit est une unité honnête : ce qu'il coûte
     // vraiment, à comparer au prix auquel il est vendu. Il faut les deux
     // termes : sans coût mesuré, il n'y a rien à comparer.
-    costPerCreditEur: t.creditsSpent > 0 && coutEur > 0 ? coutEur / t.creditsSpent : null,
+    costPerCreditEur: spentOnCredits > 0 && coutEur > 0 ? coutEur / spentOnCredits : null,
   };
 }
 
@@ -275,7 +278,11 @@ export async function revenueReport(
   }
 
   const lines: RevenueLine[] = enfants.map((e) => {
-    const onCredits = e.aiSupply === "platform_credits";
+    // « En crédits » = c'est NOUS qui payons son IA, donc il nous achète des
+    // crédits. La règle est celle du payeur, la même que pour le coût : un
+    // coach fourni par son revendeur n'est pas « en clé perso » sous prétexte
+    // qu'il n'achète pas ses crédits à la plateforme.
+    const onCredits = e.aiSupply === "platform_credits" || payeur.get(e.id) === tenantId;
     return {
       tenantId: e.id,
       name: e.name,

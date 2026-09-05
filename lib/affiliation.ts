@@ -144,8 +144,12 @@ export async function clientAffiliation(userId: string, tenantId: string | null)
 }
 
 export interface CoachReferralRow {
+  sponsorId: string | null;
   sponsorName: string | null;
+  sponsorEmail: string | null;
+  referredId: string;
   referredName: string | null;
+  referredEmail: string | null;
   joinedAt: string;
   converted: boolean;
 }
@@ -164,30 +168,34 @@ export async function coachAffiliationOverview(tenantId: string): Promise<CoachA
   const admin = createAdminClient();
   const { data } = await admin
     .from("profiles")
-    .select("id, name, created_at, paid, subscription_status, referred_by")
+    .select("id, name, email, created_at, paid, subscription_status, referred_by")
     .eq("tenant_id", tenantId)
     .not("referred_by", "is", null)
     .order("created_at", { ascending: false })
     .returns<
-      { id: string; name: string | null; created_at: string; paid: boolean | null; subscription_status: string | null; referred_by: string | null }[]
+      { id: string; name: string | null; email: string | null; created_at: string; paid: boolean | null; subscription_status: string | null; referred_by: string | null }[]
     >();
 
   const list = data ?? [];
-  // Noms des parrains (une requête).
+  // Noms et adresses des parrains (une requête).
   const sponsorIds = Array.from(new Set(list.map((p) => p.referred_by).filter(Boolean))) as string[];
-  const names = new Map<string, string | null>();
+  const parrains = new Map<string, { name: string | null; email: string | null }>();
   if (sponsorIds.length > 0) {
     const { data: sponsors } = await admin
       .from("profiles")
-      .select("id, name")
+      .select("id, name, email")
       .in("id", sponsorIds)
-      .returns<{ id: string; name: string | null }[]>();
-    for (const s of sponsors ?? []) names.set(s.id, s.name);
+      .returns<{ id: string; name: string | null; email: string | null }[]>();
+    for (const s of sponsors ?? []) parrains.set(s.id, { name: s.name, email: s.email });
   }
 
   const rows: CoachReferralRow[] = list.map((p) => ({
-    sponsorName: p.referred_by ? names.get(p.referred_by) ?? null : null,
+    sponsorId: p.referred_by,
+    sponsorName: p.referred_by ? parrains.get(p.referred_by)?.name ?? null : null,
+    sponsorEmail: p.referred_by ? parrains.get(p.referred_by)?.email ?? null : null,
+    referredId: p.id,
     referredName: p.name,
+    referredEmail: p.email,
     joinedAt: p.created_at,
     converted: isConverted(p),
   }));
@@ -198,5 +206,62 @@ export async function coachAffiliationOverview(tenantId: string): Promise<CoachA
     total: rows.length,
     converted: rows.filter((r) => r.converted).length,
     rows,
+  };
+}
+
+/** Une personne dans une relation de parrainage, telle que le coach la lit. */
+export interface ReferralPerson {
+  id: string;
+  name: string | null;
+  email: string | null;
+  joinedAt: string;
+  converted: boolean;
+}
+
+export interface ClientReferralLinks {
+  /** Qui l'a amené, s'il est venu par un lien de parrainage. */
+  sponsor: ReferralPerson | null;
+  /** Qui il a amené. */
+  referees: ReferralPerson[];
+}
+
+const PERSON_COLS = "id, name, email, created_at, paid, subscription_status";
+type PersonRow = { id: string; name: string | null; email: string | null; created_at: string; paid: boolean | null; subscription_status: string | null };
+
+function toPerson(p: PersonRow): ReferralPerson {
+  return { id: p.id, name: p.name, email: p.email, joinedAt: p.created_at, converted: isConverted(p) };
+}
+
+/**
+ * Les deux sens du parrainage sur une fiche client : son parrain, ses
+ * filleuls. Le tout borné au tenant du coach, même si un parrain venait à
+ * changer de coach. Indépendant de l'activation : un parrainage déjà fait
+ * reste lisible même si le coach a coupé l'option depuis.
+ */
+export async function clientReferralLinks(userId: string, tenantId: string): Promise<ClientReferralLinks> {
+  const admin = createAdminClient();
+  const { data: me } = await admin
+    .from("profiles")
+    .select("referred_by")
+    .eq("id", userId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle<{ referred_by: string | null }>();
+
+  const [{ data: sponsor }, { data: referees }] = await Promise.all([
+    me?.referred_by
+      ? admin.from("profiles").select(PERSON_COLS).eq("id", me.referred_by).eq("tenant_id", tenantId).maybeSingle<PersonRow>()
+      : Promise.resolve({ data: null as PersonRow | null }),
+    admin
+      .from("profiles")
+      .select(PERSON_COLS)
+      .eq("referred_by", userId)
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .returns<PersonRow[]>(),
+  ]);
+
+  return {
+    sponsor: sponsor ? toPerson(sponsor) : null,
+    referees: (referees ?? []).map(toPerson),
   };
 }

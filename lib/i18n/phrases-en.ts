@@ -1345,4 +1345,11 @@ export const PHRASES_EN: Record<string, string> = {
   "Un revendeur en crédits plateforme fournit l'IA à ses coachs : la revente va avec ce palier.": "A reseller on platform credits supplies AI to their coaches: resale comes with this plan.",
   "Pas compris dans ton palier. Ça t'intéresse ? Contacte": "Not included in your plan. Interested? Contact",
   "Vendu à part, en supplément mensuel": "Sold separately, as a monthly add-on",
+  "Venu par le lien de": "Came through the link of",
+  "filleuls amenés par ce client": "referrals brought by this client",
+  "filleul amené par ce client": "referral brought by this client",
+  "Parrain inconnu": "Unknown referrer",
+  "Nouveau client": "New client",
+  "Converti": "Converted",
+  "Compte interne, sans e-mail": "Internal account, no email",
 };

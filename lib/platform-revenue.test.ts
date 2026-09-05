@@ -122,3 +122,30 @@ describe("totalsOf : coût par crédit non mesurable", () => {
     }
   });
 });
+
+describe("totalsOf : le coût par crédit ne compte que les comptes en crédits", () => {
+  const ligne = (p: Partial<RevenueLine> = {}): RevenueLine => ({
+    tenantId: "t",
+    name: "Compte",
+    kind: "coach",
+    onCredits: true,
+    creditsSold: 0,
+    revenueCents: 0,
+    creditsSpent: 0,
+    costUsd: 0,
+    upstreamCredits: 0,
+    ...p,
+  });
+
+  it("ignore la consommation des comptes en clé perso au dénominateur", () => {
+    // 10 crédits à 1 $ chez le compte en crédits ; 990 crédits chez un compte
+    // en clé perso qui ne coûte rien. Diviser par 1 000 donnait un coût
+    // unitaire cent fois trop bas.
+    const t = totalsOf([
+      ligne({ creditsSpent: 10, costUsd: 1 }),
+      ligne({ tenantId: "b", onCredits: false, creditsSpent: 990, costUsd: 0 }),
+    ]);
+    expect(t.creditsSpent).toBe(1000);
+    expect(t.costPerCreditEur).toBeCloseTo(t.costEur / 10, 9);
+  });
+});

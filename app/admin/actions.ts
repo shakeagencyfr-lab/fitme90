@@ -43,7 +43,7 @@ import { setProspectStatus, deleteProspect, saveProspectFollowupCopy } from "@/l
 import { FOLLOWUP_STEPS, followupDefaultCopies } from "@/lib/prospect-followup";
 import { tenantLocale } from "@/lib/i18n/server";
 import { asLocale } from "@/lib/i18n";
-import { createCreditPack, setCreditPackActive, deleteCreditPack, canSetProgramCredits } from "@/lib/credits";
+import { createCreditPack, setCreditPackActive, deleteCreditPack, canSetProgramCredits, repriceSuggestedPacks } from "@/lib/credits";
 import { setTenantSmtp, clearTenantSmtp, testSmtp } from "@/lib/smtp";
 import { saveTenantBranding, saveTenantIdentity, saveTenantTheme, uploadTenantAsset, clearTenantAsset, type AssetKind } from "@/lib/branding";
 import { setTenantStripeKey, clearTenantStripeKey, testStripeKey } from "@/lib/coach-payments";
@@ -57,7 +57,7 @@ import {
 } from "@/lib/vip";
 import { createPromo, setPromoActive, deletePromo as deletePromoLib } from "@/lib/promo";
 import { generateCoachGiftCodes } from "@/lib/gift";
-import { normalizeSlug, isValidSlug } from "@/lib/config";
+import { normalizeSlug, isValidSlug, DEFAULT_AI_CREDIT_PRICE_CENTS } from "@/lib/config";
 import { markAllCoachNotifsRead, markCoachNotifRead, clearCoachNotifications } from "@/lib/notifications";
 import { saveCoachExerciseMedia, deleteCoachExerciseMedia, uploadExerciseImage } from "@/lib/exercise-guide";
 import { normalizeExerciseName } from "@/lib/exercise-library";
@@ -1266,6 +1266,11 @@ export async function saveResellerCredits(_prev: ResellerAiState, formData: Form
   }
 
   const admin = createAdminClient();
+  const { data: avant } = await admin
+    .from("tenants")
+    .select("ai_credit_price_cents")
+    .eq("id", tenantId)
+    .maybeSingle<{ ai_credit_price_cents: number | null }>();
   const { error } = await admin
     .from("tenants")
     .update({
@@ -1275,7 +1280,15 @@ export async function saveResellerCredits(_prev: ResellerAiState, formData: Form
     .eq("id", tenantId);
   if (error) return { error: "Enregistrement impossible." };
 
+  // Les packs au prix conseillé suivent le nouveau prix unitaire : c'est ce
+  // prix-là que les acheteurs voient et paient. Un pack remisé à la main garde
+  // sa remise.
+  const ancien = avant?.ai_credit_price_cents == null ? DEFAULT_AI_CREDIT_PRICE_CENTS : Math.max(0, avant.ai_credit_price_cents);
+  await repriceSuggestedPacks(tenantId, ancien, price);
+
   revalidatePath("/admin/ia-revenu");
+  revalidatePath("/admin/credits");
+  revalidatePath("/admin");
   return { ok: true };
 }
 
