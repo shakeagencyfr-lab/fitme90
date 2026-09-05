@@ -1,7 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { whoPays, type SupplyFacts, type UsageCharge } from "@/lib/ai-supply";
-import { DEFAULT_PROGRAM_CREDITS } from "@/lib/config";
+import { DEFAULT_PROGRAM_CREDITS, suggestedPackPriceCents } from "@/lib/config";
 
 // UN SEUL crédit IA. Toute action IA (message du chat, recette, alternative
 // d'exercice, fiche exercice) coûte 1 crédit ; une génération de programme en
@@ -635,6 +635,35 @@ export async function createCreditPack(
   });
   if (error) return { error: "Enregistrement impossible." };
   return { ok: true };
+}
+
+/**
+ * Quand un fournisseur change son prix unitaire, ses packs restés au prix
+ * conseillé (crédits × ancien prix) suivent le nouveau. Un pack qu'il a
+ * lui-même remisé garde son prix : c'est une décision, pas un calcul.
+ *
+ * Sans ça, le prix affiché aux acheteurs ne bougeait pas : `creditPriceToday`
+ * lit d'abord le meilleur pack actif, et un pack créé à 4 centimes le crédit
+ * continuait d'annoncer 4 centimes après un passage à 1. Le fournisseur
+ * voyait son nouveau prix, ses coachs voyaient l'ancien.
+ */
+export async function repriceSuggestedPacks(supplierId: string, oldUnitCents: number, newUnitCents: number): Promise<number> {
+  if (oldUnitCents === newUnitCents) return 0;
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("credit_packs")
+    .select("id, credits, price_cents")
+    .eq("tenant_id", supplierId)
+    .returns<{ id: number; credits: number; price_cents: number }[]>();
+  const aSuivre = (data ?? []).filter((p) => p.price_cents === suggestedPackPriceCents(p.credits, oldUnitCents));
+  let n = 0;
+  for (const p of aSuivre) {
+    const price = suggestedPackPriceCents(p.credits, newUnitCents);
+    if (price <= 0) continue;
+    const { error } = await admin.from("credit_packs").update({ price_cents: price }).eq("id", p.id).eq("tenant_id", supplierId);
+    if (!error) n++;
+  }
+  return n;
 }
 
 export async function setCreditPackActive(supplierId: string, id: number, active: boolean): Promise<void> {

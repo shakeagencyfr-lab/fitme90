@@ -665,8 +665,10 @@ export function AdminShell({
       </aside>
 
       {/* ───────── Barre du haut flottante (mobile < lg) ───────── */}
-      <div className="sticky top-0 z-30 bg-paper px-3 pt-3 lg:hidden">
-        <div className="flex items-center justify-between gap-2 rounded-card border border-line bg-surface px-3 py-2.5 shadow-[0_4px_16px_rgba(23,25,27,0.06)]">
+      {/* Flottante pour de vrai : pas de bandeau opaque derrière la carte,
+          le contenu passe dessous et se devine à travers le flou. */}
+      <div className="pointer-events-none sticky top-0 z-30 px-3 pt-3 lg:hidden">
+        <div className="pointer-events-auto flex items-center justify-between gap-2 rounded-card border border-line bg-surface/80 px-3 py-2.5 shadow-[0_4px_16px_rgba(23,25,27,0.06)] backdrop-blur-xl">
           <button
             type="button"
             onClick={() => setOpen(true)}

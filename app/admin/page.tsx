@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { tx } from "@/lib/i18n/request";
+import { clientDisplayName } from "@/lib/display-name";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminOrNull } from "@/lib/admin";
@@ -155,7 +156,7 @@ export default async function AdminClientsPage() {
                     <Link href={`/admin/clients/${p.id}`} className="group block">
                       <div className="flex items-center gap-1.5">
                         <span className="font-semibold text-ink group-hover:text-brand group-hover:underline">
-                          {p.name || "·"}
+                          {clientDisplayName(p.name, p.email)}
                         </span>
                         {unreadByClient.get(p.id) ? (
                           <span
