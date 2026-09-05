@@ -4,7 +4,7 @@ import { tx } from "@/lib/i18n/request";
 import { listPlans, MAX_PLANS_PER_TENANT, type Plan } from "@/lib/plans";
 import { formatEuros } from "@/lib/config";
 import { PlanForm } from "@/components/plan-form";
-import { togglePlan, removePlan } from "@/app/admin/actions";
+import { togglePlan, togglePlanSite, removePlan } from "@/app/admin/actions";
 import { Alert, Card } from "@/components/ui";
 
 export const metadata = { title: "Paliers, Admin My Fitness App" };
@@ -61,6 +61,11 @@ export default async function AdminPlansPage() {
                     <span className="rounded-pill bg-brand/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-brand">
                       {clientsLabel(p, unite)}
                     </span>
+                    {p.site_included ? (
+                      <span className="rounded-pill bg-brand/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-brand">
+                        {tx("Mon site")}
+                      </span>
+                    ) : null}
                   </div>
                   <span className="text-[13px] text-body">
                     {priceLabel(p)}
@@ -68,7 +73,31 @@ export default async function AdminPlansPage() {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* La seule chose qu'on ait de bonnes raisons de changer sur
+                      un palier déjà vendu : le prix et la capacité, eux,
+                      décrivent ce que les abonnés ont acheté. */}
+                  {unite === "client" ? (
+                    <form action={togglePlanSite}>
+                      <input type="hidden" name="id" value={p.id} />
+                      <input type="hidden" name="included" value={p.site_included ? "" : "on"} />
+                      <button
+                        type="submit"
+                        className={`tap rounded-btn px-3.5 py-2 text-[13px] font-semibold ${
+                          p.site_included
+                            ? "border border-brand/40 bg-brand/[0.06] text-brand"
+                            : "border border-line-4 text-body hover:border-ink"
+                        }`}
+                        title={
+                          p.site_included
+                            ? tx("Retirer « Mon site » de ce palier")
+                            : tx("Inclure « Mon site » dans ce palier, sans supplément")
+                        }
+                      >
+                        {p.site_included ? tx("Mon site inclus") : tx("Inclure Mon site")}
+                      </button>
+                    </form>
+                  ) : null}
                   <form action={togglePlan}>
                     <input type="hidden" name="id" value={p.id} />
                     <input type="hidden" name="active" value={p.is_active ? "" : "on"} />

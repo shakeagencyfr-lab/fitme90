@@ -889,3 +889,33 @@ alter table public.tenants
 create unique index if not exists tenants_web_slug_key
   on public.tenants (web_slug)
   where web_slug is not null;
+
+-- ───────────────────────────────────────── « Mon site » : un upsell revendeur
+--
+-- Le mini-site n'est pas acquis : c'est une option que le REVENDEUR décide
+-- d'ouvrir ou non à ses coachs et salles. Deux chemins d'accès, et pas un
+-- seul, parce que les revendeurs ne vendent pas tous de la même façon :
+--   INCLUS DANS UN PALIER   les coachs de ce palier l'ont, sans rien payer
+--                           de plus (`plans.site_included`) ;
+--   VENDU À PART            abonnement mensuel dont le revendeur fixe le prix
+--                           (`tenants.site_addon_price_cents`), souscrit par
+--                           le coach sur le compte Stripe du revendeur.
+-- Les deux coexistent : on inclut le site dans le palier haut et on le propose
+-- en option à ceux du dessous.
+alter table public.plans
+  add column if not exists site_included boolean not null default false;
+
+alter table public.tenants
+  -- Fixé par le REVENDEUR. null = option non proposée.
+  add column if not exists site_addon_price_cents integer,
+  -- Souscription du COACH à cette option.
+  add column if not exists site_addon_enabled boolean not null default false,
+  add column if not exists site_addon_sub_id text,
+  add column if not exists site_addon_sub_status text;
+
+-- Personne ne perd son site en cours de route : les comptes qui l'avaient déjà
+-- publié gardent l'accès. Transformer rétroactivement en option payante une
+-- fonctionnalité déjà en service couperait une page en ligne.
+update public.tenants
+  set site_addon_enabled = true
+  where web_enabled = true and site_addon_enabled = false;

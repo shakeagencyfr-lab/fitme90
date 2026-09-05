@@ -9,6 +9,8 @@ import { resellerMonthlyAiUsage } from "@/lib/ai-cost";
 import { listCreditPacks, getWallet, programCreditCost, creditPriceToday } from "@/lib/credits";
 import { ResellerModelForm } from "@/components/reseller-model-form";
 import { WhitelabelPriceForm } from "@/components/whitelabel-price-form";
+import { SitePriceForm } from "@/components/site-price-form";
+import { listPlans } from "@/lib/plans";
 import { ResellerAiModeForm } from "@/components/reseller-ai-mode-form";
 import { ResellerCreditPricingForm } from "@/components/reseller-credit-pricing-form";
 import { ByokForm } from "@/components/byok-form";
@@ -26,10 +28,11 @@ interface TenantAiRow {
   ai_credit_price_cents: number | null;
   ai_program_credits: number | null;
   whitelabel_addon_price_cents: number | null;
+  site_addon_price_cents: number | null;
 }
 
 const AI_COLS =
-  "ai_mode, ai_supply, reseller_model, ai_client_daily_limit, ai_credit_price_cents, ai_program_credits, whitelabel_addon_price_cents";
+  "ai_mode, ai_supply, reseller_model, ai_client_daily_limit, ai_credit_price_cents, ai_program_credits, whitelabel_addon_price_cents, site_addon_price_cents";
 
 /**
  * Revenu IA. Deux visages :
@@ -99,10 +102,11 @@ export default async function AdminResellerAiPage() {
   const resellerModel = t?.reseller_model === "credits" ? "credits" : "subscription";
   const limit = t?.ai_client_daily_limit == null ? 60 : Math.max(0, t.ai_client_daily_limit);
 
-  const [usage, wallet, platformId] = await Promise.all([
+  const [usage, wallet, platformId, plans] = await Promise.all([
     resellerMonthlyAiUsage(tenantId),
     buysFromPlatform ? getWallet(tenantId) : Promise.resolve(null),
     platformTenantId(),
+    tenantId ? listPlans(tenantId) : Promise.resolve([]),
   ]);
   let buyPriceCents: number | null = null;
   let platformProgramCredits: number | null = null;
@@ -179,6 +183,11 @@ export default async function AdminResellerAiPage() {
       />
 
       <WhitelabelPriceForm initialCents={t?.whitelabel_addon_price_cents ?? null} />
+
+      <SitePriceForm
+        initialCents={t?.site_addon_price_cents ?? null}
+        includedPlans={plans.filter((p) => p.site_included).map((p) => p.name)}
+      />
 
       {/* En crédits plateforme, la fourniture est fixée : pas de choix BYOK / provider. */}
       {!buysFromPlatform ? (

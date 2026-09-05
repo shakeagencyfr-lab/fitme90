@@ -89,6 +89,22 @@ export function PlanForm({ atLimit, unit = "clients" }: { atLimit: boolean; unit
         </label>
       </div>
 
+      {/* Inclure « Mon site » est un argument de vente pour monter en gamme :
+          la case appartient donc au palier, pas à un écran d'options séparé.
+          Elle n'a pas de sens quand on vend à des revendeurs, qui ne publient
+          pas de page de présentation d'établissement. */}
+      {comptes ? null : (
+        <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
+          <input type="checkbox" name="site_included" className="mt-0.5 size-4 accent-brand" />
+          <span className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-ink">{tx("Inclure « Mon site »")}</span>
+            <span className="text-[12px] leading-[1.5] text-muted-2">
+              {tx("La page de présentation publique (qui, quoi, où, quand, avis), remplie depuis la fiche Google. Décoché, les comptes de ce palier peuvent la souscrire à part si tu en fixes le prix dans Revenu IA.")}
+            </span>
+          </span>
+        </label>
+      )}
+
       <div className="rounded-control border border-line-4 bg-surface-2 p-3.5 text-[12.5px] leading-relaxed text-muted">
         <span className="font-semibold text-body">{comptes ? tx("Comptes inclus") : tx("Clients inclus")}</span>{" "}
         {comptes
