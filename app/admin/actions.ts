@@ -30,7 +30,7 @@ import {
 import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, updateOffer, setOfferActive, setOfferListed, deleteOffer } from "@/lib/offers";
 import { setResellerSitePrice, startSiteCheckout } from "@/lib/site-addon";
-import { resellerClientDailyCap } from "@/lib/coach-ai-budget";
+import { resellerClientDailyCap, quotaSousPlafond } from "@/lib/coach-ai-budget";
 import { createPlan, setPlanActive, setPlanSiteIncluded, deletePlan } from "@/lib/plans";
 import { cancelTenantPlan, reactivateTenantPlan, syncTenantSubscription } from "@/lib/tenant-billing";
 import { deleteOwnCoachAccount } from "@/lib/account-deletion";
@@ -427,26 +427,6 @@ export interface OfferState {
    * rien n'a changé »).
    */
   quotaRamene?: number;
-}
-
-/**
- * Ramène un quota saisi sous le plafond du revendeur.
- *
- * TROIS CAS, ET LE DEUXIÈME EST CELUI QU'ON OUBLIE. Sans plafond, on garde ce
- * qui est saisi. Avec un plafond, « 0 = illimité » devient impossible : c'est
- * le plafond qui fait loi, sinon un quota à zéro passerait au travers en
- * promettant l'infini. Et un nombre au-dessus du plafond est ramené à lui.
- *
- * Le serveur tranche, même si le formulaire empêche déjà de dépasser : le
- * champ borné est un confort, pas une garantie.
- */
-export function quotaSousPlafond(saisi: number | null, plafond: number): {
-  valeur: number | null;
-  ramene: boolean;
-} {
-  if (plafond <= 0 || saisi == null) return { valeur: saisi, ramene: false };
-  if (saisi <= 0 || saisi > plafond) return { valeur: plafond, ramene: true };
-  return { valeur: saisi, ramene: false };
 }
 
 /** Ajoute une offre au catalogue du tenant (max 3, durées prédéfinies). */

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { tighter } from "./coach-ai-budget";
+import { tighter, quotaSousPlafond } from "./coach-ai-budget";
 
 /**
  * Le quota qu'un client reçoit vraiment.
@@ -38,5 +38,40 @@ describe("quota effectif = le plus serré des deux", () => {
     // qui refuserait tout message sans le dire.
     expect(tighter(-5, 15)).toBe(15);
     expect(tighter(30, -1)).toBe(30);
+  });
+});
+
+/**
+ * Ce qu'on ENREGISTRE quand un plafond existe.
+ *
+ * Le compteur savait déjà servir le plus serré des deux, mais le plan gardait
+ * le nombre saisi : un coach lisait 30 sur son écran pendant que ses clients
+ * recevaient 15. On tranche donc à l'enregistrement, et on le dit.
+ */
+describe("quota ramené sous le plafond à l'enregistrement", () => {
+  it("laisse passer ce qui tient sous le plafond", () => {
+    expect(quotaSousPlafond(10, 20)).toEqual({ valeur: 10, ramene: false });
+    expect(quotaSousPlafond(20, 20)).toEqual({ valeur: 20, ramene: false });
+  });
+
+  it("ramène ce qui dépasse, et le signale", () => {
+    expect(quotaSousPlafond(30, 20)).toEqual({ valeur: 20, ramene: true });
+  });
+
+  it("refuse l'illimité quand un plafond existe", () => {
+    // 0 = illimité. Sous plafond, l'illimité n'a pas de sens : le laisser
+    // passer aurait promis l'infini en servant 20.
+    expect(quotaSousPlafond(0, 20)).toEqual({ valeur: 20, ramene: true });
+  });
+
+  it("ne touche à rien sans plafond", () => {
+    expect(quotaSousPlafond(30, 0)).toEqual({ valeur: 30, ramene: false });
+    expect(quotaSousPlafond(0, 0)).toEqual({ valeur: 0, ramene: false });
+  });
+
+  it("laisse le quota vide tel quel : c'est « le défaut du coach »", () => {
+    // null ne veut pas dire zéro, il veut dire « pas de réglage sur ce plan ».
+    // Le remplacer par le plafond aurait figé un nombre là où il n'y en avait pas.
+    expect(quotaSousPlafond(null, 20)).toEqual({ valeur: null, ramene: false });
   });
 });

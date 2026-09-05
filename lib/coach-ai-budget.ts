@@ -71,6 +71,29 @@ export function parisNextDayStart(now: Date = new Date()): Date {
 }
 
 /**
+ * Ramène un quota saisi sous le plafond du revendeur.
+ *
+ * TROIS CAS, ET LE DEUXIÈME EST CELUI QU'ON OUBLIE. Sans plafond, on garde ce
+ * qui est saisi. Avec un plafond, « 0 = illimité » devient impossible : c'est
+ * le plafond qui fait loi, sinon un quota à zéro passerait au travers en
+ * promettant l'infini. Et un nombre au-dessus du plafond est ramené à lui.
+ *
+ * Le serveur tranche, même si le formulaire empêche déjà de dépasser : un
+ * champ borné est un confort, pas une garantie.
+ *
+ * Pure et testable, et elle vit ici plutôt que dans le fichier d'actions :
+ * un module « use server » ne peut exporter que des fonctions asynchrones.
+ */
+export function quotaSousPlafond(
+  saisi: number | null,
+  plafond: number,
+): { valeur: number | null; ramene: boolean } {
+  if (plafond <= 0 || saisi == null) return { valeur: saisi, ramene: false };
+  if (saisi <= 0 || saisi > plafond) return { valeur: plafond, ramene: true };
+  return { valeur: saisi, ramene: false };
+}
+
+/**
  * Le plafond que le revendeur impose aux clients de ce coach (0 = aucun).
  *
  * DEUX CONDITIONS, ET LA SECONDE MANQUAIT. Le plafond n'a de sens que si le
