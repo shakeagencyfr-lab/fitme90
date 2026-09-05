@@ -60,6 +60,8 @@ create table if not exists public.tenants (
   -- Langue de la page publique, des pages auth et de l'app des clients (fr | en).
   language text not null default 'fr'::text,
   reseller_model text not null default 'subscription'::text,
+  -- Pack marque blanche vendu à part par un revendeur : son prix (null = pas
+  -- vendu à part), et l'abonnement du coach qui l'a pris (voir plus bas).
   whitelabel_addon_price_cents integer,
   whitelabel_enabled boolean not null default false,
   -- Droits EFFECTIFS d'un revendeur, recopies depuis son palier a l'achat ou
@@ -161,7 +163,8 @@ create table if not exists public.plans (
   -- Plateforme -> revendeur : ce que le revendeur pourra proposer a ses coachs.
   coach_byok_allowed boolean not null default true,
   coach_credits_allowed boolean not null default false,
-  -- Le pack marque blanche (domaine, SMTP, site) est inclus dans ce palier.
+  -- Le pack marque blanche (domaine, SMTP, site, application, badge) est
+  -- inclus dans ce palier.
   whitelabel_included boolean not null default false,
   -- Palier GRATUIT : une ligne par vendeur, sans prix, un client inclus. La
   -- case « proposer un palier gratuit » n'est que son is_active.
@@ -932,35 +935,43 @@ create unique index if not exists tenants_web_slug_key
   on public.tenants (web_slug)
   where web_slug is not null;
 
--- ───────────────────────────────────────── « Mon site » : un upsell revendeur
+-- ───────────────────────────────────── le PACK marque blanche, en un bloc
 --
--- Le mini-site n'est pas acquis : c'est une option que le REVENDEUR décide
--- d'ouvrir ou non à ses coachs et salles. Deux chemins d'accès, et pas un
--- seul, parce que les revendeurs ne vendent pas tous de la même façon :
---   INCLUS DANS UN PALIER   les coachs de ce palier l'ont, sans rien payer
---                           de plus (`plans.site_included`) ;
---   VENDU À PART            abonnement mensuel dont le revendeur fixe le prix
---                           (`tenants.site_addon_price_cents`), souscrit par
---                           le coach sur le compte Stripe du revendeur.
--- Les deux coexistent : on inclut le site dans le palier haut et on le propose
--- en option à ceux du dessous.
-alter table public.plans
-  add column if not exists site_included boolean not null default false;
-
+-- Un seul pack, quatre choses dedans, qui s'ouvrent et se ferment ENSEMBLE :
+-- le domaine personnalisé (CNAME), l'envoi d'e-mails depuis le serveur du
+-- coach (SMTP), le mini-site de présentation (/web/<adresse>), et
+-- l'application installée au nom et à l'icône du coach avec le droit de
+-- retirer le badge « Propulsé par » du pied de sa page publique.
+--
+-- Deux portes pour un coach, et il suffit qu'une soit ouverte :
+--   INCLUS DANS LE PALIER   `plans.whitelabel_included` sur son palier courant
+--                           (le gratuit compris : le revendeur décide) ;
+--   SOUSCRIT À PART         abonnement mensuel au prix fixé par le revendeur
+--                           (`tenants.whitelabel_addon_price_cents`), porté
+--                           par `whitelabel_enabled` / `whitelabel_sub_id` /
+--                           `whitelabel_sub_status`, et relu par le cron : un
+--                           abonnement qui s'arrête ferme le pack.
+-- La plateforme et les revendeurs ont le pack d'office (marque blanche
+-- complète dès le palier gratuit). Un coach sans revendeur au-dessus aussi.
+--
+-- L'accès se décide dans lib/whitelabel.ts et se vérifie sur le chemin PUBLIC
+-- (proxy du domaine, page de vente, mini-site, manifest) : les réglages
+-- restent en base quand le pack tombe, seul l'ACCÈS se ferme.
+--
+-- L'ancienne option « Mon site » vendue à part (site_included,
+-- site_addon_*) a été fondue dans ce pack : ses colonnes sont retirées.
+alter table public.plans drop column if exists site_included;
 alter table public.tenants
-  -- Fixé par le REVENDEUR. null = option non proposée.
-  add column if not exists site_addon_price_cents integer,
-  -- Souscription du COACH à cette option.
-  add column if not exists site_addon_enabled boolean not null default false,
-  add column if not exists site_addon_sub_id text,
-  add column if not exists site_addon_sub_status text;
+  drop column if exists site_addon_price_cents,
+  drop column if exists site_addon_enabled,
+  drop column if exists site_addon_sub_id,
+  drop column if exists site_addon_sub_status;
 
--- Personne ne perd son site en cours de route : les comptes qui l'avaient déjà
--- publié gardent l'accès. Transformer rétroactivement en option payante une
--- fonctionnalité déjà en service couperait une page en ligne.
-update public.tenants
-  set site_addon_enabled = true
-  where web_enabled = true and site_addon_enabled = false;
+-- Le coach retire le badge « Propulsé par <revendeur> » de sa page publique.
+-- La case s'enregistre, mais elle n'a d'effet QU'AVEC le pack : un coach qui
+-- le perd retrouve le badge, et le retrouvera retiré s'il revient.
+alter table public.tenants
+  add column if not exists hide_powered_by boolean not null default false;
 
 -- ────────────────────────── Masquer un plan de la vente sans le désactiver
 --

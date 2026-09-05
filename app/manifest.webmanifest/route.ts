@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionContext } from "@/lib/guard";
 import { isCoachAccount } from "@/lib/admin";
 import { brandForUser, parentDashboardBrand, platformBrand } from "@/lib/branding";
+import { whitelabelEnabled } from "@/lib/whitelabel";
 import { PRODUCT_NAME, iconUrl } from "@/lib/config";
 
 export const runtime = "nodejs";
@@ -19,10 +20,14 @@ const APP_ICONS: Icon[] = [
 ];
 
 // Manifest PWA DYNAMIQUE (marque blanche). Règles :
-//  - compte COACH/OWNER (dashboard) → toujours l'app My Fitness App (icône plateforme).
-//  - CLIENT d'un coach → nom/couleur du coach, et son favicon comme icône SI
-//    disponible, MAIS on garde toujours les icônes My Fitness App en repli dans la liste
+//  - compte COACH/OWNER (dashboard) → l'outil s'installe à la marque de son parent.
+//  - CLIENT d'un coach AVEC le pack marque blanche → nom et icône du coach,
+//    MAIS on garde toujours les icônes My Fitness App en repli dans la liste
 //    pour qu'une icône valide existe (sinon Chrome affiche un monogramme « V »).
+//  - CLIENT d'un coach SANS le pack → la couleur du coach (c'est son socle),
+//    mais le nom et l'icône de qui l'héberge : son revendeur, sinon la
+//    plateforme. L'application installée à son nom fait partie du pack, et
+//    c'est ici que ça se vend ou pas.
 //  - pas de session → My Fitness App par défaut.
 // Le <link rel="manifest"> est déclaré crossorigin="use-credentials" pour
 // transmettre le cookie de session.
@@ -45,12 +50,20 @@ export async function GET() {
   try {
     const ctx = await getSessionContext();
     if (ctx && !isCoachAccount(ctx)) {
-      const brand = await brandForUser(ctx.userId);
-      if (brand) {
+      const coachTenantId = ctx.profile?.tenant_id ?? null;
+      const [brand, packed] = await Promise.all([brandForUser(ctx.userId), whitelabelEnabled(coachTenantId)]);
+      if (brand?.brandColor) themeColor = brand.brandColor;
+      if (brand && packed) {
         name = brand.name;
         shortName = brand.name.slice(0, 24);
-        if (brand.brandColor) themeColor = brand.brandColor;
         icons = withIcon(brand.appIconUrl, brand.faviconUrl);
+      } else {
+        const host = (await parentDashboardBrand(coachTenantId)) ?? (await platformBrand());
+        if (host?.name) {
+          name = host.name;
+          shortName = host.name.slice(0, 24);
+        }
+        icons = withIcon(null, host?.faviconUrl ?? null);
       }
     } else if (ctx) {
       // Un coach/owner installe SON outil, à la marque de son parent.

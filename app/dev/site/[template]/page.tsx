@@ -42,6 +42,7 @@ const DEMO_TENANT: PublicTenant = {
   theme: DEFAULT_THEME,
   seoTitle: null,
   seoDescription: null,
+  poweredBy: { name: "Forge Fit" },
   testimonials: [
     {
       id: "a1",

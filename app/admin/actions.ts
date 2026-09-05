@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { suspendTenant, reactivateTenant, giftCredits, deleteTenantTree, setResellerSupply, setTenantPlan } from "@/lib/network-admin";
 import { setSupportReturn, readSupportReturn, clearSupportReturn } from "@/lib/support-return";
 import { LANDING_TEMPLATES, BUSINESS_TYPES } from "@/lib/offers";
-import { whitelabelEnabled } from "@/lib/whitelabel";
+import { whitelabelEnabled, setResellerWhitelabelPrice, setHidePoweredBy } from "@/lib/whitelabel";
+import { startWhitelabelCheckout, type WhitelabelReturn } from "@/lib/whitelabel-billing";
 import { SITE_TEMPLATES, MAX_SERVICES, MAX_SITE_PHOTOS } from "@/lib/site-templates";
 import { webSlugAvailable } from "@/lib/site";
 import { sendEmail } from "@/lib/email";
@@ -29,7 +30,6 @@ import {
 } from "@/lib/tenant";
 import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, updateOffer, setOfferActive, setOfferListed, deleteOffer } from "@/lib/offers";
-import { setResellerSitePrice, startSiteCheckout } from "@/lib/site-addon";
 import { resellerClientDailyCap, quotaSousPlafond } from "@/lib/coach-ai-budget";
 import { createPlan, setPlanActive, setPlanWhitelabelIncluded, deletePlan, saveFreePlan } from "@/lib/plans";
 import { cancelTenantPlan, reactivateTenantPlan, syncTenantSubscription } from "@/lib/tenant-billing";
@@ -41,7 +41,6 @@ import { FOLLOWUP_STEPS, followupDefaultCopies } from "@/lib/prospect-followup";
 import { tenantLocale } from "@/lib/i18n/server";
 import { asLocale } from "@/lib/i18n";
 import { createCreditPack, setCreditPackActive, deleteCreditPack, canSetProgramCredits } from "@/lib/credits";
-import { setResellerWhitelabelPrice } from "@/lib/whitelabel";
 import { setTenantSmtp, clearTenantSmtp, testSmtp } from "@/lib/smtp";
 import { saveTenantBranding, saveTenantIdentity, saveTenantTheme, uploadTenantAsset, clearTenantAsset, type AssetKind } from "@/lib/branding";
 import { setTenantStripeKey, clearTenantStripeKey, testStripeKey } from "@/lib/coach-payments";
@@ -653,31 +652,6 @@ export async function togglePlanWhitelabel(formData: FormData): Promise<void> {
   if (!id) return;
   await setPlanWhitelabelIncluded(ctx.profile.tenant_id, id, formData.get("included") === "on");
   revalidatePath("/admin/paliers");
-}
-
-/** Le revendeur fixe (ou retire) le prix mensuel de son option « Mon site ». */
-export async function saveSitePrice(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
-  const ctx = await getAdminOrNull();
-  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
-  const raw = String(formData.get("price_euros") ?? "").replace(",", ".").trim();
-  let cents: number | null = null;
-  if (raw) {
-    const n = Math.round(Number(raw) * 100);
-    if (!Number.isFinite(n) || n < 0) return { error: "Prix invalide." };
-    cents = n > 0 ? n : null;
-  }
-  await setResellerSitePrice(ctx.profile.tenant_id, cents);
-  revalidatePath("/admin/ia-revenu");
-  return { ok: true };
-}
-
-/** Le coach souscrit l'option « Mon site » (paiement chez son revendeur). */
-export async function buySiteAddon(): Promise<void> {
-  const ctx = await getAdminOrNull();
-  if (!ctx?.profile?.tenant_id) return;
-  const res = await startSiteCheckout(ctx.profile.tenant_id, ctx.email ?? null);
-  if (res.url) redirect(res.url);
-  redirect("/admin/site?site_erreur=1");
 }
 
 /** Active / désactive un palier (form action directe). */
@@ -1350,8 +1324,8 @@ export async function removeCreditPack(formData: FormData): Promise<void> {
   revalidatePath("/admin/ia-revenu");
 }
 
-// ------------------------------------------------------------------ upsell marque blanche
-/** Le revendeur fixe le prix mensuel de son upsell marque blanche (0/vide = retiré). */
+// ------------------------------------------------------------------ pack marque blanche
+/** Le revendeur fixe le prix mensuel de son pack vendu à part (0/vide = pas vendu à part). */
 export async function saveWhitelabelPrice(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
   const ctx = await getAdminOrNull();
   if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
@@ -1367,6 +1341,35 @@ export async function saveWhitelabelPrice(_prev: ResellerAiState, formData: Form
   return { ok: true };
 }
 
+/**
+ * Le coach souscrit le pack (paiement chez son revendeur). Il repart d'où il
+ * a cliqué : l'écran Marque blanche ou l'écran Mon site, qui vendent le même
+ * pack.
+ */
+export async function buyWhitelabelPack(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const returnTo: WhitelabelReturn = formData.get("return_to") === "site" ? "site" : "marque-blanche";
+  const res = await startWhitelabelCheckout(ctx.profile.tenant_id, ctx.email ?? null, returnTo);
+  if (res.url) redirect(res.url);
+  redirect(`/admin/${returnTo}?wl_erreur=1`);
+}
+
+export interface PoweredByState {
+  ok?: boolean;
+  error?: string;
+}
+
+/** Le coach retire (ou remet) le badge « Propulsé par » de sa page publique. Pack requis. */
+export async function toggleHidePoweredBy(_prev: PoweredByState, formData: FormData): Promise<PoweredByState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const res = await setHidePoweredBy(ctx.profile.tenant_id, formData.get("hidden") === "on");
+  if (!res.ok) return { error: res.error };
+  revalidatePath("/admin/marque-blanche");
+  return { ok: true };
+}
+
 // ------------------------------------------------------------------ SMTP perso (marque blanche)
 export interface SmtpState {
   ok?: boolean;
@@ -1374,10 +1377,21 @@ export interface SmtpState {
   tested?: boolean;
 }
 
-/** Enregistre le SMTP perso du coach (testé avant sauvegarde). Marque blanche requise. */
+/**
+ * Enregistre le SMTP perso du coach (testé avant sauvegarde).
+ *
+ * Le SMTP fait partie du pack marque blanche : la garde est ICI, à
+ * l'enregistrement, et pas seulement à l'envoi. Sans elle, un coach sans pack
+ * pouvait renseigner son serveur en attendant qu'un palier l'ouvre, ce qui
+ * revient à stocker des identifiants qu'on n'a pas vendu le droit d'utiliser.
+ */
 export async function saveSmtp(_prev: SmtpState, formData: FormData): Promise<SmtpState> {
   const ctx = await getAdminOrNull();
   if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const smtpNode = await tenantNode(ctx.profile.tenant_id);
+  if (smtpNode?.kind === "coach" && !(await whitelabelEnabled(ctx.profile.tenant_id))) {
+    return { error: "L'envoi depuis ton serveur fait partie du pack marque blanche. Souscris-le d'abord." };
+  }
   if (!secretsEncryptionReady()) {
     return { error: "Chiffrement non configuré (SECRETS_ENC_KEY manquante côté serveur)." };
   }
@@ -1677,7 +1691,7 @@ export async function saveCustomDomain(_prev: DomainState, formData: FormData): 
   if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
   const node = await tenantNode(tenantId);
   if (node?.kind === "coach" && !(await whitelabelEnabled(tenantId))) {
-    return { error: "Débloque d'abord l'option marque blanche auprès de ton revendeur." };
+    return { error: "Le domaine personnalisé fait partie du pack marque blanche. Souscris-le d'abord." };
   }
   const raw = String(formData.get("domain") ?? "");
   const res = await setTenantCustomDomain(tenantId, raw);

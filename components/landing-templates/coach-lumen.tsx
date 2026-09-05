@@ -598,9 +598,11 @@ export function CoachLumen({ tenant, offers, leadMagnet = false, locale = "fr" }
             <Link href="/confidentialite" className="transition-colors hover:text-ink">{L.footerPrivacy}</Link>
             <Link href="/cgv" className="transition-colors hover:text-ink">{L.footerTerms}</Link>
           </nav>
-          <p className="pt-1 text-[12px] text-ink/35">
-            {L.poweredBy} <span className="font-archivo font-bold text-ink/60">My Fitness <span className="text-brand">App</span></span>.
-          </p>
+          {tenant.poweredBy ? (
+            <p className="pt-1 text-[12px] text-ink/35">
+              {L.poweredBy} <span className="font-archivo font-bold text-ink/60">{tenant.poweredBy.name}</span>.
+            </p>
+          ) : null}
         </div>
       </footer>
 

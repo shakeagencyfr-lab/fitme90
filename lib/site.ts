@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { publicOffersBySlug, type Offer, type PublicTenant } from "@/lib/offers";
 import { asSiteTemplate, MAX_SERVICES, MAX_SITE_PHOTOS, type SiteTemplate } from "@/lib/site-templates";
 import { leadMagnetEnabled } from "@/lib/prospects";
-import { siteAllowed } from "@/lib/site-addon";
+import { whitelabelEnabled } from "@/lib/whitelabel";
 import type { OpeningDay } from "@/lib/google-import";
 
 /**
@@ -131,12 +131,12 @@ export async function publicSiteBySlug(webSlug: string): Promise<PublicSite | nu
     }>();
   if (!row || !row.web_enabled) return null;
 
-  // L'option se vérifie sur le chemin PUBLIC, pas seulement dans le tableau de
-  // bord. Un site dont l'abonnement s'arrête doit s'éteindre : le contraire
-  // reviendrait à laisser en ligne, indéfiniment, une page qu'on ne facture
-  // plus. Les réglages restent en base, la page revient telle quelle au
-  // rallumage.
-  if (!(await siteAllowed(row.id))) return null;
+  // Le site fait partie du pack marque blanche, et le pack se vérifie sur le
+  // chemin PUBLIC, pas seulement dans le tableau de bord. Un pack qui s'arrête
+  // doit éteindre la page : le contraire reviendrait à laisser en ligne,
+  // indéfiniment, une page qu'on ne facture plus. Les réglages restent en
+  // base, la page revient telle quelle au rallumage.
+  if (!(await whitelabelEnabled(row.id))) return null;
 
   // La marque, le thème et les offres sont exactement ceux de la landing : un
   // coach règle son identité UNE fois, et ses deux pages la portent.

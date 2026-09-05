@@ -3,6 +3,9 @@ import { tenantAiReady } from "@/lib/ai-readiness";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MAX_OFFERS_PER_TENANT, isProductDuration } from "@/lib/config";
 import { normalizeTheme, withPrimary, type TenantTheme } from "@/lib/theme";
+import { PRODUCT_NAME } from "@/lib/config";
+import { whitelabelAccess } from "@/lib/whitelabel";
+import { poweredByHiddenFor } from "@/lib/whitelabel-rules";
 
 // Catalogue d'offres d'un tenant (coach/salle) : jusqu'à 3 formules, chacune
 // avec une durée prédéfinie. Les clients choisiront leur offre plus tard (via
@@ -136,6 +139,12 @@ export interface PublicTenant {
   googleRating: number | null;
   googleReviewsCount: number | null;
   googleMapsUrl: string | null;
+  /**
+   * Le badge « Propulsé par » du pied de page : le nom de qui héberge ce
+   * coach (son revendeur, sinon la plateforme). Null quand le coach a le pack
+   * marque blanche et a choisi de le retirer.
+   */
+  poweredBy: { name: string } | null;
 }
 
 export interface PublicTenantOffers {
@@ -157,7 +166,7 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
   const query = admin
     .from("tenants")
     .select(
-      "id, name, slug, app_name, brand_color, tagline, headline, logo_url, logo_dark_url, favicon_url, landing_template, business_type, about_enabled, about_title, about_text, about_photo_url, theme, seo_title, seo_description, google_rating, google_reviews_count, google_maps_url",
+      "id, name, slug, parent_id, app_name, brand_color, tagline, headline, logo_url, logo_dark_url, favicon_url, landing_template, business_type, about_enabled, about_title, about_text, about_photo_url, theme, seo_title, seo_description, google_rating, google_reviews_count, google_maps_url",
     );
   const { data: tenant } = await (safe
     ? query.or(`slug.eq.${key},subdomain.eq.${key}`)
@@ -168,6 +177,7 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
       id: string;
       name: string;
       slug: string;
+      parent_id: string | null;
       app_name: string | null;
       brand_color: string | null;
       tagline: string | null;
@@ -193,13 +203,14 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
   // Deux conditions pour vendre, et non une seule. L'encaissement ne suffit
   // pas : sans IA disponible au bout de la chaîne de fourniture, le client
   // paierait un programme que l'application ne saurait pas générer.
-  const [{ data: secret }, aiReady] = await Promise.all([
+  const [{ data: secret }, aiReady, poweredBy] = await Promise.all([
     admin
       .from("tenant_secrets")
       .select("stripe_key_enc")
       .eq("tenant_id", tenant.id)
       .maybeSingle<{ stripe_key_enc: string | null }>(),
     tenantAiReady(tenant.id),
+    poweredByFor(tenant.id, tenant.parent_id),
   ]);
   const chargesEnabled = !!secret?.stripe_key_enc && aiReady;
 
@@ -274,9 +285,45 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
       googleRating: tenant.google_rating,
       googleReviewsCount: tenant.google_reviews_count,
       googleMapsUrl: tenant.google_maps_url,
+      poweredBy,
     },
     offers: sellable,
   };
+}
+
+/**
+ * Le nom qui signe le badge « Propulsé par » d'un coach : son revendeur (au
+ * nom d'application qu'il s'est donné, sinon son nom), ou la plateforme.
+ */
+export async function poweredByNameFor(tenantId: string): Promise<string> {
+  const admin = createAdminClient();
+  const { data: self } = await admin
+    .from("tenants")
+    .select("parent_id")
+    .eq("id", tenantId)
+    .maybeSingle<{ parent_id: string | null }>();
+  return hostName(self?.parent_id ?? null);
+}
+
+async function hostName(parentId: string | null): Promise<string> {
+  const admin = createAdminClient();
+  const query = admin.from("tenants").select("name, app_name");
+  const { data } = await (parentId
+    ? query.eq("id", parentId)
+    : query.eq("kind", "platform").order("created_at", { ascending: true }).limit(1)
+  ).maybeSingle<{ name: string | null; app_name: string | null }>();
+  return data?.app_name?.trim() || data?.name?.trim() || PRODUCT_NAME;
+}
+
+/**
+ * Le badge du pied de page, ou null si le coach a le pack marque blanche ET a
+ * choisi de le retirer. Le pack se relit ici, sur le chemin public : un pack
+ * qui tombe fait revenir le badge sans que personne n'ait rien à faire.
+ */
+async function poweredByFor(tenantId: string, parentId: string | null): Promise<{ name: string } | null> {
+  const access = await whitelabelAccess(tenantId);
+  if (poweredByHiddenFor(access)) return null;
+  return { name: await hostName(parentId) };
 }
 
 /** Template de landing d'un tenant par slug/sous-domaine (requête légère). */

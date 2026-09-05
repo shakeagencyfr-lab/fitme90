@@ -1,6 +1,7 @@
 import "server-only";
 import dns from "node:dns/promises";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { slugForWhitelabelHost } from "@/lib/whitelabel";
 
 // Domaine personnalisé (marque blanche totale) : le coach branche son propre
 // nom de domaine sur sa landing. Résolution par le proxy (racine du domaine
@@ -11,17 +12,18 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const VERCEL_CNAME_TARGET = "cname.vercel-dns.com";
 export const VERCEL_APEX_IP = "76.76.21.21";
 
-/** Slug du coach servi par ce domaine personnalisé, ou null. */
+/**
+ * Slug du coach servi par ce domaine personnalisé, ou null.
+ *
+ * Le domaine fait partie du pack marque blanche : un compte dont le pack s'est
+ * fermé garde son domaine en base (il le retrouvera en revenant), mais le
+ * domaine cesse de répondre. C'est la vérification du pack, pas la présence
+ * de la ligne, qui ouvre la porte.
+ */
 export async function slugForCustomHost(host: string): Promise<string | null> {
   const domain = host.split(":")[0].trim().toLowerCase().replace(/\.$/, "");
   if (!domain) return null;
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from("tenants")
-    .select("slug")
-    .eq("custom_domain", domain)
-    .maybeSingle<{ slug: string | null }>();
-  return data?.slug ?? null;
+  return slugForWhitelabelHost(domain);
 }
 
 /** Normalise une saisie (URL, majuscules, espaces) en nom d'hôte, ou null si invalide. */

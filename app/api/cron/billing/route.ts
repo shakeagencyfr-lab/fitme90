@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { syncAllSubscriptions } from "@/lib/subscription";
 import { syncAllTenantSubscriptions } from "@/lib/tenant-billing";
+import { syncWhitelabelSubscriptions } from "@/lib/whitelabel-billing";
 import { autoAppendBlocks } from "@/lib/blocks";
 import { purgeLapsedClients } from "@/lib/lapsed";
 import { reconcileTenantPayments } from "@/lib/coach-payments";
@@ -40,6 +41,10 @@ export async function GET(req: Request) {
   // Abonnements des comptes à leur parent (Lot C·3b) : renouvellements +
   // défaut de paiement -> retour au palier gratuit.
   const { synced: tenantSynced, downgraded: tenantDowngraded } = await syncAllTenantSubscriptions();
+  // Pack marque blanche vendu à part : un abonnement qui s'arrête ferme le
+  // domaine, le SMTP, le site et l'icône installée. Sans cette relecture, un
+  // mois payé valait un pack à vie.
+  const whitelabel = await syncWhitelabelSubscriptions();
   // Relances des prospects du lead magnet, chez les coachs qui les ont
   // activées. Une adresse captée puis jamais recontactée ne vaut rien.
   const followups = await runProspectFollowups();
@@ -47,5 +52,5 @@ export async function GET(req: Request) {
   // 3) Suppression des comptes clients en impayé prolongé (> 14 j). DRY-RUN tant
   //    que ENABLE_ACCOUNT_PURGE≠"1" : on compte sans supprimer.
   const purge = await purgeLapsedClients();
-  return NextResponse.json({ reconciled, followups, synced, restricted, tenantSynced, tenantDowngraded, blocks, purge, broadcast });
+  return NextResponse.json({ reconciled, followups, synced, restricted, tenantSynced, tenantDowngraded, whitelabel, blocks, purge, broadcast });
 }
