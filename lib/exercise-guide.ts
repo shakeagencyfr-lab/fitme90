@@ -2,9 +2,9 @@ import "server-only";
 import { aiLanguageInstruction, type Locale } from "@/lib/i18n";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { anthropic, MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
+import { anthropic, MODELS, textOf, parseJsonLoose, effortConfig, apiCallOf, type ApiCall } from "@/lib/anthropic";
 import { tenantAnthropicKey, tenantIdForUser } from "@/lib/tenant";
-import { recordCall } from "@/lib/ratelimit";
+import { recordCalls } from "@/lib/ratelimit";
 import {
   matchLibraryExercise,
   normalizeExerciseName,
@@ -130,6 +130,9 @@ export async function generateGuide(name: string, userId: string, locale: Locale
   const apiKey = await tenantAnthropicKey(userId);
   if (!apiKey) return null;
 
+  // Journalisé hors du bloc utile : l'appel est facturé par Anthropic dès qu'il
+  // répond, même si sa réponse se révèle ensuite inexploitable.
+  let call: ApiCall | null = null;
   try {
     const client = anthropic(apiKey);
     const message = await client.messages.create({
@@ -139,15 +142,15 @@ export async function generateGuide(name: string, userId: string, locale: Locale
       system: `${GUIDE_SYSTEM}\n${aiLanguageInstruction(locale)}`,
       messages: [{ role: "user", content: `Exercice : ${name}\n\nRends le JSON.` }],
     });
+    call = apiCallOf(message);
     const parsed = aiSchema.parse(parseJsonLoose(textOf(message)));
     // Le route reste « coach » : la fiche compte dans le plafond journalier du
     // coach, comme avant. Seule l'action précise ce qui a été fait.
-    await recordCall(
-      userId,
-      "coach",
-      { input_tokens: message.usage.input_tokens, output_tokens: message.usage.output_tokens },
-      { tenantId: await tenantIdForUser(userId), model: MODELS.assist, action: "fiche-exercice", credits: 0 },
-    );
+    await recordCalls(userId, "coach", [call], {
+      tenantId: await tenantIdForUser(userId),
+      action: "fiche-exercice",
+      credits: 0,
+    });
 
     const admin = createAdminClient();
     await admin.from("exercise_guides").upsert(
@@ -174,6 +177,16 @@ export async function generateGuide(name: string, userId: string, locale: Locale
       source: "ai",
     };
   } catch {
+    // Réponse inexploitable : Anthropic l'a quand même facturée, elle figure au
+    // journal, sans crédit ni quota.
+    if (call) {
+      await recordCalls(userId, "coach", [call], {
+        tenantId: await tenantIdForUser(userId),
+        action: "fiche-exercice",
+        credits: 0,
+        countsForQuota: false,
+      }).catch(() => {});
+    }
     return null;
   }
 }

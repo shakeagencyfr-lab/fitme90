@@ -3,10 +3,10 @@ import { makeT } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSessionContext } from "@/lib/guard";
-import { checkLimit, recordCall } from "@/lib/ratelimit";
+import { checkLimit, recordCalls } from "@/lib/ratelimit";
 import { screen, type QuizHealthAnswers } from "@/lib/screening";
 import { generateProgram } from "@/lib/program";
-import { MODELS } from "@/lib/anthropic";
+import type { ApiCall } from "@/lib/anthropic";
 import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { clientOffer } from "@/lib/offers";
 import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
@@ -117,6 +117,9 @@ export async function POST() {
     ? programDaysForMonths(offer.duration_months)
     : undefined;
   let result;
+  // Rempli au fil des appels, y compris quand la génération échoue : Anthropic
+  // facture ce qu'elle a produit, même si nous n'avons rien pu en faire.
+  const journal: ApiCall[] = [];
   try {
     result = await generateProgram(
       {
@@ -129,8 +132,17 @@ export async function POST() {
       "high",
       billing.key,
       ctx.profile?.tenant_id ?? null,
+      journal,
     );
   } catch {
+    // Zéro crédit et hors quota : le client n'a pas eu son programme, il ne
+    // doit ni payer ni perdre son droit à générer. La dépense, elle, se voit.
+    await recordCalls(ctx.userId, "generate", journal, {
+      tenantId: coachTenant,
+      action: "generation",
+      credits: 0,
+      countsForQuota: false,
+    }).catch(() => {});
     return NextResponse.json(
       { error: t("srv.genFailed") },
       { status: 502 },
@@ -181,9 +193,10 @@ export async function POST() {
     }
   }
 
-  await recordCall(ctx.userId, "generate", result.usage, {
+  // Une ligne par appel réellement passé : la relance dont le plan a été jeté
+  // apparaît à côté de celui qui a été retenu, avec son propre coût.
+  await recordCalls(ctx.userId, "generate", result.calls, {
     tenantId: coachTenant,
-    model: MODELS.generate,
     action: "generation",
     credits: allowance.coachCost,
   });

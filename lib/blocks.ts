@@ -1,9 +1,10 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateProgram, CYCLE_DAYS, type Plan } from "@/lib/program";
+import type { ApiCall } from "@/lib/anthropic";
 import { anthropicKeyForBilling } from "@/lib/tenant";
 import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
-import { recordCall } from "@/lib/ratelimit";
+import { recordCalls } from "@/lib/ratelimit";
 import { programDay } from "@/lib/access";
 import { subscriptionIsActive } from "@/lib/subscription";
 import { programDaysForMonths, PROGRAM_DAYS, CYCLES_PER_BLOCK } from "@/lib/config";
@@ -46,6 +47,10 @@ interface ProfileRow {
  */
 export async function appendNextBlock(userId: string, force = false): Promise<AppendResult> {
   const admin = createAdminClient();
+  // Déclarés hors du try : si la génération lève, ce qu'Anthropic a déjà
+  // facturé doit pouvoir être journalisé depuis le catch.
+  const journal: ApiCall[] = [];
+  let coachTenant: string | null = null;
   try {
     const [{ data: profile }, { data: prog }, { data: quiz }, { data: equipRows }] = await Promise.all([
       admin
@@ -121,7 +126,7 @@ export async function appendNextBlock(userId: string, force = false): Promise<Ap
     if (billing.missing) return { ok: false, reason: "no_key" };
 
     // Crédits : un bloc = une génération = N crédits IA, à chaque étage concerné.
-    const coachTenant = profile.tenant_id;
+    coachTenant = profile.tenant_id;
     const allowance = await checkAiAllowance(coachTenant, "program");
     if (!allowance.ok) return { ok: false, reason: "no_credits" };
 
@@ -142,6 +147,7 @@ export async function appendNextBlock(userId: string, force = false): Promise<Ap
       "medium",
       billing.key,
       coachTenant,
+      journal,
     );
 
     // Le nouveau bloc s'AJOUTE : mêmes titres de séances (gabarit), nutrition
@@ -158,9 +164,8 @@ export async function appendNextBlock(userId: string, force = false): Promise<Ap
     });
     if (insErr) return { ok: false, reason: "failed" };
 
-    await recordCall(userId, "block", result.usage, {
+    await recordCalls(userId, "block", result.calls, {
       tenantId: coachTenant,
-      model: result.model,
       action: "bloc",
       credits: allowance.coachCost,
     });
@@ -168,6 +173,16 @@ export async function appendNextBlock(userId: string, force = false): Promise<Ap
 
     return { ok: true, blockIndex, cycles: result.plan.cycles?.length ?? 0 };
   } catch {
+    // La génération a pu appeler l'API avant d'échouer : ces appels sont
+    // facturés, donc journalisés, mais ni débités ni comptés au quota.
+    if (journal.length) {
+      await recordCalls(userId, "block", journal, {
+        tenantId: coachTenant,
+        action: "bloc",
+        credits: 0,
+        countsForQuota: false,
+      }).catch(() => {});
+    }
     return { ok: false, reason: "failed" };
   }
 }

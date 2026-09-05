@@ -439,12 +439,23 @@ create table if not exists public.ai_calls (
   cache_write_tokens integer,
   -- Ecritures dans le cache 1 heure, facturees 200 % au lieu de 125 %.
   cache_write_1h_tokens integer,
+  -- Identifiant de la requete API (entete `request-id`), celui qu'affiche la
+  -- console Anthropic : c'est par lui qu'une ligne du journal et une ligne de
+  -- la facture se reconnaissent.
+  request_id text,
+  -- Une action metier peut couter plusieurs appels API (tour d'outils dans le
+  -- chat, relance de generation). Toutes ces lignes figurent au journal, mais
+  -- une seule consomme le quota du client.
+  counts_for_quota boolean not null default true,
   created_at timestamptz not null default now(),
   constraint ai_calls_pkey primary key (id)
 );
 
 create index if not exists ai_calls_tenant_created_idx
   on public.ai_calls (tenant_id, created_at desc);
+
+create index if not exists ai_calls_request_id_idx
+  on public.ai_calls (request_id) where request_id is not null;
 
 create table if not exists public.gift_codes (
   code text not null,

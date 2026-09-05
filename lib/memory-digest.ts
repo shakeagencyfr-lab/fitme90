@@ -1,8 +1,8 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { MODELS, textOf, effortConfig, anthropic } from "@/lib/anthropic";
+import { MODELS, textOf, effortConfig, anthropic, apiCallOf } from "@/lib/anthropic";
 import { anthropicKeyForBilling, tenantIdForUser } from "@/lib/tenant";
-import { recordCall } from "@/lib/ratelimit";
+import { recordCalls } from "@/lib/ratelimit";
 import { MAX_DIGEST_CHARS, readMemory, saveDigest } from "@/lib/coach-memory";
 
 // Résumé cumulatif des échanges coach, produit chaque nuit. Complète l'outil
@@ -110,19 +110,16 @@ Jette ce qui est passager (météo, humeur d'un jour, question ponctuelle déjà
         out.skipped++;
       }
 
-      await recordCall(
-        userId,
-        "coach",
-        {
-          input_tokens: message.usage.input_tokens,
-          output_tokens: message.usage.output_tokens,
-          cache_read_tokens: message.usage.cache_read_input_tokens ?? 0,
-          cache_write_tokens: message.usage.cache_creation_input_tokens ?? 0,
-        },
-        // Tourne la nuit, sans personne devant : sans cette action, la ligne se
-        // confondait avec un message du client dans l'historique.
-        { tenantId: await tenantIdForUser(userId), model: MODELS.coach, action: "memoire", credits: 0 },
-      );
+      // Tourne la nuit, sans personne devant : sans cette action, la ligne se
+      // confondait avec un message du client dans l'historique.
+      await recordCalls(userId, "coach", [apiCallOf(message)], {
+        tenantId: await tenantIdForUser(userId),
+        action: "memoire",
+        credits: 0,
+        // Un résumé écrit par le cron ne doit pas amputer le forfait du client :
+        // il ne l'a pas demandé et n'était pas là.
+        countsForQuota: false,
+      });
     } catch {
       // Un client en échec ne doit pas interrompre la tournée.
       out.failed++;

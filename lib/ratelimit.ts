@@ -1,12 +1,13 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { ApiCall, RecordedUsage } from "@/lib/anthropic";
 
 // Rate limit minimal sans dépendance : table ai_calls + compte glissant.
 // L'accès à ai_calls passe par le service role (le client n'y a aucun droit,
 // cf. schema.sql), donc impossible à contourner en supprimant ses lignes.
 
 /** `block` = génération d'un bloc suivant (même modèle que `generate`, compté à part pour ne pas consommer le plafond de premières générations). */
-export type AiRoute = "generate" | "block" | "coach" | "recipes" | "analyze-gym" | "exercise";
+export type AiRoute = "generate" | "block" | "coach" | "recipes" | "analyze-gym" | "exercise" | "key-test";
 
 /** Nombre d'appels de l'utilisateur sur `route` depuis `sinceMs` (ou au total). */
 async function countCalls(
@@ -20,7 +21,11 @@ async function countCalls(
     .from("ai_calls")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
-    .eq("route", route);
+    .eq("route", route)
+    // Le journal porte une ligne par APPEL API ; le quota, lui, compte des
+    // ACTIONS. Un message du chat qui déclenche deux tours d'outils écrit trois
+    // lignes : sans ce filtre, il mangerait trois messages du forfait client.
+    .eq("counts_for_quota", true);
   // Deux choses très différentes partagent le seau `block` : la génération
   // automatique du bloc suivant (mensuelle, à l'initiative du système) et
   // l'adaptation demandée par un client blessé. Les compter ensemble ferait
@@ -80,7 +85,9 @@ export type AiAction =
   /** Régénération déclenchée depuis le chat parce que le client s'est blessé. */
   | "adaptation"
   | "analyse-salle"
-  | "memoire";
+  | "memoire"
+  /** Le « ping » qui valide une clé Anthropic au moment où on l'enregistre. */
+  | "verif-cle";
 
 export interface CallMeta {
   /** Tenant de l'appelant, dénormalisé : l'historique réseau se lit sans jointure. */
@@ -90,22 +97,21 @@ export interface CallMeta {
   action?: AiAction;
   /** Crédits débités par cette action (0 en BYOK). */
   credits?: number | null;
+  /** Identifiant de la requête API, pour rapprocher la ligne de la facture. */
+  requestId?: string | null;
+  /**
+   * Faux pour les appels SUPPLÉMENTAIRES d'une même action (tours d'outils,
+   * relance de génération) et pour ceux dont le résultat a été jeté : ils
+   * comptent au journal, jamais au quota.
+   */
+  countsForQuota?: boolean;
 }
 
 /** Enregistre un appel effectué (après succès de l'appel externe). */
 export async function recordCall(
   userId: string,
   route: AiRoute,
-  usage?: {
-    input_tokens?: number;
-    output_tokens?: number;
-    /** Tokens servis par le cache de prompt (facturés 10 % d'un token d'entrée). */
-    cache_read_tokens?: number;
-    /** Tokens écrits dans le cache 5 minutes (facturés 125 %). */
-    cache_write_tokens?: number;
-    /** Tokens écrits dans le cache 1 heure (facturés 200 %). */
-    cache_write_1h_tokens?: number;
-  },
+  usage?: Partial<RecordedUsage>,
   meta?: CallMeta,
 ): Promise<void> {
   const admin = createAdminClient();
@@ -121,7 +127,52 @@ export async function recordCall(
     model: meta?.model ?? null,
     action: meta?.action ?? null,
     credits: meta?.credits ?? null,
+    request_id: meta?.requestId ?? null,
+    counts_for_quota: meta?.countsForQuota ?? true,
   });
+}
+
+/**
+ * Journalise une SÉRIE d'appels API en une ligne chacun.
+ *
+ * C'est la forme normale dès qu'une action métier peut coûter plus d'un appel :
+ * le chat avec ses tours d'outils, la génération avec sa relance. Additionner
+ * leurs jetons dans une seule ligne, comme on le faisait, produisait deux
+ * mensonges : le modèle affiché était celui du premier appel (une régénération
+ * Sonnet tarifée au prix de Haiku), et un appel dont le résultat était jeté
+ * disparaissait purement du journal alors qu'Anthropic l'avait facturé.
+ *
+ * Seule la PREMIÈRE ligne porte les crédits et compte pour le quota : les
+ * suivantes sont le détail technique du même geste, pas un geste de plus.
+ *
+ * Une liste vide n'écrit rien : aucun appel n'a abouti, donc rien n'a été
+ * facturé.
+ */
+export async function recordCalls(
+  userId: string,
+  route: AiRoute,
+  calls: ApiCall[],
+  meta?: Omit<CallMeta, "model" | "requestId">,
+): Promise<void> {
+  if (!calls.length) return;
+  const admin = createAdminClient();
+  await admin.from("ai_calls").insert(
+    calls.map((call, i) => ({
+      user_id: userId,
+      route,
+      input_tokens: call.usage.input_tokens,
+      output_tokens: call.usage.output_tokens,
+      cache_read_tokens: call.usage.cache_read_tokens,
+      cache_write_tokens: call.usage.cache_write_tokens,
+      cache_write_1h_tokens: call.usage.cache_write_1h_tokens,
+      tenant_id: meta?.tenantId ?? null,
+      model: call.model,
+      action: meta?.action ?? null,
+      credits: i === 0 ? (meta?.credits ?? null) : 0,
+      request_id: call.requestId,
+      counts_for_quota: i === 0 ? (meta?.countsForQuota ?? true) : false,
+    })),
+  );
 }
 
 export const DAY_MS = 24 * 60 * 60 * 1000;

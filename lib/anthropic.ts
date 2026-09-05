@@ -81,3 +81,83 @@ export function parseJsonLoose<T = unknown>(raw: string): T {
     throw new Error("Réponse du modèle non parsable en JSON.");
   }
 }
+
+/**
+ * Consommation d'UN appel, telle que l'API la facture.
+ *
+ * Les cinq seaux sont distincts parce que leurs tarifs le sont : entrée à 1,
+ * sortie à 5, lecture de cache à 0,1, écriture courte à 1,25, écriture longue
+ * à 2. Les additionner ferait perdre le prix.
+ */
+export interface RecordedUsage {
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  /** Écritures dans le cache 5 minutes (125 % du prix d'entrée). */
+  cache_write_tokens: number;
+  /** Écritures dans le cache 1 heure (200 %). */
+  cache_write_1h_tokens: number;
+}
+
+/**
+ * Traduit l'`usage` d'une réponse Anthropic en ce qu'on journalise.
+ *
+ * Point unique d'extraction, et ce n'est pas de la coquetterie : chaque appelant
+ * qui recopiait ces champs à la main en oubliait. La plupart ne lisaient ni les
+ * lectures ni les écritures de cache, si bien que le journal affichait un coût
+ * jusqu'à dix fois inférieur à la facture réelle.
+ *
+ * Le piège du double comptage : quand `cache_creation` est présent, il DÉTAILLE
+ * `cache_creation_input_tokens` par durée, il ne s'y ajoute pas. On lit donc
+ * l'un OU l'autre, jamais les deux.
+ */
+export function usageOf(message: { usage: Anthropic.Usage }): RecordedUsage {
+  const u = message.usage;
+  const creation = u.cache_creation;
+  return {
+    input_tokens: u.input_tokens ?? 0,
+    output_tokens: u.output_tokens ?? 0,
+    cache_read_tokens: u.cache_read_input_tokens ?? 0,
+    cache_write_tokens: creation
+      ? (creation.ephemeral_5m_input_tokens ?? 0)
+      : (u.cache_creation_input_tokens ?? 0),
+    cache_write_1h_tokens: creation ? (creation.ephemeral_1h_input_tokens ?? 0) : 0,
+  };
+}
+
+/**
+ * Un appel modèle tel qu'il sera écrit au journal : ce que l'API a facturé, sur
+ * le modèle qu'elle a réellement servi, avec l'identifiant de sa requête.
+ *
+ * `model` vient de la RÉPONSE et non de la configuration : demander
+ * « claude-sonnet-5 » fait répondre « claude-sonnet-5-20260115 », et c'est ce
+ * dernier qui figure sur la facture Anthropic. Le journal doit porter le même.
+ *
+ * `requestId` est l'accroche du rapprochement : c'est le `request-id` de l'entête
+ * HTTP, celui que la console Anthropic affiche. Une ligne du journal et une
+ * ligne de la facture se reconnaissent par lui, sans avoir à comparer des
+ * horodatages à la seconde près.
+ */
+export interface ApiCall {
+  model: string;
+  requestId: string | null;
+  usage: RecordedUsage;
+}
+
+/**
+ * Un appel terminé, prêt à être journalisé.
+ *
+ * `_request_id` est posé par le SDK sur les réponses de `messages.create`. En
+ * streaming il n'est pas sur le message final : il vit sur le flux
+ * (`stream.request_id`), d'où le second paramètre.
+ */
+export function apiCallOf(
+  message: Anthropic.Message & { _request_id?: string | null },
+  requestId?: string | null,
+): ApiCall {
+  return {
+    model: message.model,
+    requestId: requestId ?? message._request_id ?? null,
+    usage: usageOf(message),
+  };
+}
