@@ -386,6 +386,92 @@ export async function createOffer(tenantId: string, input: CreateOfferInput): Pr
   return { ok: true };
 }
 
+/**
+ * Ce qu'un coach peut changer sur un plan DÉJÀ CRÉÉ.
+ *
+ * Deux champs manquent délibérément : `durationMonths` et `billingType`. Ils ne
+ * décrivent pas un réglage, ils décrivent ce qui a été VENDU. Faire passer un
+ * plan de 3 à 12 mois recalculerait la fenêtre d'accès de tous les clients déjà
+ * inscrits dessus, et basculer un paiement unique en abonnement laisserait des
+ * abonnements Stripe rattachés à un plan qui n'en est plus un. Pour changer
+ * l'un ou l'autre, on crée un nouveau plan : les clients en cours gardent le
+ * leur, ce qui est exactement le comportement attendu.
+ */
+export interface UpdateOfferInput {
+  name: string;
+  vipChat?: boolean;
+  coachAi?: boolean;
+  /** Quota journalier de messages au Coach IA par client (0 = illimité, null = défaut du coach). */
+  coachAiDailyLimit?: number | null;
+  priceCents?: number | null;
+  priceMonthCents?: number | null;
+  priceYearCents?: number | null;
+}
+
+/**
+ * Modifie un plan existant. Le tenant est dans le WHERE et pas seulement
+ * vérifié avant : un identifiant d'offre volé ne suffit pas à éditer le plan
+ * d'un autre coach.
+ *
+ * Les prix écrits ici valent pour les PROCHAINS acheteurs. Un abonnement Stripe
+ * déjà en cours reste sur le prix auquel il a été souscrit, c'est Stripe qui le
+ * porte, pas cette ligne. Le quota Coach IA, lui, est relu à chaque message
+ * (lib/coach-ai-budget.ts) : il change immédiatement pour tout le monde, y
+ * compris les clients déjà inscrits.
+ */
+export async function updateOffer(
+  tenantId: string,
+  offerId: string,
+  input: UpdateOfferInput,
+): Promise<CreateOfferResult> {
+  const trimmed = input.name.trim().slice(0, 80);
+  if (!trimmed) return { ok: false, error: "Donne un nom au plan." };
+  if (!offerId) return { ok: false, error: "Plan introuvable." };
+
+  const admin = createAdminClient();
+  // On relit le plan pour connaître son mode de paiement : c'est lui qui décide
+  // quelle colonne de prix a un sens, et il n'est pas modifiable ici.
+  const { data: current } = await admin
+    .from("offers")
+    .select("id, billing_type")
+    .eq("id", offerId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle<{ id: string; billing_type: BillingType }>();
+  if (!current) return { ok: false, error: "Plan introuvable." };
+
+  const priceCents = input.priceCents ?? null;
+  const priceMonthCents = input.priceMonthCents ?? null;
+  const priceYearCents = input.priceYearCents ?? null;
+  if (!validCents(priceCents) || !validCents(priceMonthCents) || !validCents(priceYearCents)) {
+    return { ok: false, error: "Prix invalide." };
+  }
+  if (current.billing_type === "subscription" && priceMonthCents == null && priceYearCents == null) {
+    return { ok: false, error: "Renseigne au moins un prix (mensuel ou annuel)." };
+  }
+
+  const coachAi = input.coachAi !== false;
+  const { error } = await admin
+    .from("offers")
+    .update({
+      name: trimmed,
+      price_cents: current.billing_type === "one_time" ? priceCents : null,
+      price_month_cents: current.billing_type === "subscription" ? priceMonthCents : null,
+      price_year_cents: current.billing_type === "subscription" ? priceYearCents : null,
+      vip_chat: !!input.vipChat,
+      coach_ai: coachAi,
+      // Coach IA décoché : le quota n'a plus d'objet, on le remet à null plutôt
+      // que de laisser un nombre orphelin qui réapparaîtrait au rallumage.
+      coach_ai_daily_limit:
+        coachAi && input.coachAiDailyLimit != null && Number.isFinite(input.coachAiDailyLimit)
+          ? Math.max(0, Math.min(1000, Math.trunc(input.coachAiDailyLimit)))
+          : null,
+    })
+    .eq("id", offerId)
+    .eq("tenant_id", tenantId);
+  if (error) return { ok: false, error: "Modification impossible." };
+  return { ok: true };
+}
+
 /** Active / désactive une offre (sans la supprimer). */
 export async function setOfferActive(
   tenantId: string,
