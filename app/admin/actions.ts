@@ -1239,7 +1239,7 @@ export async function saveResellerAiMode(_prev: ResellerAiState, formData: FormD
  * Tarification en crédits du revendeur d'IA. DEUX types de crédits, chacun avec
  * son prix de vente (en centimes) :
  *  - crédit IA = 1 message au Coach IA, modèle Haiku ;
- *  - une génération de programme consomme N crédits IA (réglable), Sonnet.
+ *  - une génération de programme consomme N crédits IA (réglable), Opus.
  */
 export async function saveResellerCredits(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
   const ctx = await getAdminOrNull();

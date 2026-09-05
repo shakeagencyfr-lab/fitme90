@@ -180,7 +180,7 @@ export const LIMIT_ADAPT_PER_WEEK = 2;
 // grandeur pour décider un prix, pas une facture.
 //
 // Tout tourne sur Haiku 4.5 ($1 / $5 le M) SAUF la génération de programme
-// (Sonnet 5, $2 / $10). Le prompt du coach est mis en cache : une lecture
+// (Opus 5, $5 / $25). Le prompt du coach est mis en cache : une lecture
 // coûte 10 % d'un token d'entrée, une écriture longue 200 %. D'où l'écart
 // entre le premier message d'une fenêtre de cache et tous les suivants.
 //
@@ -191,7 +191,8 @@ export const LIMIT_ADAPT_PER_WEEK = 2;
 // parce qu'elles coûtent zéro.
 //
 // Mesures par appel, relevées le 5 septembre 2026 sur des appels réels :
-//   génération de programme (Sonnet 5)  0,2921 $  (12 110 entrée, 26 788 sortie)
+//   génération de programme (Opus 5)    0,7303 $  (12 110 entrée, 26 788 sortie,
+//                                                  jetons mesurés, tarif Opus)
 //   analyse d'un lot de photos de salle 0,0110 $  (6 631 entrée, 864 sortie)
 //   message coach, cache lu             0,0023 $  (moyenne de huit messages)
 //   premier message d'une fenêtre 1 h   0,0164 $  (il écrit le cache)
@@ -220,8 +221,8 @@ export const AI_COST_COACH_MSG_USD = 0.004;
  * le crédit et le message se confondent désormais.
  */
 export const AI_COST_ACTION_USD = AI_COST_COACH_MSG_USD;
-/** Coût MESURÉ de la seule génération (Sonnet 5), sans les photos de salle. */
-export const AI_COST_GENERATION_USD = 0.3;
+/** Coût de la seule génération (Opus 5, jetons mesurés), sans les photos de salle. */
+export const AI_COST_GENERATION_USD = 0.75;
 /** Coût MESURÉ de l'analyse d'un lot de photos de salle (Haiku, vision). */
 export const AI_COST_GYM_PHOTOS_USD = 0.011;
 /**
@@ -230,7 +231,7 @@ export const AI_COST_GYM_PHOTOS_USD = 0.011;
  * Un client n'obtient pas son programme sans que sa salle ait été analysée :
  * les deux appels sont un seul et même livrable, et les séparer donnait un
  * coût de génération flatteur en laissant la vision hors du compte. La
- * constante additionne donc la génération (0,2921 $) et le lot de photos
+ * constante additionne donc la génération (0,7303 $) et le lot de photos
  * (0,0110 $), chacun déjà arrondi au-dessus. Elle est CALCULÉE et non saisie :
  * un chiffre écrit à la main se serait décorrélé de ses deux composantes à la
  * première remesure. C'est elle que lit la marge d'une génération vendue en
@@ -251,8 +252,8 @@ export const AI_COST_MEMORY_USD = 0.003;
 
 /** Coût IA récurrent estimé par client et par mois (usage typique modéré) :
  * 8 messages par jour sur 26 jours actifs (0,83 $), plus le résumé de mémoire
- * (0,08 $), plus un programme livré amorti sur ses trois mois (0,10 $). */
-export const AI_COST_PER_CLIENT_MONTH_USD = 1.1;
+ * (0,08 $), plus un programme livré amorti sur ses trois mois (0,25 $). */
+export const AI_COST_PER_CLIENT_MONTH_USD = 1.2;
 
 // Taux de conversion indicatif USD→EUR pour afficher un coût lisible en euros
 // (le tarif Anthropic est en USD, la revente du revendeur en EUR). Approx.
@@ -380,7 +381,7 @@ export function actionCreditMargin(creditPriceCents: number): CreditMargin {
 }
 
 /**
- * Coût réel d'un programme livré (génération Sonnet + analyse des photos de
+ * Coût réel d'un programme livré (génération Opus + analyse des photos de
  * salle) rapporté aux crédits qu'il consomme : au prix unitaire donné, la
  * génération rapporte-t-elle sa marge ? Le fournisseur règle le nombre de
  * crédits d'une génération avec ce chiffre sous les yeux.
