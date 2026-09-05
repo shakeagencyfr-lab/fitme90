@@ -38,8 +38,34 @@ function modelForRoute(route: string): string {
   }
 }
 
-function priceFor(model: string): Price {
-  return PRICES[model] ?? DEFAULT_PRICE;
+/**
+ * Le tarif d'un modèle, quelle que soit la forme de son identifiant.
+ *
+ * L'API répond avec un identifiant DATÉ (`claude-haiku-4-5-20251001`) là où la
+ * configuration porte l'alias (`claude-haiku-4-5`). Depuis que le journal
+ * enregistre le modèle réellement servi, les deux formes coexistent dans la
+ * table. Une correspondance exacte tarifierait toutes les lignes datées au prix
+ * par défaut, celui d'Opus : cinq fois trop cher sur Haiku, et le journal
+ * repartirait dans le faux par l'autre bout.
+ *
+ * On retient donc le plus long alias dont l'identifiant est un prolongement.
+ * La coupure se fait sur un tiret, sans quoi « claude-sonnet-5 » attraperait
+ * « claude-sonnet-52 » si un tel modèle existait un jour.
+ */
+export function priceFor(model: string): Price {
+  const exact = PRICES[model];
+  if (exact) return exact;
+  let best: Price | null = null;
+  let bestLen = 0;
+  for (const [alias, price] of Object.entries(PRICES)) {
+    if (model.startsWith(`${alias}-`) && alias.length > bestLen) {
+      best = price;
+      bestLen = alias.length;
+    }
+  }
+  // Modèle inconnu : on tarife au plus cher. Une estimation qui dépasse se
+  // corrige en regardant ; une estimation qui minore ne se remarque pas.
+  return best ?? DEFAULT_PRICE;
 }
 
 export type CostRow = {
@@ -137,6 +163,19 @@ export function totalCost(costs: Map<string, number>): number {
 /** Formate un coût en USD, précision au centime (ex "$22.63"). */
 export function formatUsd(n: number): string {
   return `$${n.toFixed(2)}`;
+}
+
+/**
+ * Le même montant, mais lisible quand il est petit.
+ *
+ * Le journal sert à se comparer à la facture Anthropic, et un appel de chat
+ * coûte quelques millièmes de dollar : arrondi au centime, il s'affiche
+ * « $0.00 » et une journée entière se résume à « $0.49 » face aux « 0,55 $ »
+ * du fournisseur. On garde donc quatre décimales tant qu'on est sous le dollar.
+ */
+export function formatUsdPrecise(n: number): string {
+  const abs = Math.abs(n);
+  return `$${n.toFixed(abs > 0 && abs < 1 ? 4 : 2)}`;
 }
 
 /** Premier jour du mois courant (UTC), en ISO. */
