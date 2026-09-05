@@ -3,6 +3,9 @@ import { tenantNode } from "@/lib/hierarchy";
 import { tx } from "@/lib/i18n/request";
 import { listPlans, freePlanOf, MAX_PLANS_PER_TENANT, type Plan } from "@/lib/plans";
 import { resellerRights } from "@/lib/cost-view";
+import { resellerWhitelabelPrice } from "@/lib/whitelabel";
+import { parentDashboardBrand, platformBrand } from "@/lib/branding";
+import { WhitelabelPriceForm } from "@/components/whitelabel-price-form";
 import { formatEuros } from "@/lib/config";
 import { PlanForm } from "@/components/plan-form";
 import { FreePlanForm } from "@/components/free-plan-form";
@@ -43,7 +46,9 @@ function Pill({ children, tone = "brand" }: { children: React.ReactNode; tone?: 
  * Le palier gratuit d'abord, comme une carte à part : il n'a ni prix ni
  * bouton Supprimer, il s'ouvre ou se ferme. Puis les paliers payants, avec ce
  * que chacun porte : capacité, fourniture d'IA, marque blanche, et pour la
- * plateforme les droits qu'il ouvre au revendeur.
+ * plateforme les droits qu'il ouvre au revendeur. Enfin, pour un revendeur,
+ * le pack marque blanche vendu à part : c'est une ligne de son catalogue,
+ * pas un réglage d'IA.
  */
 export default async function AdminPlansPage() {
   const ctx = await getAdminOrNull();
@@ -54,11 +59,14 @@ export default async function AdminPlansPage() {
   const unite: "client" | "compte" = node?.kind === "platform" ? "compte" : "client";
   const sells: "resellers" | "coaches" = node?.kind === "platform" ? "resellers" : "coaches";
 
-  // Un revendeur ne vend que ce que son propre palier lui ouvre.
-  const [plans, free, rights] = tenantId
-    ? await Promise.all([listPlans(tenantId), freePlanOf(tenantId), resellerRights(tenantId)])
-    : [[], null, { byok: true, credits: true }];
+  // Un revendeur ne vend que ce que son propre palier lui ouvre ; ce qui ne
+  // lui est pas ouvert se demande à son parent, nommé par sa marque.
+  const [plans, free, rights, wlPrice, parentBrand] = tenantId
+    ? await Promise.all([listPlans(tenantId), freePlanOf(tenantId), resellerRights(tenantId), resellerWhitelabelPrice(tenantId), parentDashboardBrand(tenantId)])
+    : [[], null, { byok: true, credits: true }, null, null];
+  const contactName = parentBrand?.name ?? (await platformBrand())?.name ?? "la plateforme";
   const payants = plans.filter((p) => !p.is_free);
+  const includedPlans = plans.filter((p) => p.whitelabel_included).map((p) => (p.is_free ? `${p.name} (gratuit)` : p.name));
 
   return (
     <div className="flex flex-col gap-5">
@@ -76,7 +84,7 @@ export default async function AdminPlansPage() {
       ) : (
         <div className="flex flex-col gap-3">
           <div className="font-archivo font-bold text-[17px] text-ink">{tx("Palier gratuit")}</div>
-          <FreePlanForm plan={free} sells={sells} rights={rights} />
+          <FreePlanForm plan={free} sells={sells} rights={rights} contactName={contactName} />
 
           <div className="mt-2 font-archivo font-bold text-[17px] text-ink">{tx("Paliers payants")}</div>
           {payants.length === 0 ? (
@@ -149,7 +157,17 @@ export default async function AdminPlansPage() {
               </Card>
             ))
           )}
-          <PlanForm atLimit={payants.length >= MAX_PLANS_PER_TENANT} unit={unite === "compte" ? "comptes" : "clients"} rights={rights} />
+          <PlanForm atLimit={payants.length >= MAX_PLANS_PER_TENANT} unit={unite === "compte" ? "comptes" : "clients"} rights={rights} contactName={contactName} />
+
+          {/* Le pack se vend de deux façons : inclus dans un palier (la case
+              plus haut), ou à la carte, à ce prix. Les deux se lisent ici,
+              côte à côte : c'est le catalogue du revendeur. */}
+          {sells === "coaches" ? (
+            <>
+              <div className="mt-2 font-archivo font-bold text-[17px] text-ink">{tx("Pack marque blanche")}</div>
+              <WhitelabelPriceForm initialCents={wlPrice} includedPlans={includedPlans} />
+            </>
+          ) : null}
         </div>
       )}
     </div>

@@ -5,8 +5,8 @@ import { usePhrase } from "@/components/locale-provider";
 import { useActionState, useState } from "react";
 import { addPlan, type PlanState } from "@/app/admin/actions";
 import { Button, Alert, MonoLabel } from "@/components/ui";
-import { FixedSupply, ResellerRightsFields } from "@/components/free-plan-form";
-import { ALL_RIGHTS, resolveSupply, supplyIsChoice, type PlanAiSupply, type SupplyRights } from "@/lib/supply-rights";
+import { SupplyCards, ResellerRightsFields } from "@/components/free-plan-form";
+import { ALL_RIGHTS, resolveSupply, type PlanAiSupply, type SupplyRights } from "@/lib/supply-rights";
 
 /**
  * Formulaire de création d'un palier d'abonnement (facturation Lot C). Le
@@ -18,18 +18,19 @@ import { ALL_RIGHTS, resolveSupply, supplyIsChoice, type PlanAiSupply, type Supp
  * COMPTES de leur réseau ; un revendeur vend à des coachs, dont le palier
  * plafonne les CLIENTS. Une seule colonne en base, deux libellés.
  *
- * `rights` : ce que le vendeur a le droit de proposer. Un revendeur à qui la
- * plateforme n'a ouvert qu'un mode ne choisit pas la fourniture, elle est
- * dite.
+ * `rights` : ce que le vendeur a le droit de proposer. Ce qui ne lui est pas
+ * ouvert reste visible, verrouillé, avec à qui le demander (`contactName`).
  */
 export function PlanForm({
   atLimit,
   unit = "clients",
   rights = ALL_RIGHTS,
+  contactName = "la plateforme",
 }: {
   atLimit: boolean;
   unit?: "clients" | "comptes";
   rights?: SupplyRights;
+  contactName?: string;
 }) {
   const tx = usePhrase();
   const comptes = unit === "comptes";
@@ -37,7 +38,6 @@ export function PlanForm({
   const [supply, setSupply] = useState<PlanAiSupply>(resolveSupply(rights, "byok"));
   const [byok, setByok] = useState(true);
   const [credits, setCredits] = useState(false);
-  const choice = supplyIsChoice(rights);
   // Un revendeur en crédits plateforme fournit l'IA à ses coachs : la revente
   // de crédits va avec, la case suit la fourniture.
   const creditsForced = comptes && supply === "credits";
@@ -111,34 +111,18 @@ export function PlanForm({
       </div>
 
       {/* Le palier porte son modèle : la fourniture d'IA se choisit ici, au
-          moment de le vendre, et non compte par compte après coup. Quand le
-          palier du vendeur ne lui ouvre qu'un mode, elle est dite. */}
+          moment de le vendre, et non compte par compte après coup. Ce que le
+          palier du vendeur ne lui ouvre pas reste visible, verrouillé. */}
       <div className="flex flex-col gap-1.5">
         <MonoLabel>{tx("Fourniture de l'IA")}</MonoLabel>
-        {choice ? (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {(
-              [
-                ["byok", tx("Clé personnelle (BYOK)"), comptes ? tx("Le revendeur branche sa propre clé Anthropic et règle Anthropic directement.") : tx("Le coach branche sa propre clé Anthropic et règle Anthropic directement.")],
-                ["credits", tx("Crédits IA"), comptes ? tx("L'IA tourne sur ta clé, le revendeur t'achète des crédits et les revend avec sa marge.") : tx("L'IA tourne sur ta chaîne, le coach t'achète des crédits.")],
-              ] as const
-            ).map(([val, title, desc]) => (
-              <label
-                key={val}
-                className={[
-                  "tap flex cursor-pointer flex-col gap-0.5 rounded-control border px-3.5 py-2.5 transition-colors",
-                  supply === val ? "border-brand bg-brand/[0.06]" : "border-line-4 hover:border-ink/40",
-                ].join(" ")}
-              >
-                <input type="radio" name="ai_supply" value={val} checked={supply === val} onChange={() => setSupply(val)} className="sr-only" />
-                <span className="text-[14px] font-semibold text-ink">{title}</span>
-                <span className="text-[12px] leading-[1.5] text-muted-2">{desc}</span>
-              </label>
-            ))}
-          </div>
-        ) : (
-          <FixedSupply supply={supply} />
-        )}
+        <SupplyCards
+          supply={supply}
+          onChange={setSupply}
+          rights={rights}
+          contactName={contactName}
+          byokDesc={comptes ? tx("Le revendeur branche sa propre clé Anthropic et règle Anthropic directement.") : tx("Le coach branche sa propre clé Anthropic et règle Anthropic directement.")}
+          creditsDesc={comptes ? tx("L'IA tourne sur ta clé, le revendeur t'achète des crédits et les revend avec sa marge.") : tx("L'IA tourne sur ta chaîne, le coach t'achète des crédits.")}
+        />
       </div>
 
       {/* Inclure la marque blanche est un argument de vente pour monter en
@@ -152,7 +136,7 @@ export function PlanForm({
           <span className="flex flex-col gap-0.5">
             <span className="text-[14px] font-semibold text-ink">{tx("Inclure le pack marque blanche")}</span>
             <span className="text-[12px] leading-[1.5] text-muted-2">
-              {tx("Domaine personnalisé, e-mails depuis son serveur, site de présentation. Décoché, les comptes de ce palier peuvent souscrire le pack à part si tu en fixes le prix dans Revenu IA.")}
+              {tx("Domaine personnalisé, e-mails depuis son serveur, site de présentation. Décoché, les comptes de ce palier peuvent souscrire le pack à part si tu en fixes le prix plus bas.")}
             </span>
           </span>
         </label>

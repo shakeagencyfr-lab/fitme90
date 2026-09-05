@@ -8,8 +8,6 @@ import { tenantKeyStatus } from "@/lib/tenant";
 import { resellerMonthlyAiUsage } from "@/lib/ai-cost";
 import { listCreditPacks, getWallet, programCreditCost, creditPriceToday } from "@/lib/credits";
 import { ResellerModelForm } from "@/components/reseller-model-form";
-import { WhitelabelPriceForm } from "@/components/whitelabel-price-form";
-import { listPlans } from "@/lib/plans";
 import { ResellerAiModeForm } from "@/components/reseller-ai-mode-form";
 import { ResellerCreditPricingForm } from "@/components/reseller-credit-pricing-form";
 import { ByokForm } from "@/components/byok-form";
@@ -26,13 +24,12 @@ interface TenantAiRow {
   ai_client_daily_limit: number | null;
   ai_credit_price_cents: number | null;
   ai_program_credits: number | null;
-  whitelabel_addon_price_cents: number | null;
   coach_byok_allowed: boolean | null;
   coach_credits_allowed: boolean | null;
 }
 
 const AI_COLS =
-  "ai_mode, ai_supply, reseller_model, ai_client_daily_limit, ai_credit_price_cents, ai_program_credits, whitelabel_addon_price_cents, coach_byok_allowed, coach_credits_allowed";
+  "ai_mode, ai_supply, reseller_model, ai_client_daily_limit, ai_credit_price_cents, ai_program_credits, coach_byok_allowed, coach_credits_allowed";
 
 /**
  * Revenu IA. Deux visages :
@@ -102,11 +99,10 @@ export default async function AdminResellerAiPage() {
   const resellerModel = t?.reseller_model === "credits" ? "credits" : "subscription";
   const limit = t?.ai_client_daily_limit == null ? 60 : Math.max(0, t.ai_client_daily_limit);
 
-  const [usage, wallet, platformId, plans] = await Promise.all([
+  const [usage, wallet, platformId] = await Promise.all([
     resellerMonthlyAiUsage(tenantId),
     buysFromPlatform ? getWallet(tenantId) : Promise.resolve(null),
     platformTenantId(),
-    tenantId ? listPlans(tenantId) : Promise.resolve([]),
   ]);
   let buyPriceCents: number | null = null;
   let platformProgramCredits: number | null = null;
@@ -132,14 +128,13 @@ export default async function AdminResellerAiPage() {
   const creditsPerCoach = usage.coachCount > 0 ? Math.round(usage.supplierCredits / usage.coachCount) : 0;
   // Ce que le palier de ce revendeur lui permet de proposer à ses coachs
   // (lib/supply-rights.ts). Sans la revente de crédits, il ne fournit pas
-  // l'IA et ne voit rien des crédits : ni modèle, ni packs, ni tarification,
-  // ni mode de fourniture. Il ne lui reste que le pack marque blanche à
-  // vendre, et le coût indicatif de son réseau.
+  // l'IA et n'a pas de revenu IA : cet écran n'a rien à lui montrer, et le
+  // menu ne le lui propose pas (app/admin/layout.tsx). Un revendeur en
+  // crédits plateforme fournit quoi qu'il arrive (il n'a pas de clé à lui) :
+  // son solde et le plafond par client restent à régler ici.
   const byokAllowed = t?.coach_byok_allowed !== false;
   const creditsAllowed = t?.coach_credits_allowed !== false;
-  // Un revendeur en crédits plateforme fournit quoi qu'il arrive (il n'a pas
-  // de clé à lui) : le plafond par client reste à régler.
-  const provides = creditsAllowed || buysFromPlatform;
+  if (!creditsAllowed && !buysFromPlatform) redirect("/admin/paliers");
 
   return (
     <div className="flex flex-col gap-5">
@@ -147,10 +142,7 @@ export default async function AdminResellerAiPage() {
         <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
           {tx("Revenu IA")}</h1>
         <p className="max-w-[72ch] text-[15px] leading-[1.6] text-muted">
-          {!provides ? (
-            <>
-              {tx("Tes coachs branchent chacun leur propre clé Anthropic et règlent leur consommation directement. Tu factures tes paliers et le pack marque blanche, tu ne gères pas l'IA.")}</>
-          ) : buysFromPlatform ? (
+          {buysFromPlatform ? (
             <>
               {tx("Tu achètes tes crédits IA à la plateforme et tu les revends à tes coachs avec ta marge. L'IA tourne sur la clé de la plateforme : chaque action de tes coachs débite ton solde, et ton prix de revente fait ta marge.")}</>
           ) : (
@@ -203,25 +195,18 @@ export default async function AdminResellerAiPage() {
         />
       ) : null}
 
-      <WhitelabelPriceForm
-        initialCents={t?.whitelabel_addon_price_cents ?? null}
-        includedPlans={plans.filter((p) => p.whitelabel_included).map((p) => (p.is_free ? `${p.name} (gratuit)` : p.name))}
-      />
-
       {/* En crédits plateforme, la fourniture est fixée (pas de choix BYOK /
           provider) mais le plafond par client reste à régler, et son coût se
           lit en crédits au prix d'achat : jamais en dollars. */}
-      {provides ? (
-        <ResellerAiModeForm
-          initialMode={mode}
-          initialLimit={limit}
-          keyConfigured={key.configured}
-          absorbsCost={resellerModel === "subscription"}
-          byokAllowed={byokAllowed}
-          fixedProvider={buysFromPlatform}
-          creditCents={buysFromPlatform ? buyPriceCents : null}
-        />
-      ) : null}
+      <ResellerAiModeForm
+        initialMode={mode}
+        initialLimit={limit}
+        keyConfigured={key.configured}
+        absorbsCost={resellerModel === "subscription"}
+        byokAllowed={byokAllowed}
+        fixedProvider={buysFromPlatform}
+        creditCents={buysFromPlatform ? buyPriceCents : null}
+      />
 
       {/* Un revendeur qui achète ses crédits est débité dans l'unité de son
           fournisseur : c'est celle-là qu'on lui montre, pas la sienne. Afficher
