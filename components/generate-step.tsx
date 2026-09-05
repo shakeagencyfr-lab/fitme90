@@ -36,7 +36,21 @@ export function GenerateStep() {
         res = await fetch("/api/generate", { method: "POST" });
         data = await res.json().catch(() => ({}));
       }
+      // Une génération tourne déjà pour ce compte (autre onglet, page
+      // rechargée) : on attend qu'elle finisse au lieu d'en lancer une autre.
+      for (let i = 0; res.status === 423 && i < 60; i++) {
+        await new Promise((r) => setTimeout(r, 5000));
+        res = await fetch("/api/generate", { method: "POST" });
+        data = await res.json().catch(() => ({}));
+      }
       clearInterval(tick);
+      // Le programme existe déjà : rien à écrire, on y va.
+      if (res.status === 409) {
+        setStep(STEPS.length - 1);
+        setStatus("done");
+        router.push("/app");
+        return;
+      }
       if (res.status === 403 && data.error === "medical_waiver_required") {
         setReasons(data.reasons ?? []);
         setStatus("waiver");

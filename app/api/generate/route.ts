@@ -46,6 +46,51 @@ export async function POST() {
     );
   }
 
+  // 2b. Un programme existe déjà : on ne le régénère pas. La page de
+  // génération se relançait à chaque visite (retour arrière, rechargement,
+  // passage par la salle) tant que le programme n'avait pas commencé, et
+  // chaque passage coûtait une génération au coach. Le client a son plan,
+  // on le renvoie dessus.
+  const admin = createAdminClient();
+  const { data: existing } = await admin
+    .from("programs")
+    .select("id")
+    .eq("user_id", ctx.userId)
+    .limit(1)
+    .maybeSingle<{ id: string }>();
+  if (existing) {
+    return NextResponse.json({ error: "already_generated" }, { status: 409 });
+  }
+
+  // 2c. Une génération est déjà en cours pour ce compte (deux onglets, un
+  // rechargement pendant l'attente) : on ne lance pas la deuxième. Le verrou
+  // est posé par un UPDATE conditionnel, donc sans course entre deux appels
+  // simultanés ; il expire de lui-même passé le délai maximal de la route.
+  const lockCutoff = new Date(Date.now() - 6 * 60 * 1000).toISOString();
+  const { count: locked } = await admin
+    .from("profiles")
+    .update({ generating_since: new Date().toISOString() }, { count: "exact" })
+    .eq("id", ctx.userId)
+    .or(`generating_since.is.null,generating_since.lt.${lockCutoff}`);
+  if (!locked) {
+    return NextResponse.json({ error: "generation_in_progress" }, { status: 423 });
+  }
+  const releaseLock = async () => {
+    await admin.from("profiles").update({ generating_since: null }).eq("id", ctx.userId);
+  };
+
+  try {
+    return await generateForClient(ctx, t, admin);
+  } finally {
+    await releaseLock().catch(() => {});
+  }
+}
+
+async function generateForClient(
+  ctx: NonNullable<Awaited<ReturnType<typeof getSessionContext>>>,
+  t: ReturnType<typeof makeT>,
+  admin: ReturnType<typeof createAdminClient>,
+) {
   // 3. Rate limit (plafond total d'appels de génération)
   const limit = await checkLimit(ctx.userId, "generate", LIMIT_GENERATE_TOTAL);
   if (!limit.ok) {
@@ -80,7 +125,6 @@ export async function POST() {
   const health = quiz.answers as QuizHealthAnswers;
   const verdict = screen(health);
   if (verdict.hold) {
-    const admin = createAdminClient();
     await admin.from("profiles").update({ medical_hold: true }).eq("id", ctx.userId);
     if (!ctx.profile?.medical_ack_at) {
       return NextResponse.json(
@@ -151,7 +195,6 @@ export async function POST() {
 
   // 7. Écriture : programme + start_date (posée UNE fois, à la 1re génération).
   // Durée : celle de l'offre achetée (sinon défaut 3 mois via NULL).
-  const admin = createAdminClient();
   const { error: insErr } = await supabase.from("programs").insert({
     user_id: ctx.userId,
     plan: result.plan,
