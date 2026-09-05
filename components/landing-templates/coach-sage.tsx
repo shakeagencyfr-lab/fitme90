@@ -267,6 +267,11 @@ export function CoachSage({ tenant, offers, leadMagnet = false, locale = "fr" }:
                     {L.seePrograms} <S.arrow className="h-4.5 w-4.5" />
                   </a>
                 ) : null}
+                {leadMagnet ? (
+                  <a href="#offert" className="press tap inline-flex h-[54px] items-center justify-center rounded-full border border-ink/15 px-9 text-[16px] font-semibold text-ink transition-colors hover:border-ink/45">
+                    {L.heroLead}
+                  </a>
+                ) : null}
                 <a href="#auteur" className="press tap inline-flex h-[54px] items-center justify-center rounded-full border border-ink/15 px-9 text-[16px] font-semibold text-ink transition-colors hover:border-ink/45">
                   {L.howItWorks}
                 </a>
@@ -432,7 +437,7 @@ export function CoachSage({ tenant, offers, leadMagnet = false, locale = "fr" }:
 
         {/* Mini-programme offert */}
         {leadMagnet ? (
-          <section className="border-t border-ink/10">
+          <section id="offert" className="scroll-mt-20 border-t border-ink/10">
             <div className="mx-auto w-full max-w-[1040px] px-5 py-[clamp(40px,5.5vw,68px)] sm:px-8">
               <LeadBand L={L} slug={tenant.slug} tone="light" radius="rounded-[30px]" ctaClass="rounded-full" />
             </div>

@@ -1337,4 +1337,7 @@ export const PHRASES_EN: Record<string, string> = {
   "prélèvements de": "charges of",
   "Soit": "That is",
   "Pour que le 12 mois soit évident, vise 2,5 à 3 fois le prix de ton 3 mois, pas 4.": "To make the 12 months an obvious choice, aim for 2.5 to 3 times your 3-month price, not 4.",
+  "Plafond de l'IA fournie à ton réseau": "Cap on the AI supplied to your network",
+  "L'IA de tes coachs tourne sur tes crédits plateforme : c'est toi qui la fournis. Règle ici ce qu'un client peut consommer par jour, et vois ce que ça te coûte au pire, en crédits.": "Your coaches' AI runs on your platform credits: you supply it. Set here what a client can use per day, and see what it costs you at worst, in credits.",
+  "Estimation d'après la conso réelle : un message au Coach IA = un crédit, au prix auquel tu l'achètes à la plateforme.": "Estimate based on real usage: one message to the AI Coach = one credit, at the price you buy it from the platform.",
 };

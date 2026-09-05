@@ -9,7 +9,7 @@ import { FreePlanForm } from "@/components/free-plan-form";
 import { togglePlan, togglePlanWhitelabel, removePlan } from "@/app/admin/actions";
 import { Alert, Card } from "@/components/ui";
 
-export const metadata = { title: "Paliers, Admin My Fitness App" };
+export const metadata = { title: "Paliers" };
 
 function priceLabel(p: Plan): string {
   const parts: string[] = [];

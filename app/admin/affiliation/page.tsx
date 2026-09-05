@@ -4,7 +4,7 @@ import { affiliationConfig, coachAffiliationOverview } from "@/lib/affiliation";
 import { AffiliationForm } from "@/components/affiliation-form";
 import { Alert, Card } from "@/components/ui";
 
-export const metadata = { title: "Affiliation, Admin My Fitness App" };
+export const metadata = { title: "Affiliation" };
 export const dynamic = "force-dynamic";
 
 const fmtDate = (iso: string) =>

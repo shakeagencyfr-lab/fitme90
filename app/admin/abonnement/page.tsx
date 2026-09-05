@@ -15,7 +15,7 @@ import { Alert, Card, MonoLabel } from "@/components/ui";
 const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }) : null;
 
-export const metadata = { title: "Mon abonnement, Admin My Fitness App" };
+export const metadata = { title: "Mon abonnement" };
 
 export default async function AdminBillingPage({
   searchParams,

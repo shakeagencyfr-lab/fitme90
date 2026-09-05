@@ -7,7 +7,7 @@ import { GoogleImport } from "@/components/google-import";
 import { GoogleDetach } from "@/components/google-detach";
 import { Alert, Card } from "@/components/ui";
 
-export const metadata = { title: "Fiche Google, Admin My Fitness App" };
+export const metadata = { title: "Fiche Google" };
 export const dynamic = "force-dynamic";
 
 /**

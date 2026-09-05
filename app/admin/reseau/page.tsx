@@ -17,7 +17,7 @@ import { formatUsd } from "@/lib/ai-cost";
 import { costViewOf } from "@/lib/cost-view";
 import { GRANTED_STATUS } from "@/lib/tenant-billing";
 
-export const metadata = { title: "Mon réseau, Admin My Fitness App" };
+export const metadata = { title: "Mon réseau" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminNetworkPage({

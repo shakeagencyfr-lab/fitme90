@@ -13,7 +13,7 @@ import { LeadMagnetToggle } from "@/components/lead-magnet-toggle";
 import { updateProspectStatus, removeProspect } from "@/app/admin/actions";
 import { Alert, Card } from "@/components/ui";
 
-export const metadata = { title: "Prospects, Admin My Fitness App" };
+export const metadata = { title: "Prospects" };
 export const dynamic = "force-dynamic";
 
 const fmtDate = (iso: string) =>

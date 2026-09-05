@@ -17,7 +17,7 @@ import { AiRevenueSummary } from "@/components/ai-revenue-summary";
 import { Alert, Card, MonoLabel } from "@/components/ui";
 import { DEFAULT_AI_CREDIT_PRICE_CENTS, DEFAULT_PROGRAM_CREDITS, formatEuros } from "@/lib/config";
 
-export const metadata = { title: "Revenu IA, Admin My Fitness App" };
+export const metadata = { title: "Revenu IA" };
 
 interface TenantAiRow {
   ai_mode: string | null;
@@ -196,16 +196,18 @@ export default async function AdminResellerAiPage() {
         includedPlans={plans.filter((p) => p.whitelabel_included).map((p) => (p.is_free ? `${p.name} (gratuit)` : p.name))}
       />
 
-      {/* En crédits plateforme, la fourniture est fixée : pas de choix BYOK / provider. */}
-      {!buysFromPlatform ? (
-        <ResellerAiModeForm
-          initialMode={mode}
-          initialLimit={limit}
-          keyConfigured={key.configured}
-          absorbsCost={resellerModel === "subscription"}
-          byokAllowed={byokAllowed}
-        />
-      ) : null}
+      {/* En crédits plateforme, la fourniture est fixée (pas de choix BYOK /
+          provider) mais le plafond par client reste à régler, et son coût se
+          lit en crédits au prix d'achat : jamais en dollars. */}
+      <ResellerAiModeForm
+        initialMode={mode}
+        initialLimit={limit}
+        keyConfigured={key.configured}
+        absorbsCost={resellerModel === "subscription"}
+        byokAllowed={byokAllowed}
+        fixedProvider={buysFromPlatform}
+        creditCents={buysFromPlatform ? buyPriceCents : null}
+      />
 
       {/* Un revendeur qui achète ses crédits est débité dans l'unité de son
           fournisseur : c'est celle-là qu'on lui montre, pas la sienne. Afficher

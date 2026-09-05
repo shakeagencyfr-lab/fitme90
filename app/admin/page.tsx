@@ -15,7 +15,7 @@ import { InternalClientForm } from "@/components/internal-client-form";
 import { listOffers } from "@/lib/offers";
 import { Card, MonoLabel } from "@/components/ui";
 
-export const metadata = { title: "Clients, Admin My Fitness App" };
+export const metadata = { title: "Clients" };
 
 type Prof = {
   id: string;

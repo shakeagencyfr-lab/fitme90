@@ -119,6 +119,8 @@ export interface LandingCopy {
   leadTitle: string;
   leadBody: string;
   leadCta: string;
+  /** Bouton du héros vers le mini-programme offert. */
+  heroLead: string;
   programsChip: string;
   programsTitle: string;
   noOffer: string;
@@ -242,6 +244,7 @@ const FR: Omit<LandingCopy, "features"> & { features: Feature[] } = {
   testimonialsTitle: "Ce qu'en disent ses clients",
   leadChip: "Offert",
   leadTitle: "Ta première semaine, offerte",
+  heroLead: "Ma première semaine, offerte",
   leadBody: "Un vrai plan à suivre, calibré sur ton objectif, ton niveau et ton matériel. Prêt à imprimer.",
   leadCta: "Recevoir mon programme",
   programsChip: "Programmes",
@@ -374,6 +377,7 @@ const EN: Omit<LandingCopy, "features"> & { features: Feature[] } = {
   testimonialsTitle: "What their clients say",
   leadChip: "Free",
   leadTitle: "Your first week, on us",
+  heroLead: "My first week, free",
   leadBody: "A real plan to follow, calibrated on your goal, your level and your equipment. Ready to print.",
   leadCta: "Get my program",
   programsChip: "Programs",
@@ -498,6 +502,7 @@ const GYM_FR: Overrides = {
     { title: "Celui qui veut de la nutrition", body: "Pas seulement l'entraînement : calories, macros et recettes qui tiennent compte de tes contraintes." },
   ],
   leadTitle: "Repars avec une semaine offerte",
+  heroLead: "Une semaine offerte, pour commencer",
   leadBody: "Un vrai plan à suivre, calibré sur ton objectif et sur le matériel que tu as. Prêt à imprimer.",
   programsTitle: "Nos formules",
   finalTitle: "Ta salle. Ton programme. Dès la prochaine séance.",
@@ -573,6 +578,7 @@ const GYM_EN: Overrides = {
     { title: "The one who wants nutrition too", body: "Not just training: calories, macros and recipes that respect your constraints." },
   ],
   leadTitle: "Leave with a free week",
+  heroLead: "A free week, to start",
   leadBody: "A real plan to follow, calibrated on your goal and on the equipment you have. Ready to print.",
   programsTitle: "Our plans",
   finalTitle: "Your gym. Your program. From the next session.",
