@@ -322,7 +322,7 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     {
       name: "adapter_programme",
       description:
-        "Adapte et régénère le programme d'entraînement du client. À utiliser UNIQUEMENT quand le client signale une blessure ou une contrainte durable (ex : douleur au genou, épaule fragile, matériel devenu indisponible) et souhaite que ses séances soient adaptées. NE PAS utiliser pour une simple question. Après l'appel, confirme au client ce qui a changé et rappelle de consulter un professionnel de santé si la douleur persiste.",
+        "Adapte et régénère le BLOC EN COURS du programme (opération lourde : nouvelles séances écrites par le modèle). À utiliser UNIQUEMENT quand le client signale une blessure ou une contrainte physique durable (ex : douleur au genou, épaule fragile, matériel devenu indisponible) et souhaite que toutes ses séances soient repensées. NE PAS utiliser pour une simple question, ni pour une préférence ou un changement d'exercice (« ajoute du hip thrust », « remplace le rowing », « plus de fessiers ») : pour ça, utilise modifier_seance, qui touche juste ce qui doit l'être. Après l'appel, confirme au client ce qui a changé et rappelle de consulter un professionnel de santé si la douleur persiste.",
       input_schema: {
         type: "object",
         properties: {
@@ -682,9 +682,15 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     const oldCycles = (program?.plan as Plan | undefined)?.cycles ?? [];
     const from = pos.blockIndex * CYCLES_PER_BLOCK;
     const fresh = result.plan.cycles ?? [];
+    // La nutrition ne bouge pas : une adaptation porte sur les séances, et le
+    // modèle recalculait des besoins légèrement différents à chaque passage
+    // (1 950 puis 2 150 kcal pour la même personne). Les macros du client
+    // restent celles de son programme, sauf s'il les change lui-même.
+    const oldPlan = program?.plan as Plan | undefined;
     const mergedPlan: Plan = {
       ...result.plan,
       cycles: [...oldCycles.slice(0, from), ...fresh, ...oldCycles.slice(from + fresh.length)],
+      ...(oldPlan?.nutrition ? { nutrition: oldPlan.nutrition } : {}),
     };
     // duration_months conservée : sinon le prochain calcul d'accès retomberait
     // sur la durée par défaut (90 j) après une adaptation.

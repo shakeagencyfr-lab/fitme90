@@ -130,6 +130,9 @@ export function actionLabel(action: string | null, route: string): string {
     case "fiche-exercice": return "Fiche exercice";
     case "generation": return "Génération de programme";
     case "bloc": return "Bloc suivant du programme";
+    // Régénération du bloc en cours demandée dans le chat (blessure, contrainte).
+    // Même route que le bloc suivant, pas le même geste : le journal le disait mal.
+    case "adaptation": return "Adaptation du programme (Coach IA)";
     case "analyse-salle": return "Analyse photo de la salle";
     case "memoire": return "Résumé de mémoire (nuit)";
     case "verif-cle": return "Vérification de la clé API";
