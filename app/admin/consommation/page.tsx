@@ -4,7 +4,7 @@ import { getAdminOrNull } from "@/lib/admin";
 import { tenantNode } from "@/lib/hierarchy";
 import { usageHistory, scopeAccounts, modelLabel, driverLabel, type UsageRow } from "@/lib/ai-usage-log";
 import { formatUsdPrecise } from "@/lib/ai-cost";
-import { costViewOf } from "@/lib/cost-view";
+import { costViewOf, resellerRights } from "@/lib/cost-view";
 import { usdToEur, formatEurPrecise } from "@/lib/config";
 import { Card, MonoLabel } from "@/components/ui";
 import { UsageFilters } from "@/components/usage-filters";
@@ -54,10 +54,11 @@ export default async function AdminUsagePage({
   const action = ACTIONS.some((a) => a.value === sp.action) ? sp.action! : "";
   const accountId = sp.compte ?? "";
 
-  const [page, accounts, view] = await Promise.all([
+  const [page, accounts, view, rights] = await Promise.all([
     usageHistory(tenantId, scope, { days, action, accountId }),
     scopeAccounts(tenantId, scope),
     costViewOf(tenantId),
+    resellerRights(tenantId),
   ]);
   const { rows, totals, truncated } = page;
 
@@ -68,7 +69,10 @@ export default async function AdminUsagePage({
   // plateforme, ce que la plateforme lui a pris ; pour la plateforme et un
   // revendeur en clé perso, ce qu'ils ont facturé en dessous.
   const showUsd = view === "usd";
-  const showCredits = view !== "included";
+  // Un revendeur à qui la plateforme n'a pas ouvert la revente de crédits ne
+  // fournit pas l'IA : ses coachs ne sont jamais débités, et il ne voit rien
+  // des crédits (lib/supply-rights.ts).
+  const showCredits = view === "credits" || (view === "usd" && (kind !== "reseller" || rights.credits));
   const upstream = kind === "platform" || (kind === "reseller" && view === "credits");
   const creditsOf = (r: { credits: number; supplierCredits: number }) => (upstream ? r.supplierCredits : r.credits);
   const creditsLabel =

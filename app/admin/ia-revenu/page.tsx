@@ -130,9 +130,16 @@ export default async function AdminResellerAiPage() {
   const cost = `$${usage.costUsd.toFixed(2)}`;
   const perCoach = usage.coachCount > 0 ? usage.costUsd / usage.coachCount : 0;
   const creditsPerCoach = usage.coachCount > 0 ? Math.round(usage.supplierCredits / usage.coachCount) : 0;
-  // Ce que le palier de ce revendeur lui permet de proposer à ses coachs.
+  // Ce que le palier de ce revendeur lui permet de proposer à ses coachs
+  // (lib/supply-rights.ts). Sans la revente de crédits, il ne fournit pas
+  // l'IA et ne voit rien des crédits : ni modèle, ni packs, ni tarification,
+  // ni mode de fourniture. Il ne lui reste que le pack marque blanche à
+  // vendre, et le coût indicatif de son réseau.
   const byokAllowed = t?.coach_byok_allowed !== false;
   const creditsAllowed = t?.coach_credits_allowed !== false;
+  // Un revendeur en crédits plateforme fournit quoi qu'il arrive (il n'a pas
+  // de clé à lui) : le plafond par client reste à régler.
+  const provides = creditsAllowed || buysFromPlatform;
 
   return (
     <div className="flex flex-col gap-5">
@@ -140,7 +147,10 @@ export default async function AdminResellerAiPage() {
         <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
           {tx("Revenu IA")}</h1>
         <p className="max-w-[72ch] text-[15px] leading-[1.6] text-muted">
-          {buysFromPlatform ? (
+          {!provides ? (
+            <>
+              {tx("Tes coachs branchent chacun leur propre clé Anthropic et règlent leur consommation directement. Tu factures tes paliers et le pack marque blanche, tu ne gères pas l'IA.")}</>
+          ) : buysFromPlatform ? (
             <>
               {tx("Tu achètes tes crédits IA à la plateforme et tu les revends à tes coachs avec ta marge. L'IA tourne sur la clé de la plateforme : chaque action de tes coachs débite ton solde, et ton prix de revente fait ta marge.")}</>
           ) : (
@@ -182,14 +192,16 @@ export default async function AdminResellerAiPage() {
         </Card>
       ) : null}
 
-      <ResellerModelForm
-        initialModel={resellerModel}
-        keyConfigured={aiSourceReady}
-        packs={packs}
-        unitCents={creditPrice}
-        buyPriceCents={buyPriceCents}
-        creditsAllowed={creditsAllowed}
-      />
+      {creditsAllowed ? (
+        <ResellerModelForm
+          initialModel={resellerModel}
+          keyConfigured={aiSourceReady}
+          packs={packs}
+          unitCents={creditPrice}
+          buyPriceCents={buyPriceCents}
+          creditsAllowed={creditsAllowed}
+        />
+      ) : null}
 
       <WhitelabelPriceForm
         initialCents={t?.whitelabel_addon_price_cents ?? null}
@@ -199,26 +211,30 @@ export default async function AdminResellerAiPage() {
       {/* En crédits plateforme, la fourniture est fixée (pas de choix BYOK /
           provider) mais le plafond par client reste à régler, et son coût se
           lit en crédits au prix d'achat : jamais en dollars. */}
-      <ResellerAiModeForm
-        initialMode={mode}
-        initialLimit={limit}
-        keyConfigured={key.configured}
-        absorbsCost={resellerModel === "subscription"}
-        byokAllowed={byokAllowed}
-        fixedProvider={buysFromPlatform}
-        creditCents={buysFromPlatform ? buyPriceCents : null}
-      />
+      {provides ? (
+        <ResellerAiModeForm
+          initialMode={mode}
+          initialLimit={limit}
+          keyConfigured={key.configured}
+          absorbsCost={resellerModel === "subscription"}
+          byokAllowed={byokAllowed}
+          fixedProvider={buysFromPlatform}
+          creditCents={buysFromPlatform ? buyPriceCents : null}
+        />
+      ) : null}
 
       {/* Un revendeur qui achète ses crédits est débité dans l'unité de son
           fournisseur : c'est celle-là qu'on lui montre, pas la sienne. Afficher
           la sienne lui annonçait une marge positive sur une génération qui lui
           coûtait en réalité davantage qu'elle ne lui rapportait. */}
-      <ResellerCreditPricingForm
-        initialPriceCents={creditPrice}
-        initialProgramCredits={buysFromPlatform ? platformProgramCredits ?? DEFAULT_PROGRAM_CREDITS : programCredits}
-        buyPriceCents={buyPriceCents}
-        canSetCredits={!buysFromPlatform}
-      />
+      {creditsAllowed ? (
+        <ResellerCreditPricingForm
+          initialPriceCents={creditPrice}
+          initialProgramCredits={buysFromPlatform ? platformProgramCredits ?? DEFAULT_PROGRAM_CREDITS : programCredits}
+          buyPriceCents={buyPriceCents}
+          canSetCredits={!buysFromPlatform}
+        />
+      ) : null}
 
       {/* Un revendeur en crédits plateforme lit sa dépense en crédits, jamais
           en dollars : le montant Anthropic contiendrait la marge de la
@@ -259,7 +275,9 @@ export default async function AdminResellerAiPage() {
         </Card>
       )}
 
-      {!buysFromPlatform ? (
+      {/* Sa clé ne sert ici qu'à fournir l'IA à son réseau : sans le droit de
+          la fournir, elle se règle dans Intégrations, pour lui seul. */}
+      {!buysFromPlatform && creditsAllowed ? (
         <>
           {mode === "provider" && !key.configured ? (
             <Alert>

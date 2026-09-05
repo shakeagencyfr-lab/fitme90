@@ -5,6 +5,8 @@ import { usePhrase } from "@/components/locale-provider";
 import { useActionState, useState } from "react";
 import { addPlan, type PlanState } from "@/app/admin/actions";
 import { Button, Alert, MonoLabel } from "@/components/ui";
+import { FixedSupply, ResellerRightsFields } from "@/components/free-plan-form";
+import { ALL_RIGHTS, resolveSupply, supplyIsChoice, type PlanAiSupply, type SupplyRights } from "@/lib/supply-rights";
 
 /**
  * Formulaire de création d'un palier d'abonnement (facturation Lot C). Le
@@ -15,23 +17,30 @@ import { Button, Alert, MonoLabel } from "@/components/ui";
  * dire : la plateforme vend à des revendeurs, dont le palier plafonne les
  * COMPTES de leur réseau ; un revendeur vend à des coachs, dont le palier
  * plafonne les CLIENTS. Une seule colonne en base, deux libellés.
+ *
+ * `rights` : ce que le vendeur a le droit de proposer. Un revendeur à qui la
+ * plateforme n'a ouvert qu'un mode ne choisit pas la fourniture, elle est
+ * dite.
  */
 export function PlanForm({
   atLimit,
   unit = "clients",
-  byokAllowed = true,
+  rights = ALL_RIGHTS,
 }: {
   atLimit: boolean;
   unit?: "clients" | "comptes";
-  /** Un revendeur sans le droit de laisser ses coachs en clé perso ne vend que des paliers qui fournissent l'IA. */
-  byokAllowed?: boolean;
+  rights?: SupplyRights;
 }) {
   const tx = usePhrase();
   const comptes = unit === "comptes";
   const [state, action, pending] = useActionState(addPlan, {} as PlanState);
-  const [supply, setSupply] = useState<"byok" | "credits">(byokAllowed ? "byok" : "credits");
+  const [supply, setSupply] = useState<PlanAiSupply>(resolveSupply(rights, "byok"));
   const [byok, setByok] = useState(true);
   const [credits, setCredits] = useState(false);
+  const choice = supplyIsChoice(rights);
+  // Un revendeur en crédits plateforme fournit l'IA à ses coachs : la revente
+  // de crédits va avec, la case suit la fourniture.
+  const creditsForced = comptes && supply === "credits";
 
   if (atLimit) {
     return (
@@ -102,58 +111,41 @@ export function PlanForm({
       </div>
 
       {/* Le palier porte son modèle : la fourniture d'IA se choisit ici, au
-          moment de le vendre, et non compte par compte après coup. */}
+          moment de le vendre, et non compte par compte après coup. Quand le
+          palier du vendeur ne lui ouvre qu'un mode, elle est dite. */}
       <div className="flex flex-col gap-1.5">
         <MonoLabel>{tx("Fourniture de l'IA")}</MonoLabel>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {(
-            [
-              ["byok", tx("Clé personnelle (BYOK)"), comptes ? tx("Le revendeur branche sa propre clé Anthropic et règle Anthropic directement.") : tx("Le coach branche sa propre clé Anthropic et règle Anthropic directement.")],
-              ["credits", tx("Crédits IA"), comptes ? tx("L'IA tourne sur ta clé, le revendeur t'achète des crédits et les revend avec sa marge.") : tx("L'IA tourne sur ta chaîne, le coach t'achète des crédits.")],
-            ] as const
-          ).map(([val, title, desc]) => {
-            const locked = val === "byok" && !byokAllowed;
-            return (
+        {choice ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {(
+              [
+                ["byok", tx("Clé personnelle (BYOK)"), comptes ? tx("Le revendeur branche sa propre clé Anthropic et règle Anthropic directement.") : tx("Le coach branche sa propre clé Anthropic et règle Anthropic directement.")],
+                ["credits", tx("Crédits IA"), comptes ? tx("L'IA tourne sur ta clé, le revendeur t'achète des crédits et les revend avec sa marge.") : tx("L'IA tourne sur ta chaîne, le coach t'achète des crédits.")],
+              ] as const
+            ).map(([val, title, desc]) => (
               <label
                 key={val}
                 className={[
-                  "tap flex flex-col gap-0.5 rounded-control border px-3.5 py-2.5 transition-colors",
-                  locked ? "cursor-not-allowed border-line-4 opacity-60" : "cursor-pointer",
-                  !locked && supply === val ? "border-brand bg-brand/[0.06]" : "border-line-4 hover:border-ink/40",
+                  "tap flex cursor-pointer flex-col gap-0.5 rounded-control border px-3.5 py-2.5 transition-colors",
+                  supply === val ? "border-brand bg-brand/[0.06]" : "border-line-4 hover:border-ink/40",
                 ].join(" ")}
               >
-                <input type="radio" name="ai_supply" value={val} checked={supply === val} disabled={locked} onChange={() => setSupply(val)} className="sr-only" />
+                <input type="radio" name="ai_supply" value={val} checked={supply === val} onChange={() => setSupply(val)} className="sr-only" />
                 <span className="text-[14px] font-semibold text-ink">{title}</span>
                 <span className="text-[12px] leading-[1.5] text-muted-2">{desc}</span>
-                {locked ? <span className="text-[12px] font-medium text-[#C4471A]">{tx("Ton palier ne le permet pas : tu fournis l'IA.")}</span> : null}
               </label>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <FixedSupply supply={supply} />
+        )}
       </div>
 
       {/* Inclure la marque blanche est un argument de vente pour monter en
           gamme : la case appartient au palier. Un revendeur l'a toujours, la
           question ne se pose que pour les coachs. */}
       {comptes ? (
-        <div className="flex flex-col gap-2">
-          <MonoLabel>{tx("Ce que le revendeur pourra proposer à ses coachs")}</MonoLabel>
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
-            <input type="checkbox" checked={byok} onChange={(e) => setByok(e.target.checked)} className="mt-0.5 size-4 accent-brand" />
-            <input type="hidden" name="coach_byok_allowed" value={byok ? "on" : "off"} />
-            <span className="flex flex-col gap-0.5">
-              <span className="text-[14px] font-semibold text-ink">{tx("Des coachs en clé personnelle")}</span>
-              <span className="text-[12px] leading-[1.5] text-muted-2">{tx("Chaque coach branche sa propre clé Anthropic.")}</span>
-            </span>
-          </label>
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
-            <input type="checkbox" name="coach_credits_allowed" checked={credits} onChange={(e) => setCredits(e.target.checked)} className="mt-0.5 size-4 accent-brand" />
-            <span className="flex flex-col gap-0.5">
-              <span className="text-[14px] font-semibold text-ink">{tx("La revente de crédits IA à ses coachs")}</span>
-              <span className="text-[12px] leading-[1.5] text-muted-2">{tx("Le revendeur fournit l'IA et prend sa marge sur chaque crédit. Une ligne de plus sur ton palier, et une belle opportunité pour lui.")}</span>
-            </span>
-          </label>
-        </div>
+        <ResellerRightsFields byok={byok} setByok={setByok} credits={credits || creditsForced} setCredits={setCredits} creditsForced={creditsForced} />
       ) : (
         <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
           <input type="checkbox" name="whitelabel_included" className="mt-0.5 size-4 accent-brand" />

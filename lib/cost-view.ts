@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { tenantNode } from "@/lib/hierarchy";
 import { coachSupplyFacts, resellerSupply } from "@/lib/credits";
 import { costViewFor, supplyDisplay, type CostView } from "@/lib/ai-supply";
+import { ALL_RIGHTS, type SupplyRights } from "@/lib/supply-rights";
 
 export type { CostView };
 
@@ -23,17 +24,13 @@ export async function costViewOf(tenantId: string | null): Promise<CostView> {
 /**
  * Ce qu'un revendeur a le DROIT de proposer à ses coachs, recopié depuis son
  * palier (lib/plan-apply.ts). La plateforme et un coach n'ont pas de
- * restriction : la question ne se pose qu'à l'étage revendeur.
+ * restriction : la question ne se pose qu'à l'étage revendeur. La règle qui
+ * en découle est dans lib/supply-rights.ts (pure).
  */
-export interface ResellerRights {
-  /** Peut laisser ses coachs en clé personnelle (BYOK). */
-  byok: boolean;
-  /** Peut revendre des crédits IA à ses coachs. */
-  credits: boolean;
-}
+export type ResellerRights = SupplyRights;
 
 export async function resellerRights(tenantId: string | null): Promise<ResellerRights> {
-  const all: ResellerRights = { byok: true, credits: true };
+  const all: ResellerRights = ALL_RIGHTS;
   if (!tenantId) return all;
   const admin = createAdminClient();
   const { data } = await admin

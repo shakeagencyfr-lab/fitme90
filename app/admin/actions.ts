@@ -18,6 +18,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isServedInstant } from "@/lib/push-windows";
 import { getAdminOrNull } from "@/lib/admin";
 import { tenantNode } from "@/lib/hierarchy";
+import { reapplyFreePlan } from "@/lib/plan-apply";
 import { accountCapacity } from "@/lib/entitlements";
 import { createChildTenantAccount } from "@/lib/admin-provision";
 import { isDescendantTenant, isOwnClient, loginLinkForUser, establishSupportSession, logSupportAccess } from "@/lib/support-access";
@@ -632,7 +633,11 @@ export async function editFreePlan(_prev: PlanState, formData: FormData): Promis
     coachCreditsAllowed: formData.get("coach_credits_allowed") === "on",
   });
   if (!res.ok) return { error: res.error };
+  // Les comptes qui sont sur ce palier gratuit en reprennent le modèle tout
+  // de suite : un droit ouvert ou retiré par une case n'attend pas un rachat.
+  await reapplyFreePlan(tenantId);
   revalidatePath("/admin/paliers");
+  revalidatePath("/admin/reseau");
   return { ok: true };
 }
 
@@ -1178,10 +1183,15 @@ export async function saveResellerAiMode(_prev: ResellerAiState, formData: FormD
 
   const mode = formData.get("ai_mode") === "provider" ? "provider" : "byok";
 
-  // Le droit de laisser ses coachs en clé personnelle vient du palier posé
-  // par la plateforme : sans lui, le revendeur fournit l'IA, point.
-  if (mode === "byok" && !(await resellerRights(tenantId)).byok) {
+  // Les deux modes viennent du palier posé par la plateforme : sans le droit
+  // de laisser ses coachs en clé personnelle, le revendeur fournit l'IA,
+  // point ; sans le droit de la fournir, chacun sa clé, point.
+  const rights = await resellerRights(tenantId);
+  if (mode === "byok" && !rights.byok) {
     return { error: "Ton palier ne te permet pas de laisser tes coachs en clé personnelle : tu fournis l'IA à ton réseau." };
+  }
+  if (mode === "provider" && !rights.credits) {
+    return { error: "Ton palier ne comprend pas la fourniture d'IA à tes coachs : chacun branche sa propre clé." };
   }
 
   // Garde-fou : le mode « revendeur d'IA » exige que le revendeur ait branché

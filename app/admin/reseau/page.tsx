@@ -10,11 +10,12 @@ import { CreateAccountForm } from "@/components/create-account-form";
 import { CapacityCard, CAPACITE_COMPTES } from "@/components/capacity-card";
 import { NetworkActionsMenu } from "@/components/network-actions-menu";
 import { canGiftCredits, supplyContexts } from "@/lib/network-admin";
+import { ALL_RIGHTS, supplyIsChoice } from "@/lib/supply-rights";
 import { listPlans } from "@/lib/plans";
 import { accountCapacity } from "@/lib/entitlements";
 import { networkAiFigures, type NetworkAi } from "@/lib/network-ai";
 import { formatUsd } from "@/lib/ai-cost";
-import { costViewOf } from "@/lib/cost-view";
+import { costViewOf, resellerRights } from "@/lib/cost-view";
 import { GRANTED_STATUS } from "@/lib/tenant-billing";
 
 export const metadata = { title: "Mon réseau" };
@@ -53,11 +54,17 @@ export default async function AdminNetworkPage({
   // la plateforme. Sur un coach, elle pose une DISPENSE : il tourne sur sa
   // propre clé alors que son revendeur fournit les autres. Dans les deux cas
   // c'est le parent qui décide, jamais le compte lui-même.
+  //
+  // Un revendeur à qui la plateforme n'a ouvert qu'un mode n'a rien à
+  // basculer sur ses coachs : ils sont tous dans le seul mode permis
+  // (lib/supply-rights.ts), et le serveur refuserait de toute façon.
+  const rights = tenantId ? await resellerRights(tenantId) : ALL_RIGHTS;
+  const coachToggle = supplyIsChoice(rights);
   const supplies = tenantId
     ? await supplyContexts(
         tenantId,
         children
-          .filter((c) => c.kind === "reseller" || c.kind === "coach")
+          .filter((c) => c.kind === "reseller" || (c.kind === "coach" && coachToggle))
           .map((c) => ({
             id: c.id,
             kind: c.kind === "reseller" ? ("reseller" as const) : ("coach" as const),

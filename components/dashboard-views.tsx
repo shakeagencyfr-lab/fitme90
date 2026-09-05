@@ -272,10 +272,11 @@ export function NetworkView({ d }: { d: ResellerDashboard }) {
               <Figure value={`≈ ${euros(Math.round(aiEur * 100))}`} label={tx("coût réel")} />
             )}
             <Figure value={d.ai.calls.toLocaleString("fr-FR")} label={tx("appels")} />
-            <Figure
-              value={d.ai.credits != null ? d.ai.credits.toLocaleString("fr-FR") : "·"}
-              label={tx("crédits en stock")}
-            />
+            {/* Un stock n'existe que pour qui achète ses crédits : ailleurs, le
+                mot « crédits » n'a rien à faire sur ce tableau. */}
+            {d.ai.view === "credits" ? (
+              <Figure value={(d.ai.credits ?? 0).toLocaleString("fr-FR")} label={tx("crédits en stock")} />
+            ) : null}
           </div>
           <p className="text-[12.5px] leading-[1.6] text-muted">
             {d.ai.view === "credits"
