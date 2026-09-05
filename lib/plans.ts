@@ -19,13 +19,15 @@ export interface Plan {
   /** Capacité clients accordée à l'acheteur ; null = illimité. */
   client_limit: number | null;
   setup_fee_cents: number;
+  /** Ce palier inclut-il le mini-site « Mon site » de ses coachs ? */
+  site_included: boolean;
   is_active: boolean;
   position: number;
   created_at: string;
 }
 
 const PLAN_COLS =
-  "id, tenant_id, name, price_month_cents, price_year_cents, client_limit, setup_fee_cents, is_active, position, created_at";
+  "id, tenant_id, name, price_month_cents, price_year_cents, client_limit, setup_fee_cents, site_included, is_active, position, created_at";
 
 /** Paliers d'un vendeur, ordonnés (pour le dashboard). */
 export async function listPlans(tenantId: string): Promise<Plan[]> {
@@ -46,6 +48,8 @@ export interface CreatePlanInput {
   /** null = illimité. */
   clientLimit?: number | null;
   setupFeeCents?: number | null;
+  /** Le palier ouvre-t-il « Mon site » à ses coachs, sans supplément ? */
+  siteIncluded?: boolean;
 }
 
 export interface CreatePlanResult {
@@ -93,10 +97,35 @@ export async function createPlan(tenantId: string, input: CreatePlanInput): Prom
     price_year_cents: priceYearCents,
     client_limit: clientLimit,
     setup_fee_cents: setupFeeCents ?? 0,
+    site_included: !!input.siteIncluded,
     position: count ?? 0,
   });
   if (error) return { ok: false, error: "Création impossible." };
   return { ok: true };
+}
+
+/**
+ * Ouvre ou ferme « Mon site » sur un palier existant.
+ *
+ * Une bascule à part, et pas un champ de plus dans un formulaire d'édition :
+ * c'est la seule chose qu'un revendeur ait de bonnes raisons de changer sur un
+ * palier déjà vendu. Le prix et la capacité, eux, décrivent ce que ses coachs
+ * ont acheté.
+ *
+ * L'effet est immédiat pour tous les coachs du palier : `siteAccess` relit
+ * cette colonne à chaque visite, personne n'a à se réabonner.
+ */
+export async function setPlanSiteIncluded(
+  tenantId: string,
+  planId: string,
+  included: boolean,
+): Promise<void> {
+  const admin = createAdminClient();
+  await admin
+    .from("plans")
+    .update({ site_included: included })
+    .eq("id", planId)
+    .eq("tenant_id", tenantId);
 }
 
 /** Active / désactive un palier. */

@@ -517,6 +517,9 @@ export const RESERVED_PATH_SEGMENTS = new Set([
   // « web » sert les mini-sites de présentation (/web/<adresse>) : sans cette
   // ligne, le proxy réécrirait /web vers la landing d'un coach nommé « web ».
   "web",
+  // « apercu-site » sert l'aperçu privé du mini-site dans le studio : sans
+  // cette ligne, le proxy le réécrirait vers la landing d'un coach du même nom.
+  "apercu-site",
   "plan-pdf", "dev",
   "connexion", "inscription", "inscription-coach", "inscription-revendeur", "verifie-tes-mails", "mot-de-passe-oublie",
   "reinitialiser", "cgv", "confidentialite", "mentions-legales", "desabonnement",

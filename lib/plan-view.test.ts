@@ -20,6 +20,7 @@ function plan(over: Partial<Plan> & { id: string }): Plan {
     price_year_cents: null,
     client_limit: null,
     setup_fee_cents: 0,
+    site_included: false,
     is_active: true,
     position: 0,
     created_at: "2026-01-01",

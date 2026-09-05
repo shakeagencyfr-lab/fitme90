@@ -29,7 +29,8 @@ import {
 } from "@/lib/tenant";
 import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, updateOffer, setOfferActive, deleteOffer } from "@/lib/offers";
-import { createPlan, setPlanActive, deletePlan } from "@/lib/plans";
+import { setResellerSitePrice, startSiteCheckout } from "@/lib/site-addon";
+import { createPlan, setPlanActive, setPlanSiteIncluded, deletePlan } from "@/lib/plans";
 import { cancelTenantPlan, reactivateTenantPlan, syncTenantSubscription } from "@/lib/tenant-billing";
 import { deleteOwnCoachAccount } from "@/lib/account-deletion";
 import { setAffiliation } from "@/lib/affiliation";
@@ -579,10 +580,52 @@ export async function addPlan(_prev: PlanState, formData: FormData): Promise<Pla
     priceYearCents: year.cents,
     setupFeeCents: setup.cents ?? 0,
     clientLimit,
+    siteIncluded: formData.get("site_included") === "on",
   });
   if (!res.ok) return { error: res.error };
   revalidatePath("/admin/paliers");
   return { ok: true };
+}
+
+/**
+ * Le revendeur ouvre ou ferme « Mon site » sur un palier existant.
+ *
+ * Une action à part parce que c'est la seule chose qu'il ait de bonnes raisons
+ * de changer sur un palier déjà vendu : le prix et la capacité décrivent, eux,
+ * ce que ses coachs ont acheté.
+ */
+export async function togglePlanSite(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await setPlanSiteIncluded(ctx.profile.tenant_id, id, formData.get("included") === "on");
+  revalidatePath("/admin/paliers");
+}
+
+/** Le revendeur fixe (ou retire) le prix mensuel de son option « Mon site ». */
+export async function saveSitePrice(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const raw = String(formData.get("price_euros") ?? "").replace(",", ".").trim();
+  let cents: number | null = null;
+  if (raw) {
+    const n = Math.round(Number(raw) * 100);
+    if (!Number.isFinite(n) || n < 0) return { error: "Prix invalide." };
+    cents = n > 0 ? n : null;
+  }
+  await setResellerSitePrice(ctx.profile.tenant_id, cents);
+  revalidatePath("/admin/ia-revenu");
+  return { ok: true };
+}
+
+/** Le coach souscrit l'option « Mon site » (paiement chez son revendeur). */
+export async function buySiteAddon(): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const res = await startSiteCheckout(ctx.profile.tenant_id, ctx.email ?? null);
+  if (res.url) redirect(res.url);
+  redirect("/admin/site?site_erreur=1");
 }
 
 /** Active / désactive un palier (form action directe). */
@@ -1917,6 +1960,53 @@ export async function googleImportStep(
   }
 
   return prev;
+}
+
+/**
+ * Remet à jour les coordonnées depuis la fiche Google déjà rattachée.
+ *
+ * L'import initial était un événement : on cherchait sa fiche, on relisait, on
+ * appliquait. Or ce qu'une fiche Google contient BOUGE, et c'est justement ce
+ * qui vieillit le plus mal sur un site : des horaires d'été affichés en
+ * décembre, un numéro qui a changé, une note figée à la valeur d'il y a six
+ * mois. Rattacher n'était utile qu'une fois, resynchroniser l'est toujours.
+ *
+ * Ne touche QUE ce que Google sait de source sûre : adresse, téléphone, autre
+ * site, horaires, catégorie, note et nombre d'avis. Les textes rédigés par le
+ * coach ne sont jamais réécrits, et la galerie n'est pas recopiée : ces photos
+ * sont déjà chez nous, les reprendre à chaque clic ferait grossir le stockage
+ * sans rien montrer de neuf.
+ */
+export async function resyncGoogleListing(): Promise<{ error?: string; ok?: boolean }> {
+  const ctx = await getAdminOrNull();
+  const tenantId = ctx?.profile?.tenant_id;
+  if (!tenantId) return { error: "Accès refusé." };
+  if (!serpApiEnabled()) return { error: "L'import Google n'est pas configuré sur cette installation." };
+
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("tenants")
+    .select("google_place_id")
+    .eq("id", tenantId)
+    .maybeSingle<{ google_place_id: string | null }>();
+  const dataId = data?.google_place_id ?? null;
+  if (!dataId) return { error: "Aucune fiche Google rattachée." };
+
+  const res = await fetchPlaceDraft(dataId, { placeId: null });
+  if (!res.ok) return { error: res.error };
+
+  const applied = await applyGoogleImport(
+    tenantId,
+    res.data,
+    { infos: true, textes: false, photoUrl: null, galerie: [], avis: [] },
+    fetch,
+    null,
+  );
+  if (!applied.ok) return { error: applied.error ?? "Mise à jour impossible." };
+
+  revalidatePath("/admin/site");
+  revalidatePath("/admin/fiche-google");
+  return { ok: true };
 }
 
 /**
