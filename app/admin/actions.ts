@@ -30,6 +30,7 @@ import {
 import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, updateOffer, setOfferActive, setOfferListed, deleteOffer } from "@/lib/offers";
 import { setResellerSitePrice, startSiteCheckout } from "@/lib/site-addon";
+import { resellerClientDailyCap } from "@/lib/coach-ai-budget";
 import { createPlan, setPlanActive, setPlanSiteIncluded, deletePlan } from "@/lib/plans";
 import { cancelTenantPlan, reactivateTenantPlan, syncTenantSubscription } from "@/lib/tenant-billing";
 import { deleteOwnCoachAccount } from "@/lib/account-deletion";
@@ -419,6 +420,33 @@ export async function removeAsset(kind: string): Promise<BrandingState> {
 export interface OfferState {
   ok?: boolean;
   error?: string;
+  /**
+   * Quota finalement enregistré quand le plafond du revendeur l'a ramené plus
+   * bas que le nombre saisi. L'écran l'annonce alors : un réglage corrigé en
+   * silence est exactement ce qui a fait croire à un bug (« j'ai mis 30 et
+   * rien n'a changé »).
+   */
+  quotaRamene?: number;
+}
+
+/**
+ * Ramène un quota saisi sous le plafond du revendeur.
+ *
+ * TROIS CAS, ET LE DEUXIÈME EST CELUI QU'ON OUBLIE. Sans plafond, on garde ce
+ * qui est saisi. Avec un plafond, « 0 = illimité » devient impossible : c'est
+ * le plafond qui fait loi, sinon un quota à zéro passerait au travers en
+ * promettant l'infini. Et un nombre au-dessus du plafond est ramené à lui.
+ *
+ * Le serveur tranche, même si le formulaire empêche déjà de dépasser : le
+ * champ borné est un confort, pas une garantie.
+ */
+export function quotaSousPlafond(saisi: number | null, plafond: number): {
+  valeur: number | null;
+  ramene: boolean;
+} {
+  if (plafond <= 0 || saisi == null) return { valeur: saisi, ramene: false };
+  if (saisi <= 0 || saisi > plafond) return { valeur: plafond, ramene: true };
+  return { valeur: saisi, ramene: false };
 }
 
 /** Ajoute une offre au catalogue du tenant (max 3, durées prédéfinies). */
@@ -437,10 +465,15 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
   // défaut du coach). Recettes et alternatives d'exercice sont calculées sans
   // modèle : elles n'entrent dans aucun plafond.
   const quotaRaw = String(formData.get("coach_ai_daily_limit") ?? "").trim();
-  const coachAiDailyLimit = quotaRaw === "" ? null : Number(quotaRaw);
-  if (coachAiDailyLimit != null && (!Number.isFinite(coachAiDailyLimit) || coachAiDailyLimit < 0)) {
+  const quotaSaisi = quotaRaw === "" ? null : Number(quotaRaw);
+  if (quotaSaisi != null && (!Number.isFinite(quotaSaisi) || quotaSaisi < 0)) {
     return { error: "Quota d'actions IA invalide." };
   }
+  // Le plafond du revendeur fait loi : c'est lui qui paie l'IA quand il la
+  // fournit. On l'applique ICI plutôt que de laisser le plan promettre un
+  // nombre que le client n'obtiendra jamais.
+  const plafond = await resellerClientDailyCap(tenantId);
+  const { valeur: coachAiDailyLimit, ramene } = quotaSousPlafond(quotaSaisi, plafond);
 
   // Parse un montant en euros (« 190 » ou « 29,90 ») → centimes, ou null si vide.
   const toCents = (raw: unknown): { cents: number | null; bad: boolean } => {
@@ -470,7 +503,7 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
   });
   if (!res.ok) return { error: res.error };
   revalidatePath("/admin/plans");
-  return { ok: true };
+  return { ok: true, quotaRamene: ramene ? plafond : undefined };
 }
 
 /**
@@ -489,10 +522,12 @@ export async function editOffer(_prev: OfferState, formData: FormData): Promise<
   if (!id) return { error: "Plan introuvable." };
 
   const quotaRaw = String(formData.get("coach_ai_daily_limit") ?? "").trim();
-  const coachAiDailyLimit = quotaRaw === "" ? null : Number(quotaRaw);
-  if (coachAiDailyLimit != null && (!Number.isFinite(coachAiDailyLimit) || coachAiDailyLimit < 0)) {
+  const quotaSaisi = quotaRaw === "" ? null : Number(quotaRaw);
+  if (quotaSaisi != null && (!Number.isFinite(quotaSaisi) || quotaSaisi < 0)) {
     return { error: "Quota de messages IA invalide." };
   }
+  const plafond = await resellerClientDailyCap(tenantId);
+  const { valeur: coachAiDailyLimit, ramene } = quotaSousPlafond(quotaSaisi, plafond);
 
   const res = await updateOffer(tenantId, id, {
     name: String(formData.get("name") ?? ""),
@@ -504,7 +539,7 @@ export async function editOffer(_prev: OfferState, formData: FormData): Promise<
   // La landing publique est rendue à la demande : elle relit les offres à
   // chaque visite, il n'y a rien à invalider de ce côté.
   revalidatePath("/admin/plans");
-  return { ok: true };
+  return { ok: true, quotaRamene: ramene ? plafond : undefined };
 }
 
 /** Affiche ou masque un plan sur la page publique (form action directe). */

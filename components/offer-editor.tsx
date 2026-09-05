@@ -72,8 +72,17 @@ export function OfferEditor({
    * cette ligne à l'écran, un coach qui monte son quota de 15 à 30 constate que
    * rien ne change chez son client et n'a aucun moyen de comprendre pourquoi.
    */
-  const effectif = resellerCap > 0 ? (quotaN <= 0 ? resellerCap : Math.min(quotaN, resellerCap)) : quotaN;
+  const sousPlafond = (n: number) =>
+    resellerCap > 0 ? (n <= 0 ? resellerCap : Math.min(n, resellerCap)) : n;
+
+  // Ce que produirait la valeur en cours de saisie, pour l'avertissement.
+  const effectif = sousPlafond(quotaN);
   const bride = resellerCap > 0 && effectif !== quotaN;
+
+  // Ce que produit la valeur DÉJÀ ENREGISTRÉE, pour la pastille de la ligne.
+  const enregistre = offer.coach_ai_daily_limit;
+  const enregistreEffectif = enregistre == null ? null : sousPlafond(enregistre);
+  const enregistreBride = enregistre != null && enregistreEffectif !== enregistre;
 
   const days = programDaysForMonths(months);
   // Le coût se calcule sur ce que le client peut RÉELLEMENT consommer.
@@ -99,12 +108,18 @@ export function OfferEditor({
             {!offer.is_active ? <Pill>{tx("Inactif")}</Pill> : null}
             {offer.is_active && !offer.is_listed ? <Pill>{tx("Masqué")}</Pill> : null}
             {offer.coach_ai ? (
+              /* La pastille annonce ce que le client REÇOIT, pas ce qui est
+                 enregistré : c'est elle qu'on lit en diagonale, et elle a fait
+                 croire à un quota de 30 là où le revendeur en servait 15. */
               <Pill tone="brand">
                 {tx("Coach IA")}
-                {offer.coach_ai_daily_limit != null
-                  ? ` · ${offer.coach_ai_daily_limit === 0 ? tx("illimité") : `${offer.coach_ai_daily_limit}/${tx("jour")}`}`
+                {enregistreEffectif != null
+                  ? ` · ${enregistreEffectif === 0 ? tx("illimité") : `${enregistreEffectif}/${tx("jour")}`}`
                   : ""}
               </Pill>
+            ) : null}
+            {enregistreBride ? (
+              <Pill>{tx("plafonné par ton revendeur")}</Pill>
             ) : null}
             {offer.vip_chat ? <Pill tone="brand">{tx("Chat VIP")}</Pill> : null}
           </div>
@@ -216,12 +231,20 @@ export function OfferEditor({
             {coachAi ? (
               <div className="ml-3 flex flex-col gap-3 rounded-control border border-brand/30 bg-surface p-3.5">
                 <label className="flex flex-col gap-1.5">
-                  <MonoLabel>{tx("Échanges avec le Coach IA par jour et par client (0 = illimité)")}</MonoLabel>
+                  <MonoLabel>
+                    {resellerCap > 0
+                      ? `${tx("Échanges avec le Coach IA par jour et par client")} (${tx("maximum")} ${resellerCap})`
+                      : tx("Échanges avec le Coach IA par jour et par client (0 = illimité)")}
+                  </MonoLabel>
+                  {/* Le champ est borné au plafond du revendeur : on ne peut
+                      plus saisir un nombre que le client n'obtiendra jamais.
+                      Le serveur re-tranche quand même, un champ borné étant un
+                      confort et non une garantie. */}
                   <input
                     name="coach_ai_daily_limit"
                     type="number"
-                    min={0}
-                    max={1000}
+                    min={resellerCap > 0 ? 1 : 0}
+                    max={resellerCap > 0 ? resellerCap : 1000}
                     inputMode="numeric"
                     value={quota}
                     onChange={(e) => setQuota(e.target.value)}
@@ -311,7 +334,13 @@ export function OfferEditor({
           </div>
 
           {state.error ? <Alert>{state.error}</Alert> : null}
-          {state.ok ? <Alert tone="info">{tx("Plan mis à jour.")}</Alert> : null}
+          {state.ok ? (
+            <Alert tone="info">
+              {state.quotaRamene != null
+                ? `${tx("Plan mis à jour. Ton revendeur plafonne les échanges à")} ${state.quotaRamene} ${tx("par jour : c'est ce qui a été enregistré, et c'est ce que reçoivent tes clients.")}`
+                : tx("Plan mis à jour. Tes clients de ce plan ont le nouveau quota dès maintenant.")}
+            </Alert>
+          ) : null}
 
           <Button type="submit" loading={pending} className="self-start h-11">
             {tx("Enregistrer les modifications")}

@@ -1,5 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { coachSupplyFacts } from "@/lib/credits";
+import { whoPays } from "@/lib/ai-supply";
 
 // QUOTA JOURNALIER d'actions IA par client.
 //
@@ -71,14 +73,30 @@ export function parisNextDayStart(now: Date = new Date()): Date {
 /**
  * Le plafond que le revendeur impose aux clients de ce coach (0 = aucun).
  *
- * Le coach règle un quota par plan, mais son revendeur peut serrer plus fort
- * quand c'est lui qui fournit l'IA : le client obtient alors le plus petit des
- * deux. C'est la cause d'un « j'ai augmenté le quota et rien n'a changé » que
- * rien n'expliquait à l'écran, l'écran du coach ne connaissant que son propre
- * chiffre. Cette fonction existe pour qu'il puisse enfin le lire.
+ * DEUX CONDITIONS, ET LA SECONDE MANQUAIT. Le plafond n'a de sens que si le
+ * revendeur FOURNIT l'IA, et seulement s'il en PAIE l'usage. Dès que le coach
+ * règle en crédits, c'est son solde qui borne la dépense : le revendeur ne
+ * risque rien, et son écran le dit noir sur blanc (« en modèle crédits, pas de
+ * plafond à régler ici »). Le formulaire de plafond disparaît alors.
+ *
+ * Le compteur, lui, continuait de l'appliquer. Un revendeur passé en crédits
+ * gardait donc un ancien plafond qu'il ne voyait plus, ne pouvait plus
+ * changer, et qui bridait pourtant tous les clients de tous ses coachs.
+ * C'est la cause du « j'ai monté le quota à 30 et mon client est resté à 15 » :
+ * un réglage fantôme, invisible des deux côtés.
+ *
+ * Le plafond ne s'applique donc plus que là où il protège quelqu'un.
  */
 export async function resellerClientDailyCap(tenantId: string | null): Promise<number> {
   if (!tenantId) return 0;
+  // `coachSupplyFacts` tient compte de la dispense : un coach passé sur sa
+  // propre clé n'est plus fourni, donc plus plafonné.
+  const facts = await coachSupplyFacts(tenantId);
+  if (!facts.resellerSupplies) return 0;
+  // Le coach paie en crédits : son solde borne déjà tout, le plafond est du
+  // bruit. C'est exactement ce que l'écran du revendeur lui annonce.
+  if (whoPays(facts).coach) return 0;
+
   const admin = createAdminClient();
   const { data: t } = await admin
     .from("tenants")
@@ -88,13 +106,10 @@ export async function resellerClientDailyCap(tenantId: string | null): Promise<n
   if (!t?.parent_id) return 0;
   const { data: parent } = await admin
     .from("tenants")
-    .select("ai_mode, ai_client_daily_limit")
+    .select("ai_client_daily_limit")
     .eq("id", t.parent_id)
-    .maybeSingle<{ ai_mode: string | null; ai_client_daily_limit: number | null }>();
-  // Le plafond n'existe que si le revendeur FOURNIT l'IA : sinon il ne paie
-  // rien et n'a pas de raison de limiter quoi que ce soit.
-  if (parent?.ai_mode !== "provider") return 0;
-  return Math.max(0, parent.ai_client_daily_limit ?? 0);
+    .maybeSingle<{ ai_client_daily_limit: number | null }>();
+  return Math.max(0, parent?.ai_client_daily_limit ?? 0);
 }
 
 /**
@@ -131,20 +146,12 @@ export async function coachAiDailyLimit(tenantId: string | null, userId?: string
   const coachDefault = data?.coach_ai_daily_limit == null ? DEFAULT_COACH_AI_DAILY_LIMIT : Math.max(0, data.coach_ai_daily_limit);
   const coachLimit = offerLimit ?? coachDefault;
 
-  // Plafond du revendeur fournisseur d'IA.
-  const { data: t } = await admin
-    .from("tenants")
-    .select("parent_id")
-    .eq("id", tenantId)
-    .maybeSingle<{ parent_id: string | null }>();
-  if (!t?.parent_id) return coachLimit;
-  const { data: parent } = await admin
-    .from("tenants")
-    .select("ai_mode, ai_client_daily_limit")
-    .eq("id", t.parent_id)
-    .maybeSingle<{ ai_mode: string | null; ai_client_daily_limit: number | null }>();
-  if (parent?.ai_mode !== "provider") return coachLimit;
-  return tighter(coachLimit, Math.max(0, parent.ai_client_daily_limit ?? 0));
+  // UNE SEULE SOURCE pour le plafond du revendeur. Le calculer ici ET dans
+  // `resellerClientDailyCap` revenait à écrire deux fois la même règle : celle
+  // qu'applique le compteur et celle qu'affiche le tableau de bord du coach
+  // ont divergé, et c'est ainsi qu'un plafond fantôme a pu brider les clients
+  // sans apparaître nulle part.
+  return tighter(coachLimit, await resellerClientDailyCap(tenantId));
 }
 
 export interface BudgetState {

@@ -239,12 +239,18 @@ export function OfferForm({
         {coachAi ? (
           <div className="ml-3 flex flex-col gap-3 rounded-control border border-brand/30 bg-surface p-3.5">
             <label className="flex flex-col gap-1.5">
-              <MonoLabel>{tx("Échanges avec le Coach IA par jour et par client (0 = illimité)")}</MonoLabel>
+              <MonoLabel>
+                {resellerCap > 0
+                  ? `${tx("Échanges avec le Coach IA par jour et par client")} (${tx("maximum")} ${resellerCap})`
+                  : tx("Échanges avec le Coach IA par jour et par client (0 = illimité)")}
+              </MonoLabel>
+              {/* Borné au plafond du revendeur : saisir plus haut n'aurait
+                  aucun effet sur les clients, autant l'empêcher. */}
               <input
                 name="coach_ai_daily_limit"
                 type="number"
-                min={0}
-                max={1000}
+                min={resellerCap > 0 ? 1 : 0}
+                max={resellerCap > 0 ? resellerCap : 1000}
                 inputMode="numeric"
                 value={quota}
                 onChange={(e) => setQuota(e.target.value)}
@@ -372,7 +378,13 @@ export function OfferForm({
       </div>
 
       {state.error ? <Alert>{state.error}</Alert> : null}
-      {state.ok ? <Alert tone="info">{tx("Plan ajouté.")}</Alert> : null}
+      {state.ok ? (
+        <Alert tone="info">
+          {state.quotaRamene != null
+            ? `${tx("Plan ajouté. Ton revendeur plafonne les échanges à")} ${state.quotaRamene} ${tx("par jour : c'est ce qui a été enregistré, et c'est ce que recevront tes clients.")}`
+            : tx("Plan ajouté.")}
+        </Alert>
+      ) : null}
 
       <Button type="submit" loading={pending} className="self-start h-11">
         {tx("Ajouter le plan")}</Button>
