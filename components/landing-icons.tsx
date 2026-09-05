@@ -81,4 +81,29 @@ export const S = {
       <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  // Les quatre suivantes servent les « infos pratiques » du mini-site : où,
+  // quand, par quel numéro, sur quel autre site.
+  pin: (p: IconProps) => (
+    <svg viewBox="0 0 24 24" fill="none" className={p.className} aria-hidden="true">
+      <path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <circle cx="12" cy="10" r="2.6" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  ),
+  clock: (p: IconProps) => (
+    <svg viewBox="0 0 24 24" fill="none" className={p.className} aria-hidden="true">
+      <circle cx="12" cy="12" r="8.4" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M12 7.4V12l3 1.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  phone: (p: IconProps) => (
+    <svg viewBox="0 0 24 24" fill="none" className={p.className} aria-hidden="true">
+      <path d="M5.5 4h3l1.4 3.6-2 1.4a11.5 11.5 0 0 0 5.1 5.1l1.4-2 3.6 1.4v3a1.5 1.5 0 0 1-1.7 1.5C9.6 17.3 6.7 14.4 4 6.2A1.5 1.5 0 0 1 5.5 4Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  ),
+  globe: (p: IconProps) => (
+    <svg viewBox="0 0 24 24" fill="none" className={p.className} aria-hidden="true">
+      <circle cx="12" cy="12" r="8.4" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M3.6 12h16.8M12 3.6c2.2 2.4 3.3 5.2 3.3 8.4S14.2 18 12 20.4C9.8 18 8.7 15.2 8.7 12S9.8 6 12 3.6Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  ),
 };

@@ -173,7 +173,7 @@ describe("recopie d'une photo", () => {
 describe("application complète", () => {
   it("écrit les coordonnées et les avis retenus", async () => {
     const { applyGoogleImport } = await lib();
-    const r = await applyGoogleImport("t1", DRAFT, { infos: true, textes: false, photoUrl: null, avis: [0] }, image());
+    const r = await applyGoogleImport("t1", DRAFT, { infos: true, textes: false, photoUrl: null, galerie: [], avis: [0] }, image());
     expect(r.ok).toBe(true);
     expect(r.applied.infos).toBe(true);
     expect(r.applied.avis).toBe(1);
@@ -191,7 +191,7 @@ describe("application complète", () => {
   it("remplace les avis Google au lieu de les empiler", async () => {
     // Réimporter deux fois ne doit pas doubler la section de la page.
     const { applyGoogleImport } = await lib();
-    await applyGoogleImport("t1", DRAFT, { infos: false, textes: false, photoUrl: null, avis: [0, 1] }, image());
+    await applyGoogleImport("t1", DRAFT, { infos: false, textes: false, photoUrl: null, galerie: [], avis: [0, 1] }, image());
     const suppr = fake.on("testimonials").find((q) => q.filters.some((f) => f.op === "delete"));
     expect(suppr).toBeDefined();
     // Et seulement ceux venus de Google : les témoignages saisis à la main
@@ -202,7 +202,7 @@ describe("application complète", () => {
 
   it("ignore un indice d'avis qui ne correspond à rien", async () => {
     const { applyGoogleImport } = await lib();
-    const r = await applyGoogleImport("t1", DRAFT, { infos: false, textes: false, photoUrl: null, avis: [9] }, image());
+    const r = await applyGoogleImport("t1", DRAFT, { infos: false, textes: false, photoUrl: null, galerie: [], avis: [9] }, image());
     expect(r.applied.avis).toBe(0);
     expect(fake.on("testimonials").some((q) => q.filters.some((f) => f.op === "insert"))).toBe(false);
   });
@@ -213,7 +213,7 @@ describe("application complète", () => {
     const r = await applyGoogleImport(
       "t1",
       DRAFT,
-      { infos: true, textes: false, photoUrl: "https://ailleurs.example/p.jpg", avis: [] },
+      { infos: true, textes: false, photoUrl: "https://ailleurs.example/p.jpg", galerie: [], avis: [] },
       image(),
     );
     expect(r.ok).toBe(true);
@@ -223,7 +223,7 @@ describe("application complète", () => {
 
   it("marque le brouillon comme appliqué", async () => {
     const { applyGoogleImport } = await lib();
-    await applyGoogleImport("t1", DRAFT, { infos: true, textes: false, photoUrl: null, avis: [] }, image(), "imp1");
+    await applyGoogleImport("t1", DRAFT, { infos: true, textes: false, photoUrl: null, galerie: [], avis: [] }, image(), "imp1");
     const maj = fake.on("google_imports").find((q) => q.filters.some((f) => f.op === "update"));
     expect(eqValue(maj!, "id")).toBe("imp1");
     expect(eqValue(maj!, "tenant_id")).toBe("t1");

@@ -31,6 +31,7 @@ export function GoogleImport({ linkedName }: { linkedName: string | null }) {
       done.infos ? "coordonnées, horaires et note" : null,
       done.textes ? "textes de la page" : null,
       done.photo ? "photo de présentation" : null,
+      done.galerie > 0 ? `${done.galerie} photo${done.galerie > 1 ? "s" : ""} de galerie` : null,
       done.avis > 0 ? `${done.avis} avis` : null,
     ].filter(Boolean);
     return (
@@ -38,12 +39,20 @@ export function GoogleImport({ linkedName }: { linkedName: string | null }) {
         <div className="font-archivo text-[17px] font-bold text-ink">Fiche importée</div>
         <p className="text-[14px] leading-[1.6] text-muted">
           {lignes.length > 0
-            ? `Repris de Google : ${lignes.join(", ")}. Tout reste modifiable dans Marque blanche.`
+            ? `Repris de Google : ${lignes.join(", ")}.`
             : "Rien n'a été repris : les blocs que tu avais cochés étaient déjà remplis de ton côté."}
         </p>
-        <a href="/admin/marque-blanche" className="self-start text-[13.5px] font-semibold text-brand hover:underline">
-          Voir ma page
-        </a>
+        {/* C'est « Mon site » qui AFFICHE tout ça : adresse, horaires, photos
+            et avis n'ont pas d'autre page où apparaître. Sans ce lien, le
+            coach repartait en croyant que l'import n'avait rien fait. */}
+        <div className="flex flex-wrap gap-4">
+          <a href="/admin/site" className="text-[13.5px] font-semibold text-brand hover:underline">
+            Voir mon site de présentation
+          </a>
+          <a href="/admin/marque-blanche" className="text-[13.5px] font-semibold text-brand hover:underline">
+            Ma page de vente
+          </a>
+        </div>
       </Card>
     );
   }
@@ -133,6 +142,10 @@ export function GoogleImport({ linkedName }: { linkedName: string | null }) {
 /** Les blocs relus par le coach avant écriture. */
 function Relecture({ draft }: { draft: NonNullable<GoogleSearchState["draft"]> }) {
   const [photo, setPhoto] = useState<string | null>(draft.photos[0] ?? null);
+  // La galerie part cochée : c'est le contenu qui manquait le plus au site, et
+  // un coach qui importe sa fiche veut ses photos. L'ordre de clic fait
+  // l'ordre d'affichage, d'où la liste plutôt qu'un ensemble.
+  const [galerie, setGalerie] = useState<string[]>(draft.photos.slice(0, 8));
 
   const infos = [
     draft.address ? ["Adresse", draft.address] : null,
@@ -201,6 +214,49 @@ function Relecture({ draft }: { draft: NonNullable<GoogleSearchState["draft"]> }
             ))}
           </div>
           <input type="hidden" name="photo" value={photo ?? ""} />
+        </section>
+      ) : null}
+
+      {draft.photos.length > 0 ? (
+        <section className="flex flex-col gap-2.5 rounded-card border border-line bg-surface p-4">
+          <div className="font-archivo text-[14.5px] font-bold text-ink">Galerie de ton site</div>
+          <p className="text-[12.5px] text-muted">
+            Celles-ci remplissent la section « en images » de ton site de présentation. Elles sont recopiées chez
+            nous, comme la photo ci-dessus, et remplacent la galerie précédente.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {draft.photos.slice(0, 12).map((url) => {
+              const choisi = galerie.includes(url);
+              return (
+                <button
+                  key={url}
+                  type="button"
+                  onClick={() => setGalerie((l) => (choisi ? l.filter((u) => u !== url) : [...l, url]))}
+                  aria-pressed={choisi}
+                  className={`tap relative h-16 w-24 overflow-hidden rounded-control border-2 ${
+                    choisi ? "border-brand" : "border-line-4"
+                  }`}
+                >
+                  <Image
+                    src={`/api/admin/google-photo?u=${encodeURIComponent(url)}`}
+                    alt=""
+                    fill
+                    sizes="96px"
+                    className={`object-cover ${choisi ? "" : "opacity-55"}`}
+                    unoptimized
+                  />
+                  {choisi ? (
+                    <span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-white">
+                      {galerie.indexOf(url) + 1}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+          {galerie.map((url) => (
+            <input key={url} type="hidden" name="galerie" value={url} />
+          ))}
         </section>
       ) : null}
 

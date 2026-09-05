@@ -1297,6 +1297,11 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
       cues: ["Rythme régulier, souffle contrôlé", "Gaine le ventre", "Jambes ET bras ensemble"],
       mistakes: ["Partir trop vite et exploser", "S'affaisser sur le guidon"],
     },
+    // Pas de photo. Le jeu d'images libres appelle « air bike » un exercice
+    // d'abdominaux au sol (le pédalage allongé), pas la machine : les deux
+    // visuels montraient donc un crunch à quelqu'un qui cherchait un vélo.
+    // Mieux vaut l'illustration du groupe musculaire qu'une photo fausse.
+    noPhoto: true,
   },
   {
     key: "elliptique",

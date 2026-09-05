@@ -4,6 +4,7 @@ import { getAdminOrNull } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { serpApiEnabled } from "@/lib/serpapi";
 import { GoogleImport } from "@/components/google-import";
+import { GoogleDetach } from "@/components/google-detach";
 import { Alert, Card } from "@/components/ui";
 
 export const metadata = { title: "Fiche Google, Admin My Fitness App" };
@@ -79,16 +80,19 @@ export default async function FicheGooglePage() {
                     .join(" · ")}
                 </span>
               </div>
-              {t.google_maps_url ? (
-                <Link
-                  href={t.google_maps_url}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow"
-                  className="text-[13.5px] font-semibold text-brand hover:underline"
-                >
-                  {tx("Voir sur Google ↗")}
-                </Link>
-              ) : null}
+              <div className="flex flex-wrap items-center gap-4">
+                {t.google_maps_url ? (
+                  <Link
+                    href={t.google_maps_url}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="text-[13.5px] font-semibold text-brand hover:underline"
+                  >
+                    {tx("Voir sur Google ↗")}
+                  </Link>
+                ) : null}
+                <GoogleDetach reviewCount={temoignages ?? 0} />
+              </div>
             </Card>
           ) : null}
 
@@ -107,6 +111,11 @@ function Titre() {
       </h1>
       <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
         {tx("Reprends ce que ta fiche d'établissement dit déjà : adresse, horaires, photos, avis. Tu relis tout avant que quoi que ce soit soit écrit, et rien de ce que tu as rédigé n'est remplacé.")}
+      </p>
+      <p className="max-w-[70ch] text-[13.5px] leading-[1.6] text-muted-2">
+        {tx("Ces informations s'affichent sur ton")}{" "}
+        <Link href="/admin/site" className="text-brand hover:underline">{tx("site de présentation")}</Link>
+        {tx(" : c'est la page qui les montre à tes visiteurs.")}
       </p>
     </div>
   );

@@ -471,6 +471,9 @@ export const ROOT_DOMAIN = (process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "")
 // À garder en phase avec les routes de `app/` (dossiers + groupes (auth)/(legal)).
 export const RESERVED_PATH_SEGMENTS = new Set([
   "app", "admin", "api", "auth", "c", "r", "revendeurs", "generation", "questionnaire", "salle",
+  // « web » sert les mini-sites de présentation (/web/<adresse>) : sans cette
+  // ligne, le proxy réécrirait /web vers la landing d'un coach nommé « web ».
+  "web",
   "plan-pdf", "dev",
   "connexion", "inscription", "inscription-coach", "inscription-revendeur", "verifie-tes-mails", "mot-de-passe-oublie",
   "reinitialiser", "cgv", "confidentialite", "mentions-legales", "desabonnement",
