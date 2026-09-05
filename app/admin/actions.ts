@@ -1357,7 +1357,7 @@ export async function saveWhitelabelPrice(_prev: ResellerAiState, formData: Form
     cents = n > 0 ? n : null;
   }
   await setResellerWhitelabelPrice(ctx.profile.tenant_id, cents);
-  revalidatePath("/admin/ia-revenu");
+  revalidatePath("/admin/paliers");
   return { ok: true };
 }
 

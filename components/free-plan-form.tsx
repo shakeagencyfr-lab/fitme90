@@ -5,7 +5,7 @@ import { usePhrase } from "@/components/locale-provider";
 import { editFreePlan, type PlanState } from "@/app/admin/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
 import type { Plan } from "@/lib/plans";
-import { ALL_RIGHTS, resolveSupply, supplyIsChoice, type PlanAiSupply, type SupplyRights } from "@/lib/supply-rights";
+import { ALL_RIGHTS, resolveSupply, supplyAllowed, type PlanAiSupply, type SupplyRights } from "@/lib/supply-rights";
 
 /**
  * Le palier gratuit du vendeur : la case qui l'ouvre, et ce qu'il contient.
@@ -19,18 +19,19 @@ import { ALL_RIGHTS, resolveSupply, supplyIsChoice, type PlanAiSupply, type Supp
  * des coachs sous eux, d'où les droits à ouvrir), un revendeur vend à des
  * coachs (d'où la marque blanche à inclure ou non).
  *
- * `rights` dit ce que le vendeur a le droit de proposer. Un revendeur à qui la
- * plateforme n'a ouvert qu'un mode n'a pas de choix à faire : on lui montre la
- * fourniture imposée, pas un choix grisé qui promettrait autre chose.
+ * `rights` dit ce que le vendeur a le droit de proposer ; `contactName`, à
+ * qui demander le reste.
  */
 export function FreePlanForm({
   plan,
   sells,
   rights = ALL_RIGHTS,
+  contactName = "la plateforme",
 }: {
   plan: Plan;
   sells: "resellers" | "coaches";
   rights?: SupplyRights;
+  contactName?: string;
 }) {
   const tx = usePhrase();
   const [state, action, saving] = useActionState(editFreePlan, {} as PlanState);
@@ -38,7 +39,6 @@ export function FreePlanForm({
   const [supply, setSupply] = useState<PlanAiSupply>(resolveSupply(rights, plan.ai_supply));
   const [byok, setByok] = useState(plan.coach_byok_allowed);
   const [credits, setCredits] = useState(plan.coach_credits_allowed);
-  const choice = supplyIsChoice(rights);
   // Un revendeur en crédits plateforme fournit l'IA à ses coachs : la revente
   // de crédits va avec, la case suit la fourniture.
   const creditsForced = sells === "resellers" && supply === "credits";
@@ -69,30 +69,14 @@ export function FreePlanForm({
           <div className="flex flex-col gap-4 border-t border-line pt-4">
             <div className="flex flex-col gap-1.5">
               <MonoLabel>{tx("Fourniture de l'IA sur ce palier")}</MonoLabel>
-              {choice ? (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {(
-                    [
-                      ["byok", tx("Clé personnelle (BYOK)"), tx("Le compte branche sa propre clé Anthropic et règle sa consommation directement. Rien d'autre à faire.")],
-                      ["credits", tx("Crédits IA"), tx("L'IA tourne sur ta chaîne et le compte t'achète des crédits. Tu choisis combien lui en offrir pour démarrer.")],
-                    ] as const
-                  ).map(([val, title, desc]) => (
-                    <label
-                      key={val}
-                      className={[
-                        "tap flex cursor-pointer flex-col gap-0.5 rounded-control border px-3.5 py-2.5 transition-colors",
-                        supply === val ? "border-brand bg-brand/[0.06]" : "border-line-4 hover:border-ink/40",
-                      ].join(" ")}
-                    >
-                      <input type="radio" name="ai_supply" value={val} checked={supply === val} onChange={() => setSupply(val)} className="sr-only" />
-                      <span className="text-[14px] font-semibold text-ink">{title}</span>
-                      <span className="text-[12px] leading-[1.5] text-muted-2">{desc}</span>
-                    </label>
-                  ))}
-                </div>
-              ) : (
-                <FixedSupply supply={supply} />
-              )}
+              <SupplyCards
+                supply={supply}
+                onChange={setSupply}
+                rights={rights}
+                contactName={contactName}
+                byokDesc={tx("Le compte branche sa propre clé Anthropic et règle sa consommation directement. Rien d'autre à faire.")}
+                creditsDesc={tx("L'IA tourne sur ta chaîne et le compte t'achète des crédits. Tu choisis combien lui en offrir pour démarrer.")}
+              />
             </div>
 
             {supply === "credits" ? (
@@ -138,21 +122,60 @@ export function FreePlanForm({
 }
 
 /**
- * La fourniture quand elle est imposée par le palier du vendeur : dite, pas
- * choisie. Le champ caché porte la valeur, le serveur la vérifie de toute
- * façon.
+ * Les deux fournitures possibles, toujours affichées. Celle que le palier du
+ * vendeur ne lui ouvre pas reste visible mais verrouillée : il doit savoir
+ * que ça existe, et à qui le demander. Un choix qui disparaît n'invite
+ * personne à monter en gamme. Le serveur vérifie de toute façon.
  */
-export function FixedSupply({ supply }: { supply: PlanAiSupply }) {
+export function SupplyCards({
+  supply,
+  onChange,
+  rights,
+  contactName,
+  byokDesc,
+  creditsDesc,
+}: {
+  supply: PlanAiSupply;
+  onChange: (s: PlanAiSupply) => void;
+  rights: SupplyRights;
+  contactName: string;
+  byokDesc: string;
+  creditsDesc: string;
+}) {
   const tx = usePhrase();
   return (
-    <div className="flex flex-col gap-0.5 rounded-control border border-line-4 bg-surface-2 px-3.5 py-2.5">
-      <input type="hidden" name="ai_supply" value={supply} />
-      <span className="text-[14px] font-semibold text-ink">{supply === "byok" ? tx("Clé personnelle (BYOK)") : tx("Crédits IA")}</span>
-      <span className="text-[12px] leading-[1.5] text-muted-2">
-        {supply === "byok"
-          ? tx("Imposé par ton palier : tes coachs branchent chacun leur clé Anthropic et règlent leur consommation directement.")
-          : tx("Imposé par ton palier : tes coachs tournent sur l'IA que tu fournis et t'achètent leurs crédits.")}
-      </span>
+    <div className="grid gap-2 sm:grid-cols-2">
+      {(
+        [
+          ["byok", tx("Clé personnelle (BYOK)"), byokDesc],
+          ["credits", tx("Crédits IA"), creditsDesc],
+        ] as const
+      ).map(([val, title, desc]) => {
+        const locked = !supplyAllowed(rights, val);
+        return (
+          <label
+            key={val}
+            className={[
+              "tap flex flex-col gap-0.5 rounded-control border px-3.5 py-2.5 transition-colors",
+              locked ? "cursor-not-allowed border-line-4 bg-surface-2" : "cursor-pointer",
+              !locked && supply === val ? "border-brand bg-brand/[0.06]" : locked ? "" : "border-line-4 hover:border-ink/40",
+            ].join(" ")}
+          >
+            <input type="radio" name="ai_supply" value={val} checked={supply === val} disabled={locked} onChange={() => onChange(val)} className="sr-only" />
+            <span className={`text-[14px] font-semibold ${locked ? "text-muted" : "text-ink"}`}>{title}</span>
+            <span className="text-[12px] leading-[1.5] text-muted-2">{desc}</span>
+            {locked ? (
+              val === "credits" ? (
+                <span className="mt-1 text-[12px] font-medium leading-[1.5] text-brand">
+                  {tx("Pas compris dans ton palier. Ça t'intéresse ? Contacte")} {contactName}.
+                </span>
+              ) : (
+                <span className="mt-1 text-[12px] font-medium leading-[1.5] text-[#C4471A]">{tx("Ton palier ne le permet pas : tu fournis l'IA.")}</span>
+              )
+            ) : null}
+          </label>
+        );
+      })}
     </div>
   );
 }

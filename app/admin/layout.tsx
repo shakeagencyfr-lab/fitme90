@@ -10,7 +10,7 @@ import { tenantNode } from "@/lib/hierarchy";
 import { tenantFreezeState } from "@/lib/freeze";
 import { tenantMonthlyAiUsage } from "@/lib/ai-cost";
 import { getWallet } from "@/lib/credits";
-import { costViewOf } from "@/lib/cost-view";
+import { costViewOf, resellerRights } from "@/lib/cost-view";
 import { parentDashboardBrand, platformBrand } from "@/lib/branding";
 import type { Metadata } from "next";
 import { CoachFreezeBanner } from "@/components/coach-freeze-banner";
@@ -41,7 +41,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!ctx) notFound();
 
   const tenantId = ctx.profile?.tenant_id ?? null;
-  const [notifs, unread, node, freeze, aiUsage, parentBrand, view] = tenantId
+  const [notifs, unread, node, freeze, aiUsage, parentBrand, view, rights] = tenantId
     ? await Promise.all([
         listCoachNotifications(tenantId),
         unreadCoachNotifCount(tenantId),
@@ -50,9 +50,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         tenantMonthlyAiUsage(tenantId),
         parentDashboardBrand(tenantId),
         costViewOf(tenantId),
+        resellerRights(tenantId),
       ])
-    : [[], 0, null, { frozen: false, status: null, suspended: false }, { costUsd: 0, calls: 0, credits: 0, supplierCredits: 0, sinceIso: "" }, null, "usd" as const];
+    : [[], 0, null, { frozen: false, status: null, suspended: false }, { costUsd: 0, calls: 0, credits: 0, supplierCredits: 0, sinceIso: "" }, null, "usd" as const, { byok: true, credits: true }];
   const kind = node?.kind ?? "coach";
+  // Un revendeur qui ne fournit pas l'IA (revente de crédits non ouverte par
+  // la plateforme, et pas de crédits plateforme) n'a pas de revenu IA :
+  // l'onglet n'aurait rien à lui montrer. Le pack marque blanche, lui, se
+  // vend depuis Paliers.
+  const hiddenHrefs = kind === "reseller" && !rights.credits && view !== "credits" ? ["/admin/ia-revenu"] : [];
   // Un coach ne doit pas pouvoir promettre ce que son espace ne livrera pas :
   // sans IA au bout de sa chaîne de fourniture, le programme ne se générera
   // pas après le paiement.
@@ -84,6 +90,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         aiCostUsd={aiUsage.costUsd}
         aiCalls={aiUsage.calls}
         aiView={view}
+        hiddenHrefs={hiddenHrefs}
         wallet={wallet}
         brandName={parentBrand?.name ?? null}
         brandLogoUrl={parentBrand?.logoUrl ?? null}

@@ -238,7 +238,7 @@ export function NetworkView({ d }: { d: ResellerDashboard }) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="flex flex-col gap-3.5">
+        <Card className={`flex flex-col gap-3.5 ${d.ai.supplies ? "" : "lg:col-span-2"}`}>
           <MonoLabel>{tx("À traiter")}</MonoLabel>
           {d.attention.length === 0 ? (
             <p className="text-[13.5px] leading-[1.6] text-muted">
@@ -260,6 +260,9 @@ export function NetworkView({ d }: { d: ResellerDashboard }) {
           </Link>
         </Card>
 
+        {/* Un revendeur qui ne fournit pas l'IA n'absorbe rien : ce bloc, et
+            le lien vers Revenu IA, n'ont rien à lui dire. */}
+        {d.ai.supplies ? (
         <Card className="flex flex-col gap-4">
           <MonoLabel>{tx("IA fournie au réseau ce mois")}</MonoLabel>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -286,6 +289,7 @@ export function NetworkView({ d }: { d: ResellerDashboard }) {
             {tx("Voir mon revenu IA")} →
           </Link>
         </Card>
+        ) : null}
       </div>
     </div>
   );

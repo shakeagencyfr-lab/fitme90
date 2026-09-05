@@ -98,16 +98,18 @@ const GROUPS: { label: string; items: Item[] }[] = [
 ];
 
 /** Groupes filtrés pour un niveau de tenant et sa vue des coûts (items sans `kinds` ni `views` = tous). */
-function groupsForKind(kind: TenantKind, view: CostView): { label: string; items: Item[] }[] {
+function groupsForKind(kind: TenantKind, view: CostView, hidden: string[]): { label: string; items: Item[] }[] {
   return GROUPS.map((g) => ({
     label: g.label,
-    items: g.items.filter((it) => (!it.kinds || it.kinds.includes(kind)) && (!it.views || it.views.includes(view))),
+    items: g.items.filter(
+      (it) => (!it.kinds || it.kinds.includes(kind)) && (!it.views || it.views.includes(view)) && !hidden.includes(it.href),
+    ),
   })).filter((g) => g.items.length > 0);
 }
 
 /** Écrans indexés par la palette ⌘K, tirés du menu lui-même. */
-function searchDestinations(kind: TenantKind, view: CostView): SearchDest[] {
-  return groupsForKind(kind, view).flatMap((g) => g.items.map((it) => ({ href: it.href, label: it.label, group: g.label })));
+function searchDestinations(kind: TenantKind, view: CostView, hidden: string[]): SearchDest[] {
+  return groupsForKind(kind, view, hidden).flatMap((g) => g.items.map((it) => ({ href: it.href, label: it.label, group: g.label })));
 }
 
 function isActive(pathname: string, href: string): boolean {
@@ -118,18 +120,20 @@ function NavList({
   pathname,
   kind,
   view,
+  hidden,
   onNavigate,
   collapsed = false,
 }: {
   pathname: string;
   kind: TenantKind;
   view: CostView;
+  hidden: string[];
   onNavigate?: () => void;
   /** Rail d'icônes : les libellés disparaissent, les titres de groupe aussi. */
   collapsed?: boolean;
 }) {
   const tx = usePhrase();
-  const groups = groupsForKind(kind, view);
+  const groups = groupsForKind(kind, view, hidden);
   return (
     <nav className={collapsed ? "flex flex-col gap-2" : "flex flex-col gap-5"}>
       {groups.map((g, gi) => (
@@ -429,6 +433,7 @@ export function AdminShell({
   aiCostUsd = 0,
   aiCalls = 0,
   aiView = "usd",
+  hiddenHrefs = [],
   wallet = null,
   brandName = null,
   brandLogoUrl = null,
@@ -444,6 +449,11 @@ export function AdminShell({
   aiCalls?: number;
   /** Ce que ce compte a le droit de voir : des dollars, des crédits, ou rien. */
   aiView?: CostView;
+  /**
+   * Écrans retirés du menu pour CE compte, au-delà de son étage et de sa vue :
+   * « Revenu IA » pour un revendeur qui ne fournit pas l'IA, par exemple.
+   */
+  hiddenHrefs?: string[];
   /** Solde de crédits, renseigné UNIQUEMENT quand le compte achète des crédits. */
   wallet?: { credits: number } | null;
   /** Marque du tenant PARENT (revendeur pour un coach, plateforme pour un
@@ -463,7 +473,7 @@ export function AdminShell({
   const [peek, setPeek] = useState(false);
   // Largeur pleine : soit le menu est épinglé ouvert, soit on le survole.
   const wide = !rail || peek;
-  const dests = searchDestinations(kind, aiView);
+  const dests = searchDestinations(kind, aiView, hiddenHrefs);
 
   // Le survol n'a de sens qu'avec un vrai pointeur. Sur un écran tactile, un
   // simple effleurement déclenche mouseenter et laisserait le panneau déployé
@@ -644,7 +654,7 @@ export function AdminShell({
           )}
 
           <div className={wide ? "min-h-0 flex-1 overflow-y-auto" : "min-h-0 flex-1 overflow-y-auto overflow-x-hidden"}>
-            <NavList pathname={pathname} kind={kind} view={aiView} collapsed={!wide} />
+            <NavList pathname={pathname} kind={kind} view={aiView} hidden={hiddenHrefs} collapsed={!wide} />
           </div>
 
           <div className="flex flex-col gap-3">
@@ -687,7 +697,7 @@ export function AdminShell({
             </div>
             <AdminSearch destinations={dests} kind={kind} />
             <div className="-mr-2 min-h-0 flex-1 overflow-y-auto pr-2">
-              <NavList pathname={pathname} kind={kind} view={aiView} onNavigate={() => setOpen(false)} />
+              <NavList pathname={pathname} kind={kind} view={aiView} hidden={hiddenHrefs} onNavigate={() => setOpen(false)} />
             </div>
             <div className="flex flex-col gap-3">
               {usageCard}

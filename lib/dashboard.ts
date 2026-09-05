@@ -4,7 +4,7 @@ import { tenantCapacity, type TenantCapacity } from "@/lib/entitlements";
 import { listChildTenants } from "@/lib/hierarchy";
 import { tenantMonthlyAiUsage, resellerMonthlyAiUsage } from "@/lib/ai-cost";
 import { getWallet } from "@/lib/credits";
-import { costViewOf, type CostView } from "@/lib/cost-view";
+import { costViewOf, resellerRights, type CostView } from "@/lib/cost-view";
 import { tenantOrders } from "@/lib/orders";
 import {
   lastMonths,
@@ -223,6 +223,12 @@ export interface ResellerDashboard {
     /** Crédits que la plateforme a débités au revendeur ce mois-ci. */
     creditsSpent: number;
     view: CostView;
+    /**
+     * Ce compte fournit-il l'IA à son réseau ? Un revendeur sans le droit de
+     * revendre des crédits (et sans crédits plateforme) ne fournit rien : le
+     * bloc « IA fournie au réseau » n'a rien à lui dire.
+     */
+    supplies: boolean;
   };
 }
 
@@ -235,7 +241,7 @@ export async function resellerDashboard(tenantId: string, now: Date = new Date()
   const children = await listChildTenants(tenantId);
   const ids = children.map((c) => c.id);
 
-  const [{ data: raw }, { data: plans }, ai, wallet, view] = await Promise.all([
+  const [{ data: raw }, { data: plans }, ai, wallet, view, rights] = await Promise.all([
     ids.length
       ? admin
           .from("tenants")
@@ -251,6 +257,7 @@ export async function resellerDashboard(tenantId: string, now: Date = new Date()
     resellerMonthlyAiUsage(tenantId),
     getWallet(tenantId),
     costViewOf(tenantId),
+    resellerRights(tenantId),
   ]);
 
   const planById = new Map((plans ?? []).map((p) => [p.id, p]));
@@ -304,6 +311,7 @@ export async function resellerDashboard(tenantId: string, now: Date = new Date()
       credits: view === "credits" ? wallet.credits : null,
       creditsSpent: ai.supplierCredits,
       view,
+      supplies: rights.credits || view === "credits",
     },
   };
 }

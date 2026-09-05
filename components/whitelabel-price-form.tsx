@@ -23,7 +23,7 @@ export function WhitelabelPriceForm({ initialCents, includedPlans }: { initialCe
   return (
     <Card as="section" className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <div className="font-archivo font-bold text-[17px] text-ink">{tx("Pack marque blanche")}</div>
+        <div className="font-archivo font-bold text-[17px] text-ink">{tx("Vendu à part, en supplément mensuel")}</div>
         <p className="max-w-[72ch] text-[13px] leading-[1.6] text-muted">
           {tx("Tout ce qui fait disparaître ta marque derrière celle du coach : son propre nom de domaine (CNAME), l'envoi d'e-mails depuis son serveur (SMTP), son site de présentation rempli depuis sa fiche Google, l'application installée à son nom et à son icône, et le retrait du badge « Propulsé par » en pied de page.")}
         </p>
@@ -55,7 +55,7 @@ export function WhitelabelPriceForm({ initialCents, includedPlans }: { initialCe
             {tx(". Ce prix ne s'applique qu'aux comptes des autres paliers, à qui le pack est proposé à la carte. Laisse vide pour ne le vendre qu'avec les paliers.")}
           </>
         ) : (
-          tx("Tu peux aussi l'inclure sans supplément dans un palier, depuis l'onglet Paliers : c'est un argument de vente pour monter en gamme. Ce prix ne concerne alors que les comptes des autres paliers. Vide, et sans palier qui l'inclut, aucun de tes coachs n'y a accès.")
+          tx("Tu peux aussi l'inclure sans supplément dans un palier, avec la case « Inclure le pack marque blanche » plus haut : c'est un argument de vente pour monter en gamme. Ce prix ne concerne alors que les comptes des autres paliers. Vide, et sans palier qui l'inclut, aucun de tes coachs n'y a accès.")
         )}
       </p>
     </Card>
