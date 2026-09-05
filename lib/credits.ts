@@ -539,9 +539,32 @@ export async function chargeAiUsage(
   reason: LedgerReason,
   clientId?: string | null,
 ): Promise<number> {
-  if (!coachTenantId) return 0;
+  return (await chargeAiUsageDetailed(coachTenantId, kind, reason, clientId)).coach;
+}
+
+/** Ce qu'une action a débité à chaque étage. */
+export interface AiCharge {
+  /** Crédits pris au coach (0 en BYOK ou quand l'IA est comprise). */
+  coach: number;
+  /** Crédits pris au revendeur par la plateforme (0 s'il tourne sur sa clé). */
+  supplier: number;
+}
+
+/**
+ * Comme `chargeAiUsage`, mais rend AUSSI le débit du revendeur : le journal
+ * l'enregistre en face de l'action, et c'est ce que lit un revendeur en
+ * crédits plateforme à la place d'un montant en dollars.
+ */
+export async function chargeAiUsageDetailed(
+  coachTenantId: string | null,
+  kind: AiUsageKind,
+  reason: LedgerReason,
+  clientId?: string | null,
+): Promise<AiCharge> {
+  if (!coachTenantId) return { coach: 0, supplier: 0 };
   const a = await checkAiAllowance(coachTenantId, kind);
   let charged = 0;
+  let supplier = 0;
   if (a.coachCost > 0 && (await debitWallet(coachTenantId, a.coachCost, reason, clientId)).ok) {
     charged = a.coachCost;
   }
@@ -555,9 +578,11 @@ export async function chargeAiUsage(
       .eq("role", "owner")
       .limit(1)
       .maybeSingle<{ id: string }>();
-    await debitWallet(a.resellerId, a.resellerCost, reason, owner?.id ?? null);
+    if ((await debitWallet(a.resellerId, a.resellerCost, reason, owner?.id ?? null)).ok) {
+      supplier = a.resellerCost;
+    }
   }
-  return charged;
+  return { coach: charged, supplier };
 }
 
 // ------------------------------------------------------------------ packs

@@ -15,7 +15,8 @@ import { assistClient, deleteCoachNote } from "@/app/admin/actions";
 import { DeleteClientButton } from "@/components/delete-client-button";
 import { VipChat } from "@/components/vip-chat";
 import { clientVipContext, listVipMessages, markThreadRead, type VipMessage } from "@/lib/vip";
-import { aiCostForUser, formatUsd } from "@/lib/ai-cost";
+import { aiUsageForUser, formatUsd } from "@/lib/ai-cost";
+import { costViewOf } from "@/lib/cost-view";
 import type { Plan } from "@/lib/program";
 
 export const metadata = { title: "Fiche client, Admin My Fitness App" };
@@ -130,8 +131,16 @@ export default async function ClientDetailPage({
     await markThreadRead(id, "coach");
   }
 
-  // Coût IA (BYOK) de ce client (estimation).
-  const clientCost = await aiCostForUser(id);
+  // Ce que l'IA de ce client a consommé, dans l'unité que ce coach a le droit
+  // de voir : des dollars sur sa clé, des crédits s'il les achète, des appels
+  // si l'IA est comprise dans son abonnement.
+  const [clientUsage, costView] = await Promise.all([aiUsageForUser(id), costViewOf(gate?.profile?.tenant_id ?? null)]);
+  const aiStat =
+    costView === "usd"
+      ? { label: tx("Coût IA"), value: formatUsd(clientUsage.costUsd) }
+      : costView === "credits"
+        ? { label: tx("Crédits IA"), value: clientUsage.credits.toLocaleString("fr-FR") }
+        : { label: tx("Appels IA"), value: clientUsage.calls.toLocaleString("fr-FR") };
 
   const access = computeAccess(profile.paid, profile.start_date);
   const answers = quiz?.answers ?? {};
@@ -227,7 +236,7 @@ export default async function ClientDetailPage({
         <Card><Stat label={tx("Jour")} value={access.phase === "active" ? `${access.day}/90` : "·"} /></Card>
         <Card><Stat label={tx("Séances faites")} value={doneDays.length} /></Card>
         <Card><Stat label={tx("Adhérence")} value={adherence == null ? "·" : `${adherence}%`} /></Card>
-        <Card><Stat label={tx("Coût IA")} value={formatUsd(clientCost)} /></Card>
+        <Card><Stat label={aiStat.label} value={aiStat.value} /></Card>
       </div>
 
       {/* Santé / décharge */}

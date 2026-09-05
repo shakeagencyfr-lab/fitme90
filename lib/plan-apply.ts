@@ -50,6 +50,9 @@ export async function applyPlanModel(buyerTenantId: string, plan: Plan | null): 
     if (!effective.coach_credits_allowed && buyer.reseller_model === "credits") {
       patch.reseller_model = "subscription";
     }
+    // Sans droit de laisser ses coachs en clé personnelle, le revendeur
+    // FOURNIT l'IA, point : « coachs autonomes » n'est plus une option.
+    if (!effective.coach_byok_allowed) patch.ai_mode = "provider";
     await admin.from("tenants").update(patch).eq("id", buyerTenantId);
   } else if (buyer.kind === "coach") {
     // Le coach tourne sur sa propre clé (dispensé) ou sur celle de son

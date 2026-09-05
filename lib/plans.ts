@@ -208,6 +208,8 @@ export async function saveFreePlan(tenantId: string, input: FreePlanInput): Prom
   if (!Number.isFinite(starter) || starter < 0 || starter > 100000) {
     return { ok: false, error: "Nombre de crédits de départ invalide." };
   }
+  const refus = await supplyRefusal(tenantId, input.aiSupply);
+  if (refus) return { ok: false, error: refus };
   const plan = await freePlanOf(tenantId);
   const admin = createAdminClient();
   const { error } = await admin
@@ -227,6 +229,26 @@ export async function saveFreePlan(tenantId: string, input: FreePlanInput): Prom
     .eq("tenant_id", tenantId);
   if (error) return { ok: false, error: "Enregistrement impossible." };
   return { ok: true };
+}
+
+/**
+ * Un revendeur ne vend que ce que son propre palier lui permet : sans le droit
+ * de laisser ses coachs en clé personnelle, ses paliers fournissent l'IA. La
+ * garde est ici, côté serveur, et pas seulement dans le formulaire : masquer
+ * une case n'empêche pas de la poster.
+ */
+async function supplyRefusal(sellerId: string, aiSupply: PlanAiSupply): Promise<string | null> {
+  if (aiSupply !== "byok") return null;
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("tenants")
+    .select("kind, coach_byok_allowed")
+    .eq("id", sellerId)
+    .maybeSingle<{ kind: string | null; coach_byok_allowed: boolean | null }>();
+  if (data?.kind === "reseller" && data.coach_byok_allowed === false) {
+    return "Ton palier ne te permet pas de laisser tes coachs en clé personnelle : ce palier doit fournir l'IA (crédits).";
+  }
+  return null;
 }
 
 export interface CreatePlanInput {
@@ -270,6 +292,9 @@ export async function createPlan(tenantId: string, input: CreatePlanInput): Prom
   if (clientLimit != null && (!Number.isInteger(clientLimit) || clientLimit < 0)) {
     return { ok: false, error: "Nombre de clients invalide." };
   }
+
+  const refus = await supplyRefusal(tenantId, input.aiSupply ?? "byok");
+  if (refus) return { ok: false, error: refus };
 
   // Un palier revendeur qui n'ouvre ni la clé personnelle ni les crédits ne
   // laisserait au revendeur aucune façon de fournir l'IA à ses coachs.

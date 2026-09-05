@@ -26,6 +26,8 @@ interface Props {
   buyerLabel?: string;
   /** Plateforme : pas de choix de modèle, seulement les packs. */
   packsOnly?: boolean;
+  /** Le palier du revendeur comprend-il la revente de crédits à ses coachs ? */
+  creditsAllowed?: boolean;
 }
 
 // Choix du modèle de revente + gestion des packs de crédits (Modèle B).
@@ -37,6 +39,7 @@ export function ResellerModelForm({
   buyPriceCents = null,
   buyerLabel = "tes coachs",
   packsOnly = false,
+  creditsAllowed = true,
 }: Props) {
   const tx = usePhrase();
   const [state, action, saving] = useActionState(saveResellerModelChoice, {} as ResellerAiState);
@@ -72,9 +75,15 @@ export function ResellerModelForm({
           />
           <ModelCard
             active={model === "credits"}
-            onClick={() => keyConfigured && setModel("credits")}
-            disabled={!keyConfigured}
-            lockNote={keyConfigured ? undefined : "Nécessite une source d'IA (ta clé Anthropic, ou des crédits plateforme)."}
+            onClick={() => keyConfigured && creditsAllowed && setModel("credits")}
+            disabled={!keyConfigured || !creditsAllowed}
+            lockNote={
+              !creditsAllowed
+                ? tx("Ton palier ne comprend pas la revente de crédits IA. Vois avec la plateforme pour l'ouvrir.")
+                : keyConfigured
+                  ? undefined
+                  : "Nécessite une source d'IA (ta clé Anthropic, ou des crédits plateforme)."
+            }
             title={tx("Crédits IA")}
             desc={tx("Tes coachs achètent des packs de crédits IA, clients illimités, pas d'abonnement de base. Tu fournis l'IA et prends ta marge sur chaque crédit.")}
           />

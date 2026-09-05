@@ -125,6 +125,7 @@ Consignes : 4 à 7 étapes concrètes, quantités précises, macros estimées, u
       tenantId: coachTenant,
       action: "recette-photo",
       credits: allowance.coachCost,
+      supplierCredits: allowance.resellerCost,
     });
     await chargeAiUsage(coachTenant, "action", "recipe", ctx.userId);
     await saveClientRecipes(ctx.userId, out.recipes);

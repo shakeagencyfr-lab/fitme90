@@ -5,7 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminOrNull } from "@/lib/admin";
 import { tenantNode } from "@/lib/hierarchy";
 import { computeAccess, accessLabel } from "@/lib/access";
-import { aiCostForUsers, totalCost, formatUsd } from "@/lib/ai-cost";
+import { aiUsageForUsers, formatUsd, type UserAiUsage } from "@/lib/ai-cost";
+import { costViewOf } from "@/lib/cost-view";
 import { listCoachVipThreads } from "@/lib/vip";
 import { tenantCapacity } from "@/lib/entitlements";
 import { CapacityCard } from "@/components/capacity-card";
@@ -63,19 +64,30 @@ export default async function AdminClientsPage() {
   const paidCount = rows.filter((p) => p.paid).length;
   const activeCount = withAccess.filter((r) => r.access.phase === "active").length;
 
-  // Coût IA (BYOK) par client + total ; non-lus VIP par client (icône de ligne).
-  const [costByUser, vipThreads, cap, offers] = await Promise.all([
-    aiCostForUsers(rows.map((p) => p.id)),
+  // Conso IA par client + total, dans l'unité que ce coach a le droit de voir
+  // (dollars sur sa clé, crédits s'il les achète, appels si l'IA est comprise) ;
+  // non-lus VIP par client (icône de ligne).
+  const [usageByUser, vipThreads, cap, offers, view] = await Promise.all([
+    aiUsageForUsers(rows.map((p) => p.id)),
     tenantId ? listCoachVipThreads(tenantId) : Promise.resolve([]),
     tenantId ? tenantCapacity(tenantId) : Promise.resolve(null),
     tenantId ? listOffers(tenantId) : Promise.resolve([]),
+    costViewOf(tenantId),
   ]);
   // Les plans masqués comptent ici : ce sont justement ceux qu'un coach crée
   // pour des clients inscrits à la main, sans passer par sa page de vente.
   const offerChoices = offers
     .filter((o) => o.is_active)
     .map((o) => ({ id: o.id, name: o.name, durationMonths: o.duration_months }));
-  const globalCost = totalCost(costByUser);
+  const total: UserAiUsage = { costUsd: 0, credits: 0, calls: 0 };
+  for (const u of usageByUser.values()) {
+    total.costUsd += u.costUsd;
+    total.credits += u.credits;
+    total.calls += u.calls;
+  }
+  const aiCell = (u: UserAiUsage | undefined) =>
+    view === "usd" ? formatUsd(u?.costUsd ?? 0) : view === "credits" ? (u?.credits ?? 0).toLocaleString("fr-FR") : (u?.calls ?? 0).toLocaleString("fr-FR");
+  const aiHeader = view === "usd" ? "Coût IA" : view === "credits" ? "Crédits IA" : "Appels IA";
   const unreadByClient = new Map<string, number>();
   for (const t of vipThreads) if (t.unread > 0) unreadByClient.set(t.clientId, t.unread);
 
@@ -96,7 +108,8 @@ export default async function AdminClientsPage() {
 
       {tenantId ? <InternalClientForm offers={offerChoices} remaining={cap?.remaining ?? null} /> : null}
 
-      {/* Coût IA (BYOK) : dépense estimée avec les clés Anthropic du coach. */}
+      {/* La conso IA, dans l'unité de ce coach. Un coach qui achète des crédits
+          ne voit jamais de dollars : il y lirait la marge de son revendeur. */}
       <Card className="flex flex-col gap-1.5">
         <div className="flex items-center gap-2">
           <span className="flex size-8 items-center justify-center rounded-control bg-brand/10 text-brand">
@@ -104,16 +117,23 @@ export default async function AdminClientsPage() {
               <path d="m12 3 2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z" />
             </svg>
           </span>
-          <MonoLabel>{tx("Coût de l'IA")}</MonoLabel>
+          <MonoLabel>{view === "usd" ? tx("Coût de l'IA") : view === "credits" ? tx("Crédits IA consommés") : tx("Appels à l'IA")}</MonoLabel>
         </div>
         <div className="flex items-baseline gap-2">
           <span className="font-archivo font-extrabold text-[34px] leading-none tracking-[-0.03em] text-ink">
-            {formatUsd(globalCost)}
+            {view === "usd" ? formatUsd(total.costUsd) : view === "credits" ? total.credits.toLocaleString("fr-FR") : total.calls.toLocaleString("fr-FR")}
           </span>
-          <span className="text-[13px] text-muted-2">{tx("sur vos propres clés")}</span>
+          <span className="text-[13px] text-muted-2">
+            {view === "usd" ? tx("sur vos propres clés") : view === "credits" ? tx("crédits, depuis le début") : tx("appels, compris dans ton abonnement")}
+          </span>
         </div>
         <p className="text-[12.5px] leading-[1.6] text-muted-2">
-          {tx("Estimation cumulée de la génération, du coach IA et des recettes avec tes clés Anthropic. Le détail par client est en face de chaque ligne.")}</p>
+          {view === "usd"
+            ? tx("Estimation cumulée de la génération, du coach IA et des recettes avec tes clés Anthropic. Le détail par client est en face de chaque ligne.")
+            : view === "credits"
+              ? tx("Crédits débités par la génération, le coach IA et les recettes de tes clients. Le détail par client est en face de chaque ligne.")
+              : tx("L'IA de tes clients est comprise dans ton abonnement : rien ne t'est débité par action. Le nombre d'appels par client est en face de chaque ligne.")}
+        </p>
       </Card>
 
       <Card className="p-0">
@@ -121,7 +141,7 @@ export default async function AdminClientsPage() {
           <table className="w-full min-w-[720px] border-collapse text-[13.5px]">
             <thead>
               <tr className="border-b border-line text-left text-muted-2">
-                {["Client", "Statut", "Phase", "Jour", "Séances", "Coût IA", "Début", "Inscrit"].map((h) => (
+                {["Client", "Statut", "Phase", "Jour", "Séances", aiHeader, "Début", "Inscrit"].map((h) => (
                   <th key={h} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.08em]">
                     {h}
                   </th>
@@ -172,7 +192,7 @@ export default async function AdminClientsPage() {
                     {access.phase === "active" ? `${access.day}/90` : "·"}
                   </td>
                   <td className="px-4 py-3 tabular-nums text-body">{sessionCount.get(p.id) ?? 0}</td>
-                  <td className="px-4 py-3 tabular-nums text-body">{formatUsd(costByUser.get(p.id) ?? 0)}</td>
+                  <td className="px-4 py-3 tabular-nums text-body">{aiCell(usageByUser.get(p.id))}</td>
                   <td className="px-4 py-3 tabular-nums text-muted">{fmt(p.start_date)}</td>
                   <td className="px-4 py-3 tabular-nums text-muted">{fmt(p.created_at)}</td>
                 </tr>

@@ -34,13 +34,31 @@ export interface RevenueLine {
   creditsSpent: number;
   /** Ce que sa consommation a coûté chez Anthropic, en dollars. */
   costUsd: number;
+  /**
+   * Crédits que NOTRE fournisseur nous a débités pour cette consommation.
+   * C'est le coût d'un revendeur en crédits plateforme, dans la seule unité
+   * qu'il a le droit de voir.
+   */
+  upstreamCredits: number;
 }
+
+/**
+ * Sur quoi le coût est mesuré : les tarifs Anthropic (on tourne sur sa clé)
+ * ou le prix d'achat du crédit (on l'achète à son fournisseur). Un revendeur
+ * en crédits plateforme ne voit jamais la première base : elle contiendrait
+ * la marge de la plateforme.
+ */
+export type CostBasis = "anthropic" | "purchase";
 
 export interface RevenueTotals {
   creditsSold: number;
   revenueCents: number;
   creditsSpent: number;
   costUsd: number;
+  upstreamCredits: number;
+  basis: CostBasis;
+  /** Le coût sur la base retenue, en euros. */
+  costEur: number;
   /** Recette moins coût, en euros. */
   marginEur: number;
   /**
@@ -67,19 +85,23 @@ export interface RevenueReport {
  * Séparé des requêtes pour être testable : c'est ici que se joue la marge
  * affichée, et une erreur de signe y passerait inaperçue à l'écran.
  */
-export function totalsOf(lines: RevenueLine[]): RevenueTotals {
+export function totalsOf(lines: RevenueLine[], purchaseCentsPerCredit: number | null = null): RevenueTotals {
   const t = lines.reduce(
     (acc, l) => ({
       creditsSold: acc.creditsSold + l.creditsSold,
       revenueCents: acc.revenueCents + l.revenueCents,
       creditsSpent: acc.creditsSpent + l.creditsSpent,
       costUsd: acc.costUsd + l.costUsd,
+      upstreamCredits: acc.upstreamCredits + (l.upstreamCredits ?? 0),
     }),
-    { creditsSold: 0, revenueCents: 0, creditsSpent: 0, costUsd: 0 },
+    { creditsSold: 0, revenueCents: 0, creditsSpent: 0, costUsd: 0, upstreamCredits: 0 },
   );
-  const coutEur = usdToEur(t.costUsd);
+  const basis: CostBasis = purchaseCentsPerCredit != null ? "purchase" : "anthropic";
+  const coutEur = basis === "purchase" ? (t.upstreamCredits * (purchaseCentsPerCredit ?? 0)) / 100 : usdToEur(t.costUsd);
   return {
     ...t,
+    basis,
+    costEur: coutEur,
     marginEur: t.revenueCents / 100 - coutEur,
     // Le chiffre qui dit si le crédit est une unité honnête : ce qu'il coûte
     // vraiment, à comparer au prix auquel il est vendu. Il faut les deux
@@ -170,7 +192,20 @@ async function sousArbre(racineIds: string[]): Promise<Map<string, string[]>> {
  *
  * @param tenantId La plateforme, ou un revendeur qui revend à ses coachs.
  */
-export async function revenueReport(tenantId: string | null, now = new Date()): Promise<RevenueReport> {
+export function lineCostEur(l: RevenueLine, totals: RevenueTotals, purchaseCentsPerCredit: number | null): number {
+  return totals.basis === "purchase" ? (l.upstreamCredits * (purchaseCentsPerCredit ?? 0)) / 100 : usdToEur(l.costUsd);
+}
+
+/**
+ * @param purchaseCentsPerCredit Prix auquel CE compte achète le crédit à son
+ *   fournisseur. Renseigné, le coût est mesuré dessus (base « achat ») et
+ *   aucun dollar n'entre dans le rapport.
+ */
+export async function revenueReport(
+  tenantId: string | null,
+  now = new Date(),
+  purchaseCentsPerCredit: number | null = null,
+): Promise<RevenueReport> {
   const since = monthStartIso(now);
   const vide: RevenueReport = { sinceIso: since, lines: [], totals: totalsOf([]) };
   if (!tenantId) return vide;
@@ -193,11 +228,11 @@ export async function revenueReport(tenantId: string | null, now = new Date()): 
       .returns<{ tenant_id: string; delta: number; price_cents: number | null }[]>(),
     admin
       .from("ai_calls")
-      .select("tenant_id, route, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cache_write_1h_tokens")
+      .select("tenant_id, route, model, supplier_credits, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cache_write_1h_tokens")
       .in("tenant_id", tousIds)
       .gte("created_at", since)
       .limit(100000)
-      .returns<(CostRow & { tenant_id: string })[]>(),
+      .returns<(CostRow & { tenant_id: string; supplier_credits: number | null })[]>(),
     payeurParTenant(tousIds),
   ]);
 
@@ -209,6 +244,7 @@ export async function revenueReport(tenantId: string | null, now = new Date()): 
   const recette = new Map<string, number>();
   const consommes = new Map<string, number>();
   const cout = new Map<string, number>();
+  const amont = new Map<string, number>();
 
   for (const l of ledger ?? []) {
     const cle = ligneDe.get(l.tenant_id);
@@ -227,9 +263,13 @@ export async function revenueReport(tenantId: string | null, now = new Date()): 
 
   for (const c of calls ?? []) {
     const cle = ligneDe.get(c.tenant_id);
+    if (!cle) continue;
+    // Ce que notre fournisseur nous a pris pour cette ligne : mesuré tel quel,
+    // c'est un débit constaté, pas une estimation.
+    amont.set(cle, (amont.get(cle) ?? 0) + (c.supplier_credits ?? 0));
     // On ne compte que ce que CE compte a réellement réglé : un descendant qui
     // a sa propre clé Anthropic paie lui-même, sa consommation n'est pas ici.
-    if (cle && payeur.get(c.tenant_id) === tenantId) {
+    if (payeur.get(c.tenant_id) === tenantId) {
       cout.set(cle, (cout.get(cle) ?? 0) + rowCost(c));
     }
   }
@@ -246,8 +286,9 @@ export async function revenueReport(tenantId: string | null, now = new Date()): 
       creditsSpent: consommes.get(e.id) ?? 0,
       // Déjà filtré par payeur : ce qui reste est ce que nous avons payé.
       costUsd: cout.get(e.id) ?? 0,
+      upstreamCredits: amont.get(e.id) ?? 0,
     };
   });
 
-  return { sinceIso: since, lines, totals: totalsOf(lines) };
+  return { sinceIso: since, lines, totals: totalsOf(lines, purchaseCentsPerCredit) };
 }

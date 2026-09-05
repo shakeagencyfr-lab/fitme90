@@ -4,6 +4,7 @@ import { getAdminOrNull } from "@/lib/admin";
 import { tenantNode } from "@/lib/hierarchy";
 import { usageHistory, scopeAccounts, modelLabel, driverLabel, type UsageRow } from "@/lib/ai-usage-log";
 import { formatUsdPrecise } from "@/lib/ai-cost";
+import { costViewOf } from "@/lib/cost-view";
 import { usdToEur, formatEurPrecise } from "@/lib/config";
 import { Card, MonoLabel } from "@/components/ui";
 import { UsageFilters } from "@/components/usage-filters";
@@ -53,12 +54,41 @@ export default async function AdminUsagePage({
   const action = ACTIONS.some((a) => a.value === sp.action) ? sp.action! : "";
   const accountId = sp.compte ?? "";
 
-  const [page, accounts] = await Promise.all([
+  const [page, accounts, view] = await Promise.all([
     usageHistory(tenantId, scope, { days, action, accountId }),
     scopeAccounts(tenantId, scope),
+    costViewOf(tenantId),
   ]);
   const { rows, totals, truncated } = page;
-  const usesCredits = totals.credits > 0;
+
+  // QUI VOIT QUOI. Les dollars ne s'affichent qu'à un compte qui règle
+  // Anthropic lui-même : un compte qui achète des crédits y lirait la marge
+  // de son fournisseur. Et « crédits » ne veut pas dire la même chose à chaque
+  // étage : pour un coach, ce qu'on lui a pris ; pour un revendeur en crédits
+  // plateforme, ce que la plateforme lui a pris ; pour la plateforme et un
+  // revendeur en clé perso, ce qu'ils ont facturé en dessous.
+  const showUsd = view === "usd";
+  const showCredits = view !== "included";
+  const upstream = kind === "platform" || (kind === "reseller" && view === "credits");
+  const creditsOf = (r: { credits: number; supplierCredits: number }) => (upstream ? r.supplierCredits : r.credits);
+  const creditsLabel =
+    kind === "coach"
+      ? tx("Crédits débités")
+      : kind === "platform"
+        ? tx("Crédits débités à tes revendeurs")
+        : view === "credits"
+          ? tx("Crédits dépensés")
+          : tx("Crédits débités à tes coachs");
+  const usesCredits = creditsOf(totals) > 0;
+  const columns = [
+    "Date",
+    scope === "network" ? "Compte" : "Client",
+    "Action",
+    "Modèle",
+    "Tokens",
+    ...(showUsd ? ["Coût"] : []),
+    ...(showCredits ? ["Crédits"] : []),
+  ];
 
   return (
     <div className="flex flex-col gap-5">
@@ -67,8 +97,14 @@ export default async function AdminUsagePage({
           {tx("Consommation IA")}</h1>
         <p className="max-w-[74ch] text-[15px] leading-[1.6] text-muted">
           {scope === "network"
-            ? "Chaque appel à l'IA passé sous ton réseau, détaillé : qui, quoi, quel modèle, combien de tokens, ce que ça a coûté et les crédits débités. Les comptes en clé personnelle y figurent comme ceux en crédits."
-            : "Chaque appel à l'IA de tes clients, détaillé : qui, quoi, quel modèle, combien de tokens et ce que ça a coûté. Affiché que tu utilises ta propre clé ou des crédits."}
+            ? showUsd
+              ? tx("Chaque appel à l'IA passé sous ton réseau, détaillé : qui, quoi, quel modèle, combien de tokens, ce que ça a coûté et les crédits débités. Les comptes en clé personnelle y figurent comme ceux en crédits.")
+              : tx("Chaque appel à l'IA passé sous ton réseau, détaillé : qui, quoi, quel modèle, combien de tokens, et les crédits que cela t'a coûtés.")
+            : view === "usd"
+              ? tx("Chaque appel à l'IA de tes clients, détaillé : qui, quoi, quel modèle, combien de tokens et ce que ça a coûté sur ta clé.")
+              : view === "credits"
+                ? tx("Chaque appel à l'IA de tes clients, détaillé : qui, quoi, quel modèle, combien de tokens et les crédits débités.")
+                : tx("Chaque appel à l'IA de tes clients, détaillé : qui, quoi, quel modèle, combien de tokens. L'IA est comprise dans ton abonnement.")}
         </p>
       </div>
 
@@ -81,19 +117,23 @@ export default async function AdminUsagePage({
         accounts={accounts}
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className={`grid grid-cols-2 gap-3 ${showUsd && showCredits ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
         <Metric label={tx("Appels IA")} value={totals.calls.toLocaleString("fr-FR")} />
-        <Metric label={tx("Coût Anthropic")} value={formatUsdPrecise(totals.costUsd)} sub={formatEurPrecise(usdToEur(totals.costUsd))} />
+        {showUsd ? (
+          <Metric label={tx("Coût Anthropic")} value={formatUsdPrecise(totals.costUsd)} sub={formatEurPrecise(usdToEur(totals.costUsd))} />
+        ) : null}
         <Metric
           label={tx("Tokens")}
           value={`${((totals.inputTokens + totals.outputTokens) / 1000).toFixed(1)} k`}
           sub={`${(totals.cachedTokens / 1000).toFixed(1)} k en cache`}
         />
-        <Metric
-          label={tx("Crédits débités")}
-          value={usesCredits ? totals.credits.toLocaleString("fr-FR") : "0"}
-          sub={usesCredits ? undefined : "clé personnelle"}
-        />
+        {showCredits ? (
+          <Metric
+            label={creditsLabel}
+            value={usesCredits ? creditsOf(totals).toLocaleString("fr-FR") : "0"}
+            sub={usesCredits || !showUsd ? undefined : "clé personnelle"}
+          />
+        ) : null}
       </div>
 
       <Card as="section" className="flex flex-col gap-3 p-0">
@@ -116,7 +156,7 @@ export default async function AdminUsagePage({
               <table className="w-full min-w-[860px] border-collapse text-[13px]">
                 <thead>
                   <tr className="border-b border-line bg-surface-2 text-left text-muted-2">
-                    {["Date", scope === "network" ? "Compte" : "Client", "Action", "Modèle", "Tokens", "Coût", "Crédits"].map((h) => (
+                    {columns.map((h) => (
                       <th key={h} className="whitespace-nowrap px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.07em]">{h}</th>
                     ))}
                   </tr>
@@ -140,15 +180,22 @@ export default async function AdminUsagePage({
                         {r.inputTokens.toLocaleString("fr-FR")} / {r.outputTokens.toLocaleString("fr-FR")}
                         <CacheBadges read={r.cacheReadTokens} write={r.cacheWriteTokens} />
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2.5">
-                        <div className="tabular-nums text-ink">{formatUsdPrecise(r.costUsd)}</div>
-                        <div className="tabular-nums text-[11px] text-muted-2">{formatEurPrecise(usdToEur(r.costUsd))}</div>
-                        <div className="text-[11px] text-muted-2">{DRIVER_SHORT[r.driver]}</div>
-                      </td>
-                      <td className="px-3 py-2.5 tabular-nums font-semibold text-ink">
-                        {r.credits > 0 ? r.credits : <span className="font-normal text-muted-2">·</span>}
-                        <RequestId id={r.requestId} />
-                      </td>
+                      {showUsd ? (
+                        <td className="whitespace-nowrap px-3 py-2.5">
+                          <div className="tabular-nums text-ink">{formatUsdPrecise(r.costUsd)}</div>
+                          <div className="tabular-nums text-[11px] text-muted-2">{formatEurPrecise(usdToEur(r.costUsd))}</div>
+                          <div className="text-[11px] text-muted-2">{DRIVER_SHORT[r.driver]}</div>
+                        </td>
+                      ) : null}
+                      {showCredits ? (
+                        <td className="px-3 py-2.5 tabular-nums font-semibold text-ink">
+                          {creditsOf(r) > 0 ? creditsOf(r) : <span className="font-normal text-muted-2">·</span>}
+                          {upstream && kind === "reseller" && r.credits > 0 ? (
+                            <div className="text-[11px] font-normal text-muted-2">{tx("coach débité")} {r.credits}</div>
+                          ) : null}
+                          <RequestId id={r.requestId} />
+                        </td>
+                      ) : null}
                     </tr>
                   ))}
                 </tbody>
@@ -158,7 +205,7 @@ export default async function AdminUsagePage({
             {/* Mobile : une carte par appel, le tableau à 7 colonnes n'y tient pas. */}
             <div className="flex flex-col border-t border-line md:hidden">
               {rows.map((r) => (
-                <MobileRow key={r.id} row={r} showAccount={scope === "network"} />
+                <MobileRow key={r.id} row={r} showAccount={scope === "network"} showUsd={showUsd} credits={showCredits ? creditsOf(r) : 0} />
               ))}
             </div>
           </>
@@ -166,12 +213,16 @@ export default async function AdminUsagePage({
       </Card>
 
       <p className="text-[12px] leading-[1.6] text-muted-2">
-        {tx("Les montants sont en DOLLARS, la monnaie dans laquelle Anthropic facture : c'est ce chiffre-là qui se compare à ta console Anthropic, ligne à ligne par l'identifiant de requête. L'euro dessous n'est qu'une conversion indicative, à taux fixe. Le coût est calculé sur les tarifs publics et les tokens réellement consommés. Deux ratios expliquent l'essentiel des écarts entre deux lignes : une sortie coûte 5 fois une entrée, et une écriture de cache 12,5 fois une lecture (125 % contre 10 % du prix d'entrée). Le cache s'écrit au premier échange d'une conversation puis se relit pendant 5 minutes. Ce coût sert au pilotage, pas à la facturation ; les crédits, eux, sont le débit réel du portefeuille.")}</p>
+        {!showUsd
+          ? view === "included"
+            ? tx("L'IA est comprise dans ton abonnement : rien ne t'est débité par action. Les tokens sont donnés à titre indicatif, ils expliquent pourquoi deux appels ne pèsent pas pareil.")
+            : tx("Les crédits sont le débit réel de ton portefeuille, action par action. Les tokens sont donnés à titre indicatif : ils expliquent pourquoi deux appels ne pèsent pas pareil, mais c'est le barème de crédits qui fait le prix.")
+          : tx("Les montants sont en DOLLARS, la monnaie dans laquelle Anthropic facture : c'est ce chiffre-là qui se compare à ta console Anthropic, ligne à ligne par l'identifiant de requête. L'euro dessous n'est qu'une conversion indicative, à taux fixe. Le coût est calculé sur les tarifs publics et les tokens réellement consommés. Deux ratios expliquent l'essentiel des écarts entre deux lignes : une sortie coûte 5 fois une entrée, et une écriture de cache 12,5 fois une lecture (125 % contre 10 % du prix d'entrée). Le cache s'écrit au premier échange d'une conversation puis se relit pendant 5 minutes. Ce coût sert au pilotage, pas à la facturation ; les crédits, eux, sont le débit réel du portefeuille.")}</p>
     </div>
   );
 }
 
-function MobileRow({ row, showAccount }: { row: UsageRow; showAccount: boolean }) {
+function MobileRow({ row, showAccount, showUsd, credits }: { row: UsageRow; showAccount: boolean; showUsd: boolean; credits: number }) {
   return (
     <div className="flex flex-col gap-1 border-b border-line-2 px-5 py-3 last:border-0">
       <div className="flex items-baseline justify-between gap-3">
@@ -179,10 +230,14 @@ function MobileRow({ row, showAccount }: { row: UsageRow; showAccount: boolean }
           {row.action}
           {row.continuation ? <Suite /> : null}
         </span>
-        <span className="whitespace-nowrap text-right">
-          <span className="block tabular-nums text-[13px] text-ink">{formatUsdPrecise(row.costUsd)}</span>
-          <span className="block tabular-nums text-[11px] text-muted-2">{formatEurPrecise(usdToEur(row.costUsd))}</span>
-        </span>
+        {showUsd ? (
+          <span className="whitespace-nowrap text-right">
+            <span className="block tabular-nums text-[13px] text-ink">{formatUsdPrecise(row.costUsd)}</span>
+            <span className="block tabular-nums text-[11px] text-muted-2">{formatEurPrecise(usdToEur(row.costUsd))}</span>
+          </span>
+        ) : credits > 0 ? (
+          <span className="whitespace-nowrap font-semibold text-brand tabular-nums">{credits} crédit{credits > 1 ? "s" : ""}</span>
+        ) : null}
       </div>
       <div className="text-[12.5px] text-body">
         {showAccount ? `${row.accountName} · ` : ""}
@@ -196,10 +251,10 @@ function MobileRow({ row, showAccount }: { row: UsageRow; showAccount: boolean }
         <span aria-hidden>·</span>
         <span className="tabular-nums">{row.inputTokens.toLocaleString("fr-FR")} / {row.outputTokens.toLocaleString("fr-FR")} tokens</span>
         <CacheBadges read={row.cacheReadTokens} write={row.cacheWriteTokens} />
-        {row.credits > 0 ? (
+        {showUsd && credits > 0 ? (
           <>
             <span aria-hidden>·</span>
-            <span className="font-semibold text-brand tabular-nums">{row.credits} crédit{row.credits > 1 ? "s" : ""}</span>
+            <span className="font-semibold text-brand tabular-nums">{credits} crédit{credits > 1 ? "s" : ""}</span>
           </>
         ) : null}
       </div>

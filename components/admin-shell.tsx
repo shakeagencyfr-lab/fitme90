@@ -13,6 +13,7 @@ import { AdminSearch, type SearchDest } from "@/components/admin-search";
 import { signOutAction } from "@/app/(auth)/actions";
 import type { CoachNotif } from "@/lib/notifications";
 import type { TenantKind } from "@/lib/hierarchy";
+import type { CostView } from "@/lib/ai-supply";
 import { themeProps } from "@/components/tenant-theme";
 import type { TenantTheme } from "@/lib/theme";
 
@@ -373,6 +374,25 @@ function WalletCard({ credits }: { credits: number }) {
 }
 
 /**
+ * L'IA est comprise dans l'abonnement : ni facture, ni solde. Le seul chiffre
+ * qui reste vrai pour ce coach est le nombre d'appels du mois.
+ */
+function IncludedCard({ calls }: { calls: number }) {
+  const tx = usePhrase();
+  return (
+    <Link href="/admin/consommation" className={CARD_CLASS}>
+      <div className={CARD_LABEL}>
+        {SPARK}
+        {tx("IA · ce mois")}</div>
+      <div className="flex items-baseline gap-2 text-ink">
+        <span className="font-archivo text-[20px] font-extrabold leading-none tracking-[-0.02em] tabular-nums">{calls}</span>
+        <span className="text-[11px] text-muted-2">{calls > 1 ? tx("appels, compris dans ton abonnement") : tx("appel, compris dans ton abonnement")}</span>
+      </div>
+    </Link>
+  );
+}
+
+/**
  * Marque réduite à une pastille carrée pour le rail : le logo s'il existe,
  * sinon l'initiale sur un fond aux couleurs de la marque.
  */
@@ -400,6 +420,7 @@ export function AdminShell({
   kind,
   aiCostUsd = 0,
   aiCalls = 0,
+  aiView = "usd",
   wallet = null,
   brandName = null,
   brandLogoUrl = null,
@@ -413,7 +434,9 @@ export function AdminShell({
   kind: TenantKind;
   aiCostUsd?: number;
   aiCalls?: number;
-  /** Solde de crédits, renseigné UNIQUEMENT quand le coach est en modèle crédits. */
+  /** Ce que ce compte a le droit de voir : des dollars, des crédits, ou rien. */
+  aiView?: CostView;
+  /** Solde de crédits, renseigné UNIQUEMENT quand le compte achète des crédits. */
   wallet?: { credits: number } | null;
   /** Marque du tenant PARENT (revendeur pour un coach, plateforme pour un
    *  revendeur). Le dashboard porte CETTE marque — jamais My Fitness App pour un coach. */
@@ -449,27 +472,36 @@ export function AdminShell({
     setPeek(false);
     toggleRail();
   };
-  // En modèle crédits, le solde remplace la conso en dollars : c'est le même
-  // emplacement, mais le chiffre qui compte pour ce coach n'est pas le même.
-  const usageCard = wallet ? (
-    <WalletCard credits={wallet.credits} />
-  ) : (
-    <UsageCard costUsd={aiCostUsd} calls={aiCalls} />
-  );
-  const railUsageCard = wallet ? (
-    <RailCard
-      href="/admin/credits"
-      title={`${tx("Crédits · restants")} : ${wallet.credits}`}
-      value={String(wallet.credits)}
-      alert={wallet.credits <= 0}
-    />
-  ) : (
-    <RailCard
-      href="/admin/compte"
-      title={`${tx("Conso IA · ce mois")} : $${aiCostUsd.toFixed(2)}`}
-      value={`$${aiCostUsd.toFixed(2)}`}
-    />
-  );
+  // Le même emplacement, trois chiffres possibles. Un compte qui achète des
+  // crédits lit son solde ; un compte dont l'IA est comprise lit ses appels ;
+  // seul un compte sur sa propre clé lit des dollars. Un montant en dollars
+  // chez les deux premiers trahirait la marge de leur fournisseur.
+  const credits = wallet?.credits ?? 0;
+  const usageCard =
+    aiView === "credits" ? (
+      <WalletCard credits={credits} />
+    ) : aiView === "included" ? (
+      <IncludedCard calls={aiCalls} />
+    ) : (
+      <UsageCard costUsd={aiCostUsd} calls={aiCalls} />
+    );
+  const railUsageCard =
+    aiView === "credits" ? (
+      <RailCard
+        href="/admin/credits"
+        title={`${tx("Crédits · restants")} : ${credits}`}
+        value={String(credits)}
+        alert={credits <= 0}
+      />
+    ) : aiView === "included" ? (
+      <RailCard href="/admin/consommation" title={`${tx("IA · ce mois")} : ${aiCalls}`} value={String(aiCalls)} />
+    ) : (
+      <RailCard
+        href="/admin/compte"
+        title={`${tx("Conso IA · ce mois")} : $${aiCostUsd.toFixed(2)}`}
+        value={`$${aiCostUsd.toFixed(2)}`}
+      />
+    );
 
 
   // La marque seule. `min-w-0` + `truncate` : sur 264 px, un nom long doit se

@@ -14,6 +14,7 @@ import { listPlans } from "@/lib/plans";
 import { accountCapacity } from "@/lib/entitlements";
 import { networkAiFigures, type NetworkAi } from "@/lib/network-ai";
 import { formatUsd } from "@/lib/ai-cost";
+import { costViewOf } from "@/lib/cost-view";
 import { GRANTED_STATUS } from "@/lib/tenant-billing";
 
 export const metadata = { title: "Mon réseau, Admin My Fitness App" };
@@ -79,6 +80,9 @@ export default async function AdminNetworkPage({
   // pas deux façons de dire la même chose : l'un annonce ce qu'il reste, l'autre
   // ce qui a déjà été payé.
   const aiFigures: Map<string, NetworkAi> = tenantId ? await networkAiFigures(tenantId, children) : new Map();
+  // Un revendeur en crédits plateforme ne lit jamais de dollars, même pour un
+  // coach dispensé qui règle Anthropic lui-même : la règle est la même partout.
+  const view = tenantId ? await costViewOf(tenantId) : "usd";
   // Capacité du revendeur lui-même, comptée en comptes. La plateforme n'a
   // personne au-dessus d'elle pour la plafonner : sa jauge n'aurait pas de sens.
   const capacite = tenantId && kind === "reseller" ? await accountCapacity(tenantId) : null;
@@ -281,12 +285,16 @@ export default async function AdminNetworkPage({
                                 {ai.credits != null && ai.credits > 1 ? tx("crédits") : tx("crédit")}
                               </span>
                             </span>
-                          ) : (
+                          ) : view === "usd" ? (
                             <span className="flex flex-col leading-tight">
                               <span className="text-body">{formatUsd(ai.costUsd ?? 0)}</span>
                               <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted-2">
                                 {tx("ce mois, clé perso")}
                               </span>
+                            </span>
+                          ) : (
+                            <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted-2">
+                              {tx("clé perso")}
                             </span>
                           );
                         })()}

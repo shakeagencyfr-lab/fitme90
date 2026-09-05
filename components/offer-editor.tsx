@@ -37,8 +37,11 @@ export function OfferEditor({
   bestPack,
   unitCents,
   resellerCap,
+  aiIncluded = false,
 }: {
   offer: Offer;
+  /** L'IA est comprise dans l'abonnement du coach : aucun coût par action à simuler. */
+  aiIncluded?: boolean;
   defaultQuota: number;
   /** Le coach achète ses crédits : son coût se lit en crédits, pas en dollars. */
   creditMode: boolean;
@@ -274,7 +277,11 @@ export function OfferEditor({
                     {tx("Coût maximum de ce plan")}
                   </span>
 
-                  {illimite ? (
+                  {aiIncluded ? (
+                    <span className="font-archivo text-[20px] font-extrabold leading-none text-ink">
+                      {tx("Comprise dans ton abonnement")}
+                    </span>
+                  ) : illimite ? (
                     <span className="font-archivo text-[20px] font-extrabold leading-none text-ink">
                       {tx("Non borné")}
                     </span>
@@ -316,9 +323,11 @@ export function OfferEditor({
                   )}
 
                   <span className="text-[12px] leading-relaxed text-muted-2">
-                    {illimite
-                      ? tx("Un quota à 0 veut dire illimité : rien ne borne alors la dépense de ce plan.")
-                      : tx("Si le client saturait son quota tous les jours, ce qu'aucun ne fait. La dépense observée tourne autour du dixième. Générations de programme comprises.")}
+                    {aiIncluded
+                      ? tx("Rien ne t'est débité par action : ton revendeur fournit l'IA dans ton abonnement.")
+                      : illimite
+                        ? tx("Un quota à 0 veut dire illimité : rien ne borne alors la dépense de ce plan.")
+                        : tx("Si le client saturait son quota tous les jours, ce qu'aucun ne fait. La dépense observée tourne autour du dixième. Générations de programme comprises.")}
                   </span>
                 </div>
               </div>

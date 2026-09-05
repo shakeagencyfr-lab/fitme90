@@ -27,10 +27,12 @@ interface TenantAiRow {
   ai_credit_price_cents: number | null;
   ai_program_credits: number | null;
   whitelabel_addon_price_cents: number | null;
+  coach_byok_allowed: boolean | null;
+  coach_credits_allowed: boolean | null;
 }
 
 const AI_COLS =
-  "ai_mode, ai_supply, reseller_model, ai_client_daily_limit, ai_credit_price_cents, ai_program_credits, whitelabel_addon_price_cents";
+  "ai_mode, ai_supply, reseller_model, ai_client_daily_limit, ai_credit_price_cents, ai_program_credits, whitelabel_addon_price_cents, coach_byok_allowed, coach_credits_allowed";
 
 /**
  * Revenu IA. Deux visages :
@@ -127,6 +129,10 @@ export default async function AdminResellerAiPage() {
 
   const cost = `$${usage.costUsd.toFixed(2)}`;
   const perCoach = usage.coachCount > 0 ? usage.costUsd / usage.coachCount : 0;
+  const creditsPerCoach = usage.coachCount > 0 ? Math.round(usage.supplierCredits / usage.coachCount) : 0;
+  // Ce que le palier de ce revendeur lui permet de proposer à ses coachs.
+  const byokAllowed = t?.coach_byok_allowed !== false;
+  const creditsAllowed = t?.coach_credits_allowed !== false;
 
   return (
     <div className="flex flex-col gap-5">
@@ -147,7 +153,11 @@ export default async function AdminResellerAiPage() {
 
       {/* Ce que la revente rapporte, avant le solde et les réglages. */}
       {resellerModel === "credits" ? (
-        <AiRevenueSummary tenantId={tenantId!} creditPriceCents={creditPrice} />
+        <AiRevenueSummary
+          tenantId={tenantId!}
+          creditPriceCents={creditPrice}
+          purchaseCentsPerCredit={buysFromPlatform ? buyPriceCents : null}
+        />
       ) : null}
 
       {buysFromPlatform && wallet ? (
@@ -178,6 +188,7 @@ export default async function AdminResellerAiPage() {
         packs={packs}
         unitCents={creditPrice}
         buyPriceCents={buyPriceCents}
+        creditsAllowed={creditsAllowed}
       />
 
       <WhitelabelPriceForm
@@ -192,6 +203,7 @@ export default async function AdminResellerAiPage() {
           initialLimit={limit}
           keyConfigured={key.configured}
           absorbsCost={resellerModel === "subscription"}
+          byokAllowed={byokAllowed}
         />
       ) : null}
 
@@ -206,23 +218,44 @@ export default async function AdminResellerAiPage() {
         canSetCredits={!buysFromPlatform}
       />
 
-      <Card as="section" className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <div className="font-archivo font-bold text-[17px] text-ink">
-            {tx("Coût IA de ton réseau")} {mode === "provider" ? "(à ta charge)" : "(à titre indicatif)"}
+      {/* Un revendeur en crédits plateforme lit sa dépense en crédits, jamais
+          en dollars : le montant Anthropic contiendrait la marge de la
+          plateforme. Sur sa propre clé, il lit ses dollars comme la plateforme. */}
+      {buysFromPlatform ? (
+        <Card as="section" className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <div className="font-archivo font-bold text-[17px] text-ink">{tx("Crédits consommés par ton réseau")}</div>
+            <p className="max-w-[72ch] text-[13px] leading-[1.6] text-muted">
+              {tx("Ce que la plateforme t'a débité depuis le 1er du mois pour l'IA de tous les comptes de tes coachs.")}</p>
           </div>
-          <p className="max-w-[72ch] text-[13px] leading-[1.6] text-muted">
-            {tx("Estimation cumulée depuis le 1er du mois, sur la consommation de tous les comptes de tes coachs.")}</p>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Metric label={tx("Coût IA · ce mois")} value={cost} />
-          <Metric label={tx("Appels IA")} value={usage.calls.toLocaleString("fr-FR")} />
-          <Metric label={tx("Coachs du réseau")} value={String(usage.coachCount)} />
-          <Metric label={tx("Coût moyen / coach")} value={`$${perCoach.toFixed(2)}`} />
-        </div>
-        <p className="text-[12px] leading-[1.6] text-muted-2">
-          {tx("Estimation à partir des tarifs publics Anthropic. Elle sert au pilotage, pas à la facturation.")}</p>
-      </Card>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Metric label={tx("Crédits · ce mois")} value={usage.supplierCredits.toLocaleString("fr-FR")} />
+            <Metric label={tx("Appels IA")} value={usage.calls.toLocaleString("fr-FR")} />
+            <Metric label={tx("Coachs du réseau")} value={String(usage.coachCount)} />
+            <Metric label={tx("Crédits moyens / coach")} value={creditsPerCoach.toLocaleString("fr-FR")} />
+          </div>
+          <p className="text-[12px] leading-[1.6] text-muted-2">
+            {tx("Débit réel de ton portefeuille, action par action. Le détail est dans Consommation.")}</p>
+        </Card>
+      ) : (
+        <Card as="section" className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <div className="font-archivo font-bold text-[17px] text-ink">
+              {tx("Coût IA de ton réseau")} {mode === "provider" ? "(à ta charge)" : "(à titre indicatif)"}
+            </div>
+            <p className="max-w-[72ch] text-[13px] leading-[1.6] text-muted">
+              {tx("Estimation cumulée depuis le 1er du mois, sur la consommation de tous les comptes de tes coachs.")}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Metric label={tx("Coût IA · ce mois")} value={cost} />
+            <Metric label={tx("Appels IA")} value={usage.calls.toLocaleString("fr-FR")} />
+            <Metric label={tx("Coachs du réseau")} value={String(usage.coachCount)} />
+            <Metric label={tx("Coût moyen / coach")} value={`$${perCoach.toFixed(2)}`} />
+          </div>
+          <p className="text-[12px] leading-[1.6] text-muted-2">
+            {tx("Estimation à partir des tarifs publics Anthropic. Elle sert au pilotage, pas à la facturation.")}</p>
+        </Card>
+      )}
 
       {!buysFromPlatform ? (
         <>

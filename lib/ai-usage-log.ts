@@ -35,6 +35,8 @@ export interface UsageRow {
   cacheWriteTokens: number;
   /** Crédits débités au compte (0 en BYOK). */
   credits: number;
+  /** Crédits débités au revendeur par la plateforme pour cette action. */
+  supplierCredits: number;
   /** Coût Anthropic estimé de cet appel, en dollars. */
   costUsd: number;
   /** Décomposition du coût : c'est elle qui explique l'écart entre deux lignes voisines. */
@@ -92,6 +94,7 @@ export function driverLabel(driver: CostDriver, parts: CostParts): string {
 export interface UsageTotals {
   calls: number;
   credits: number;
+  supplierCredits: number;
   costUsd: number;
   inputTokens: number;
   outputTokens: number;
@@ -191,6 +194,7 @@ interface RawRow extends CostRow {
   model: string | null;
   action: string | null;
   credits: number | null;
+  supplier_credits: number | null;
   request_id: string | null;
   counts_for_quota: boolean | null;
 }
@@ -202,7 +206,7 @@ interface RawRow extends CostRow {
 // autres écrans (coût du mois, marges) lisaient la bonne colonne et donnaient
 // un total sans rapport avec la somme des lignes.
 export const COLS =
-  "id, created_at, user_id, tenant_id, route, action, model, credits, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cache_write_1h_tokens, request_id, counts_for_quota";
+  "id, created_at, user_id, tenant_id, route, action, model, credits, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cache_write_1h_tokens, supplier_credits, request_id, counts_for_quota";
 
 /**
  * Une page d'historique pour un étage. Trois requêtes au plus : les appels, les
@@ -216,7 +220,7 @@ export async function usageHistory(
 ): Promise<UsagePage> {
   const empty: UsagePage = {
     rows: [],
-    totals: { calls: 0, credits: 0, costUsd: 0, inputTokens: 0, outputTokens: 0, cachedTokens: 0 },
+    totals: { calls: 0, credits: 0, supplierCredits: 0, costUsd: 0, inputTokens: 0, outputTokens: 0, cachedTokens: 0 },
     truncated: false,
     actions: [],
   };
@@ -278,6 +282,7 @@ export async function usageHistory(
       // lui, reste distinct (200 % contre 125 %) et vit dans `parts`.
       cacheWriteTokens: (r.cache_write_tokens ?? 0) + (r.cache_write_1h_tokens ?? 0),
       credits: r.credits ?? 0,
+      supplierCredits: r.supplier_credits ?? 0,
       costUsd: parts.total,
       parts,
       driver: costDriver(parts),
@@ -292,12 +297,13 @@ export async function usageHistory(
     (t, r) => ({
       calls: t.calls + 1,
       credits: t.credits + r.credits,
+      supplierCredits: t.supplierCredits + r.supplierCredits,
       costUsd: t.costUsd + r.costUsd,
       inputTokens: t.inputTokens + r.inputTokens,
       outputTokens: t.outputTokens + r.outputTokens,
       cachedTokens: t.cachedTokens + r.cacheReadTokens + r.cacheWriteTokens,
     }),
-    { calls: 0, credits: 0, costUsd: 0, inputTokens: 0, outputTokens: 0, cachedTokens: 0 },
+    { calls: 0, credits: 0, supplierCredits: 0, costUsd: 0, inputTokens: 0, outputTokens: 0, cachedTokens: 0 },
   );
 
   return { rows, totals, truncated, actions: [...new Set(page.map((r) => r.action).filter(Boolean) as string[])].sort() };

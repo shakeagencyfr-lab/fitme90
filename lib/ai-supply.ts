@@ -137,3 +137,36 @@ export function supplySwitchPatch(supply: AiSupply, targetHasOwnKey: boolean): R
     : { ai_supply: "byok", ai_mode: "byok", reseller_model: "subscription" };
 }
 
+
+/**
+ * CE QU'UN COMPTE A LE DROIT DE VOIR DE SES COÛTS D'IA.
+ *
+ * La marge se cache dans l'écart entre ce qu'un crédit coûte chez Anthropic
+ * et le prix auquel il est vendu. Un compte qui ACHÈTE des crédits ne doit
+ * donc jamais voir de dollars : il verrait la marge de son fournisseur. Un
+ * compte qui règle Anthropic lui-même (sa propre clé) voit ses dollars, comme
+ * la plateforme. Un compte dont l'IA est comprise dans son abonnement n'a ni
+ * facture ni solde : il ne voit que des appels.
+ *
+ *   usd       : ma clé, mes dollars (plateforme, revendeur en clé perso,
+ *               coach en clé perso ou dispensé).
+ *   credits   : j'achète des crédits, je vois des crédits (revendeur en
+ *               crédits plateforme, coach chez un revendeur en crédits).
+ *   included  : l'IA est comprise dans mon abonnement (coach chez un
+ *               revendeur fournisseur en modèle abonnement).
+ *
+ * Pure : les appelants apportent les faits, elle rend la règle. Un seul
+ * endroit, sinon chaque écran finit par décider autrement.
+ */
+export type CostView = "usd" | "credits" | "included";
+
+export function costViewFor(
+  kind: "platform" | "reseller" | "coach",
+  resellerSupply: AiSupply,
+  coachDisplay: SupplyDisplay,
+): CostView {
+  if (kind === "platform") return "usd";
+  if (kind === "reseller") return resellerSupply === "platform_credits" ? "credits" : "usd";
+  if (coachDisplay === "own_key") return "usd";
+  return coachDisplay === "credits" ? "credits" : "included";
+}

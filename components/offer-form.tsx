@@ -31,8 +31,11 @@ export function OfferForm({
   defaultQuota,
   bestPack = null,
   resellerCap = 0,
+  aiIncluded = false,
 }: {
   atLimit: boolean;
+  /** L'IA est comprise dans l'abonnement du coach : aucun coût par action à simuler. */
+  aiIncluded?: boolean;
   /** Crédits IA consommés par une génération de programme (réglé par le fournisseur). */
   programCredits: number;
   /** Le coach paie l'IA en crédits (sinon BYOK : le coût max est en actions, pas en crédits). */
@@ -279,7 +282,13 @@ export function OfferForm({
             ) : null}
             <div className="flex flex-col gap-2 rounded-control border border-line-4 bg-surface-2 p-3">
               <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">{tx("Coût maximum de ce plan")}</span>
-              {creditMode ? (
+              {aiIncluded ? (
+                /* L'IA est comprise dans l'abonnement du coach : ni dollars ni
+                   crédits à simuler, il ne règle rien par action. */
+                <span className="text-[13px] leading-[1.6] text-body">
+                  {tx("L'IA de tes clients est comprise dans ton abonnement chez ton revendeur : rien ne t'est débité par action, quel que soit le quota.")}
+                </span>
+              ) : creditMode ? (
                 /* Coach sous crédits IA : il ne voit jamais Anthropic, son
                    plafond se lit dans la seule unité qu'il achète. */
                 <>
