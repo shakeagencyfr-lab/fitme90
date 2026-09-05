@@ -10,6 +10,7 @@ import { Alert, Card, MonoLabel } from "@/components/ui";
 import { ClientPush } from "@/components/client-push";
 import { MiniWeightChart, type WeightPoint } from "@/components/mini-weight-chart";
 import { CoachNoteForm } from "@/components/coach-note-form";
+import { ClientHandover } from "@/components/client-handover";
 import { assistClient, deleteCoachNote } from "@/app/admin/actions";
 import { DeleteClientButton } from "@/components/delete-client-button";
 import { VipChat } from "@/components/vip-chat";
@@ -30,6 +31,7 @@ type Prof = {
   medical_hold: boolean;
   medical_ack_at: string | null;
   medical_ack_name: string | null;
+  managed_by_coach: boolean;
 };
 
 type MeasureRow = {
@@ -66,19 +68,19 @@ export default async function ClientDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ assistance?: string }>;
+  searchParams: Promise<{ assistance?: string; cree?: string }>;
 }) {
   const gate = await getAdminOrNull();
   if (!gate) notFound();
   const { id } = await params;
-  const { assistance: assistanceErreur } = await searchParams;
+  const { assistance: assistanceErreur, cree } = await searchParams;
   const admin = createAdminClient();
 
   const [{ data: profile }, { data: quiz }, { data: prog }, { data: logs }, { data: weights }, { data: measures }, { data: notes }] =
     await Promise.all([
       admin
         .from("profiles")
-        .select("id, tenant_id, email, name, sex, paid, start_date, medical_hold, medical_ack_at, medical_ack_name")
+        .select("id, tenant_id, email, name, sex, paid, start_date, medical_hold, medical_ack_at, medical_ack_name, managed_by_coach")
         .eq("id", id)
         .maybeSingle<Prof>(),
       admin
@@ -177,7 +179,13 @@ export default async function ClientDetailPage({
           <h1 className="font-archivo font-extrabold text-[clamp(24px,5vw,34px)] leading-[1.05] tracking-[-0.03em] text-ink">
             {displayName}
           </h1>
-          <p className="text-[13px] text-muted-2">{profile.email}</p>
+          {/* Un compte interne n'a pas d'adresse : on le DIT, au lieu de
+              laisser une ligne vide qui ressemble à une donnée manquante. */}
+          {profile.email ? (
+            <p className="text-[13px] text-muted-2">{profile.email}</p>
+          ) : (
+            <p className="text-[13px] text-muted-2">{tx("Compte interne, sans e-mail")}</p>
+          )}
         </div>
         {/* Coaching en présentiel : pendant la séance c'est le coach qui note
             les charges, l'adhérent a les mains prises. */}
@@ -195,6 +203,12 @@ export default async function ClientDetailPage({
         </form>
       </div>
 
+      {cree ? (
+        <Alert tone="info">
+          {tx("Compte créé. Prochaine étape : « Assister ce client » pour remplir son questionnaire et générer son programme à sa place.")}
+        </Alert>
+      ) : null}
+
       {assistanceErreur ? (
         <Alert>
           {assistanceErreur === "refus"
@@ -202,6 +216,10 @@ export default async function ClientDetailPage({
             : tx("La connexion en assistance a échoué. Réessaie dans un instant.")}
         </Alert>
       ) : null}
+
+      {/* Compte tenu par le coach : la bascule vers un compte autonome se
+          joue ici, et nulle part ailleurs. */}
+      {profile.managed_by_coach ? <ClientHandover clientId={profile.id} /> : null}
 
       {/* Progression */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

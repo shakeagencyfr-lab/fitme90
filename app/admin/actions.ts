@@ -35,6 +35,7 @@ import { createPlan, setPlanActive, setPlanSiteIncluded, deletePlan } from "@/li
 import { cancelTenantPlan, reactivateTenantPlan, syncTenantSubscription } from "@/lib/tenant-billing";
 import { deleteOwnCoachAccount } from "@/lib/account-deletion";
 import { setAffiliation } from "@/lib/affiliation";
+import { createInternalClient, attachClientEmail } from "@/lib/internal-clients";
 import { setProspectStatus, deleteProspect, saveProspectFollowupCopy } from "@/lib/prospects";
 import { FOLLOWUP_STEPS, followupDefaultCopies } from "@/lib/prospect-followup";
 import { tenantLocale } from "@/lib/i18n/server";
@@ -1814,8 +1815,20 @@ export async function assistClient(formData: FormData): Promise<void> {
     backTo: `/admin/clients/${targetUserId}`,
     kind: "client",
   });
-  // Directement sur la séance du jour : c'est là que le coach va saisir.
-  redirect("/app/seance");
+  // Où atterrir dépend de ce que le client a déjà.
+  //
+  // Sur la séance du jour quand il a un programme : c'est là que le coach
+  // saisit pendant l'entraînement, et c'est le cas courant. Mais un client
+  // inscrit à la main n'a encore ni questionnaire ni programme, et la séance du
+  // jour ne lui montrerait rien : on l'envoie alors sur l'accueil, qui sait
+  // dire l'étape suivante (remplir le questionnaire, puis générer).
+  const { data: dejaUnProgramme } = await admin
+    .from("programs")
+    .select("id")
+    .eq("user_id", targetUserId)
+    .limit(1)
+    .maybeSingle<{ id: string }>();
+  redirect(dejaUnProgramme ? "/app/seance" : "/app");
 }
 
 /** Retour à l'espace de l'opérateur après une assistance (cookie signé). */
@@ -2163,4 +2176,73 @@ export async function saveSiteSettings(_prev: SiteState, formData: FormData): Pr
   revalidatePath("/admin/site");
   if (slug) revalidatePath(`/web/${slug}`);
   return { ok: true };
+}
+
+// ------------------------------------------------------------------ clients internes
+
+export interface InternalClientState {
+  ok?: boolean;
+  error?: string;
+  /** Rempli après une reprise en main : le lien à remettre au client. */
+  lien?: string;
+}
+
+/**
+ * Crée un client tenu par le coach, sans adresse e-mail obligatoire.
+ *
+ * Le coach est renvoyé sur la fiche du nouveau client : c'est de là qu'il
+ * enchaîne, en assistance, sur le questionnaire puis la génération.
+ */
+export async function addInternalClient(
+  _prev: InternalClientState,
+  formData: FormData,
+): Promise<InternalClientState> {
+  const ctx = await getAdminOrNull();
+  const tenantId = ctx?.profile?.tenant_id ?? null;
+  if (!ctx || !tenantId) return { error: "Accès refusé." };
+
+  const res = await createInternalClient({
+    tenantId,
+    name: String(formData.get("name") ?? ""),
+    email: String(formData.get("email") ?? ""),
+    offerId: String(formData.get("offer_id") ?? "") || null,
+    startDate: String(formData.get("start_date") ?? "") || null,
+  });
+  if (!res.ok) return { error: res.error };
+
+  revalidatePath("/admin");
+  redirect(`/admin/clients/${res.userId}?cree=1`);
+}
+
+/**
+ * Le client prend la main : son adresse remplace l'adresse technique.
+ *
+ * On rend en même temps un lien de connexion à usage unique, que le coach lui
+ * remet de la main à la main. C'est ce qui rend la bascule immédiate : sans
+ * lui, le client devrait aller demander un courriel de connexion sans savoir
+ * qu'un compte l'attend.
+ */
+export async function handOverClient(
+  _prev: InternalClientState,
+  formData: FormData,
+): Promise<InternalClientState> {
+  const ctx = await getAdminOrNull();
+  const tenantId = ctx?.profile?.tenant_id ?? null;
+  const userId = String(formData.get("client_id") ?? "").trim();
+  if (!ctx || !tenantId || !userId) return { error: "Accès refusé." };
+  if (!(await isOwnClient(tenantId, userId))) return { error: "Ce client n'est pas le tien." };
+
+  const res = await attachClientEmail(tenantId, userId, String(formData.get("email") ?? ""));
+  if (!res.ok) return { error: res.error };
+
+  const h = await headers();
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const host = h.get("host") ?? "";
+  const lien = host ? await loginLinkForUser(userId, "/app", `${proto}://${host}`) : null;
+
+  revalidatePath(`/admin/clients/${userId}`);
+  revalidatePath("/admin");
+  // Le lien peut manquer sans que la reprise ait échoué : l'adresse est posée,
+  // et le client peut toujours demander un courriel de connexion.
+  return { ok: true, lien: lien ?? undefined };
 }

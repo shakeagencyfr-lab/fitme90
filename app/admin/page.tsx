@@ -10,6 +10,8 @@ import { listCoachVipThreads } from "@/lib/vip";
 import { tenantCapacity } from "@/lib/entitlements";
 import { CapacityCard } from "@/components/capacity-card";
 import { CoachOnboarding } from "@/components/coach-onboarding";
+import { InternalClientForm } from "@/components/internal-client-form";
+import { listOffers } from "@/lib/offers";
 import { Card, MonoLabel } from "@/components/ui";
 
 export const metadata = { title: "Clients, Admin My Fitness App" };
@@ -23,6 +25,7 @@ type Prof = {
   medical_hold: boolean;
   medical_ack_at: string | null;
   created_at: string;
+  managed_by_coach: boolean;
 };
 
 const fmt = (d: string | null) =>
@@ -43,7 +46,7 @@ export default async function AdminClientsPage() {
     tenantId
       ? admin
           .from("profiles")
-          .select("id, email, name, paid, start_date, medical_hold, medical_ack_at, created_at")
+          .select("id, email, name, paid, start_date, medical_hold, medical_ack_at, created_at, managed_by_coach")
           .eq("tenant_id", tenantId)
           .eq("role", "client")
           .order("created_at", { ascending: false })
@@ -61,11 +64,17 @@ export default async function AdminClientsPage() {
   const activeCount = withAccess.filter((r) => r.access.phase === "active").length;
 
   // Coût IA (BYOK) par client + total ; non-lus VIP par client (icône de ligne).
-  const [costByUser, vipThreads, cap] = await Promise.all([
+  const [costByUser, vipThreads, cap, offers] = await Promise.all([
     aiCostForUsers(rows.map((p) => p.id)),
     tenantId ? listCoachVipThreads(tenantId) : Promise.resolve([]),
     tenantId ? tenantCapacity(tenantId) : Promise.resolve(null),
+    tenantId ? listOffers(tenantId) : Promise.resolve([]),
   ]);
+  // Les plans masqués comptent ici : ce sont justement ceux qu'un coach crée
+  // pour des clients inscrits à la main, sans passer par sa page de vente.
+  const offerChoices = offers
+    .filter((o) => o.is_active)
+    .map((o) => ({ id: o.id, name: o.name, durationMonths: o.duration_months }));
   const globalCost = totalCost(costByUser);
   const unreadByClient = new Map<string, number>();
   for (const t of vipThreads) if (t.unread > 0) unreadByClient.set(t.clientId, t.unread);
@@ -84,6 +93,8 @@ export default async function AdminClientsPage() {
       </div>
 
       {cap ? <CapacityCard cap={cap} /> : null}
+
+      {tenantId ? <InternalClientForm offers={offerChoices} remaining={cap?.remaining ?? null} /> : null}
 
       {/* Coût IA (BYOK) : dépense estimée avec les clés Anthropic du coach. */}
       <Card className="flex flex-col gap-1.5">
@@ -138,7 +149,11 @@ export default async function AdminClientsPage() {
                           </span>
                         ) : null}
                       </div>
-                      <div className="text-[12px] text-muted-2">{p.email}</div>
+                      {/* Sans adresse, la ligne dirait « rien » là où il faut
+                          lire « compte que je tiens moi-même ». */}
+                      <div className="text-[12px] text-muted-2">
+                        {p.email || tx("Compte interne, sans e-mail")}
+                      </div>
                     </Link>
                   </td>
                   <td className="px-4 py-3">
