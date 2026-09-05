@@ -160,14 +160,14 @@ export const GYM_PHOTO_QUALITY = 0.92;
 /** Plafond total, en LOTS analysés sur la vie du compte (4 photos par lot). */
 export const LIMIT_ANALYZE_GYM_TOTAL = 40;
 
-// ── Estimations de coût IA (BYOK), en USD. MESURÉES sur la table `ai_calls`
-// après la mise en cache du prompt coach, puis arrondies vers le HAUT par
-// prudence. Repères d'ordre de grandeur, pas une facture exacte.
+// ── Estimations de coût IA (BYOK), en USD. MESURÉES sur la table `ai_calls`,
+// puis arrondies vers le HAUT par prudence : ce sont des repères d'ordre de
+// grandeur pour décider un prix, pas une facture.
 //
 // Tout tourne sur Haiku 4.5 ($1 / $5 le M) SAUF la génération de programme
 // (Sonnet 5, $2 / $10). Le prompt du coach est mis en cache : une lecture
-// coûte 10 % d'un token d'entrée, une écriture 125 %. D'où l'écart entre le
-// premier message d'une session, qui écrit le cache, et les suivants.
+// coûte 10 % d'un token d'entrée, une écriture longue 200 %. D'où l'écart
+// entre le premier message d'une fenêtre de cache et tous les suivants.
 //
 // DEUX POSTES ONT DISPARU. Les recettes du jour et les alternatives
 // d'exercice ne passent plus par un modèle : elles sortent d'un catalogue et
@@ -176,28 +176,27 @@ export const LIMIT_ANALYZE_GYM_TOTAL = 40;
 // parce qu'elles coûtent zéro.
 //
 // Mesures par appel, relevées le 5 septembre 2026 sur des appels réels :
-//   génération de programme (Sonnet 5) 0,2921 $  (12 110 entrée, 26 788 sortie)
-//   analyse photo de la salle          0,0110 $  (par lot de photos)
-//   message coach, cache réparé        0,0040 $  (estimation, voir plus bas)
-//   adaptation du programme            0,0706 $  (1 crédit + 10 crédits)
-//   résumé de mémoire (cron nocturne)  0,0029 $  par client actif et par jour
+//   génération de programme (Sonnet 5)  0,2921 $  (12 110 entrée, 26 788 sortie)
+//   analyse d'un lot de photos de salle 0,0110 $  (6 631 entrée, 864 sortie)
+//   message coach, cache lu             0,0023 $  (moyenne de huit messages)
+//   premier message d'une fenêtre 1 h   0,0164 $  (il écrit le cache)
+//   résumé de mémoire (cron nocturne)   0,0029 $  par client actif et par jour
 //
-// DEUX LEÇONS DE CES MESURES, qui valent d'être écrites ici.
-//
-// La génération coûte le DOUBLE de ce qu'on avait estimé, et ce n'est pas la
-// faute du modèle. L'ancienne mesure Opus (0,3882 $) portait sur un programme
-// qui produisait ~13 000 jetons ; le programme actuel en produit 26 788. Le
-// rapport de 2,5 entre Opus et Sonnet est exact (la même génération aurait
-// coûté 0,7303 $ sur Opus), c'est le livrable qui a grossi.
-//
-// Le message au Coach IA a été mesuré à 0,0178 $, soit trois fois et demie la
-// constante ci-dessous, à cause d'un point de reprise de cache posé sur du
-// contenu mouvant : 87 % de la facture partait en réécritures. Corrigé dans
-// app/api/coach/route.ts. La constante reste à 0,005 $, au-dessus de
-// l'estimation d'après correction : une constante de budget doit majorer.
-/** Coût estimé d'UN message Coach IA. Moyenne d'une session réelle : une
- * écriture de cache pour deux à trois lectures. */
-export const AI_COST_COACH_MSG_USD = 0.005;
+// CE QUE COÛTE VRAIMENT UN MESSAGE. Pris isolément, aucune des deux lignes du
+// chat n'est le bon chiffre : une session réelle a coûté 0,0346 $ pour neuf
+// messages, soit une écriture de cache pour huit lectures, donc 0,0038 $ en
+// moyenne. C'est cette moyenne que majore la constante ci-dessous. Elle valait
+// 0,005 $ tant que le point de reprise du cache était posé sur du contenu
+// mouvant et que 87 % de la facture partait en réécritures ; il a été corrigé
+// dans app/api/coach/route.ts, et la mesure a suivi.
+/**
+ * Date de la dernière campagne de mesure, affichée là où ces coûts servent à
+ * fixer un prix de revente. Sans elle, le fournisseur lit un chiffre sans
+ * savoir s'il date d'avant ou d'après le dernier changement de modèle.
+ */
+export const AI_COST_MEASURED_ON = "5 septembre 2026";
+/** Coût estimé d'UN message Coach IA, écriture de cache amortie sur la session. */
+export const AI_COST_COACH_MSG_USD = 0.004;
 /**
  * Coût estimé d'UNE action IA « simple » = 1 crédit.
  *
@@ -206,13 +205,25 @@ export const AI_COST_COACH_MSG_USD = 0.005;
  * le crédit et le message se confondent désormais.
  */
 export const AI_COST_ACTION_USD = AI_COST_COACH_MSG_USD;
-/** Coût MESURÉ d'UNE génération de programme (Sonnet 5), arrondi au-dessus. */
-export const AI_COST_PROGRAM_USD = 0.3;
+/** Coût MESURÉ de la seule génération (Sonnet 5), sans les photos de salle. */
+export const AI_COST_GENERATION_USD = 0.3;
+/** Coût MESURÉ de l'analyse d'un lot de photos de salle (Haiku, vision). */
+export const AI_COST_GYM_PHOTOS_USD = 0.011;
+/**
+ * Ce que coûte un PROGRAMME LIVRÉ, et pas seulement l'appel qui l'écrit.
+ *
+ * Un client n'obtient pas son programme sans que sa salle ait été analysée :
+ * les deux appels sont un seul et même livrable, et les séparer donnait un
+ * coût de génération flatteur en laissant la vision hors du compte. La
+ * constante additionne donc la génération (0,2921 $) et le lot de photos
+ * (0,0110 $), chacun déjà arrondi au-dessus. Elle est CALCULÉE et non saisie :
+ * un chiffre écrit à la main se serait décorrélé de ses deux composantes à la
+ * première remesure. C'est elle que lit la marge d'une génération vendue en
+ * crédits.
+ */
+export const AI_COST_PROGRAM_USD = AI_COST_GENERATION_USD + AI_COST_GYM_PHOTOS_USD;
 /** Ancien alias (échange générique), conservé pour compat, aligné sur le chat. */
 export const AI_COST_PER_MSG_USD = AI_COST_COACH_MSG_USD;
-/** Coût IA d'onboarding d'un client : génération du programme (0,2921 $) plus
- * un lot de photos de salle analysé (0,0110 $), arrondi au-dessus. */
-export const AI_COST_ONBOARDING_USD = 0.32;
 /**
  * Coût MOYEN d'un crédit consommé. Une seule action en consomme un, il n'y a
  * donc plus de mix à pondérer : c'est le prix d'un message.
@@ -224,9 +235,9 @@ export const AI_COST_CREDIT_USD = AI_COST_COACH_MSG_USD;
 export const AI_COST_MEMORY_USD = 0.003;
 
 /** Coût IA récurrent estimé par client et par mois (usage typique modéré) :
- * 8 messages par jour sur 26 jours actifs, plus le résumé de mémoire, plus la
- * génération d'un bloc amortie sur ses trois mois. */
-export const AI_COST_PER_CLIENT_MONTH_USD = 1.3;
+ * 8 messages par jour sur 26 jours actifs (0,83 $), plus le résumé de mémoire
+ * (0,08 $), plus un programme livré amorti sur ses trois mois (0,10 $). */
+export const AI_COST_PER_CLIENT_MONTH_USD = 1.1;
 
 // Taux de conversion indicatif USD→EUR pour afficher un coût lisible en euros
 // (le tarif Anthropic est en USD, la revente du revendeur en EUR). Approx.
@@ -354,10 +365,10 @@ export function actionCreditMargin(creditPriceCents: number): CreditMargin {
 }
 
 /**
- * Coût réel d'une génération de programme (Opus) rapporté aux crédits qu'elle
- * consomme : au prix unitaire donné, la génération rapporte-t-elle sa marge ?
- * Le fournisseur règle le nombre de crédits d'une génération avec ce chiffre
- * sous les yeux.
+ * Coût réel d'un programme livré (génération Sonnet + analyse des photos de
+ * salle) rapporté aux crédits qu'il consomme : au prix unitaire donné, la
+ * génération rapporte-t-elle sa marge ? Le fournisseur règle le nombre de
+ * crédits d'une génération avec ce chiffre sous les yeux.
  */
 export function programGenerationMargin(programCredits: number, creditPriceCents: number): CreditMargin {
   const n = Math.max(0, Math.trunc(programCredits || 0));
@@ -367,7 +378,7 @@ export function programGenerationMargin(programCredits: number, creditPriceCents
 /**
  * Coût / prix / marge d'un pack de crédits. Le coût est celui d'une action par
  * crédit : hypothèse prudente pour le fournisseur, puisqu'une génération de
- * programme consomme N crédits pour un coût Opus qui reste inférieur à N actions.
+ * programme consomme N crédits pour un coût qui reste inférieur à N actions.
  */
 export function creditPackMargin(credits: number, priceCents: number): CreditMargin {
   const n = Math.max(0, Math.trunc(credits || 0));
@@ -453,7 +464,9 @@ export function planMaxCostEur(input: {
   const quota = Math.max(0, Math.trunc(input.dailyQuota || 0));
   const generations = Math.max(1, Math.round(days / (BLOCK_MONTHS * DAYS_PER_MONTH)));
 
-  const programEur = usdToEur(generations * AI_COST_PROGRAM_USD);
+  // Une génération par bloc, mais UN SEUL lot de photos : la salle est
+  // analysée à l'inscription, pas à chaque reconstruction de bloc.
+  const programEur = usdToEur(generations * AI_COST_GENERATION_USD + AI_COST_GYM_PHOTOS_USD);
   const memoryEur = usdToEur(days * AI_COST_MEMORY_USD);
   // Le quota ne couvre plus qu'une action payante, le message au Coach IA :
   // recettes et alternatives d'exercice sont calculées sans modèle. Le pire

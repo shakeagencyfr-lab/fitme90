@@ -410,6 +410,11 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     /** Écritures dans le cache long (1 h), facturées 200 % au lieu de 125 %. */
     cache_write_1h_tokens: 0,
   };
+  // Une régénération lancée depuis le chat appelle le modèle de GÉNÉRATION,
+  // pas celui du coach. Ses jetons sont comptés à part : versés dans
+  // `totalUsage`, ils auraient été tarifés au prix de Haiku alors qu'ils
+  // coûtent ceux de Sonnet, et le journal sous-évaluait l'appel de moitié.
+  const genUsage = { input_tokens: 0, output_tokens: 0 };
   // `adapted` : quelque chose a changé, il faut rafraîchir les pages du client.
   // `regenerated` : le modèle a réellement reconstruit un programme, ce qui est
   // le SEUL cas qui justifie de débiter des crédits de génération.
@@ -575,8 +580,8 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
       billing.key,
       ctx!.profile?.tenant_id ?? null,
     );
-    totalUsage.input_tokens += result.usage.input_tokens;
-    totalUsage.output_tokens += result.usage.output_tokens;
+    genUsage.input_tokens += result.usage.input_tokens;
+    genUsage.output_tokens += result.usage.output_tokens;
     const oldCycles = (program?.plan as Plan | undefined)?.cycles ?? [];
     const from = pos.blockIndex * CYCLES_PER_BLOCK;
     const fresh = result.plan.cycles ?? [];
@@ -711,9 +716,14 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
   // Seule une VRAIE régénération ajoute le coût d'une génération : un changement
   // de jours ou une modification nutrition sont déterministes et ne coûtent que
   // le message.
+  // Deux compteurs et non un : le message et la régénération partent dans deux
+  // lignes de journal distinctes, chacune avec les crédits qui la concernent.
   let charged = 0;
+  let chargedProgram = 0;
   for (const kind of coachUsageToCharge(regenerated)) {
-    charged += await chargeAiUsage(coachTenant, kind, kind === "program" ? "generate" : "message", ctx.userId);
+    const n = await chargeAiUsage(coachTenant, kind, kind === "program" ? "generate" : "message", ctx.userId);
+    if (kind === "program") chargedProgram += n;
+    else charged += n;
   }
   // Enregistré APRÈS le débit : l'historique porte les crédits réellement
   // prélevés, pas une estimation refaite à côté.
@@ -723,6 +733,18 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     action: "message",
     credits: charged,
   });
+  // La régénération est un appel de génération : elle a son propre modèle, son
+  // propre tarif et ses propres crédits. Une ligne à part, donc, sans quoi le
+  // journal montre une conversation qui coûte le prix d'un programme sans dire
+  // pourquoi.
+  if (regenerated) {
+    await recordCall(ctx.userId, "block", genUsage, {
+      tenantId: coachTenant,
+      model: MODELS.generate,
+      action: "bloc",
+      credits: chargedProgram,
+    });
+  }
 
   // Une adaptation (jours, nutrition, blessure) a modifié programme/questionnaire :
   // on purge le cache des pages concernées pour que tout soit à jour à la nav.
