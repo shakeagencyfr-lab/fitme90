@@ -105,7 +105,7 @@ export async function networkAiFigures(
         .limit(100000)
         .returns<CostRow[]>();
       for (const r of calls ?? []) {
-        const cible = parUtilisateur.get(r.user_id);
+        const cible = r.user_id ? parUtilisateur.get(r.user_id) : undefined;
         if (cible) depenses.set(cible, (depenses.get(cible) ?? 0) + rowCost(r));
       }
     }

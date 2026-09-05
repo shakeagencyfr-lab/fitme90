@@ -249,7 +249,7 @@ export async function usageHistory(
   const page = truncated ? raw.slice(0, limit) : raw;
 
   const accountIds = [...new Set(page.map((r) => r.tenant_id).filter(Boolean) as string[])];
-  const userIds = [...new Set(page.map((r) => r.user_id))];
+  const userIds = [...new Set(page.map((r) => r.user_id).filter((x): x is string => !!x))];
   const [{ data: tenants }, { data: people }] = await Promise.all([
     accountIds.length
       ? admin.from("tenants").select("id, name").in("id", accountIds).returns<{ id: string; name: string }[]>()
@@ -262,7 +262,7 @@ export async function usageHistory(
   const person = new Map((people ?? []).map((p) => [p.id, p]));
 
   const rows: UsageRow[] = page.map((r) => {
-    const p = person.get(r.user_id);
+    const p = r.user_id ? person.get(r.user_id) : undefined;
     const parts = costParts(r);
     return {
       id: r.id,

@@ -1,5 +1,6 @@
 "use client";
 
+import { browserLocalIso } from "@/lib/local-date";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { QUIZ, DAYS, MAX_TRAIN_DAYS, trainDaysError, type Field } from "@/lib/questionnaire";
@@ -175,7 +176,7 @@ function FieldView({
         <input
           type="date"
           value={(value as string) ?? ""}
-          min={new Date().toISOString().slice(0, 10)}
+          min={browserLocalIso(new Date())}
           onChange={(e) => set(f.key, e.target.value)}
           className="tap w-full rounded-btn border border-line-3 bg-surface-2 px-3.5 text-ink outline-none focus:border-ink"
         />

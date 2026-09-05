@@ -1,5 +1,6 @@
 "use server";
 
+import { todayIso } from "@/lib/local-date";
 import { revalidatePath } from "next/cache";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
 import { makeT } from "@/lib/i18n";
@@ -22,7 +23,7 @@ export async function addWeight(_prev: EvoState, formData: FormData): Promise<Ev
 
   const supabase = await createClient();
   // Une seule pesée par jour : si une existe déjà aujourd'hui, on la remplace.
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIso();
   const { data: existing } = await supabase
     .from("weights")
     .select("id")

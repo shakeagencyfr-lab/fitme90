@@ -12,6 +12,7 @@ import { clientOffer } from "@/lib/offers";
 import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
 import { LIMIT_GENERATE_TOTAL, programDaysForMonths } from "@/lib/config";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
+import { todayIso } from "@/lib/local-date";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // génération longue : jusqu'à 5 min
@@ -212,7 +213,7 @@ async function generateForClient(
   if (!startDate) {
     // Date de début choisie au questionnaire (vrai calendrier). On la retient si
     // elle est valide et pas dans le passé ; sinon on démarre aujourd'hui.
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayIso();
     const picked =
       typeof quiz.answers?.start_date === "string" ? quiz.answers.start_date.slice(0, 10) : "";
     startDate = /^\d{4}-\d{2}-\d{2}$/.test(picked) && picked >= today ? picked : today;

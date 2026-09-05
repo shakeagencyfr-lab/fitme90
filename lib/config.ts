@@ -2,6 +2,14 @@
 // magiques dispersées (prix, durées) et garder une source unique.
 
 /** Prix unique du programme, en euros. Paiement une fois pour 90 jours. */
+/**
+ * Fuseau de référence de l'application. Le serveur tourne en UTC : à 23 h 30
+ * à Paris, « aujourd'hui » y est encore hier, et un programme qui commence
+ * demain s'affichait « J-1 » alors que la cliente venait de le lancer pour
+ * aujourd'hui. Toute date calendaire (jour de programme, pesée du jour, date
+ * de début) se calcule dans ce fuseau.
+ */
+export const APP_TIMEZONE = "Europe/Paris";
 export const PRICE_EUR = 190;
 
 /** Montant en centimes pour Stripe (Stripe raisonne en plus petite unité). */
