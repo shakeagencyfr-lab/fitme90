@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
 import { DAYS, trainDaysError } from "@/lib/questionnaire";
 import { patchPlanForTrainDays, type Plan } from "@/lib/program";
+import { assignOfferToClient } from "@/lib/offers";
 
 export interface DaysState {
   ok?: boolean;
@@ -63,5 +64,24 @@ export async function updateTrainDays(days: string[]): Promise<DaysState> {
   revalidatePath("/app/agenda");
   revalidatePath("/app/seance");
   revalidatePath("/app/nutrition");
+  return { ok: true };
+}
+
+export interface ChooseOfferState {
+  ok?: boolean;
+  error?: string;
+}
+
+/** Le client choisit le programme de son coach qu'il va payer. */
+export async function chooseOffer(_prev: ChooseOfferState, formData: FormData): Promise<ChooseOfferState> {
+  const ctx = await getSessionContext();
+  const t = makeT(await resolveLocale(await userLocale(ctx?.userId)));
+  if (!ctx) return { error: "Non authentifié." };
+  const offerId = String(formData.get("offer_id") ?? "").trim().slice(0, 40);
+  if (!offerId) return { error: t("payment.pickFailed") };
+  const res = await assignOfferToClient(ctx.userId, offerId);
+  if (!res.ok) return { error: t("payment.pickFailed") };
+  revalidatePath("/app/paiement");
+  revalidatePath("/app");
   return { ok: true };
 }

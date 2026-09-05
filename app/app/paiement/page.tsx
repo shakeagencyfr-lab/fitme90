@@ -4,7 +4,9 @@ import { Card, MonoLabel } from "@/components/ui";
 import { CheckoutButton } from "@/components/checkout-button";
 import { PaymentChoice } from "@/components/payment-choice";
 import { RedeemForm } from "@/components/redeem-form";
-import { clientOffer } from "@/lib/offers";
+import { clientOffer, chooseableOffers, assignOfferToClient } from "@/lib/offers";
+import { tenantNode } from "@/lib/hierarchy";
+import { OfferPicker } from "@/components/offer-picker";
 import { paymentModes } from "@/lib/installments";
 import { createClient } from "@/lib/supabase/server";
 import { PRICE_EUR, COACH_CREDENTIAL, GRACE_DAYS, formatEuros, programDaysForMonths, monthlyEquivalentCents } from "@/lib/config";
@@ -39,8 +41,54 @@ export default async function PaiementPage() {
   if (ctx.access.phase !== "not_paid") redirect("/app");
 
   // Achat via une offre coach : prix et durée de l'offre, paiement chez le coach.
-  const offer = await clientOffer(ctx.userId);
+  let offer = await clientOffer(ctx.userId);
   const { t } = await getT(await userLocale(ctx.userId));
+
+  // Client d'un coach SANS offre choisie (lien de parrainage, inscription
+  // directe sur la page du coach) : il choisit parmi les programmes en
+  // vitrine, ou hérite du seul qui existe. Jamais le tarif générique de la
+  // plateforme, qui n'est pas celui de son coach.
+  const tenantId = ctx.profile?.tenant_id ?? null;
+  const node = tenantId ? await tenantNode(tenantId) : null;
+  const chezUnCoach = !!node && node.kind !== "platform";
+  if (!offer && chezUnCoach && tenantId) {
+    const choix = await chooseableOffers(tenantId);
+    if (choix.length === 1) {
+      const res = await assignOfferToClient(ctx.userId, choix[0].id);
+      if (res.ok) offer = choix[0];
+    } else if (choix.length > 1) {
+      return (
+        <OfferPicker
+          offers={choix.map((o) => {
+            const copy = productCopy(o.duration_months, t);
+            return {
+              id: o.id,
+              name: o.name,
+              durationLabel: durLabel(o.duration_months, t),
+              pitch: copy ? copy.pitch : null,
+              onceCents: o.price_cents,
+              monthlyCents: o.price_month_cents,
+              months: o.duration_months,
+            };
+          })}
+        />
+      );
+    }
+    if (!offer) {
+      return (
+        <div className="mx-auto flex max-w-[520px] flex-col gap-6 py-4">
+          <header className="flex flex-col gap-2">
+            <MonoLabel className="text-brand">{t("payment.noPlanEyebrow")}</MonoLabel>
+            <h1 className="font-archivo font-extrabold text-[clamp(28px,6vw,40px)] leading-[1.05] tracking-[-0.03em] text-ink">
+              {t("payment.noPlanTitle")}
+            </h1>
+            <p className="text-[15px] leading-[1.6] text-muted">{t("payment.noPlanBody")}</p>
+          </header>
+          <GiftBlock label={t("common.or")} />
+        </div>
+      );
+    }
+  }
 
   // Offre d'un coach : en une fois, ou en N mensualités qui s'arrêtent
   // d'elles-mêmes. Le client a choisi sur la page de vente ; il peut encore

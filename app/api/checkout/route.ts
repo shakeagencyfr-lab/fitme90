@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { getSessionContext } from "@/lib/guard";
 import { PRICE_CENTS, CURRENCY, PRODUCT_NAME } from "@/lib/config";
+import { tenantNode } from "@/lib/hierarchy";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,14 @@ export async function POST() {
   if (ctx.access.phase !== "not_paid") {
     // Déjà payé (ou en cours) : rien à facturer.
     return NextResponse.json({ error: "Programme déjà débloqué" }, { status: 409 });
+  }
+
+  // Ce tarif est celui de la plateforme. Le client d'un coach paie son coach,
+  // à son prix, sur son compte Stripe : jamais ici.
+  const tenantId = ctx.profile?.tenant_id ?? null;
+  const node = tenantId ? await tenantNode(tenantId) : null;
+  if (node && node.kind !== "platform") {
+    return NextResponse.json({ error: "Ce programme se règle auprès de ton coach." }, { status: 400 });
   }
 
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
