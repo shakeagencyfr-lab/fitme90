@@ -4,7 +4,7 @@ import { getAdminOrNull } from "@/lib/admin";
 import { listCoachVipThreads } from "@/lib/vip";
 import { Alert, Card } from "@/components/ui";
 
-export const metadata = { title: "Chat VIP, Admin My Fitness App" };
+export const metadata = { title: "Chat VIP" };
 export const dynamic = "force-dynamic";
 
 const fmtWhen = (d: string | null) =>

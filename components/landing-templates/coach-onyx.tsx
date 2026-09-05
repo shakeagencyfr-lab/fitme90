@@ -188,6 +188,11 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false, locale = "fr" }:
                   {L.seePrograms} <S.arrow className="h-4.5 w-4.5" />
                 </a>
               ) : null}
+              {leadMagnet ? (
+                <a href="#offert" className="tap inline-flex h-[54px] items-center justify-center rounded-btn border border-white/20 bg-white/5 px-8 text-[16px] font-semibold text-white transition-colors duration-150 hover:border-white/40 hover:bg-white/10">
+                  {L.heroLead}
+                </a>
+              ) : null}
               <a href="#methode" className="tap inline-flex h-[54px] items-center justify-center rounded-btn border border-white/20 bg-white/5 px-8 text-[16px] font-semibold text-white transition-colors duration-150 hover:border-white/40 hover:bg-white/10">
                 {L.howItWorks}
               </a>
@@ -394,7 +399,7 @@ export function CoachOnyx({ tenant, offers, leadMagnet = false, locale = "fr" }:
 
         {/* Lead magnet : mini-programme gratuit */}
         {leadMagnet ? (
-          <section className="border-t border-white/8">
+          <section id="offert" className="scroll-mt-20 border-t border-white/8">
             <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(44px,6vw,72px)] sm:px-8">
               <LeadBand L={L} slug={tenant.slug} tone="dark" />
             </div>

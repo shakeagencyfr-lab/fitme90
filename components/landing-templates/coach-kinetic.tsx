@@ -244,6 +244,11 @@ export function CoachKinetic({ tenant, offers, leadMagnet = false, locale = "fr"
                       {L.seePrograms} <S.arrow className="h-5 w-5" />
                     </a>
                   ) : null}
+                  {leadMagnet ? (
+                    <a href="#offert" className="press tap inline-flex h-[58px] items-center justify-center rounded-btn border border-white/20 px-9 text-[16px] font-semibold text-white transition-colors hover:border-white/55">
+                      {L.heroLead}
+                    </a>
+                  ) : null}
                   <a href="#auteur" className="press tap inline-flex h-[58px] items-center justify-center rounded-btn border border-white/20 px-9 text-[16px] font-semibold text-white transition-colors hover:border-white/55">
                     {L.howItWorks}
                   </a>
@@ -390,7 +395,7 @@ export function CoachKinetic({ tenant, offers, leadMagnet = false, locale = "fr"
         ) : null}
 
         {leadMagnet ? (
-          <section className="border-t border-white/10">
+          <section id="offert" className="scroll-mt-20 border-t border-white/10">
             <div className="mx-auto w-full max-w-[1240px] px-5 py-[clamp(44px,6vw,72px)] sm:px-8">
               <LeadBand L={L} slug={tenant.slug} tone="dark" />
             </div>

@@ -5,7 +5,7 @@ import { usePhrase } from "@/components/locale-provider";
 import { useActionState, useState } from "react";
 import { saveResellerAiMode, type ResellerAiState } from "@/app/admin/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
-import { estimateAiMonthlyCost } from "@/lib/config";
+import { estimateAiMonthlyCost, estimateAiMonthlyCredits, formatEurPrecise } from "@/lib/config";
 
 interface Props {
   initialMode: "byok" | "provider";
@@ -22,31 +22,51 @@ interface Props {
   absorbsCost: boolean;
   /** Le palier du revendeur lui permet-il de laisser ses coachs en clé personnelle ? */
   byokAllowed?: boolean;
+  /**
+   * Revendeur en crédits plateforme : il fournit l'IA, point. Pas de mode à
+   * choisir, seulement le plafond, et son coût se lit en crédits (jamais en
+   * dollars : ce chiffre contiendrait la marge de la plateforme).
+   */
+  fixedProvider?: boolean;
+  /** Prix auquel ce revendeur achète le crédit (centimes), pour chiffrer le plafond en euros. */
+  creditCents?: number | null;
 }
 
 // Choix du mode de fourniture de l'IA du revendeur + plafond par client. Le
 // coût projeté (plafond atteint) s'affiche en direct pour piloter la marge.
-export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured, absorbsCost, byokAllowed = true }: Props) {
+export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured, absorbsCost, byokAllowed = true, fixedProvider = false, creditCents = null }: Props) {
   const tx = usePhrase();
   const [state, action, saving] = useActionState(saveResellerAiMode, {} as ResellerAiState);
-  const [mode, setMode] = useState<"byok" | "provider">(initialMode);
+  const [mode, setMode] = useState<"byok" | "provider">(fixedProvider ? "provider" : initialMode);
   const [limit, setLimit] = useState<number>(initialLimit);
 
   // Estimation par client : usage réaliste d'un côté, plafond de sécurité de
   // l'autre. Le plafond ne porte que sur les messages du Coach IA, seule
-  // action du client qui appelle encore un modèle.
+  // action du client qui appelle encore un modèle. En crédits plateforme, la
+  // même estimation se lit en crédits, chiffrée au prix d'achat du revendeur.
   const { realMonth, ceilingMonth } = estimateAiMonthlyCost(limit);
+  const credits = estimateAiMonthlyCredits(limit);
+  const money = (n: number) => (fixedProvider ? `${Math.round(n)} crédits${creditCents != null ? ` (≈ ${formatEurPrecise((n * creditCents) / 100)})` : ""}` : `$${n.toFixed(2)}`);
+  const sourceReady = fixedProvider || keyConfigured;
 
   return (
     <Card as="section" className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
-        <div className="font-archivo font-bold text-[17px] text-ink">{tx("Mode de fourniture de l'IA")}</div>
+        <div className="font-archivo font-bold text-[17px] text-ink">{fixedProvider ? tx("Plafond de l'IA fournie à ton réseau") : tx("Mode de fourniture de l'IA")}</div>
         <p className="max-w-[72ch] text-[13px] leading-[1.6] text-muted">
-          {tx("Choisis comment l'IA est fournie à tes coachs. Tu peux les laisser brancher leur propre clé (tu ne factures que les abonnements), ou fournir")} <span className="text-body">{tx("ta")}</span>{" "}
-          {tx("clé à tout ton réseau et refacturer l'IA via tes paliers.")}</p>
+          {fixedProvider ? (
+            tx("L'IA de tes coachs tourne sur tes crédits plateforme : c'est toi qui la fournis. Règle ici ce qu'un client peut consommer par jour, et vois ce que ça te coûte au pire, en crédits.")
+          ) : (
+            <>
+              {tx("Choisis comment l'IA est fournie à tes coachs. Tu peux les laisser brancher leur propre clé (tu ne factures que les abonnements), ou fournir")} <span className="text-body">{tx("ta")}</span>{" "}
+              {tx("clé à tout ton réseau et refacturer l'IA via tes paliers.")}
+            </>
+          )}
+        </p>
       </div>
 
       <form action={action} className="flex flex-col gap-5">
+        {fixedProvider ? null : (
         <div className="grid gap-3 sm:grid-cols-2">
           <ModeCard
             active={mode === "byok"}
@@ -65,9 +85,10 @@ export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured, a
             lockNote={keyConfigured ? undefined : "Nécessite ta clé Anthropic (à brancher plus bas)."}
           />
         </div>
+        )}
         <input type="hidden" name="ai_mode" value={mode} />
 
-        {!keyConfigured ? (
+        {!sourceReady ? (
           <Alert>
             {tx("Pour activer le mode")} <span className="font-semibold">{tx("revendeur d'IA")}</span>{tx(", branche d'abord ta clé Anthropic dans la section ci-dessous. Tant qu'aucune clé n'est enregistrée, tes coachs restent en BYOK (chacun sa clé).")}</Alert>
         ) : null}
@@ -94,7 +115,7 @@ export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured, a
                 <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">
                   {tx("Coût IA réaliste par client")}</div>
                 <span>
-                  ≈ <span className="font-semibold text-ink">${realMonth.toFixed(2)}</span> {tx("/ client / mois pour un client actif (la plupart consomment moins).")}</span>
+                  ≈ <span className="font-semibold text-ink">{money(fixedProvider ? credits.realMonth : realMonth)}</span> {tx("/ client / mois pour un client actif (la plupart consomment moins).")}</span>
               </div>
               <div>
                 <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">
@@ -102,14 +123,16 @@ export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured, a
                 <span>
                   {ceilingMonth != null ? (
                     <>
-                      {tx("Jamais plus de ≈")} <span className="font-semibold text-ink">${ceilingMonth.toFixed(0)}</span> {tx("/ client / mois, même en saturant le plafond tous les jours.")}</>
+                      {tx("Jamais plus de ≈")} <span className="font-semibold text-ink">{money(fixedProvider ? (credits.ceilingMonth ?? 0) : ceilingMonth)}</span> {tx("/ client / mois, même en saturant le plafond tous les jours.")}</>
                   ) : (
                     <span className="text-muted">{tx("Plafond désactivé (illimité) : le coût n'est pas borné.")}</span>
                   )}
                 </span>
               </div>
               <span className="text-[12px] text-muted-2">
-                {tx("Estimation d'après la conso réelle (chat sur Haiku, environ 0,005 $ le message). Détaille ta marge par crédit dans la « Tarification en crédits » ci-dessous.")}</span>
+                {fixedProvider
+                  ? tx("Estimation d'après la conso réelle : un message au Coach IA = un crédit, au prix auquel tu l'achètes à la plateforme.")
+                  : tx("Estimation d'après la conso réelle (chat sur Haiku, environ 0,005 $ le message). Détaille ta marge par crédit dans la « Tarification en crédits » ci-dessous.")}</span>
             </div>
           </div>
         ) : (
@@ -125,7 +148,7 @@ export function ResellerAiModeForm({ initialMode, initialLimit, keyConfigured, a
         {state.error ? <Alert>{state.error}</Alert> : null}
         {state.ok ? <Alert tone="info">{tx("Mode enregistré. Il s'applique dès maintenant.")}</Alert> : null}
 
-        <Button type="submit" loading={saving} disabled={mode === "provider" && !keyConfigured} className="self-start h-11">
+        <Button type="submit" loading={saving} disabled={mode === "provider" && !sourceReady} className="self-start h-11">
           {tx("Enregistrer le mode")}</Button>
       </form>
     </Card>

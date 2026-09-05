@@ -281,6 +281,11 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
                       {L.seePrograms} <S.arrow className="h-4.5 w-4.5" />
                     </a>
                   ) : null}
+                  {leadMagnet ? (
+                    <a href="#offert" className="press tap inline-flex h-[56px] items-center justify-center border border-white/20 px-9 font-archivo text-[15px] font-bold uppercase tracking-[0.04em] text-white transition-colors hover:border-white/50">
+                      {L.heroLead}
+                    </a>
+                  ) : null}
                   <a href="#auteur" className="press tap inline-flex h-[56px] items-center justify-center border border-white/20 px-9 font-archivo text-[15px] font-bold uppercase tracking-[0.04em] text-white transition-colors hover:border-white/50">
                     {L.howItWorks}
                   </a>
@@ -454,7 +459,7 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
 
         {/* Mini-programme offert */}
         {leadMagnet ? (
-          <section className="border-t border-white/10">
+          <section id="offert" className="scroll-mt-20 border-t border-white/10">
             <div className="mx-auto w-full max-w-[1240px] px-5 py-[clamp(44px,6vw,72px)] sm:px-8">
               <LeadBand L={L} slug={tenant.slug} tone="dark" radius="rounded-none" ctaClass="rounded-none" />
             </div>

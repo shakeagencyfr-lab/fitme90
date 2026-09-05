@@ -9,7 +9,7 @@ import { GiftGenerator } from "@/components/gift-generator";
 import { togglePromo, removePromo } from "@/app/admin/actions";
 import { Alert, Card } from "@/components/ui";
 
-export const metadata = { title: "Codes promo & cadeaux, Admin My Fitness App" };
+export const metadata = { title: "Codes promo & cadeaux" };
 
 const fmtDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "UTC" }) : null;

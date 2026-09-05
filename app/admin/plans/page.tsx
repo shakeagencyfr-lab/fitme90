@@ -14,7 +14,7 @@ import { resellerClientDailyCap } from "@/lib/coach-ai-budget";
 import { costViewOf } from "@/lib/cost-view";
 import { Alert } from "@/components/ui";
 
-export const metadata = { title: "Plans, Admin My Fitness App" };
+export const metadata = { title: "Plans" };
 
 export default async function AdminPlansPage() {
   const ctx = await getAdminOrNull();

@@ -517,7 +517,7 @@ export const en: Shape<typeof fr> = {
     enable: "Enable notifications",
     wait: "One moment",
     blocked: "Notifications are blocked for this site. Allow them in your browser settings, then come back here.",
-    iosInstall: "On iPhone, first install My Fitness App on your home screen (Share button, “Add to Home Screen”), then open the app to enable reminders.",
+    iosInstall: "On iPhone, first install the app on your home screen (Share button, “Add to Home Screen”), then open the app to enable reminders.",
     unsupported: "Your browser does not support notifications.",
     enableFailed: "Could not enable. Try again from the installed app.",
   },
@@ -560,7 +560,7 @@ export const en: Shape<typeof fr> = {
     mistakes: "Mistakes to avoid",
     none: "A detailed guide for this exercise is coming soon. Ask your coach if you are unsure about the execution.",
     sourceCoach: "Your coach's guide",
-    sourceLibrary: "My Fitness App library",
+    sourceLibrary: "Exercise library",
     sourceAi: "Guide generated for you",
   },
   pwa: {

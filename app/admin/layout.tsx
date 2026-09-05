@@ -25,7 +25,11 @@ export async function generateMetadata(): Promise<Metadata> {
   const ctx = await getAdminOrNull();
   const tenantId = ctx?.profile?.tenant_id ?? null;
   const brand = (tenantId ? await parentDashboardBrand(tenantId) : null) ?? (await platformBrand());
-  const meta: Metadata = { title: brand?.name ? `Espace admin, ${brand.name}` : "Espace admin" };
+  // Le titre d'onglet porte la marque du PARENT (revendeur pour un coach,
+  // plateforme pour un revendeur), jamais un nom en dur : chaque page ne
+  // donne que son propre mot, le gabarit ajoute la marque.
+  const espace = brand?.name ? `Espace admin, ${brand.name}` : "Espace admin";
+  const meta: Metadata = { title: { default: espace, template: `%s, ${espace}` } };
   if (brand?.faviconUrl) meta.icons = { icon: [{ url: brand.faviconUrl }], apple: [{ url: brand.faviconUrl }] };
   return meta;
 }

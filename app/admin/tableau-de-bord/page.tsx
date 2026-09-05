@@ -5,7 +5,7 @@ import { coachDashboard, resellerDashboard } from "@/lib/dashboard";
 import { Alert } from "@/components/ui";
 import { CoachView, NetworkView } from "@/components/dashboard-views";
 
-export const metadata = { title: "Tableau de bord, Admin My Fitness App" };
+export const metadata = { title: "Tableau de bord" };
 export const dynamic = "force-dynamic";
 
 /**

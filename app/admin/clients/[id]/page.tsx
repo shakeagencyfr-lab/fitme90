@@ -19,7 +19,7 @@ import { aiUsageForUser, formatUsd } from "@/lib/ai-cost";
 import { costViewOf } from "@/lib/cost-view";
 import type { Plan } from "@/lib/program";
 
-export const metadata = { title: "Fiche client, Admin My Fitness App" };
+export const metadata = { title: "Fiche client" };
 
 type Prof = {
   id: string;

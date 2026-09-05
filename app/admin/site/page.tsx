@@ -11,7 +11,7 @@ import { SiteStudio } from "@/components/site-studio";
 import { SiteLocked } from "@/components/site-locked";
 import { Alert } from "@/components/ui";
 
-export const metadata = { title: "Mon site, Admin My Fitness App" };
+export const metadata = { title: "Mon site" };
 export const dynamic = "force-dynamic";
 
 /**

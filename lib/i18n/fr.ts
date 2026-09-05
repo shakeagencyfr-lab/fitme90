@@ -517,7 +517,7 @@ export const fr = {
     enable: "Activer les notifications",
     wait: "Un instant",
     blocked: "Les notifications sont bloquées pour ce site. Autorise-les dans les réglages de ton navigateur, puis reviens ici.",
-    iosInstall: "Sur iPhone, installe d'abord My Fitness App sur ton écran d'accueil (bouton Partager, « Sur l'écran d'accueil »), puis ouvre l'app pour activer les rappels.",
+    iosInstall: "Sur iPhone, installe d'abord l'application sur ton écran d'accueil (bouton Partager, « Sur l'écran d'accueil »), puis ouvre l'app pour activer les rappels.",
     unsupported: "Ton navigateur ne prend pas en charge les notifications.",
     enableFailed: "Activation impossible. Réessaie depuis l'app installée.",
   },
@@ -560,7 +560,7 @@ export const fr = {
     mistakes: "Erreurs à éviter",
     none: "Fiche détaillée bientôt disponible pour cet exercice. Demande à ton coach en cas de doute sur l'exécution.",
     sourceCoach: "Fiche de ton coach",
-    sourceLibrary: "Bibliothèque My Fitness App",
+    sourceLibrary: "Bibliothèque d'exercices",
     sourceAi: "Fiche générée pour toi",
   },
   pwa: {

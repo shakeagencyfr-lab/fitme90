@@ -4,7 +4,7 @@ import { tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { CoachConfigForm } from "@/components/coach-config-form";
 
-export const metadata = { title: "Ma méthode, Admin My Fitness App" };
+export const metadata = { title: "Ma méthode" };
 
 export default async function AdminConfigPage() {
   const ctx = await getAdminOrNull();

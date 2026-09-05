@@ -242,6 +242,11 @@ export function CoachLumen({ tenant, offers, leadMagnet = false, locale = "fr" }
                     {L.seePrograms} <S.arrow className="h-4.5 w-4.5" />
                   </a>
                 ) : null}
+                {leadMagnet ? (
+                  <a href="#offert" className="tap inline-flex h-[54px] items-center justify-center rounded-btn border border-black/12 bg-white px-8 text-[16px] font-semibold text-ink transition-colors duration-150 hover:border-ink/40">
+                    {L.heroLead}
+                  </a>
+                ) : null}
                 <a href="#methode" className="tap inline-flex h-[54px] items-center justify-center rounded-btn border border-black/12 bg-white px-8 text-[16px] font-semibold text-ink transition-colors duration-150 hover:border-ink/40">
                   {L.howItWorks}
                 </a>
@@ -478,7 +483,7 @@ export function CoachLumen({ tenant, offers, leadMagnet = false, locale = "fr" }
 
         {/* Lead magnet : mini-programme gratuit */}
         {leadMagnet ? (
-          <section className="border-t border-black/8">
+          <section id="offert" className="scroll-mt-20 border-t border-black/8">
             <div className="mx-auto w-full max-w-[1120px] px-5 py-[clamp(44px,6vw,72px)] sm:px-8">
               <LeadBand L={L} slug={tenant.slug} tone="light" />
             </div>
