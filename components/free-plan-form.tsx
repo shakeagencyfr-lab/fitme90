@@ -74,8 +74,8 @@ export function FreePlanForm({
                 onChange={setSupply}
                 rights={rights}
                 contactName={contactName}
-                byokDesc={tx("Le compte branche sa propre clé Anthropic et règle sa consommation directement. Rien d'autre à faire.")}
-                creditsDesc={tx("L'IA tourne sur ta chaîne et le compte t'achète des crédits. Tu choisis combien lui en offrir pour démarrer.")}
+                byokDesc={tx("Tes clients branchent leur propre clé Anthropic et règlent leur consommation directement. Rien d'autre à faire.")}
+                creditsDesc={tx("Tu deviens revendeur d'IA : l'IA tourne sur ta chaîne, tes clients t'achètent des crédits et tu choisis ta marge sur chaque action. Tu choisis aussi combien leur en offrir pour démarrer.")}
               />
             </div>
 

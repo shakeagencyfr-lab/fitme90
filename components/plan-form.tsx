@@ -120,8 +120,8 @@ export function PlanForm({
           onChange={setSupply}
           rights={rights}
           contactName={contactName}
-          byokDesc={comptes ? tx("Le revendeur branche sa propre clé Anthropic et règle Anthropic directement.") : tx("Le coach branche sa propre clé Anthropic et règle Anthropic directement.")}
-          creditsDesc={comptes ? tx("L'IA tourne sur ta clé, le revendeur t'achète des crédits et les revend avec sa marge.") : tx("L'IA tourne sur ta chaîne, le coach t'achète des crédits.")}
+          byokDesc={comptes ? tx("Le revendeur branche sa propre clé Anthropic et règle Anthropic directement.") : tx("Tes coachs branchent leur propre clé Anthropic et règlent Anthropic directement.")}
+          creditsDesc={comptes ? tx("L'IA tourne sur ta clé, le revendeur t'achète des crédits et les revend avec sa marge.") : tx("Tu deviens revendeur d'IA : l'IA tourne sur ta chaîne, tes coachs t'achètent des crédits et tu choisis ta marge sur chaque action.")}
         />
       </div>
 
