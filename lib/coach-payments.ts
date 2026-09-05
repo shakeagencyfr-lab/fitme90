@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptSecret, decryptSecret, keyHint, secretsEncryptionReady } from "@/lib/crypto";
 import { clientOffer, getOffer } from "@/lib/offers";
 import { recordOrder } from "@/lib/orders";
+import { ensureInstallmentEnd } from "@/lib/subscription";
+import { installmentCount, paymentModes } from "@/lib/installments";
 
 // BYOK Stripe : chaque coach/salle fournit SA propre clé Stripe. Les paiements
 // sont créés directement sur SON compte (avec SA clé). La plateforme ne touche
@@ -97,17 +99,24 @@ export async function confirmCoachCheckout(userId: string, sessionId: string): P
       const subId = typeof session.subscription === "string" ? session.subscription : session.subscription.id;
       const customerId =
         typeof session.customer === "string" ? session.customer : session.customer?.id ?? null;
+      // N mensualités quand l'offre en propose : la date d'arrêt est posée
+      // sur l'abonnement DÈS la première échéance. Sans elle, « 3 fois »
+      // deviendrait un abonnement sans fin.
+      const installments = paymentModes(offer).includes("installments") ? installmentCount(offer) : null;
       let status: string | null = null;
       let periodEnd: string | null = null;
       let interval: string | null = null;
       let cancelAtPeriodEnd = false;
+      let cancelAt: string | null = null;
       try {
-        const sub = await stripe.subscriptions.retrieve(subId);
+        const raw = await stripe.subscriptions.retrieve(subId);
+        const sub = await ensureInstallmentEnd(stripe, raw, installments);
         status = sub.status;
         const end = (sub as unknown as { current_period_end?: number }).current_period_end;
         periodEnd = end ? new Date(end * 1000).toISOString() : null;
         interval = sub.items?.data?.[0]?.price?.recurring?.interval ?? null;
         cancelAtPeriodEnd = !!sub.cancel_at_period_end;
+        cancelAt = sub.cancel_at ? new Date(sub.cancel_at * 1000).toISOString() : null;
       } catch {
         /* on garde au moins les identifiants */
       }
@@ -123,6 +132,9 @@ export async function confirmCoachCheckout(userId: string, sessionId: string): P
           subscription_current_period_end: periodEnd,
           subscription_interval: interval,
           subscription_cancel_at_period_end: cancelAtPeriodEnd,
+          subscription_cancel_at: cancelAt,
+          subscription_installments: installments,
+          subscription_paid_in_full: false,
           subscription_synced_at: new Date().toISOString(),
         })
         .eq("id", userId);
@@ -268,9 +280,9 @@ export async function reconcileTenantPayments(days = 3): Promise<ReconcileResult
 
       const { data: prof } = await admin
         .from("profiles")
-        .select("paid, tenant_id, selected_offer_id")
+        .select("paid, tenant_id, selected_offer_id, subscription_id")
         .eq("id", userId)
-        .maybeSingle<{ paid: boolean | null; tenant_id: string | null; selected_offer_id: string | null }>();
+        .maybeSingle<{ paid: boolean | null; tenant_id: string | null; selected_offer_id: string | null; subscription_id: string | null }>();
       // Garde-fou de cloisonnement : on ne touche qu'aux clients de CE tenant,
       // même si une session portait un identifiant étranger.
       if (!prof || prof.tenant_id !== tenantId) continue;
@@ -281,6 +293,33 @@ export async function reconcileTenantPayments(days = 3): Promise<ReconcileResult
       }
 
       const offer = prof.selected_offer_id ? await getOffer(prof.selected_offer_id) : null;
+
+      // Un paiement en N fois dont le retour n'a pas eu lieu : l'abonnement
+      // existe chez Stripe mais le profil ne le connaît pas, et surtout sa
+      // date d'arrêt n'est pas posée. On rattache et on la pose ici.
+      if (session.mode === "subscription" && session.subscription && offer && !prof.subscription_id) {
+        const subId = typeof session.subscription === "string" ? session.subscription : session.subscription.id;
+        const installments = paymentModes(offer).includes("installments") ? installmentCount(offer) : null;
+        try {
+          const sub = await ensureInstallmentEnd(stripe, await stripe.subscriptions.retrieve(subId), installments);
+          const end = (sub as unknown as { current_period_end?: number }).current_period_end;
+          await admin
+            .from("profiles")
+            .update({
+              subscription_id: sub.id,
+              stripe_customer_id: typeof session.customer === "string" ? session.customer : session.customer?.id ?? null,
+              subscription_status: sub.status,
+              subscription_current_period_end: end ? new Date(end * 1000).toISOString() : null,
+              subscription_interval: sub.items?.data?.[0]?.price?.recurring?.interval ?? null,
+              subscription_cancel_at: sub.cancel_at ? new Date(sub.cancel_at * 1000).toISOString() : null,
+              subscription_installments: installments,
+              subscription_synced_at: new Date().toISOString(),
+            })
+            .eq("id", userId);
+        } catch {
+          /* la prochaine relecture réessaiera */
+        }
+      }
       const added = await recordOrder({
         tenantId,
         userId,

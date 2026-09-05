@@ -438,7 +438,6 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
   if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
   const name = String(formData.get("name") ?? "");
   const months = Number(formData.get("duration_months") ?? 0);
-  const billingType = formData.get("billing_type") === "subscription" ? "subscription" : "one_time";
   const vipChat = formData.get("vip_chat") === "on";
   // Le Coach IA est inclus par défaut ; la case l'exclut si décochée.
   const coachAi = formData.get("coach_ai") === "on";
@@ -464,10 +463,10 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
     return { cents: n, bad: !Number.isFinite(n) || n < 0 };
   };
 
+  // En une fois et/ou par mois (N mensualités, N = la durée) : au moins un.
   const price = toCents(formData.get("price_euros"));
   const month = toCents(formData.get("price_month_euros"));
-  const year = toCents(formData.get("price_year_euros"));
-  if (price.bad || month.bad || year.bad) {
+  if (price.bad || month.bad) {
     return { error: "Prix invalide (ex : 190 ou 29,90)." };
   }
 
@@ -477,10 +476,8 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
     vipChat,
     coachAi,
     coachAiDailyLimit,
-    billingType,
     priceCents: price.cents,
     priceMonthCents: month.cents,
-    priceYearCents: year.cents,
   });
   if (!res.ok) return { error: res.error };
   revalidatePath("/admin/plans");

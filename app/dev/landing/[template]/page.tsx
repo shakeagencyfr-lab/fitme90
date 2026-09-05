@@ -100,7 +100,7 @@ function offer(partial: Partial<Offer>): Offer {
 
 const DEMO_OFFERS: Offer[] = [
   offer({}),
-  offer({ id: "o2", name: "Évolution 12 mois", duration_months: 12, price_cents: 39900, vip_chat: true, position: 1 }),
+  offer({ id: "o2", name: "Évolution 12 mois", duration_months: 12, price_cents: 39900, price_month_cents: 3900, vip_chat: true, position: 1 }),
 ];
 
 // Aperçu des templates revendeur : /dev/landing/reseller-onyx, /dev/landing/reseller-lumen.

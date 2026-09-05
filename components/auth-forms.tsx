@@ -110,7 +110,7 @@ export function SignupForm({ coachSlug, offerId, interval, refCode }: { coachSlu
       {state.error ? <Alert>{state.error}</Alert> : null}
       {coachSlug ? <input type="hidden" name="coach_slug" value={coachSlug} /> : null}
       {offerId ? <input type="hidden" name="offer_id" value={offerId} /> : null}
-      {interval === "month" || interval === "year" ? <input type="hidden" name="interval" value={interval} /> : null}
+      {interval === "month" || interval === "year" || interval === "once" ? <input type="hidden" name="interval" value={interval} /> : null}
       {refCode ? <input type="hidden" name="ref" value={refCode} /> : null}
       <Field
         id="email"

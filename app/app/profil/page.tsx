@@ -10,7 +10,11 @@ import { StartDateSetting } from "@/components/start-date-setting";
 import { NotificationSetting } from "@/components/notification-setting";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { RestartOnboarding } from "@/components/onboarding-tour";
-import { SubscriptionCard } from "@/components/subscription-card";
+import { BillingCard, type BillingKind } from "@/components/billing-card";
+import { userOrders } from "@/lib/orders";
+import { clientOffer } from "@/lib/offers";
+import { confirmCardUpdate } from "@/lib/card-update";
+import { addMonthsUnix, scheduleFor, type Schedule } from "@/lib/installments";
 import { isAdminEmail } from "@/lib/admin";
 import { COACH_CREDENTIAL } from "@/lib/config";
 import { LangSwitch } from "@/components/lang-switch";
@@ -18,15 +22,29 @@ import { getT, userLocale } from "@/lib/i18n/server";
 
 export const metadata = { title: "Profil" };
 
-export default async function ProfilPage() {
+export default async function ProfilPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ carte_session_id?: string; carte_annule?: string }>;
+}) {
   const ctx = await getSessionContext();
   if (!ctx) redirect("/connexion?suite=/app/profil");
+  const sp = await searchParams;
+
+  // Retour du changement de carte : on pose la nouvelle carte AVANT de lire
+  // l'état, pour que la page reflète ce qui vient d'être fait.
+  let notice: "card_updated" | "card_failed" | null = null;
+  if (sp.carte_session_id) {
+    notice = (await confirmCardUpdate(ctx.userId, sp.carte_session_id)) ? "card_updated" : "card_failed";
+  }
 
   const supabase = await createClient();
-  const [{ data: prof }, { data: lastWeight }] = await Promise.all([
+  const [{ data: prof }, { data: lastWeight }, orders, offer] = await Promise.all([
     supabase
       .from("profiles")
-      .select("name, age, height_cm, rest_hr, start_date, sex, subscription_id, subscription_interval, subscription_current_period_end, subscription_cancel_at_period_end")
+      .select(
+        "name, age, height_cm, rest_hr, start_date, sex, paid, managed_by_coach, stripe_customer_id, subscription_id, subscription_status, subscription_interval, subscription_current_period_end, subscription_cancel_at_period_end, subscription_cancel_at, subscription_installments, subscription_paid_in_full",
+      )
       .eq("id", ctx.userId)
       .maybeSingle<{
         name: string | null;
@@ -35,10 +53,17 @@ export default async function ProfilPage() {
         rest_hr: number | null;
         start_date: string | null;
         sex: string | null;
+        paid: boolean | null;
+        managed_by_coach: boolean | null;
+        stripe_customer_id: string | null;
         subscription_id: string | null;
+        subscription_status: string | null;
         subscription_interval: string | null;
         subscription_current_period_end: string | null;
         subscription_cancel_at_period_end: boolean | null;
+        subscription_cancel_at: string | null;
+        subscription_installments: number | null;
+        subscription_paid_in_full: boolean | null;
       }>(),
     supabase
       .from("weights")
@@ -47,8 +72,36 @@ export default async function ProfilPage() {
       .order("measured_at", { ascending: false })
       .limit(1)
       .maybeSingle<{ kg: number }>(),
+    userOrders(ctx.userId),
+    clientOffer(ctx.userId),
   ]);
   const str = (v: number | null | undefined) => (v != null ? String(v) : "");
+
+  // « Ma facturation » : ce qui va être prélevé, et quand. Un compte tenu par
+  // le coach n'a rien à venir ; un paiement en une fois non plus ; les
+  // mensualités ont un échéancier, reconstitué depuis le premier encaissement.
+  const firstSubOrder = [...orders].reverse().find((o) => o.kind === "subscription" && o.status === "paid");
+  const onceOrder = orders.find((o) => o.kind === "one_time" && o.status === "paid");
+  const installments = prof?.subscription_installments ?? null;
+  let billing: BillingKind = "none";
+  let schedule: Schedule | null = null;
+  if (prof?.subscription_id && installments) {
+    billing = "installments";
+    const monthly = offer?.price_month_cents ?? firstSubOrder?.amount_cents ?? 0;
+    const start =
+      firstSubOrder?.paid_at ??
+      (prof.subscription_cancel_at
+        ? new Date(addMonthsUnix(Math.floor(new Date(prof.subscription_cancel_at).getTime() / 1000), -installments) * 1000).toISOString()
+        : new Date().toISOString());
+    schedule = scheduleFor(start, monthly, installments);
+  } else if (prof?.subscription_id) {
+    billing = "legacy";
+  } else if (prof?.managed_by_coach) {
+    billing = "internal";
+  } else if (onceOrder || prof?.paid) {
+    billing = "once";
+  }
+  const showBilling = billing !== "none" || ctx.access.phase !== "not_paid";
   const { locale, t } = await getT(await userLocale(ctx.userId));
 
   return (
@@ -72,11 +125,18 @@ export default async function ProfilPage() {
         <StartDateSetting current={prof?.start_date ?? ""} />
       ) : null}
 
-      {prof?.subscription_id ? (
-        <SubscriptionCard
-          interval={prof.subscription_interval}
-          periodEnd={prof.subscription_current_period_end}
-          cancelAtPeriodEnd={!!prof.subscription_cancel_at_period_end}
+      {showBilling ? (
+        <BillingCard
+          kind={billing}
+          paidAt={onceOrder?.paid_at ?? null}
+          schedule={schedule}
+          status={prof?.subscription_status ?? null}
+          interval={prof?.subscription_interval ?? null}
+          periodEnd={prof?.subscription_current_period_end ?? null}
+          cancelAtPeriodEnd={!!prof?.subscription_cancel_at_period_end}
+          paidInFull={!!prof?.subscription_paid_in_full}
+          canChangeCard={!!prof?.stripe_customer_id}
+          notice={notice}
         />
       ) : null}
 

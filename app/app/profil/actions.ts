@@ -178,3 +178,12 @@ export async function cancelSubscription(): Promise<CancelSubState> {
     return { error: t("sub.failed") };
   }
 }
+
+// ------------------------------------------------------------------ carte
+/** Le client change la carte de ses mensualités (session Stripe en mode setup, chez le coach). */
+export async function startCardUpdate(): Promise<{ url?: string; error?: string }> {
+  const ctx = await getSessionContext();
+  if (!ctx) return { error: "Session expirée." };
+  const { startCardUpdate: start } = await import("@/lib/card-update");
+  return start(ctx.userId);
+}

@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripeForTenant } from "@/lib/coach-payments";
 import type { AccessState } from "@/lib/access";
+import { cancelAtFor, paidInFull as paidInFullRule } from "@/lib/installments";
 
 // Abonnements (Lot ③) — BYOK Stripe, SANS webhook plateforme : chaque coach a sa
 // propre clé, on ne peut pas recevoir ses webhooks. On synchronise donc l'état
@@ -17,6 +18,12 @@ export interface SubInfo {
   currentPeriodEnd: string | null; // ISO
   interval: string | null; // 'month' | 'year'
   cancelAtPeriodEnd: boolean;
+  /** Date d'arrêt posée d'avance (N mensualités), ISO. */
+  cancelAt?: string | null;
+  /** Nombre de mensualités convenues, null pour un abonnement sans terme. */
+  installments?: number | null;
+  /** Toutes les mensualités sont passées : l'accès suit le programme, plus l'abonnement. */
+  paidInFull?: boolean;
 }
 
 /** L'abonnement donne-t-il un accès plein ? (actif, à l'essai, ou résilié mais pas encore échu) */
@@ -44,6 +51,10 @@ export function applySubscriptionAccess(
 ): AccessState {
   if (!sub.subscriptionId) return base;
   if (base.phase === "not_paid" || base.phase === "not_started") return base;
+  // N mensualités toutes réglées : l'abonnement est terminé parce qu'il devait
+  // l'être, pas parce qu'il a lâché. Le programme a été payé en entier, c'est
+  // sa durée qui décide de l'accès, comme pour un paiement en une fois.
+  if (sub.paidInFull) return base;
 
   if (subscriptionIsActive(sub.status, sub.currentPeriodEnd, now)) {
     const scheduled = base.phase === "scheduled";
@@ -67,16 +78,41 @@ export function applySubscriptionAccess(
   };
 }
 
-function mapSubscription(sub: Stripe.Subscription): SubInfo {
+function mapSubscription(sub: Stripe.Subscription, installments: number | null = null): SubInfo {
   const periodEnd = (sub as unknown as { current_period_end?: number }).current_period_end;
   const interval = sub.items?.data?.[0]?.price?.recurring?.interval ?? null;
+  const cancelAt = sub.cancel_at ?? null;
   return {
     subscriptionId: sub.id,
     status: sub.status,
     currentPeriodEnd: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
     interval,
     cancelAtPeriodEnd: !!sub.cancel_at_period_end,
+    cancelAt: cancelAt ? new Date(cancelAt * 1000).toISOString() : null,
+    installments,
+    paidInFull: installments != null && paidInFullRule(sub.status, cancelAt, sub.canceled_at ?? null),
   };
+}
+
+/**
+ * Pose la date d'arrêt sur un abonnement à N mensualités s'il n'en a pas
+ * encore : au retour du paiement, à la réconciliation, et à chaque relecture
+ * par le cron. C'est la garantie que Stripe s'arrête tout seul après la N-ième
+ * facture, quoi qu'il soit arrivé entre-temps.
+ */
+export async function ensureInstallmentEnd(
+  stripe: Stripe,
+  sub: Stripe.Subscription,
+  installments: number | null,
+): Promise<Stripe.Subscription> {
+  if (!installments || installments < 1) return sub;
+  if (sub.cancel_at || sub.status === "canceled") return sub;
+  const start = (sub as unknown as { start_date?: number }).start_date ?? sub.created;
+  try {
+    return await stripe.subscriptions.update(sub.id, { cancel_at: cancelAtFor(start, installments) });
+  } catch {
+    return sub;
+  }
 }
 
 interface SubProfileRow {
@@ -87,7 +123,13 @@ interface SubProfileRow {
   subscription_current_period_end: string | null;
   subscription_interval: string | null;
   subscription_cancel_at_period_end: boolean | null;
+  subscription_cancel_at: string | null;
+  subscription_installments: number | null;
+  subscription_paid_in_full: boolean | null;
 }
+
+const SUB_COLS =
+  "id, tenant_id, subscription_id, subscription_status, subscription_current_period_end, subscription_interval, subscription_cancel_at_period_end, subscription_cancel_at, subscription_installments, subscription_paid_in_full";
 
 async function persistSub(userId: string, info: SubInfo): Promise<void> {
   const admin = createAdminClient();
@@ -98,6 +140,8 @@ async function persistSub(userId: string, info: SubInfo): Promise<void> {
       subscription_current_period_end: info.currentPeriodEnd,
       subscription_interval: info.interval,
       subscription_cancel_at_period_end: info.cancelAtPeriodEnd,
+      subscription_cancel_at: info.cancelAt ?? null,
+      subscription_paid_in_full: !!info.paidInFull,
       subscription_synced_at: new Date().toISOString(),
     })
     .eq("id", userId);
@@ -109,13 +153,7 @@ async function persistSub(userId: string, info: SubInfo): Promise<void> {
  */
 export async function syncSubscriptionForUser(userId: string): Promise<SubInfo> {
   const admin = createAdminClient();
-  const { data: prof } = await admin
-    .from("profiles")
-    .select(
-      "id, tenant_id, subscription_id, subscription_status, subscription_current_period_end, subscription_interval, subscription_cancel_at_period_end",
-    )
-    .eq("id", userId)
-    .maybeSingle<SubProfileRow>();
+  const { data: prof } = await admin.from("profiles").select(SUB_COLS).eq("id", userId).maybeSingle<SubProfileRow>();
 
   const stored: SubInfo = {
     subscriptionId: prof?.subscription_id ?? null,
@@ -123,14 +161,18 @@ export async function syncSubscriptionForUser(userId: string): Promise<SubInfo> 
     currentPeriodEnd: prof?.subscription_current_period_end ?? null,
     interval: prof?.subscription_interval ?? null,
     cancelAtPeriodEnd: !!prof?.subscription_cancel_at_period_end,
+    cancelAt: prof?.subscription_cancel_at ?? null,
+    installments: prof?.subscription_installments ?? null,
+    paidInFull: !!prof?.subscription_paid_in_full,
   };
   if (!prof?.subscription_id || !prof.tenant_id) return stored;
 
   const stripe = await stripeForTenant(prof.tenant_id);
   if (!stripe) return stored;
   try {
-    const sub = await stripe.subscriptions.retrieve(prof.subscription_id);
-    const info = mapSubscription(sub);
+    const raw = await stripe.subscriptions.retrieve(prof.subscription_id);
+    const sub = await ensureInstallmentEnd(stripe, raw, prof.subscription_installments);
+    const info = mapSubscription(sub, prof.subscription_installments);
     await persistSub(userId, info);
     return info;
   } catch {
@@ -159,16 +201,16 @@ export async function syncAllSubscriptions(): Promise<{ synced: number; restrict
   const admin = createAdminClient();
   const { data: profs } = await admin
     .from("profiles")
-    .select("id, tenant_id, subscription_id")
+    .select("id, tenant_id, subscription_id, subscription_installments")
     .not("subscription_id", "is", null)
-    .returns<{ id: string; tenant_id: string | null; subscription_id: string }[]>();
+    .returns<{ id: string; tenant_id: string | null; subscription_id: string; subscription_installments: number | null }[]>();
 
   // Regroupe par tenant pour réutiliser un même client Stripe.
-  const byTenant = new Map<string, { id: string; subscription_id: string }[]>();
+  const byTenant = new Map<string, { id: string; subscription_id: string; installments: number | null }[]>();
   for (const p of profs ?? []) {
     if (!p.tenant_id) continue;
     const list = byTenant.get(p.tenant_id) ?? [];
-    list.push({ id: p.id, subscription_id: p.subscription_id });
+    list.push({ id: p.id, subscription_id: p.subscription_id, installments: p.subscription_installments });
     byTenant.set(p.tenant_id, list);
   }
 
@@ -180,11 +222,15 @@ export async function syncAllSubscriptions(): Promise<{ synced: number; restrict
     if (!stripe) continue;
     for (const c of clients) {
       try {
-        const sub = await stripe.subscriptions.retrieve(c.subscription_id);
-        const info = mapSubscription(sub);
+        const raw = await stripe.subscriptions.retrieve(c.subscription_id);
+        // N mensualités : la date d'arrêt est reposée si elle manque. C'est
+        // ici que « l'arrêt automatique » tient même si le retour de paiement
+        // n'a pas eu lieu.
+        const sub = await ensureInstallmentEnd(stripe, raw, c.installments);
+        const info = mapSubscription(sub, c.installments);
         await persistSub(c.id, info);
         synced++;
-        if (!subscriptionIsActive(info.status, info.currentPeriodEnd, now)) restricted++;
+        if (!info.paidInFull && !subscriptionIsActive(info.status, info.currentPeriodEnd, now)) restricted++;
       } catch {
         /* on n'interrompt pas le lot pour un abonnement */
       }

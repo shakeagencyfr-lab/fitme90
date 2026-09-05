@@ -55,7 +55,9 @@ export async function applyPendingCoachSelection(
 ): Promise<void> {
   const slug = typeof meta?.coach_slug === "string" ? meta.coach_slug.trim() : "";
   const offerId = typeof meta?.offer_id === "string" ? meta.offer_id.trim() : "";
-  const interval = meta?.interval === "year" ? "year" : meta?.interval === "month" ? "month" : "";
+  // « once » (en une fois) ou « month » (en mensualités) ; « year » reste
+  // accepté pour les liens d'avant.
+  const interval = meta?.interval === "year" ? "year" : meta?.interval === "month" ? "month" : meta?.interval === "once" ? "once" : "";
   const ref = typeof meta?.ref === "string" ? meta.ref.trim() : "";
   if (!slug && !offerId && !ref) return;
 

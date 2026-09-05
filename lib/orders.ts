@@ -127,6 +127,19 @@ export async function tenantOrders(tenantId: string, limit = 500): Promise<Order
   return data ?? [];
 }
 
+/** Les encaissements d'UN client, du plus récent au plus ancien (espace client). */
+export async function userOrders(userId: string, limit = 50): Promise<OrderRow[]> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("orders")
+    .select("id, user_id, offer_name, kind, amount_cents, currency, status, paid_at, refunded_at")
+    .eq("user_id", userId)
+    .order("paid_at", { ascending: false })
+    .limit(limit)
+    .returns<OrderRow[]>();
+  return data ?? [];
+}
+
 /** Le tenant a-t-il au moins une vente enregistrée ? */
 export async function hasOrders(tenantId: string): Promise<boolean> {
   const admin = createAdminClient();
