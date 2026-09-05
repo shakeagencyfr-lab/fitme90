@@ -14,8 +14,9 @@ import { clientCoachAiIncluded } from "@/lib/offers";
 import { buildPersona, DEFAULT_BRAND } from "@/lib/coach-persona";
 import { readCoachName } from "@/lib/methodology";
 import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
+import { applySessionOps, type SessionOp } from "@/lib/session-edit";
 import { missedDays } from "@/lib/streak";
-import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan } from "@/lib/program";
+import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan, sessionSlotForDay, replaceSessionInPlan, cycleSessions } from "@/lib/program";
 import { coachAgenda, coachPlanView, logsDigest, type CoachLog } from "@/lib/coach-context";
 import { addMemoryNote, readMemory, renderMemory } from "@/lib/coach-memory";
 import { blockPosition } from "@/lib/block-logic";
@@ -384,6 +385,53 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
       },
     },
     {
+      name: "modifier_seance",
+      description:
+        "Modifie une séance du programme DANS L'APP du client, sans régénérer : ajouter, retirer, remplacer ou ajuster des exercices (séries, répétitions, charge, note, repos), ou ajouter un finisher cardio (rameur, vélo, marche inclinée). À utiliser dès que le client demande un changement concret sur une séance (« ajoute du hip thrust », « remplace le développé couché », « mets 18 min de rameur en zone 2 à la fin »), une fois le changement convenu avec lui. Par défaut la séance d'aujourd'hui ; `jour_programme` vise un autre jour du calendrier (numéro de jour donné dans le calendrier). Le changement vaut pour cette séance à chaque fois qu'elle revient dans le cycle en cours ; ce que tu ne touches pas reste tel quel. Ne dis JAMAIS que tu ne peux pas modifier la séance : tu le fais avec cet outil, puis tu confirmes. Pour une blessure ou une contrainte durable, utilise adapter_programme.",
+      input_schema: {
+        type: "object",
+        properties: {
+          jour_programme: {
+            type: "integer",
+            description: "Numéro du jour de programme dont on modifie la séance (voir le calendrier). Absent = aujourd'hui.",
+          },
+          operations: {
+            type: "array",
+            minItems: 1,
+            description: "Les retouches, dans l'ordre.",
+            items: {
+              type: "object",
+              properties: {
+                action: { type: "string", enum: ["ajouter", "retirer", "remplacer", "modifier"] },
+                exercice: {
+                  type: "string",
+                  description: "Nom de l'exercice visé, tel qu'il figure dans la séance (retirer, remplacer, modifier).",
+                },
+                nouveau: {
+                  type: "object",
+                  description: "Le nouvel exercice (ajouter, remplacer) ou seulement les champs à changer (modifier).",
+                  properties: {
+                    nom: { type: "string" },
+                    series: { type: "integer", description: "Nombre de séries (1 à 12)." },
+                    reps: { type: "string", description: "Répétitions, ex « 10 » ou « 8-12 »." },
+                    charge: { type: "string", description: "Charge indicative, ex « 40 kg », « poids du corps »." },
+                    note: { type: "string", description: "Consigne courte d'exécution." },
+                    repos_sec: { type: "integer", description: "Repos entre séries, en secondes." },
+                    cardio: { type: "boolean", description: "true pour un finisher ou un bloc cardio." },
+                    duree: { type: "string", description: "Durée d'un bloc cardio, ex « 18 min »." },
+                    zone: { type: "string", description: "Intensité d'un bloc cardio, ex « zone 2, allure conversationnelle »." },
+                  },
+                },
+                position: { type: "integer", description: "Position (1 = début) où insérer un exercice ajouté. Fin de séance par défaut." },
+              },
+              required: ["action"],
+            },
+          },
+        },
+        required: ["operations"],
+      },
+    },
+    {
       name: "memoriser",
       description:
         "Mémorise un fait DURABLE sur le client, pour t'en souvenir dans toutes tes conversations futures. À utiliser quand tu apprends quelque chose de stable et utile au coaching : une préférence (« il préfère s'entraîner le matin »), une contrainte de vie (« il part en déplacement deux semaines en octobre »), un aliment détesté, un objectif personnel, un antécédent sportif. NE PAS utiliser pour une blessure ou une contrainte physique qui doit modifier les séances : utilise « adapter_programme ». NE PAS utiliser pour ce qui est déjà dans le profil, ni pour un état passager (fatigue du jour, humeur), ni pour ce que le client vient de dire dans cette conversation et qui n'a pas vocation à durer.",
@@ -514,6 +562,53 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     return `Nutrition mise à jour : ${changes.join(" ; ")}. Les repas, macros et la liste de courses se recalculent. Confirme-le au client (le filtrage des allergènes reste une aide, il doit vérifier les étiquettes).`;
   }
 
+  // Retouche une séance là où elle vit dans le plan, sans régénération ni
+  // crédit : c'est une écriture déterministe. Le programme est relu à l'instant
+  // (un outil précédent du même tour a pu le changer), et une nouvelle version
+  // est insérée pour garder l'historique, comme après une adaptation.
+  async function runSessionEdit(input: { jour_programme?: unknown; operations?: unknown }): Promise<string> {
+    const ops = Array.isArray(input.operations) ? (input.operations as SessionOp[]) : [];
+    if (!ops.length) return "Aucune opération fournie : rien changé.";
+    const day = typeof input.jour_programme === "number" && Number.isFinite(input.jour_programme)
+      ? Math.max(1, Math.min(ctx!.access.programDays, Math.trunc(input.jour_programme)))
+      : Math.max(1, ctx!.access.day);
+    if (isRestDay(day, coachPattern, coachStartWd)) {
+      return `Le jour ${day} est un jour de repos, il n'y a pas de séance à modifier. Demande au client quelle séance il veut changer (voir le calendrier) et rappelle avec jour_programme.`;
+    }
+    const { data: prog } = await supabase
+      .from("programs")
+      .select("id, plan, model, duration_months")
+      .eq("user_id", ctx!.userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ id: string; plan: Plan; model: string | null; duration_months: number | null }>();
+    if (!prog?.plan) return "Impossible : programme introuvable.";
+    const at = sessionSlotForDay(prog.plan, day, coachPattern, coachStartWd);
+    if (!at) return "Impossible : aucune séance dans ce cycle.";
+    const current = cycleSessions(prog.plan, at.cycleIndex)[at.slot];
+    if (!current) return "Impossible : séance introuvable.";
+
+    const edited = applySessionOps(current, ops);
+    if (!edited.changes.length) {
+      return `Rien n'a été modifié : ${edited.errors.join(" ")} Vérifie les noms d'exercices tels qu'ils figurent dans la séance.`;
+    }
+    const nextPlan = replaceSessionInPlan(prog.plan, at, edited.session);
+    const { error } = await supabase.from("programs").insert({
+      user_id: ctx!.userId,
+      plan: nextPlan,
+      model: prog.model,
+      duration_months: prog.duration_months,
+    });
+    if (error) return "Impossible d'enregistrer la séance pour l'instant.";
+    adapted = true;
+    const liste = edited.session.exercises
+      .map((e) => (e.cardio ? `${e.name} ${e.duration}${e.zone ? ` (${e.zone})` : ""}` : `${e.name} ${e.sets}x${e.reps}`))
+      .join(" ; ");
+    return `Séance « ${edited.session.title} » (jour ${day}) mise à jour dans l'app : ${edited.changes.join(" ; ")}.${
+      edited.errors.length ? ` Non appliqué : ${edited.errors.join(" ")}` : ""
+    } Séance maintenant : ${liste}. Confirme au client que sa fiche séance est à jour, il n'a rien à reporter lui-même.`;
+  }
+
   // BYOK strict : le coach IA est facturé sur la clé du tenant (coach), jamais
   // sur la clé plateforme. Sans clé configurée, on refuse proprement (400).
   const billing = await anthropicKeyForBilling(ctx.userId);
@@ -636,6 +731,9 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     if (name === "changer_jours_entrainement") {
       const j = (input as { jours?: unknown }).jours;
       return runChangeDays(Array.isArray(j) ? j.map(String) : []);
+    }
+    if (name === "modifier_seance") {
+      return runSessionEdit(input as { jour_programme?: unknown; operations?: unknown });
     }
     if (name === "memoriser") {
       const f = (input as { fait?: string }).fait ?? "";

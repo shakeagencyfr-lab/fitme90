@@ -192,17 +192,59 @@ export function sessionForDay(
   pattern: boolean[],
   startWd: number,
 ): Session | undefined {
+  const at = sessionSlotForDay(plan, day, pattern, startWd);
+  if (!at) return undefined;
+  const pool = cycleSessions(plan, at.cycleIndex);
+  return pool[at.slot] ?? pool[0];
+}
+
+/** Où vit la séance d'un jour : son cycle et son créneau dans la rotation. */
+export interface SessionSlot {
+  cycleIndex: number;
+  slot: number;
+}
+
+/**
+ * La position de la séance d'un jour de programme, pour pouvoir la MODIFIER
+ * là où elle vit. `sessionForDay` ne rend qu'une copie assainie : éditer cette
+ * copie ne changerait rien pour le client.
+ */
+export function sessionSlotForDay(
+  plan: Plan,
+  day: number,
+  pattern: boolean[],
+  startWd: number,
+): SessionSlot | null {
   const cycleCount = plan.cycles?.length || 3;
   const cIdx = cycleIndexForDay(day, cycleCount);
   const pool = cycleSessions(plan, cIdx);
-  if (!pool.length) return undefined;
+  if (!pool.length) return null;
   const cycleStartDay = cIdx * CYCLE_DAYS + 1;
   // Rang (1-based) du jour d'entraînement à l'intérieur de son cycle.
   const ordinalInCycle =
     scheduledTrainingDays(pattern, startWd, day).length -
     scheduledTrainingDays(pattern, startWd, cycleStartDay - 1).length;
   const slot = (((ordinalInCycle - 1) % pool.length) + pool.length) % pool.length;
-  return pool[slot] ?? pool[0];
+  return { cycleIndex: cIdx, slot: pool[slot] ? slot : 0 };
+}
+
+/**
+ * Le plan avec une séance remplacée à sa position. Les nouveaux plans tiennent
+ * leurs séances dans chaque cycle ; les anciens dans `sessions` ou `session`,
+ * partagées par tous les cycles : on écrit là où la lecture ira chercher.
+ */
+export function replaceSessionInPlan(plan: Plan, at: SessionSlot, session: Session): Plan {
+  const c = plan.cycles?.[at.cycleIndex];
+  if (c?.sessions && c.sessions.length) {
+    const cycles = (plan.cycles ?? []).map((cy, i) =>
+      i === at.cycleIndex ? { ...cy, sessions: cy.sessions!.map((s, j) => (j === at.slot ? session : s)) } : cy,
+    );
+    return { ...plan, cycles };
+  }
+  if (plan.sessions && plan.sessions.length) {
+    return { ...plan, sessions: plan.sessions.map((s, j) => (j === at.slot ? session : s)) };
+  }
+  return { ...plan, session };
 }
 
 /**
