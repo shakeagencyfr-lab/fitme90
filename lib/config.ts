@@ -159,6 +159,21 @@ export const GYM_PHOTO_MAX_PX = 1250;
 export const GYM_PHOTO_QUALITY = 0.92;
 /** Plafond total, en LOTS analysés sur la vie du compte (4 photos par lot). */
 export const LIMIT_ANALYZE_GYM_TOTAL = 40;
+/**
+ * Adaptations du programme (blessure signalée au Coach IA) par client et par
+ * semaine glissante.
+ *
+ * Ce plafond n'existe pas pour rationner un service, il existe parce que
+ * l'adaptation est le seul geste du chat qui ne se facture pas ce qu'il coûte :
+ * elle rappelle le modèle de génération (environ 0,14 $) pour un crédit débité,
+ * délibérément, afin qu'un client blessé n'hésite pas à le dire. Sans borne,
+ * les 60 messages quotidiens du Coach IA autoriseraient 60 régénérations, soit
+ * 8 $ par jour et par client.
+ *
+ * Deux par semaine, parce qu'au-delà ce n'est plus une contrainte ponctuelle à
+ * contourner mais un programme à revoir, et cela relève du coach humain.
+ */
+export const LIMIT_ADAPT_PER_WEEK = 2;
 
 // ── Estimations de coût IA (BYOK), en USD. MESURÉES sur la table `ai_calls`,
 // puis arrondies vers le HAUT par prudence : ce sont des repères d'ordre de
