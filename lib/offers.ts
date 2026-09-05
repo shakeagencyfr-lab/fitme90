@@ -378,6 +378,44 @@ export interface CreateOfferResult {
   error?: string;
 }
 
+/**
+ * Les programmes qu'un client de ce coach peut choisir lui-même : actifs, en
+ * vitrine, et avec au moins un prix. Un plan privé (retiré de la vitrine)
+ * reste réservé aux inscriptions faites à la main par le coach.
+ */
+export async function chooseableOffers(tenantId: string): Promise<Offer[]> {
+  const all = await listOffers(tenantId);
+  return all.filter(
+    (o) => o.is_active && o.is_listed && ((o.price_cents ?? 0) > 0 || (o.price_month_cents ?? 0) > 0),
+  );
+}
+
+/**
+ * Rattache un client à un programme de SON coach, tant qu'il n'a pas payé.
+ *
+ * Un client arrivé sans offre (lien de parrainage, inscription directe sur
+ * la page du coach) doit pouvoir en choisir une au moment de payer ; sans
+ * ça, il tombait sur le tarif générique de la plateforme, qui n'est pas
+ * celui de son coach. Le WHERE porte le tenant : un identifiant d'offre
+ * d'un autre coach ne passe pas.
+ */
+export async function assignOfferToClient(userId: string, offerId: string): Promise<CreateOfferResult> {
+  const admin = createAdminClient();
+  const { data: prof } = await admin
+    .from("profiles")
+    .select("tenant_id, paid")
+    .eq("id", userId)
+    .maybeSingle<{ tenant_id: string | null; paid: boolean | null }>();
+  if (!prof?.tenant_id) return { ok: false, error: "Aucun coach rattaché." };
+  if (prof.paid) return { ok: false, error: "Programme déjà débloqué." };
+  const offers = await chooseableOffers(prof.tenant_id);
+  const offer = offers.find((o) => o.id === offerId);
+  if (!offer) return { ok: false, error: "Programme introuvable." };
+  const { error } = await admin.from("profiles").update({ selected_offer_id: offer.id }).eq("id", userId);
+  if (error) return { ok: false, error: "Enregistrement impossible." };
+  return { ok: true };
+}
+
 /** Crée une offre en respectant le plafond de MAX_OFFERS_PER_TENANT. */
 export interface CreateOfferInput {
   name: string;
