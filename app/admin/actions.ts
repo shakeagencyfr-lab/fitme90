@@ -19,6 +19,7 @@ import { isServedInstant } from "@/lib/push-windows";
 import { getAdminOrNull } from "@/lib/admin";
 import { tenantNode } from "@/lib/hierarchy";
 import { reapplyFreePlan } from "@/lib/plan-apply";
+import { safeLocalPath } from "@/lib/safe-url";
 import { accountCapacity } from "@/lib/entitlements";
 import { createChildTenantAccount } from "@/lib/admin-provision";
 import { isDescendantTenant, isOwnClient, loginLinkForUser, establishSupportSession, logSupportAccess } from "@/lib/support-access";
@@ -864,12 +865,17 @@ export async function previewAudience(formData: FormData): Promise<AudienceState
  * Envoie une notification push immédiatement. Si un segment est précisé
  * (sexe, objectif, phase), l'envoi est CIBLÉ ; sinon il va à tous les abonnés.
  */
+/**
+ * Le lien d'une notification reste un chemin du site : une notification qui
+ * emmène hors du site, sous le nom du coach, serait un vecteur d'hameçonnage
+ * parfait depuis un compte coach compromis (lib/safe-url.ts).
+ */
 export async function sendBroadcastNow(_prev: NotifState, formData: FormData): Promise<NotifState> {
   const ctx = await getAdminOrNull();
   if (!ctx) return { error: "Accès refusé." };
   const title = String(formData.get("title") ?? "").trim().slice(0, 80);
   const body = String(formData.get("body") ?? "").trim().slice(0, 300);
-  const url = String(formData.get("url") ?? "").trim().slice(0, 300) || "/app";
+  const url = safeLocalPath(String(formData.get("url") ?? "").trim().slice(0, 300), "/app");
   if (!title || !body) return { error: "Titre et message sont obligatoires." };
 
   const tenantId = ctx.profile?.tenant_id ?? null;
@@ -892,7 +898,7 @@ export async function sendPushToClient(_prev: NotifState, formData: FormData): P
   const userId = String(formData.get("user_id") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim().slice(0, 80);
   const body = String(formData.get("body") ?? "").trim().slice(0, 300);
-  const url = String(formData.get("url") ?? "").trim().slice(0, 300) || "/app";
+  const url = safeLocalPath(String(formData.get("url") ?? "").trim().slice(0, 300), "/app");
   if (!userId) return { error: "Client introuvable." };
   if (!title || !body) return { error: "Titre et message sont obligatoires." };
   // Cloisonnement : uniquement un client de SON tenant.
@@ -913,7 +919,7 @@ export async function scheduleBroadcast(_prev: NotifState, formData: FormData): 
   if (!ctx) return { error: "Accès refusé." };
   const title = String(formData.get("title") ?? "").trim().slice(0, 80);
   const body = String(formData.get("body") ?? "").trim().slice(0, 300);
-  const url = String(formData.get("url") ?? "").trim().slice(0, 300) || "/app";
+  const url = safeLocalPath(String(formData.get("url") ?? "").trim().slice(0, 300), "/app");
   const when = String(formData.get("send_at") ?? "");
   if (!title || !body) return { error: "Titre et message sont obligatoires." };
   const at = new Date(when);
