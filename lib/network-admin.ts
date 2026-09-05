@@ -313,7 +313,11 @@ export async function setResellerSupply(
   const [{ data: actorSecret }, { data: targetSecret }, { data: actor }] = await Promise.all([
     admin.from("tenant_secrets").select("anthropic_key_enc").eq("tenant_id", actorTenantId).maybeSingle<{ anthropic_key_enc: string | null }>(),
     admin.from("tenant_secrets").select("anthropic_key_enc").eq("tenant_id", targetTenantId).maybeSingle<{ anthropic_key_enc: string | null }>(),
-    admin.from("tenants").select("kind, coach_byok_allowed").eq("id", actorTenantId).maybeSingle<{ kind: string | null; coach_byok_allowed: boolean | null }>(),
+    admin
+      .from("tenants")
+      .select("kind, coach_byok_allowed, coach_credits_allowed")
+      .eq("id", actorTenantId)
+      .maybeSingle<{ kind: string | null; coach_byok_allowed: boolean | null; coach_credits_allowed: boolean | null }>(),
   ]);
 
   if (target.kind === "coach") {
@@ -321,10 +325,14 @@ export async function setResellerSupply(
     // ses offres et ses clients. Seule la source de son IA change.
     const dispense = supply === "byok";
     if (!!target.ai_self_managed === dispense) return { ok: true };
-    // Le droit de laisser un coach en clé personnelle vient du palier du
-    // revendeur, posé par la plateforme. Sans lui, pas de dispense.
+    // Les deux sens viennent du palier du revendeur, posé par la plateforme :
+    // sans le droit de laisser un coach en clé personnelle, pas de dispense ;
+    // sans le droit de fournir l'IA, pas de retour sous son IA.
     if (dispense && actor?.kind === "reseller" && actor.coach_byok_allowed === false) {
       return { ok: false, error: "Ton palier ne te permet pas de laisser un coach en clé personnelle : tu fournis l'IA à tout ton réseau." };
+    }
+    if (!dispense && actor?.kind === "reseller" && actor.coach_credits_allowed === false) {
+      return { ok: false, error: "Ton palier ne comprend pas la fourniture d'IA à tes coachs : chacun tourne sur sa propre clé." };
     }
     // Dispenser un coach sans clé, c'est éteindre son IA sur-le-champ. Mieux
     // vaut le refuser que le laisser découvrir la panne par ses clients.

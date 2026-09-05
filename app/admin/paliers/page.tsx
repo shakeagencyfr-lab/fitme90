@@ -76,7 +76,7 @@ export default async function AdminPlansPage() {
       ) : (
         <div className="flex flex-col gap-3">
           <div className="font-archivo font-bold text-[17px] text-ink">{tx("Palier gratuit")}</div>
-          <FreePlanForm plan={free} sells={sells} byokAllowed={rights.byok} />
+          <FreePlanForm plan={free} sells={sells} rights={rights} />
 
           <div className="mt-2 font-archivo font-bold text-[17px] text-ink">{tx("Paliers payants")}</div>
           {payants.length === 0 ? (
@@ -149,7 +149,7 @@ export default async function AdminPlansPage() {
               </Card>
             ))
           )}
-          <PlanForm atLimit={payants.length >= MAX_PLANS_PER_TENANT} unit={unite === "compte" ? "comptes" : "clients"} byokAllowed={rights.byok} />
+          <PlanForm atLimit={payants.length >= MAX_PLANS_PER_TENANT} unit={unite === "compte" ? "comptes" : "clients"} rights={rights} />
         </div>
       )}
     </div>

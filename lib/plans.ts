@@ -1,5 +1,8 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ALL_RIGHTS, planRefusal, resolveSupply, type PlanAiSupply, type SupplyRights } from "@/lib/supply-rights";
+
+export type { PlanAiSupply };
 
 /**
  * Paliers d'abonnement d'un vendeur.
@@ -25,9 +28,6 @@ export const MAX_PLANS_PER_TENANT = 8;
 
 /** Capacité du palier gratuit : le premier client, offert. */
 export const FREE_PLAN_CLIENT_LIMIT = 1;
-
-/** Comment l'acheteur du palier obtient son IA. */
-export type PlanAiSupply = "byok" | "credits";
 
 export interface Plan {
   id: string;
@@ -112,13 +112,12 @@ export async function freePlanOf(tenantId: string): Promise<Plan> {
   // Un vendeur qui fournit déjà l'IA à son réseau (revendeur d'IA) ne vend
   // rien d'autre : son palier gratuit naît en crédits. Le créer en clé
   // personnelle aurait dispensé ses nouveaux coachs, IA coupée, sans que
-  // personne l'ait décidé.
-  const { data: seller } = await admin
-    .from("tenants")
-    .select("kind, ai_mode")
-    .eq("id", tenantId)
-    .maybeSingle<{ kind: string | null; ai_mode: string | null }>();
-  const aiSupply: PlanAiSupply = seller?.kind === "reseller" && seller.ai_mode === "provider" ? "credits" : "byok";
+  // personne l'ait décidé. Et dans tous les cas, il naît dans une fourniture
+  // que ses droits lui ouvrent : un revendeur BYOK n'a pas de palier en
+  // crédits, même gratuit.
+  const seller = await sellerFacts(tenantId);
+  const aiSupply: PlanAiSupply =
+    seller.kind === "reseller" ? resolveSupply(seller.rights, seller.aiMode === "provider" ? "credits" : "byok") : "byok";
 
   const { data: created } = await admin
     .from("plans")
@@ -131,7 +130,7 @@ export async function freePlanOf(tenantId: string): Promise<Plan> {
       ai_supply: aiSupply,
       // La plateforme offre la marque blanche complète à ses revendeurs dès
       // le départ : c'est la promesse du programme revendeur.
-      whitelabel_included: seller?.kind === "platform",
+      whitelabel_included: seller.kind === "platform",
       position: -1,
     })
     .select(PLAN_COLS)
@@ -160,7 +159,7 @@ export async function freePlanOf(tenantId: string): Promise<Plan> {
     price_year_cents: null,
     client_limit: FREE_PLAN_CLIENT_LIMIT,
     setup_fee_cents: 0,
-    whitelabel_included: seller?.kind === "platform",
+    whitelabel_included: seller.kind === "platform",
     ai_supply: aiSupply,
     coach_byok_allowed: true,
     coach_credits_allowed: false,
@@ -208,7 +207,11 @@ export async function saveFreePlan(tenantId: string, input: FreePlanInput): Prom
   if (!Number.isFinite(starter) || starter < 0 || starter > 100000) {
     return { ok: false, error: "Nombre de crédits de départ invalide." };
   }
-  const refus = await supplyRefusal(tenantId, input.aiSupply);
+  const refus = planRefusal(await sellerFacts(tenantId), {
+    aiSupply: input.aiSupply,
+    coachByokAllowed: input.coachByokAllowed,
+    coachCreditsAllowed: input.coachCreditsAllowed,
+  });
   if (refus) return { ok: false, error: refus };
   const plan = await freePlanOf(tenantId);
   const admin = createAdminClient();
@@ -232,23 +235,25 @@ export async function saveFreePlan(tenantId: string, input: FreePlanInput): Prom
 }
 
 /**
- * Un revendeur ne vend que ce que son propre palier lui permet : sans le droit
- * de laisser ses coachs en clé personnelle, ses paliers fournissent l'IA. La
- * garde est ici, côté serveur, et pas seulement dans le formulaire : masquer
- * une case n'empêche pas de la poster.
+ * Ce qu'il faut savoir du vendeur pour juger un palier : son étage, et pour
+ * un revendeur, les droits que son propre palier lui ouvre. Un revendeur ne
+ * vend que ce qu'on lui a ouvert (lib/supply-rights.ts) ; la garde est ici,
+ * côté serveur, et pas seulement dans le formulaire : masquer une case
+ * n'empêche pas de la poster.
  */
-async function supplyRefusal(sellerId: string, aiSupply: PlanAiSupply): Promise<string | null> {
-  if (aiSupply !== "byok") return null;
+async function sellerFacts(
+  sellerId: string,
+): Promise<{ kind: "platform" | "reseller" | "coach"; rights: SupplyRights; aiMode: string | null }> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("tenants")
-    .select("kind, coach_byok_allowed")
+    .select("kind, ai_mode, coach_byok_allowed, coach_credits_allowed")
     .eq("id", sellerId)
-    .maybeSingle<{ kind: string | null; coach_byok_allowed: boolean | null }>();
-  if (data?.kind === "reseller" && data.coach_byok_allowed === false) {
-    return "Ton palier ne te permet pas de laisser tes coachs en clé personnelle : ce palier doit fournir l'IA (crédits).";
-  }
-  return null;
+    .maybeSingle<{ kind: string | null; ai_mode: string | null; coach_byok_allowed: boolean | null; coach_credits_allowed: boolean | null }>();
+  const kind = data?.kind === "platform" || data?.kind === "reseller" ? data.kind : "coach";
+  const rights: SupplyRights =
+    kind === "reseller" ? { byok: data?.coach_byok_allowed !== false, credits: data?.coach_credits_allowed !== false } : ALL_RIGHTS;
+  return { kind, rights, aiMode: data?.ai_mode ?? null };
 }
 
 export interface CreatePlanInput {
@@ -293,16 +298,17 @@ export async function createPlan(tenantId: string, input: CreatePlanInput): Prom
     return { ok: false, error: "Nombre de clients invalide." };
   }
 
-  const refus = await supplyRefusal(tenantId, input.aiSupply ?? "byok");
-  if (refus) return { ok: false, error: refus };
-
   // Un palier revendeur qui n'ouvre ni la clé personnelle ni les crédits ne
-  // laisserait au revendeur aucune façon de fournir l'IA à ses coachs.
+  // laisserait au revendeur aucune façon de fournir l'IA à ses coachs ; et un
+  // revendeur ne vend que ce que son propre palier lui ouvre.
   const byok = input.coachByokAllowed ?? true;
   const credits = input.coachCreditsAllowed ?? false;
-  if (!byok && !credits) {
-    return { ok: false, error: "Ouvre au moins un mode de fourniture aux coachs : clé personnelle ou crédits." };
-  }
+  const refus = planRefusal(await sellerFacts(tenantId), {
+    aiSupply: input.aiSupply ?? "byok",
+    coachByokAllowed: byok,
+    coachCreditsAllowed: credits,
+  });
+  if (refus) return { ok: false, error: refus };
 
   const admin = createAdminClient();
   const { count } = await admin

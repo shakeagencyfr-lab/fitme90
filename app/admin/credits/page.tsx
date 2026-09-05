@@ -67,6 +67,10 @@ export default async function AdminCreditsPage({
     .maybeSingle<{ ai_supply: string | null }>();
   const isReseller = node?.kind === "reseller";
   const buysFromPlatform = isReseller && t?.ai_supply === "platform_credits";
+  // Un revendeur qui n'achète pas ses crédits à la plateforme n'a ni solde ni
+  // recharge ici : sur sa propre clé, ce qu'il revend se règle dans Revenu
+  // IA ; sans le droit de revendre, il ne voit rien des crédits du tout.
+  if (isReseller && !buysFromPlatform) redirect("/admin/ia-revenu");
   const [wallet, coachUsesCredits, supplierId, programCredits, ledger, unitCents] = await Promise.all([
     getWallet(tenantId),
     isReseller ? Promise.resolve(buysFromPlatform) : clientUsesCredits(tenantId),

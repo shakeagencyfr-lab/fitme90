@@ -22,7 +22,13 @@ import type { TenantTheme } from "@/lib/theme";
 // carte arrondie. Onglets regroupés par thème, item actif en pastille.
 
 // `kinds` restreint l'item à certains niveaux ; absent = visible par tous.
-type Item = { href: string; label: string; icon: ReactNode; kinds?: TenantKind[] };
+/**
+ * `kinds` : les étages qui voient l'entrée ; `views` : les façons de voir ses
+ * coûts qui la justifient. « Mes crédits » ne parle qu'à qui achète des
+ * crédits : un compte en clé personnelle, ou dont l'IA est comprise, n'y
+ * trouverait qu'un solde à zéro et rien à acheter.
+ */
+type Item = { href: string; label: string; icon: ReactNode; kinds?: TenantKind[]; views?: CostView[] };
 
 function I({ d }: { d: string }) {
   return (
@@ -74,7 +80,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
     items: [
       { href: "/admin/config", label: "Ma méthode", kinds: ["coach"], icon: <I d="M12 4l1.4 3.6L17 9l-3.6 1.4L12 14l-1.4-3.6L7 9l3.6-1.4z||M18 15l.7 1.8L20.5 17.5l-1.8.7L18 20l-.7-1.8L15.5 17.5l1.8-.7z" /> },
       { href: "/admin/consommation", label: "Consommation", icon: <I d="M4 19h16||M7 19V11||M12 19V6||M17 19v-5" /> },
-      { href: "/admin/credits", label: "Mes crédits", kinds: ["coach", "reseller"], icon: <I d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20||M12 7v10||M9.5 9.5a2.5 2 0 0 1 5 0c0 2.5-5 1.5-5 4a2.5 2 0 0 0 5 0" /> },
+      { href: "/admin/credits", label: "Mes crédits", kinds: ["coach", "reseller"], views: ["credits"], icon: <I d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20||M12 7v10||M9.5 9.5a2.5 2 0 0 1 5 0c0 2.5-5 1.5-5 4a2.5 2 0 0 0 5 0" /> },
       { href: "/admin/ia-revenu", label: "Revenu IA", kinds: ["platform", "reseller"], icon: <I d="M12 3v18||M8 7h6a2.5 2.5 0 0 1 0 5H9a2.5 2.5 0 0 0 0 5h7" /> },
     ],
   },
@@ -91,17 +97,17 @@ const GROUPS: { label: string; items: Item[] }[] = [
   },
 ];
 
-/** Groupes filtrés pour un niveau de tenant (items sans `kinds` = tous). */
-function groupsForKind(kind: TenantKind): { label: string; items: Item[] }[] {
+/** Groupes filtrés pour un niveau de tenant et sa vue des coûts (items sans `kinds` ni `views` = tous). */
+function groupsForKind(kind: TenantKind, view: CostView): { label: string; items: Item[] }[] {
   return GROUPS.map((g) => ({
     label: g.label,
-    items: g.items.filter((it) => !it.kinds || it.kinds.includes(kind)),
+    items: g.items.filter((it) => (!it.kinds || it.kinds.includes(kind)) && (!it.views || it.views.includes(view))),
   })).filter((g) => g.items.length > 0);
 }
 
 /** Écrans indexés par la palette ⌘K, tirés du menu lui-même. */
-function searchDestinations(kind: TenantKind): SearchDest[] {
-  return groupsForKind(kind).flatMap((g) => g.items.map((it) => ({ href: it.href, label: it.label, group: g.label })));
+function searchDestinations(kind: TenantKind, view: CostView): SearchDest[] {
+  return groupsForKind(kind, view).flatMap((g) => g.items.map((it) => ({ href: it.href, label: it.label, group: g.label })));
 }
 
 function isActive(pathname: string, href: string): boolean {
@@ -111,17 +117,19 @@ function isActive(pathname: string, href: string): boolean {
 function NavList({
   pathname,
   kind,
+  view,
   onNavigate,
   collapsed = false,
 }: {
   pathname: string;
   kind: TenantKind;
+  view: CostView;
   onNavigate?: () => void;
   /** Rail d'icônes : les libellés disparaissent, les titres de groupe aussi. */
   collapsed?: boolean;
 }) {
   const tx = usePhrase();
-  const groups = groupsForKind(kind);
+  const groups = groupsForKind(kind, view);
   return (
     <nav className={collapsed ? "flex flex-col gap-2" : "flex flex-col gap-5"}>
       {groups.map((g, gi) => (
@@ -455,7 +463,7 @@ export function AdminShell({
   const [peek, setPeek] = useState(false);
   // Largeur pleine : soit le menu est épinglé ouvert, soit on le survole.
   const wide = !rail || peek;
-  const dests = searchDestinations(kind);
+  const dests = searchDestinations(kind, aiView);
 
   // Le survol n'a de sens qu'avec un vrai pointeur. Sur un écran tactile, un
   // simple effleurement déclenche mouseenter et laisserait le panneau déployé
@@ -636,7 +644,7 @@ export function AdminShell({
           )}
 
           <div className={wide ? "min-h-0 flex-1 overflow-y-auto" : "min-h-0 flex-1 overflow-y-auto overflow-x-hidden"}>
-            <NavList pathname={pathname} kind={kind} collapsed={!wide} />
+            <NavList pathname={pathname} kind={kind} view={aiView} collapsed={!wide} />
           </div>
 
           <div className="flex flex-col gap-3">
@@ -679,7 +687,7 @@ export function AdminShell({
             </div>
             <AdminSearch destinations={dests} kind={kind} />
             <div className="-mr-2 min-h-0 flex-1 overflow-y-auto pr-2">
-              <NavList pathname={pathname} kind={kind} onNavigate={() => setOpen(false)} />
+              <NavList pathname={pathname} kind={kind} view={aiView} onNavigate={() => setOpen(false)} />
             </div>
             <div className="flex flex-col gap-3">
               {usageCard}
