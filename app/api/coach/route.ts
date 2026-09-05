@@ -4,7 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
-import { recordCall } from "@/lib/ratelimit";
+import { recordCall, checkActionLimit, WEEK_MS } from "@/lib/ratelimit";
 import { checkClientAiBudget } from "@/lib/coach-ai-budget";
 import { checkAiAllowance, chargeAiUsage, coachUsageToCharge } from "@/lib/credits";
 import { MODELS, textOf, parseJsonLoose, effortConfig, anthropic } from "@/lib/anthropic";
@@ -19,7 +19,7 @@ import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan } fr
 import { coachAgenda, coachPlanView, logsDigest, type CoachLog } from "@/lib/coach-context";
 import { addMemoryNote, readMemory, renderMemory } from "@/lib/coach-memory";
 import { blockPosition } from "@/lib/block-logic";
-import { CYCLES_PER_BLOCK } from "@/lib/config";
+import { CYCLES_PER_BLOCK, LIMIT_ADAPT_PER_WEEK } from "@/lib/config";
 import { revalidatePath } from "next/cache";
 import { pnum, grp } from "@/lib/nutrition";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
@@ -552,6 +552,23 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
   // Exécute l'adaptation : mémorise la contrainte + régénère le programme.
   async function runAdaptation(contrainte: string): Promise<string> {
     if (!quiz) return "Impossible d'adapter : questionnaire introuvable.";
+
+    // Plafond hebdomadaire. Le refus est rendu au MODÈLE, pas au client : il le
+    // reformule dans le ton du coach, avec le contexte de la conversation, ce
+    // qu'un message d'erreur figé ne saurait pas faire. La contrainte est quand
+    // même mémorisée plus bas si on passe, mais ici on n'écrit rien : un refus
+    // ne doit pas laisser une adaptation à moitié appliquée.
+    const quota = await checkActionLimit(
+      ctx!.userId,
+      "block",
+      "adaptation",
+      LIMIT_ADAPT_PER_WEEK,
+      WEEK_MS,
+    );
+    if (!quota.ok) {
+      return `REFUS : le client a déjà fait adapter son programme ${quota.used} fois cette semaine (maximum ${quota.max}). N'appelle plus cet outil. Explique-lui avec ménagement que son programme vient d'être retouché et qu'il faut le laisser vivre quelques séances avant de le changer encore, propose-lui d'alléger ou de remplacer les exercices qui gênent séance par séance en attendant, et invite-le à en parler à son coach : au-delà de deux adaptations en une semaine, c'est le programme entier qui mérite d'être revu par un humain. S'il évoque une douleur qui persiste, redis-lui de consulter.`;
+    }
+
     const prev = readAdaptations(quiz.answers);
     const mergedAnswers = { ...quiz.answers, adaptations: [...prev, contrainte] };
     await supabase.from("questionnaires").update({ answers: mergedAnswers }).eq("user_id", ctx!.userId);
@@ -737,7 +754,7 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     await recordCall(ctx.userId, "block", genUsage, {
       tenantId: coachTenant,
       model: MODELS.generate,
-      action: "bloc",
+      action: "adaptation",
       credits: 0,
     });
   }
