@@ -10,6 +10,15 @@ async function rules(): Promise<Rule[]> {
   return (await fn()) as unknown as Rule[];
 }
 
+/**
+ * La source du catch-all, écrite UNE fois.
+ *
+ * Elle était recopiée dans chaque test, si bien qu'ajouter une route
+ * encadrable les cassait tous d'un coup pour la mauvaise raison : ce n'est pas
+ * la chaîne qui compte, ce sont les chemins qu'elle attrape.
+ */
+const CATCH_ALL = "/((?!c/[^/]+/embed|c/[^/]+$|r/[^/]+$|revendeurs$|apercu-site$|$).*)";
+
 function ruleFor(all: Rule[], source: string): Rule {
   const r = all.find((x) => x.source === source);
   if (!r) throw new Error(`Aucune règle d'en-têtes pour ${source}`);
@@ -30,14 +39,15 @@ describe("en-têtes de sécurité", () => {
     // Régression : frame-src ne listait que Stripe. La page prévisualisée
     // acceptait bien d'être encadrée, mais le PARENT (/admin/marque-blanche)
     // refusait de l'insérer, d'où « Ce contenu est bloqué » dans l'iframe.
-    const csp = header(ruleFor(await rules(), "/((?!c/[^/]+/embed|c/[^/]+$|r/[^/]+$|revendeurs$|$).*)"), "Content-Security-Policy");
+    const csp = header(ruleFor(await rules(), CATCH_ALL), "Content-Security-Policy");
     expect(csp).toBeTruthy();
     expect(directive(csp!, "frame-src")).toContain("'self'");
   });
 
   it("les landings publiques restent encadrables en same-origin seulement", async () => {
     const all = await rules();
-    for (const source of ["/", "/revendeurs", "/c/:slug", "/r/:slug"]) {
+    // /apercu-site : l'aperçu privé du mini-site, encadré par le studio.
+    for (const source of ["/", "/revendeurs", "/c/:slug", "/r/:slug", "/apercu-site"]) {
       const r = ruleFor(all, source);
       expect(directive(header(r, "Content-Security-Policy")!, "frame-ancestors")).toBe("frame-ancestors 'self'");
       expect(header(r, "X-Frame-Options")).toBe("SAMEORIGIN");
@@ -45,7 +55,7 @@ describe("en-têtes de sécurité", () => {
   });
 
   it("le reste du site n'est encadrable nulle part", async () => {
-    const r = ruleFor(await rules(), "/((?!c/[^/]+/embed|c/[^/]+$|r/[^/]+$|revendeurs$|$).*)");
+    const r = ruleFor(await rules(), CATCH_ALL);
     expect(directive(header(r, "Content-Security-Policy")!, "frame-ancestors")).toBe("frame-ancestors 'none'");
     expect(header(r, "X-Frame-Options")).toBe("DENY");
   });
@@ -60,8 +70,8 @@ describe("en-têtes de sécurité", () => {
     // Next.js FUSIONNE les en-têtes de toutes les sources qui matchent : si le
     // catch-all couvrait aussi /revendeurs, le navigateur recevait DENY +
     // SAMEORIGIN et bloquait tout.
-    const re = new RegExp("^(?!c/[^/]+/embed|c/[^/]+$|r/[^/]+$|revendeurs$|$).*$");
-    for (const path of ["", "revendeurs", "c/demo", "r/mon-reseau", "c/demo/embed"]) {
+    const re = new RegExp(`^${CATCH_ALL.slice(2, -1)}$`);
+    for (const path of ["", "revendeurs", "apercu-site", "c/demo", "r/mon-reseau", "c/demo/embed"]) {
       expect(re.test(path)).toBe(false);
     }
     for (const path of ["admin/marque-blanche", "app", "c/demo/merci"]) {

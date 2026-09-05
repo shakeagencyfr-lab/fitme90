@@ -10,6 +10,7 @@ import { EmbedSnippet } from "@/components/embed-snippet";
 import { bestSupplierPack, clientUsesCredits, programCreditCost, creditPriceToday } from "@/lib/credits";
 import { CreditScale, CreditScaleNote } from "@/components/credit-scale";
 import { readCoachConfig } from "@/lib/methodology";
+import { resellerClientDailyCap } from "@/lib/coach-ai-budget";
 import { Alert } from "@/components/ui";
 
 export const metadata = { title: "Plans, Admin My Fitness App" };
@@ -17,7 +18,7 @@ export const metadata = { title: "Plans, Admin My Fitness App" };
 export default async function AdminPlansPage() {
   const ctx = await getAdminOrNull();
   const tenantId = ctx?.profile?.tenant_id ?? null;
-  const [offers, creditMode, programCredits, cfg, unitCents, meilleurPack] = tenantId
+  const [offers, creditMode, programCredits, cfg, unitCents, meilleurPack, resellerCap] = tenantId
     ? await Promise.all([
         listOffers(tenantId),
         clientUsesCredits(tenantId),
@@ -27,8 +28,11 @@ export default async function AdminPlansPage() {
         // Le forfait le plus avantageux du revendeur : c'est lui qui chiffre
         // en euros le plafond en crédits d'un plan.
         bestSupplierPack(tenantId),
+        // Le plafond que le revendeur impose aux clients : sans lui à l'écran,
+        // un quota relevé au-delà ne change rien et personne ne sait pourquoi.
+        resellerClientDailyCap(tenantId),
       ])
-    : [[], false, 10, null, null, null];
+    : [[], false, 10, null, null, null, 0];
 
   let slug: string | null = null;
   if (tenantId) {
@@ -67,7 +71,16 @@ export default async function AdminPlansPage() {
               <Alert tone="info">{tx("Aucun plan pour l'instant. Crée ton premier plan ci-dessous.")}</Alert>
             ) : (
               offers.map((o) => (
-                <OfferEditor key={o.id} offer={o} defaultQuota={cfg?.coach_ai_daily_limit ?? 60} />
+                <OfferEditor
+                  key={o.id}
+                  offer={o}
+                  defaultQuota={cfg?.coach_ai_daily_limit ?? 60}
+                  creditMode={creditMode}
+                  programCredits={programCredits}
+                  bestPack={meilleurPack}
+                  unitCents={unitCents}
+                  resellerCap={resellerCap}
+                />
               ))
             )}
             {/* Le barème AVANT le formulaire : le coach s'apprête à décider
@@ -88,6 +101,7 @@ export default async function AdminPlansPage() {
               creditMode={creditMode}
               defaultQuota={cfg?.coach_ai_daily_limit ?? 60}
               bestPack={meilleurPack}
+              resellerCap={resellerCap}
             />
           </div>
 

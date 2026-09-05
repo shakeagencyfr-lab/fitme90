@@ -101,12 +101,19 @@ const nextConfig: NextConfig = {
       // remplace pas), donc si le catch-all les couvrait aussi, le navigateur
       // recevait X-Frame-Options: DENY + SAMEORIGIN et bloquait l'aperçu. On
       // les exclut du catch-all pour qu'un seul jeu d'en-têtes s'applique.
-      { source: "/((?!c/[^/]+/embed|c/[^/]+$|r/[^/]+$|revendeurs$|$).*)", headers: securityHeaders },
+      { source: "/((?!c/[^/]+/embed|c/[^/]+$|r/[^/]+$|revendeurs$|apercu-site$|$).*)", headers: securityHeaders },
       // Landings publiques : framables same-origin (aperçu live du studio).
       // /revendeurs = page de vente revendeurs (aperçu marque blanche plateforme).
       { source: "/c/:slug", headers: selfFrameHeaders },
       { source: "/r/:slug", headers: selfFrameHeaders },
       { source: "/revendeurs", headers: selfFrameHeaders },
+      // Aperçu privé du mini-site, affiché dans l'iframe du studio « Mon site ».
+      // Sans cette ligne il tombait dans le catch-all, recevait
+      // X-Frame-Options: DENY, et le navigateur refusait de l'afficher : le
+      // coach voyait un cadre gris à la place de sa page. Le cross-origin
+      // reste bloqué (frame-ancestors 'self'), et la route exige de toute
+      // façon une session admin.
+      { source: "/apercu-site", headers: selfFrameHeaders },
       { source: "/", headers: selfFrameHeaders },
     ];
   },

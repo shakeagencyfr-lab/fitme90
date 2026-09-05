@@ -28,8 +28,9 @@ import {
   tenantKeyStatus,
 } from "@/lib/tenant";
 import { secretsEncryptionReady } from "@/lib/crypto";
-import { createOffer, updateOffer, setOfferActive, deleteOffer } from "@/lib/offers";
+import { createOffer, updateOffer, setOfferActive, setOfferListed, deleteOffer } from "@/lib/offers";
 import { setResellerSitePrice, startSiteCheckout } from "@/lib/site-addon";
+import { resellerClientDailyCap, quotaSousPlafond } from "@/lib/coach-ai-budget";
 import { createPlan, setPlanActive, setPlanSiteIncluded, deletePlan } from "@/lib/plans";
 import { cancelTenantPlan, reactivateTenantPlan, syncTenantSubscription } from "@/lib/tenant-billing";
 import { deleteOwnCoachAccount } from "@/lib/account-deletion";
@@ -419,6 +420,13 @@ export async function removeAsset(kind: string): Promise<BrandingState> {
 export interface OfferState {
   ok?: boolean;
   error?: string;
+  /**
+   * Quota finalement enregistré quand le plafond du revendeur l'a ramené plus
+   * bas que le nombre saisi. L'écran l'annonce alors : un réglage corrigé en
+   * silence est exactement ce qui a fait croire à un bug (« j'ai mis 30 et
+   * rien n'a changé »).
+   */
+  quotaRamene?: number;
 }
 
 /** Ajoute une offre au catalogue du tenant (max 3, durées prédéfinies). */
@@ -437,10 +445,15 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
   // défaut du coach). Recettes et alternatives d'exercice sont calculées sans
   // modèle : elles n'entrent dans aucun plafond.
   const quotaRaw = String(formData.get("coach_ai_daily_limit") ?? "").trim();
-  const coachAiDailyLimit = quotaRaw === "" ? null : Number(quotaRaw);
-  if (coachAiDailyLimit != null && (!Number.isFinite(coachAiDailyLimit) || coachAiDailyLimit < 0)) {
+  const quotaSaisi = quotaRaw === "" ? null : Number(quotaRaw);
+  if (quotaSaisi != null && (!Number.isFinite(quotaSaisi) || quotaSaisi < 0)) {
     return { error: "Quota d'actions IA invalide." };
   }
+  // Le plafond du revendeur fait loi : c'est lui qui paie l'IA quand il la
+  // fournit. On l'applique ICI plutôt que de laisser le plan promettre un
+  // nombre que le client n'obtiendra jamais.
+  const plafond = await resellerClientDailyCap(tenantId);
+  const { valeur: coachAiDailyLimit, ramene } = quotaSousPlafond(quotaSaisi, plafond);
 
   // Parse un montant en euros (« 190 » ou « 29,90 ») → centimes, ou null si vide.
   const toCents = (raw: unknown): { cents: number | null; bad: boolean } => {
@@ -470,14 +483,15 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
   });
   if (!res.ok) return { error: res.error };
   revalidatePath("/admin/plans");
-  return { ok: true };
+  return { ok: true, quotaRamene: ramene ? plafond : undefined };
 }
 
 /**
- * Modifie un plan existant : nom, prix, options, quota du Coach IA.
+ * Modifie un plan existant : nom, Coach IA et son quota.
  *
- * Le mode de paiement et la durée n'y figurent pas, ils décrivent ce qui a été
- * vendu (voir updateOffer). Le formulaire ne les propose donc pas non plus.
+ * Ni le prix, ni la durée, ni le mode de paiement : ils décrivent ce que les
+ * clients inscrits ont acheté (voir updateOffer). Le formulaire ne les propose
+ * donc pas non plus, et invite plutôt à créer un nouveau plan.
  */
 export async function editOffer(_prev: OfferState, formData: FormData): Promise<OfferState> {
   const ctx = await getAdminOrNull();
@@ -488,32 +502,34 @@ export async function editOffer(_prev: OfferState, formData: FormData): Promise<
   if (!id) return { error: "Plan introuvable." };
 
   const quotaRaw = String(formData.get("coach_ai_daily_limit") ?? "").trim();
-  const coachAiDailyLimit = quotaRaw === "" ? null : Number(quotaRaw);
-  if (coachAiDailyLimit != null && (!Number.isFinite(coachAiDailyLimit) || coachAiDailyLimit < 0)) {
+  const quotaSaisi = quotaRaw === "" ? null : Number(quotaRaw);
+  if (quotaSaisi != null && (!Number.isFinite(quotaSaisi) || quotaSaisi < 0)) {
     return { error: "Quota de messages IA invalide." };
   }
-
-  const price = eurosToCents(formData.get("price_euros"));
-  const month = eurosToCents(formData.get("price_month_euros"));
-  const year = eurosToCents(formData.get("price_year_euros"));
-  if (price.bad || month.bad || year.bad) {
-    return { error: "Prix invalide (ex : 190 ou 29,90)." };
-  }
+  const plafond = await resellerClientDailyCap(tenantId);
+  const { valeur: coachAiDailyLimit, ramene } = quotaSousPlafond(quotaSaisi, plafond);
 
   const res = await updateOffer(tenantId, id, {
     name: String(formData.get("name") ?? ""),
     vipChat: formData.get("vip_chat") === "on",
     coachAi: formData.get("coach_ai") === "on",
     coachAiDailyLimit,
-    priceCents: price.cents,
-    priceMonthCents: month.cents,
-    priceYearCents: year.cents,
   });
   if (!res.ok) return { error: res.error };
   // La landing publique est rendue à la demande : elle relit les offres à
   // chaque visite, il n'y a rien à invalider de ce côté.
   revalidatePath("/admin/plans");
-  return { ok: true };
+  return { ok: true, quotaRamene: ramene ? plafond : undefined };
+}
+
+/** Affiche ou masque un plan sur la page publique (form action directe). */
+export async function toggleOfferListed(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await setOfferListed(ctx.profile.tenant_id, id, formData.get("listed") === "on");
+  revalidatePath("/admin/plans");
 }
 
 /** Active / désactive une offre (form action directe). */

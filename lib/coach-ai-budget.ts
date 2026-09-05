@@ -1,5 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { coachSupplyFacts } from "@/lib/credits";
+import { whoPays } from "@/lib/ai-supply";
 
 // QUOTA JOURNALIER d'actions IA par client.
 //
@@ -35,7 +37,7 @@ export const CLIENT_AI_ROUTES = ["coach", "recipes"] as const;
 const TZ = "Europe/Paris";
 
 // Combine deux plafonds (0 = illimité) : la contrainte la plus stricte gagne.
-function tighter(a: number, b: number): number {
+export function tighter(a: number, b: number): number {
   if (a <= 0) return Math.max(0, b);
   if (b <= 0) return a;
   return Math.min(a, b);
@@ -66,6 +68,71 @@ export function parisNextDayStart(now: Date = new Date()): Date {
   const start = parisDayStart(now);
   // +24 h puis recalage : couvre les changements d'heure (23 h ou 25 h).
   return parisDayStart(new Date(start.getTime() + 26 * 3_600_000));
+}
+
+/**
+ * Ramène un quota saisi sous le plafond du revendeur.
+ *
+ * TROIS CAS, ET LE DEUXIÈME EST CELUI QU'ON OUBLIE. Sans plafond, on garde ce
+ * qui est saisi. Avec un plafond, « 0 = illimité » devient impossible : c'est
+ * le plafond qui fait loi, sinon un quota à zéro passerait au travers en
+ * promettant l'infini. Et un nombre au-dessus du plafond est ramené à lui.
+ *
+ * Le serveur tranche, même si le formulaire empêche déjà de dépasser : un
+ * champ borné est un confort, pas une garantie.
+ *
+ * Pure et testable, et elle vit ici plutôt que dans le fichier d'actions :
+ * un module « use server » ne peut exporter que des fonctions asynchrones.
+ */
+export function quotaSousPlafond(
+  saisi: number | null,
+  plafond: number,
+): { valeur: number | null; ramene: boolean } {
+  if (plafond <= 0 || saisi == null) return { valeur: saisi, ramene: false };
+  if (saisi <= 0 || saisi > plafond) return { valeur: plafond, ramene: true };
+  return { valeur: saisi, ramene: false };
+}
+
+/**
+ * Le plafond que le revendeur impose aux clients de ce coach (0 = aucun).
+ *
+ * DEUX CONDITIONS, ET LA SECONDE MANQUAIT. Le plafond n'a de sens que si le
+ * revendeur FOURNIT l'IA, et seulement s'il en PAIE l'usage. Dès que le coach
+ * règle en crédits, c'est son solde qui borne la dépense : le revendeur ne
+ * risque rien, et son écran le dit noir sur blanc (« en modèle crédits, pas de
+ * plafond à régler ici »). Le formulaire de plafond disparaît alors.
+ *
+ * Le compteur, lui, continuait de l'appliquer. Un revendeur passé en crédits
+ * gardait donc un ancien plafond qu'il ne voyait plus, ne pouvait plus
+ * changer, et qui bridait pourtant tous les clients de tous ses coachs.
+ * C'est la cause du « j'ai monté le quota à 30 et mon client est resté à 15 » :
+ * un réglage fantôme, invisible des deux côtés.
+ *
+ * Le plafond ne s'applique donc plus que là où il protège quelqu'un.
+ */
+export async function resellerClientDailyCap(tenantId: string | null): Promise<number> {
+  if (!tenantId) return 0;
+  // `coachSupplyFacts` tient compte de la dispense : un coach passé sur sa
+  // propre clé n'est plus fourni, donc plus plafonné.
+  const facts = await coachSupplyFacts(tenantId);
+  if (!facts.resellerSupplies) return 0;
+  // Le coach paie en crédits : son solde borne déjà tout, le plafond est du
+  // bruit. C'est exactement ce que l'écran du revendeur lui annonce.
+  if (whoPays(facts).coach) return 0;
+
+  const admin = createAdminClient();
+  const { data: t } = await admin
+    .from("tenants")
+    .select("parent_id")
+    .eq("id", tenantId)
+    .maybeSingle<{ parent_id: string | null }>();
+  if (!t?.parent_id) return 0;
+  const { data: parent } = await admin
+    .from("tenants")
+    .select("ai_client_daily_limit")
+    .eq("id", t.parent_id)
+    .maybeSingle<{ ai_client_daily_limit: number | null }>();
+  return Math.max(0, parent?.ai_client_daily_limit ?? 0);
 }
 
 /**
@@ -102,20 +169,12 @@ export async function coachAiDailyLimit(tenantId: string | null, userId?: string
   const coachDefault = data?.coach_ai_daily_limit == null ? DEFAULT_COACH_AI_DAILY_LIMIT : Math.max(0, data.coach_ai_daily_limit);
   const coachLimit = offerLimit ?? coachDefault;
 
-  // Plafond du revendeur fournisseur d'IA.
-  const { data: t } = await admin
-    .from("tenants")
-    .select("parent_id")
-    .eq("id", tenantId)
-    .maybeSingle<{ parent_id: string | null }>();
-  if (!t?.parent_id) return coachLimit;
-  const { data: parent } = await admin
-    .from("tenants")
-    .select("ai_mode, ai_client_daily_limit")
-    .eq("id", t.parent_id)
-    .maybeSingle<{ ai_mode: string | null; ai_client_daily_limit: number | null }>();
-  if (parent?.ai_mode !== "provider") return coachLimit;
-  return tighter(coachLimit, Math.max(0, parent.ai_client_daily_limit ?? 0));
+  // UNE SEULE SOURCE pour le plafond du revendeur. Le calculer ici ET dans
+  // `resellerClientDailyCap` revenait à écrire deux fois la même règle : celle
+  // qu'applique le compteur et celle qu'affiche le tableau de bord du coach
+  // ont divergé, et c'est ainsi qu'un plafond fantôme a pu brider les clients
+  // sans apparaître nulle part.
+  return tighter(coachLimit, await resellerClientDailyCap(tenantId));
 }
 
 export interface BudgetState {

@@ -19,7 +19,20 @@ export interface Offer {
   price_cents: number | null;
   currency: string;
   position: number;
+  /**
+   * Le plan VIT : ses clients y ont accès et il peut en recevoir de nouveaux.
+   * Désactiver coupe l'accès de tout le monde.
+   */
   is_active: boolean;
+  /**
+   * Le plan est VISIBLE sur la page publique de vente.
+   *
+   * Distinct de `is_active` parce qu'un plan sur mesure existe : le coach le
+   * retire de sa vitrine et continue d'y inscrire lui-même les clients
+   * concernés. Confondre les deux l'obligeait à choisir entre exposer un plan
+   * privé et couper l'accès de ceux qui sont dessus.
+   */
+  is_listed: boolean;
   vip_chat: boolean;
   coach_ai: boolean;
   /** Quota journalier d'actions IA par client sur CE plan (null = réglage général du coach). */
@@ -33,7 +46,7 @@ export interface Offer {
 }
 
 const OFFER_COLS =
-  "id, tenant_id, name, duration_months, price_cents, currency, position, is_active, vip_chat, coach_ai, coach_ai_daily_limit, recipe_ai_daily_limit, billing_type, price_month_cents, price_year_cents, created_at";
+  "id, tenant_id, name, duration_months, price_cents, currency, position, is_active, is_listed, vip_chat, coach_ai, coach_ai_daily_limit, recipe_ai_daily_limit, billing_type, price_month_cents, price_year_cents, created_at";
 
 /** Prix d'une offre pour un intervalle donné (abonnement), en centimes. */
 export function subscriptionPrice(offer: Offer, interval: "month" | "year"): number | null {
@@ -196,6 +209,9 @@ export async function publicOffersBySlug(slug: string): Promise<PublicTenantOffe
       .select(OFFER_COLS)
       .eq("tenant_id", tenant.id)
       .eq("is_active", true)
+      // Un plan masqué reste vivant pour ses clients, mais ne s'affiche pas :
+      // c'est ce qui permet au coach de garder un plan sur mesure hors vitrine.
+      .eq("is_listed", true)
       .order("position", { ascending: true }),
     admin
       .from("testimonials")
@@ -403,9 +419,6 @@ export interface UpdateOfferInput {
   coachAi?: boolean;
   /** Quota journalier de messages au Coach IA par client (0 = illimité, null = défaut du coach). */
   coachAiDailyLimit?: number | null;
-  priceCents?: number | null;
-  priceMonthCents?: number | null;
-  priceYearCents?: number | null;
 }
 
 /**
@@ -413,11 +426,18 @@ export interface UpdateOfferInput {
  * vérifié avant : un identifiant d'offre volé ne suffit pas à éditer le plan
  * d'un autre coach.
  *
- * Les prix écrits ici valent pour les PROCHAINS acheteurs. Un abonnement Stripe
- * déjà en cours reste sur le prix auquel il a été souscrit, c'est Stripe qui le
- * porte, pas cette ligne. Le quota Coach IA, lui, est relu à chaque message
- * (lib/coach-ai-budget.ts) : il change immédiatement pour tout le monde, y
- * compris les clients déjà inscrits.
+ * LE PRIX N'EST PLUS MODIFIABLE, et c'est un retrait volontaire. Il décrit ce
+ * que les clients déjà inscrits ont payé : le changer réécrit après coup le
+ * contrat d'une vente conclue, sans qu'aucun d'eux le sache. Pour vendre à un
+ * autre tarif, on crée un nouveau plan et on masque l'ancien de la vitrine
+ * (`is_listed`) : les clients en cours gardent le leur, la page publique ne
+ * montre que le nouveau, et l'ancien reste disponible pour une inscription
+ * faite à la main.
+ *
+ * Restent modifiables les réglages qui n'engagent pas de prix : le nom, le
+ * Coach IA et son quota. Ce dernier est relu à chaque message
+ * (lib/coach-ai-budget.ts), il change donc immédiatement pour tout le monde,
+ * clients déjà inscrits compris.
  */
 export async function updateOffer(
   tenantId: string,
@@ -428,48 +448,50 @@ export async function updateOffer(
   if (!trimmed) return { ok: false, error: "Donne un nom au plan." };
   if (!offerId) return { ok: false, error: "Plan introuvable." };
 
-  const admin = createAdminClient();
-  // On relit le plan pour connaître son mode de paiement : c'est lui qui décide
-  // quelle colonne de prix a un sens, et il n'est pas modifiable ici.
-  const { data: current } = await admin
-    .from("offers")
-    .select("id, billing_type")
-    .eq("id", offerId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle<{ id: string; billing_type: BillingType }>();
-  if (!current) return { ok: false, error: "Plan introuvable." };
-
-  const priceCents = input.priceCents ?? null;
-  const priceMonthCents = input.priceMonthCents ?? null;
-  const priceYearCents = input.priceYearCents ?? null;
-  if (!validCents(priceCents) || !validCents(priceMonthCents) || !validCents(priceYearCents)) {
-    return { ok: false, error: "Prix invalide." };
-  }
-  if (current.billing_type === "subscription" && priceMonthCents == null && priceYearCents == null) {
-    return { ok: false, error: "Renseigne au moins un prix (mensuel ou annuel)." };
-  }
-
   const coachAi = input.coachAi !== false;
-  const { error } = await admin
+  const admin = createAdminClient();
+  const { error, count } = await admin
     .from("offers")
-    .update({
-      name: trimmed,
-      price_cents: current.billing_type === "one_time" ? priceCents : null,
-      price_month_cents: current.billing_type === "subscription" ? priceMonthCents : null,
-      price_year_cents: current.billing_type === "subscription" ? priceYearCents : null,
-      vip_chat: !!input.vipChat,
-      coach_ai: coachAi,
-      // Coach IA décoché : le quota n'a plus d'objet, on le remet à null plutôt
-      // que de laisser un nombre orphelin qui réapparaîtrait au rallumage.
-      coach_ai_daily_limit:
-        coachAi && input.coachAiDailyLimit != null && Number.isFinite(input.coachAiDailyLimit)
-          ? Math.max(0, Math.min(1000, Math.trunc(input.coachAiDailyLimit)))
-          : null,
-    })
+    .update(
+      {
+        name: trimmed,
+        vip_chat: !!input.vipChat,
+        coach_ai: coachAi,
+        // Coach IA décoché : le quota n'a plus d'objet, on le remet à null
+        // plutôt que de laisser un nombre orphelin qui réapparaîtrait au
+        // rallumage.
+        coach_ai_daily_limit:
+          coachAi && input.coachAiDailyLimit != null && Number.isFinite(input.coachAiDailyLimit)
+            ? Math.max(0, Math.min(1000, Math.trunc(input.coachAiDailyLimit)))
+            : null,
+      },
+      { count: "exact" },
+    )
     .eq("id", offerId)
     .eq("tenant_id", tenantId);
   if (error) return { ok: false, error: "Modification impossible." };
+  if (!count) return { ok: false, error: "Plan introuvable." };
   return { ok: true };
+}
+
+/**
+ * Affiche ou masque un plan sur la page publique, sans toucher à sa vie.
+ *
+ * Masquer n'est pas désactiver : le plan continue de servir ses clients et
+ * d'en accepter de nouveaux inscrits à la main, il quitte seulement la
+ * vitrine.
+ */
+export async function setOfferListed(
+  tenantId: string,
+  offerId: string,
+  listed: boolean,
+): Promise<void> {
+  const admin = createAdminClient();
+  await admin
+    .from("offers")
+    .update({ is_listed: listed })
+    .eq("id", offerId)
+    .eq("tenant_id", tenantId);
 }
 
 /** Active / désactive une offre (sans la supprimer). */
