@@ -148,6 +148,9 @@ create table if not exists public.profiles (
   -- de lui que part tout envoi. Le drapeau dit que l'absence d'adresse est un
   -- choix, et que le paiement a ete encaisse par le coach hors Stripe.
   managed_by_coach boolean not null default false,
+  -- Verrou de generation de programme : pose au depart d'une generation,
+  -- leve a la fin, perime au-dela de 6 minutes. Service role seulement.
+  generating_since timestamptz,
   constraint profiles_pkey primary key (id),
   constraint profiles_language_check check (language is null or language = any (array['fr','en'])),
   -- « once » = en une fois, « month » = en mensualites ; « year » n'est plus

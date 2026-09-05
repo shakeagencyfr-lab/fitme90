@@ -30,8 +30,21 @@ export default async function GenerationPage({
 
   if (ctx.access.phase === "active" || ctx.access.phase === "grace") redirect("/app");
 
-  // Le questionnaire doit être rempli avant de générer.
+  // Programme déjà écrit (il n'a peut-être pas encore commencé) : cette page
+  // n'a plus rien à faire. La laisser se relancer coûtait une génération au
+  // coach à chaque retour arrière ou rechargement.
   const supabase = await createClient();
+  if (ctx.access.phase !== "not_paid") {
+    const { data: prog } = await supabase
+      .from("programs")
+      .select("id")
+      .eq("user_id", ctx.userId)
+      .limit(1)
+      .maybeSingle<{ id: string }>();
+    if (prog) redirect("/app");
+  }
+
+  // Le questionnaire doit être rempli avant de générer.
   const { data: quiz } = await supabase
     .from("questionnaires")
     .select("id")
