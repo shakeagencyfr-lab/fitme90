@@ -859,3 +859,33 @@ alter table public.coach_config add column if not exists prospect_followup_copy 
 -- PARENT depuis son écran réseau, jamais par le compte lui-même : la brèche
 -- reste fermée.
 alter table public.tenants add column if not exists ai_self_managed boolean not null default false;
+
+-- ─────────────────────────────────────────────────────── mini-site du coach
+--
+-- La landing /c/<slug> VEND les programmes en ligne. Le mini-site
+-- /web/<web_slug> PRÉSENTE l'établissement : qui est le coach, ce qu'il
+-- propose sur place, où il est, quand il ouvre, ce que ses clients en disent.
+-- Il se termine par une section qui introduit les programmes en ligne et
+-- renvoie vers la landing.
+--
+-- L'adresse est distincte du slug de landing parce que ce sont deux pages
+-- différentes, qu'un coach voudra souvent nommer différemment.
+alter table public.tenants
+  add column if not exists web_enabled boolean not null default false,
+  add column if not exists web_slug text,
+  add column if not exists web_template text,
+  add column if not exists web_intro text,
+  add column if not exists web_services jsonb not null default '[]'::jsonb,
+  add column if not exists web_photos jsonb not null default '[]'::jsonb,
+  add column if not exists web_programs_title text,
+  add column if not exists web_programs_text text,
+  add column if not exists google_category text,
+  add column if not exists google_description text;
+
+-- Deux comptes ne peuvent pas revendiquer la même adresse. L'index PARTIEL
+-- laisse autant de lignes vides qu'on veut : la plupart des comptes n'ont pas
+-- de mini-site, et un index unique ordinaire les aurait fait entrer en
+-- collision sur NULL dans certains moteurs.
+create unique index if not exists tenants_web_slug_key
+  on public.tenants (web_slug)
+  where web_slug is not null;

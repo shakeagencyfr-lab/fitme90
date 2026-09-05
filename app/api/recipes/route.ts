@@ -1,73 +1,29 @@
 import { NextResponse } from "next/server";
 import { makeT } from "@/lib/i18n";
-import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
-import { recordCall } from "@/lib/ratelimit";
-import { checkClientAiBudget } from "@/lib/coach-ai-budget";
-import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
-import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
-import { anthropicForUser } from "@/lib/tenant";
-import { saveClientRecipes } from "@/lib/recipes-store";
-import { COACH_CREDENTIAL } from "@/lib/config";
+import { saveClientRecipes, readClientRecipes } from "@/lib/recipes-store";
+import { pnum } from "@/lib/nutrition";
+import { buildMenu, profilDepuisQuiz, repasDuJour, REPAS_LABEL } from "@/lib/recipe-engine";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
-import { aiLanguageInstruction } from "@/lib/i18n";
 
 export const runtime = "nodejs";
 
-const recipesSchema = z.object({
-  recipes: z
-    .array(
-      z.object({
-        name: z.string(),
-        level: z.string().optional().default(""),
-        time: z.string(),
-        servings: z.string().optional().default(""),
-        kcal: z.string(),
-        protein: z.string(),
-        carbs: z.string().optional().default(""),
-        fat: z.string().optional().default(""),
-        ingredients: z.array(z.object({ food: z.string(), qty: z.string() })),
-        // Étapes détaillées ; on accepte aussi une chaîne pour la rétrocompat.
-        steps: z
-          .union([z.array(z.string()), z.string()])
-          .transform((v) => (Array.isArray(v) ? v : [v]).map((s) => s.trim()).filter(Boolean))
-          .default([]),
-        tip: z.string().optional().default(""),
-      }),
-    )
-    .default([]),
-});
-
+// Trois recettes (quatre avec collation) calées sur les macros du jour.
+//
+// SANS IA, ET DONC GRATUITES ET ILLIMITÉES. Elles sortent d'un catalogue écrit
+// à l'avance, filtré par les réponses du questionnaire (allergies, régime,
+// cadre religieux, aliments refusés, budget, temps de cuisine) puis mis à
+// l'échelle sur les objectifs du jour. Deux gains par rapport à la génération
+// par modèle : les macros affichées sont la somme réelle des quantités au lieu
+// d'être annoncées au jugé, et un filtre d'allergène ne s'oublie pas.
+// Voir lib/recipe-catalog.ts et lib/recipe-engine.ts.
 export async function POST() {
   const ctx = await getSessionContext();
   const t = makeT(await resolveLocale(await userLocale(ctx?.userId)));
   if (!ctx) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   if (!ctx.access.coachEnabled) {
-    return NextResponse.json(
-      { error: t("srv.duringProgram") },
-      { status: 403 },
-    );
-  }
-
-  // Porte d'accès : portefeuille de crédits (Modèle crédits) ou plafond journalier.
-  const coachTenant = ctx.profile?.tenant_id ?? null;
-  const allowance = await checkAiAllowance(coachTenant, "action");
-  if (!allowance.ok) return NextResponse.json({ error: allowance.error }, { status: 402 });
-  {
-    const budget = await checkClientAiBudget(ctx.userId, coachTenant);
-    if (!budget.ok) {
-      const n = budget.limit;
-      return NextResponse.json(
-        {
-          error:
-            n === 1
-              ? "Tu as déjà régénéré tes recettes aujourd'hui. Réessaie demain."
-              : `Limite de ${n} régénérations de recettes par jour atteinte. Réessaie demain.`,
-        },
-        { status: 429 },
-      );
-    }
+    return NextResponse.json({ error: t("srv.duringProgram") }, { status: 403 });
   }
 
   const supabase = await createClient();
@@ -86,56 +42,49 @@ export async function POST() {
     .limit(1)
     .maybeSingle<{ plan: { nutrition?: Record<string, string> } }>();
 
-  const a = quiz?.answers ?? {};
-  const arr = (k: string) => (Array.isArray(a[k]) ? (a[k] as string[]).join(", ") : "");
+  const answers = quiz?.answers ?? {};
   const n = program?.plan?.nutrition ?? {};
+  // Sans plan lisible, on retombe sur un profil moyen plutôt que sur une
+  // erreur : le client verra des recettes cohérentes, simplement pas calées
+  // sur des objectifs qui n'existent pas encore.
+  const jour = {
+    kcal: pnum(n.kcal ?? "") || 2400,
+    p: pnum(n.protein ?? "") || 140,
+    c: pnum(n.carbs ?? "") || 260,
+    f: pnum(n.fat ?? "") || 75,
+  };
 
-  const cook = (a.cook_time as string) || "";
-  const level =
-    /non/i.test(cook)
-      ? "Assemblage rapide, sans cuisson ou minimale, étapes très simples et courtes."
-      : /temps en temps/i.test(cook)
-        ? "Recettes simples, cuisson basique, temps de préparation modéré."
-        : /oui/i.test(cook)
-          ? "Recettes plus élaborées et gourmandes, techniques un peu plus poussées, davantage d'étapes."
-          : "Recettes simples et efficaces.";
+  // Les identifiants déjà servis : c'est ce qui fait que « régénérer » change
+  // vraiment le menu, sans avoir besoin de hasard ni d'un compteur en base.
+  const precedentes = (await readClientRecipes(ctx.userId)) as Array<{ id?: unknown }>;
+  const exclure = precedentes
+    .map((r) => (typeof r?.id === "string" ? r.id : null))
+    .filter((x): x is string => Boolean(x));
 
-  const locale = await resolveLocale(await userLocale(ctx.userId));
-  const system = `Tu es ${COACH_CREDENTIAL}. Réponds UNIQUEMENT par un objet JSON valide, sans texte autour. ${aiLanguageInstruction(locale)} Exactement 3 recettes, chacune DÉTAILLÉE et facile à suivre. Schéma EXACT :
-{"recipes":[{"name":"","level":"Simple","time":"20 min","servings":"1 portion","kcal":"620","protein":"42 g","carbs":"55 g","fat":"18 g","ingredients":[{"food":"","qty":"120 g"}],"steps":["Étape 1 claire et précise","Étape 2","Étape 3","Étape 4"],"tip":"une astuce courte"}]}
-Consignes : 4 à 7 étapes numérotées, chaque étape est une instruction concrète (température, temps de cuisson, ustensile, indice de cuisson). Donne des quantités précises pour chaque ingrédient, les macros complètes (kcal, protéines, glucides, lipides) et le nombre de portions. Ajoute une astuce ("tip") utile (variante, conservation, gain de temps). Conseils culinaires uniquement, aucune allégation médicale. N'utilise jamais de tiret cadratin (—) ni demi-cadratin (–).`;
-  const user =
-    `Objectifs du jour : ${n.kcal || "2 580"} kcal, ${n.protein || "148"} g de protéines, ${n.carbs || "276"} g de glucides, ${n.fat || "78"} g de lipides. Vise des recettes cohérentes avec ces apports (une portion = un repas).\n` +
-    `Allergies à exclure strictement : ${arr("allerg") || "aucune"}.\n` +
-    `Régime : ${(a.diet as string) || "omnivore"}. Cadre religieux : ${(a.religion as string) || "aucun"}. Aliments refusés : ${(a.dislikes as string) || "aucun"}.\n` +
-    `Aliments appréciés : ${(a.loved_foods as string) || "non précisé"}. Budget : ${(a.budget as string) || "moyen"}.\n` +
-    `NIVEAU des recettes (selon le temps de cuisine du client) : ${level} Indique ce niveau dans le champ "level" (ex "Assemblage rapide", "Simple", "Élaborée").\n` +
-    `Propose 3 recettes distinctes, adaptées à ces goûts, à ce budget et à ce niveau, avec des étapes détaillées.`;
+  const menu = buildMenu({
+    repas: repasDuJour(answers),
+    jour,
+    profil: profilDepuisQuiz(answers),
+    exclure,
+  });
 
-  try {
-    const message = await (await anthropicForUser(ctx.userId)).messages.create({
-      model: MODELS.recipes,
-      max_tokens: 3800,
-      ...effortConfig(MODELS.recipes, "low"),
-      system,
-      messages: [{ role: "user", content: user }],
-    });
-    const parsed = recipesSchema.parse(parseJsonLoose(textOf(message)));
-    if (!parsed.recipes.length) {
-      return NextResponse.json({ error: t("srv.noRecipes") }, { status: 502 });
-    }
-    await recordCall(
-      ctx.userId,
-      "recipes",
-      { input_tokens: message.usage.input_tokens, output_tokens: message.usage.output_tokens },
-      { tenantId: coachTenant, model: MODELS.recipes, action: "recette", credits: allowance.coachCost },
-    );
-    await chargeAiUsage(coachTenant, "action", "recipe", ctx.userId);
-    // Persistées : sans cela le client les perdait au rechargement de page, sans
-    // pouvoir régénérer avant le lendemain (plafond journalier).
-    await saveClientRecipes(ctx.userId, parsed.recipes);
-    return NextResponse.json({ recipes: parsed.recipes });
-  } catch {
-    return NextResponse.json({ error: t("srv.recipesDown") }, { status: 502 });
-  }
+  if (!menu.length) return NextResponse.json({ error: t("srv.noRecipes") }, { status: 422 });
+
+  const recipes = menu.map((r) => ({
+    id: r.id,
+    name: r.nom,
+    level: REPAS_LABEL[r.repas],
+    time: `${r.minutes} min`,
+    servings: "1 portion",
+    kcal: String(Math.round(r.macros.kcal)),
+    protein: `${Math.round(r.macros.p)} g`,
+    carbs: `${Math.round(r.macros.c)} g`,
+    fat: `${Math.round(r.macros.f)} g`,
+    ingredients: r.ingredients.map((i) => ({ food: i.nom, qty: i.libelle })),
+    steps: r.etapes,
+    tip: r.astuce,
+  }));
+
+  await saveClientRecipes(ctx.userId, recipes);
+  return NextResponse.json({ recipes });
 }

@@ -7,6 +7,8 @@ import { checkLimit, recordCall, DAY_MS } from "@/lib/ratelimit";
 import { MODELS, textOf, parseJsonLoose, effortConfig } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
 import { saveClientRecipes } from "@/lib/recipes-store";
+import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
+import { checkClientAiBudget } from "@/lib/coach-ai-budget";
 import { LIMIT_RECIPES_PER_DAY, COACH_CREDENTIAL } from "@/lib/config";
 
 export const runtime = "nodejs";
@@ -55,6 +57,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Limite de ${limit.max} générations par jour atteinte.` }, { status: 429 });
   }
 
+  // C'est la SEULE recette qui appelle encore un modèle, et c'est un appel de
+  // vision. Il passait jusqu'ici sans porte d'accès ni débit : le fournisseur
+  // d'IA en absorbait le coût sans le voir. Il est traité comme les autres
+  // actions du client : quota journalier, portefeuille de crédits, débit.
+  const coachTenant = ctx.profile?.tenant_id ?? null;
+  const budget = await checkClientAiBudget(ctx.userId, coachTenant);
+  if (!budget.ok) {
+    return NextResponse.json({ error: "Quota IA du jour atteint. Il se renouvelle à minuit." }, { status: 429 });
+  }
+  const allowance = await checkAiAllowance(coachTenant, "action");
+  if (!allowance.ok) return NextResponse.json({ error: allowance.error }, { status: 402 });
+
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Image invalide." }, { status: 400 });
 
@@ -99,8 +113,9 @@ Consignes : 4 à 7 étapes concrètes, quantités précises, macros estimées, u
       ctx.userId,
       "recipes",
       { input_tokens: message.usage.input_tokens, output_tokens: message.usage.output_tokens },
-      { tenantId: ctx.profile?.tenant_id ?? null, model: MODELS.recipes, action: "recette-photo", credits: 0 },
+      { tenantId: coachTenant, model: MODELS.recipes, action: "recette-photo", credits: allowance.coachCost },
     );
+    await chargeAiUsage(coachTenant, "action", "recipe", ctx.userId);
     await saveClientRecipes(ctx.userId, out.recipes);
     return NextResponse.json({ recipes: out.recipes });
   } catch {

@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { safeImageUrl, suggestCopy, type ImportDraft } from "@/lib/google-import";
+import { MAX_SITE_PHOTOS } from "@/lib/site-templates";
 
 /**
  * Application d'un brouillon Google au compte du coach.
@@ -29,6 +30,14 @@ export interface ApplyChoices {
   textes: boolean;
   /** Photo à reprendre comme visuel de la section « à propos ». */
   photoUrl: string | null;
+  /**
+   * Photos à reprendre dans la GALERIE du mini-site.
+   *
+   * Distinctes de `photoUrl` : la première illustre la présentation, celles-ci
+   * remplissent la page. C'est ce qui manquait le plus à l'import, qui
+   * recopiait une seule image et laissait le reste de la fiche sans emploi.
+   */
+  galerie: string[];
   /** Indices des avis retenus dans `draft.reviews`. */
   avis: number[];
 }
@@ -37,7 +46,7 @@ export interface ApplyResult {
   ok: boolean;
   error?: string;
   /** Ce qui a réellement changé, pour le dire au coach sans le lui faire deviner. */
-  applied: { infos: boolean; textes: boolean; photo: boolean; avis: number };
+  applied: { infos: boolean; textes: boolean; photo: boolean; galerie: number; avis: number };
 }
 
 /** Taille maximale d'une photo recopiée. Au-delà, on passe. */
@@ -109,6 +118,10 @@ export function mapsUrlFor(draft: ImportDraft): string | null {
  */
 export function infoPatch(draft: ImportDraft): Record<string, unknown> {
   const patch: Record<string, unknown> = { google_place_id: draft.dataId };
+  // La catégorie et la description Google alimentent le mini-site : la
+  // première sert d'étiquette sous le nom, la seconde de repli de présentation.
+  if (draft.category) patch.google_category = draft.category;
+  if (draft.description) patch.google_description = draft.description;
   if (draft.address) patch.address = draft.address;
   if (draft.phone) patch.phone = draft.phone;
   if (draft.website) patch.website_url = draft.website;
@@ -150,7 +163,7 @@ export async function applyGoogleImport(
   importId: string | null = null,
 ): Promise<ApplyResult> {
   const admin = createAdminClient();
-  const applied = { infos: false, textes: false, photo: false, avis: 0 };
+  const applied = { infos: false, textes: false, photo: false, galerie: 0, avis: 0 };
   let patch: Record<string, unknown> = {};
 
   if (choix.infos) {
@@ -178,6 +191,23 @@ export async function applyGoogleImport(
     if (url) {
       patch.about_photo_url = url;
       applied.photo = true;
+    }
+  }
+
+  // La galerie REMPLACE l'ancienne plutôt que de s'y ajouter : réimporter deux
+  // fois ne doit pas empiler douze fois la même façade. Les copies se font en
+  // série et non en parallèle, parce qu'une fiche peut porter huit photos et
+  // qu'ouvrir huit connexions d'un coup depuis une fonction serverless est le
+  // meilleur moyen de les voir toutes échouer ensemble.
+  if (choix.galerie.length > 0) {
+    const urls: string[] = [];
+    for (const src of choix.galerie.slice(0, MAX_SITE_PHOTOS)) {
+      const url = await copyPlacePhoto(tenantId, src, fetcher);
+      if (url) urls.push(url);
+    }
+    if (urls.length > 0) {
+      patch.web_photos = urls;
+      applied.galerie = urls.length;
     }
   }
 

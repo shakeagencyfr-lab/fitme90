@@ -14,7 +14,6 @@ import {
 import { Card, MonoLabel, Button, Alert } from "@/components/ui";
 import { setShoppingCheck } from "@/app/app/nutrition/actions";
 import { dateOfProgramDay } from "@/lib/schedule";
-import { AiQuotaBadge } from "@/components/ai-quota-badge";
 
 interface Recipe {
   name: string;
@@ -116,9 +115,6 @@ export function NutritionView({
   // Deux actions distinctes (générer / photo) : un état de chargement PAR bouton
   // pour n'afficher le spinner que sur celui réellement cliqué.
   const [recipeBusy, setRecipeBusy] = useState(false);
-  // Incrémenté après chaque action IA : le badge de solde se relit alors, au
-  // lieu d'afficher le compte d'avant l'action.
-  const [aiTick, setAiTick] = useState(0);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [recipeErr, setRecipeErr] = useState("");
   const photoRef = useRef<HTMLInputElement>(null);
@@ -163,7 +159,6 @@ export function NutritionView({
       setRecipeErr(e instanceof Error ? e.message : "Indisponible.");
     } finally {
       setRecipeBusy(false);
-      setAiTick((n) => n + 1);
     }
   }
 
@@ -391,10 +386,6 @@ export function NutritionView({
             <Button variant="outline" onClick={() => photoRef.current?.click()} loading={photoBusy} disabled={recipeBusy} className="h-11">
               {t("nutrition.foodPhoto")}
             </Button>
-            {/* Le solde à côté du bouton : ces boutons puisent dans le même
-                compteur que le chat, et le client doit le voir baisser là où
-                il dépense. */}
-            <AiQuotaBadge refreshKey={aiTick} />
           </div>
           <p className="text-[12px] text-muted-2">{t("nutrition.foodPhotoHint")}</p>
         </section>

@@ -5,6 +5,8 @@ import { suspendTenant, reactivateTenant, giftCredits, deleteTenantTree, setRese
 import { setSupportReturn, readSupportReturn, clearSupportReturn } from "@/lib/support-return";
 import { LANDING_TEMPLATES, BUSINESS_TYPES } from "@/lib/offers";
 import { whitelabelEnabled } from "@/lib/whitelabel";
+import { SITE_TEMPLATES, MAX_SERVICES, MAX_SITE_PHOTOS } from "@/lib/site-templates";
+import { webSlugAvailable } from "@/lib/site";
 import { sendEmail } from "@/lib/email";
 import { setTenantCustomDomain } from "@/lib/custom-domain";
 import { redirect } from "next/navigation";
@@ -91,8 +93,8 @@ export async function saveCoachConfig(
     .trim()
     .slice(0, 40);
 
-  // Les deux plafonds journaliers (messages, recettes) se règlent désormais PAR
-  // OFFRE, dans l'écran Plans. On ne les écrit plus ici : les colonnes restent
+  // Le plafond journalier de messages se règle désormais PAR OFFRE, dans
+  // l'écran Plans. On ne les écrit plus ici : les colonnes restent
   // en base comme repli pour les comptes réglés avant ce changement, et les
   // écraser avec des valeurs par défaut à chaque enregistrement de méthodologie
   // aurait modifié le comportement sans que personne ne le demande.
@@ -430,8 +432,9 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
   const vipChat = formData.get("vip_chat") === "on";
   // Le Coach IA est inclus par défaut ; la case l'exclut si décochée.
   const coachAi = formData.get("coach_ai") === "on";
-  // Quota journalier d'actions IA par client sur ce plan (vide = défaut du
-  // coach). Un seul nombre : il couvre messages, recettes et alternatives.
+  // Quota journalier de messages au Coach IA par client sur ce plan (vide =
+  // défaut du coach). Recettes et alternatives d'exercice sont calculées sans
+  // modèle : elles n'entrent dans aucun plafond.
   const quotaRaw = String(formData.get("coach_ai_daily_limit") ?? "").trim();
   const coachAiDailyLimit = quotaRaw === "" ? null : Number(quotaRaw);
   if (coachAiDailyLimit != null && (!Number.isFinite(coachAiDailyLimit) || coachAiDailyLimit < 0)) {
@@ -1098,8 +1101,8 @@ export async function saveResellerAiMode(_prev: ResellerAiState, formData: FormD
 /**
  * Tarification en crédits du revendeur d'IA. DEUX types de crédits, chacun avec
  * son prix de vente (en centimes) :
- *  - crédit IA = 1 action simple (chat / recette / exercice), modèle Haiku ;
- *  - une génération de programme consomme N crédits IA (réglable), modèle Opus.
+ *  - crédit IA = 1 message au Coach IA, modèle Haiku ;
+ *  - une génération de programme consomme N crédits IA (réglable), Sonnet.
  */
 export async function saveResellerCredits(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
   const ctx = await getAdminOrNull();
@@ -1794,7 +1797,7 @@ export interface GoogleSearchState {
   draft?: ImportDraft;
   importId?: string;
   /** Ce qui a été écrit, une fois l'import appliqué. */
-  done?: { infos: boolean; textes: boolean; photo: boolean; avis: number };
+  done?: { infos: boolean; textes: boolean; photo: boolean; galerie: number; avis: number };
 }
 
 /**
@@ -1850,6 +1853,10 @@ export async function googleImportStep(
         infos: formData.get("infos") === "on",
         textes: formData.get("textes") === "on",
         photoUrl: String(formData.get("photo") ?? "") || null,
+        galerie: formData
+          .getAll("galerie")
+          .map((v) => String(v))
+          .filter(Boolean),
         avis: formData
           .getAll("avis")
           .map((v) => Number(v))
@@ -1862,8 +1869,149 @@ export async function googleImportStep(
 
     revalidatePath("/admin/fiche-google");
     revalidatePath("/admin/marque-blanche");
+    revalidatePath("/admin/site");
     return { done: res.applied };
   }
 
   return prev;
+}
+
+/**
+ * Détache la fiche Google du compte.
+ *
+ * L'import était à sens unique : une fois rattaché, le coach ne pouvait plus
+ * que rattacher une AUTRE fiche, jamais revenir en arrière. Un coach qui
+ * change d'adresse, ferme son studio ou s'est trompé de fiche restait donc
+ * avec une adresse et des horaires faux sur son site public.
+ *
+ * Ce qui vient de Google part : le rattachement, la note, le lien Maps, la
+ * catégorie, les horaires et les avis republiés en témoignages. Ce que le
+ * coach a saisi ou modifié LUI reste, y compris l'adresse et le téléphone :
+ * ils ont pu être corrigés à la main depuis, et effacer un champ que personne
+ * n'a demandé d'effacer serait le pire des deux comportements possibles.
+ */
+export async function detachGoogleListing(): Promise<{ error?: string; ok?: boolean }> {
+  const ctx = await getAdminOrNull();
+  const tenantId = ctx?.profile?.tenant_id;
+  if (!tenantId) return { error: "Accès refusé." };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("tenants")
+    .update({
+      google_place_id: null,
+      google_maps_url: null,
+      google_rating: null,
+      google_reviews_count: null,
+      google_category: null,
+      google_description: null,
+      opening_hours: [],
+    })
+    .eq("id", tenantId);
+  if (error) return { error: "Détachement impossible." };
+
+  // Les témoignages saisis à la main ne sont pas concernés : seuls ceux qui
+  // portent la marque « google » viennent de la fiche qu'on détache.
+  await admin.from("testimonials").delete().eq("tenant_id", tenantId).eq("source", "google");
+
+  revalidatePath("/admin/fiche-google");
+  revalidatePath("/admin/marque-blanche");
+  revalidatePath("/admin/site");
+  return { ok: true };
+}
+
+
+// ─────────────────────────────────────────────────── mini-site du coach
+
+export interface SiteState {
+  ok?: boolean;
+  error?: string;
+}
+
+/**
+ * Enregistre les réglages du mini-site public.
+ *
+ * L'adresse est la seule valeur qui puisse échouer pour une raison qui n'est
+ * pas de la faute du coach : elle est peut-être déjà prise. On la vérifie
+ * AVANT d'écrire quoi que ce soit, sinon un conflit laisserait la moitié du
+ * formulaire enregistrée et l'autre non.
+ */
+export async function saveSiteSettings(_prev: SiteState, formData: FormData): Promise<SiteState> {
+  const ctx = await getAdminOrNull();
+  const tenantId = ctx?.profile?.tenant_id;
+  if (!tenantId) return { error: "Accès refusé." };
+
+  const enabled = formData.get("web_enabled") === "on";
+  const slugRaw = String(formData.get("web_slug") ?? "").trim();
+  const slug = slugRaw ? normalizeSlug(slugRaw) : "";
+
+  // Un site ouvert sans adresse n'a pas d'URL : ce n'est pas un site.
+  if (enabled && !slug) return { error: "Choisis une adresse pour ton site." };
+  if (slug && !isValidSlug(slug)) {
+    return { error: "Adresse invalide : lettres, chiffres et tirets, 2 caractères minimum." };
+  }
+  if (slug && !(await webSlugAvailable(slug, tenantId))) {
+    return { error: `L'adresse « ${slug} » est déjà prise. Essaie une variante.` };
+  }
+
+  const templateRaw = String(formData.get("web_template") ?? "");
+  const template = (SITE_TEMPLATES as readonly string[]).includes(templateRaw) ? templateRaw : "atelier";
+
+  // Prestations : autant de créneaux fixes que le maximum affiché. Un créneau
+  // sans titre est ignoré, ce qui permet d'en vider un du milieu sans que les
+  // suivants remontent d'un cran sous les yeux du coach.
+  const services: { title: string; body: string }[] = [];
+  for (let i = 0; i < MAX_SERVICES; i++) {
+    const title = String(formData.get(`service_title_${i}`) ?? "").trim().slice(0, 80);
+    const body = String(formData.get(`service_body_${i}`) ?? "").trim().slice(0, 400);
+    if (title) services.push({ title, body });
+  }
+
+  // Horaires : une ligne par jour, « Lundi 9h-19h ». Le premier groupe de mots
+  // est le jour, le reste est le créneau. C'est assez souple pour recevoir ce
+  // que Google écrit comme ce qu'un coach tape, et assez strict pour ne pas
+  // afficher une ligne à moitié vide.
+  const hours = String(formData.get("opening_hours") ?? "")
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .slice(0, 7)
+    .map((ligne) => {
+      const m = ligne.match(/^(\S+)\s+(.+)$/);
+      return m ? { day: m[1].slice(0, 24), hours: m[2].trim().slice(0, 60) } : null;
+    })
+    .filter((v): v is { day: string; hours: string } => v !== null);
+
+  // Photos : le formulaire renvoie celles que le coach GARDE. Une case
+  // décochée est donc une suppression, sans confirmation supplémentaire :
+  // l'image reste dans le stockage, seule la page cesse de la montrer.
+  const photos = formData
+    .getAll("keep_photo")
+    .map((v) => String(v))
+    .filter((v) => /^https:\/\/[^\s]+$/.test(v))
+    .slice(0, MAX_SITE_PHOTOS);
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("tenants")
+    .update({
+      web_enabled: enabled,
+      web_slug: slug || null,
+      web_template: template,
+      web_intro: String(formData.get("web_intro") ?? "").trim().slice(0, 600) || null,
+      web_services: services,
+      web_photos: photos,
+      web_programs_title: String(formData.get("web_programs_title") ?? "").trim().slice(0, 120) || null,
+      web_programs_text: String(formData.get("web_programs_text") ?? "").trim().slice(0, 800) || null,
+      address: String(formData.get("address") ?? "").trim().slice(0, 240) || null,
+      phone: String(formData.get("phone") ?? "").trim().slice(0, 40) || null,
+      website_url: String(formData.get("website_url") ?? "").trim().slice(0, 240) || null,
+      opening_hours: hours,
+    })
+    .eq("id", tenantId);
+  if (error) return { error: "Enregistrement impossible." };
+
+  revalidatePath("/admin/site");
+  if (slug) revalidatePath(`/web/${slug}`);
+  return { ok: true };
 }

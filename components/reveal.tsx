@@ -27,6 +27,9 @@ export function Reveal({
   className = "",
   delay = 0,
   direction = "up",
+  /** Ancre de la section, quand la révélation EST la section (`as="section"`).
+   *  Sans elle, il fallait un conteneur de plus rien que pour porter l'ancre. */
+  id,
   /** Marge du déclencheur : négative = l'élément doit entrer plus franchement. */
   margin = "0px 0px -12% 0px",
 }: {
@@ -35,6 +38,7 @@ export function Reveal({
   className?: string;
   delay?: number;
   direction?: Direction;
+  id?: string;
   margin?: string;
 }) {
   const ref = useRef<HTMLElement | null>(null);
@@ -69,6 +73,7 @@ export function Reveal({
   return (
     <Tag
       ref={ref}
+      id={id}
       style={delay ? ({ ["--d" as string]: `${delay}ms` } as React.CSSProperties) : undefined}
       className={["reveal", DIRECTION_CLASS[direction], shown ? "is-in" : "", className].filter(Boolean).join(" ")}
     >

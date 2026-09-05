@@ -53,7 +53,7 @@ export function ResellerCreditPricingForm({
       <div className="flex flex-col gap-1">
         <div className="font-archivo font-bold text-[17px] text-ink">{tx("Tarification du crédit IA")}</div>
         <p className="max-w-[72ch] text-[13px] leading-[1.6] text-muted">
-          {tx("Un seul crédit IA. Chaque action (message du chat, recette, alternative d'exercice) en consomme")} <span className="text-body">1</span>
+          {tx("Un seul crédit IA. Chaque message au Coach IA en consomme")} <span className="text-body">1</span>
           {canSetCredits
             ? tx(" ; une génération de programme en consomme le nombre que tu fixes ici.")
             : tx(" ; une génération en consomme le nombre fixé par ton fournisseur.")}{" "}
@@ -76,7 +76,7 @@ export function ResellerCreditPricingForm({
             <span className="text-[12px] text-muted-2">
               {buyPriceCents != null
                 ? `Tu l'achètes ${formatEuros(buyPriceCents)} à ton fournisseur.`
-                : "1 action = chat, recette ou alternative d'exercice."}
+                : "1 crédit = 1 message au Coach IA. Recettes et alternatives d'exercice sont calculées, donc gratuites."}
             </span>
           </label>
           <label className="flex flex-col gap-1.5">
@@ -133,7 +133,7 @@ export function ResellerCreditPricingForm({
         <p className="text-[12px] leading-[1.6] text-muted-2">
           {buyPriceCents != null
             ? `Ton coût est ton prix d'achat du crédit. Sur une génération, ton fournisseur t'en débite ${programCredits}, le nombre qu'il a fixé.`
-            : "Coût MESURÉ sur la conso réelle (table ai_calls), converti en euros à titre indicatif. Il reflète le mix constaté : l'essentiel des crédits part en messages de chat, moins chers qu'une recette. Une génération de programme coûte bien plus qu'une action : vérifie qu'elle reste rentable au nombre de crédits choisi."}
+            : "Coût MESURÉ sur la conso réelle (table ai_calls), converti en euros à titre indicatif. Les crédits partent tous en messages de chat : recettes et alternatives d'exercice ne passent plus par un modèle. Une génération de programme coûte bien plus qu'un message : vérifie qu'elle reste rentable au nombre de crédits choisi."}
         </p>
 
         {state.error ? <Alert>{state.error}</Alert> : null}

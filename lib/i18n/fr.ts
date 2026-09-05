@@ -122,11 +122,6 @@ export const fr = {
     cta: "Continuer sur 12 mois",
     unavailable: "Bascule indisponible.",
   },
-  // Solde d'actions IA, affiché à côté de chaque bouton qui en consomme.
-  quota: {
-    left: "{n}/{total} actions IA aujourd'hui",
-    none: "Quota IA atteint",
-  },
   widget: {
     greeting: "Salut, moi c'est {name}, ton coach. Pose-moi une question sur ta séance, un exercice, une substitution ou un repas. Tu peux aussi m'envoyer une photo (repas, machine) ou dicter à la voix.",
     // Article 50(1) de l'AI Act : le libellé nomme l'interlocuteur comme une IA
@@ -138,7 +133,7 @@ export const fr = {
     imageUnreadable: "Image illisible. Essaie une autre photo.",
     noVoice: "La dictée vocale n'est pas supportée par ce navigateur.",
     quotaUsed: "Quota du jour utilisé. Il se renouvelle à {time}.",
-    quotaLeft: "{n} action(s) IA restante(s) aujourd'hui · renouvelé à {time}",
+    quotaLeft: "{n} message(s) restant(s) aujourd'hui · renouvelé à {time}",
     newConversation: "Nouvelle conversation",
     conversations: "Conversations",
     today: "aujourd'hui",
@@ -378,7 +373,7 @@ export const fr = {
     menusVary: "Les menus varient au fil de ton programme.",
     macroExplain: "Les jours d'entraînement, tu vises tes calories complètes. Les jours sans entraînement, on retire environ 10 % des calories et on réduit les glucides d'un cinquième, tout en maintenant les protéines : le muscle continue de récupérer, sans surplus inutile les jours où tu bouges moins. Le jour sélectionné ci-dessus est mis en avant.",
     mealsDay: "Repas, jour {day}",
-    recipesHint: "Calculées sur les objectifs du jour, sans tes allergènes ni les aliments que tu refuses.",
+    recipesHint: "Calculées sur les objectifs du jour, sans tes allergènes ni les aliments que tu refuses. Autant de fois que tu veux, c'est gratuit.",
     foodPhoto: "Photo de mes aliments",
     foodPhotoHint: "Prends en photo tes aliments ou ton frigo : le coach identifie ce qu'il y a et te propose une recette réalisable avec.",
     allergenNote: "Les allergènes et le régime déclarés sont exclus. Le filtrage est une aide, pas une garantie : vérifie toujours les étiquettes des produits.",
@@ -592,6 +587,7 @@ export const fr = {
     aiQuotaMidnight: "Quota IA du jour atteint, il se renouvelle à minuit.",
     missingExercise: "Exercice manquant.",
     altDown: "Alternative indisponible, réessaie.",
+    altNone: "Aucune alternative équivalente avec ton matériel. Garde ce mouvement ou allège la charge.",
     analyzeLimit: "Limite d'analyses atteinte. Ajoute ton matériel à la main.",
     invalidImages: "Images invalides.",
     analyzeDown: "Analyse indisponible. Ajoute ton matériel à la main.",
