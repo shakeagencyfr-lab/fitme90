@@ -2,24 +2,55 @@
 
 import { useActionState, useState } from "react";
 import { usePhrase } from "@/components/locale-provider";
-import { editOffer, toggleOffer, removeOffer, type OfferState } from "@/app/admin/actions";
+import { editOffer, toggleOffer, toggleOfferListed, removeOffer, type OfferState } from "@/app/admin/actions";
 import { Button, Alert, MonoLabel } from "@/components/ui";
-import { programDaysForMonths, formatEuros, planMaxCostEur } from "@/lib/config";
+import {
+  programDaysForMonths,
+  formatEuros,
+  formatCentsPrecise,
+  planMaxCredits,
+  planMaxCostEur,
+} from "@/lib/config";
 import type { Offer } from "@/lib/offers";
+import type { BestPack } from "@/lib/credits";
 
 /**
  * Une ligne de la liste des plans, repliée en lecture et dépliée en édition.
  *
- * Le coach fixait ses réglages à la création et ne pouvait plus y revenir :
- * pour passer un quota de 30 à 20 messages, il devait supprimer le plan et le
- * recréer, ce qui coupait l'accès des clients déjà inscrits dessus. Le
- * formulaire est donc ici, dans la carte, sur le plan qu'il regarde.
+ * CE QU'ON PEUT CHANGER, ET CE QU'ON NE PEUT PAS. Les réglages qui n'engagent
+ * personne se modifient ici : le nom, le Coach IA, son quota. Le PRIX, la
+ * durée et le mode de paiement non : ils décrivent ce que les clients inscrits
+ * ont acheté, et les réécrire après coup change le contrat d'une vente conclue
+ * sans que personne ne le sache. Pour vendre autrement, on crée un plan et on
+ * masque l'ancien de la vitrine.
  *
- * Deux champs restent absents, et c'est voulu : la durée et le mode de
- * paiement. Ils ne décrivent pas un réglage mais ce qui a été vendu (voir
- * updateOffer dans lib/offers.ts).
+ * MASQUER N'EST PAS DÉSACTIVER. Un plan masqué disparaît de la page publique
+ * mais continue de vivre : ses clients gardent l'accès et le coach peut encore
+ * y inscrire du monde à la main. C'est ce qui rend possible un plan sur mesure
+ * réservé à quelques suivis en direct.
  */
-export function OfferEditor({ offer, defaultQuota }: { offer: Offer; defaultQuota: number }) {
+export function OfferEditor({
+  offer,
+  defaultQuota,
+  creditMode,
+  programCredits,
+  bestPack,
+  unitCents,
+  resellerCap,
+}: {
+  offer: Offer;
+  defaultQuota: number;
+  /** Le coach achète ses crédits : son coût se lit en crédits, pas en dollars. */
+  creditMode: boolean;
+  /** Crédits consommés par une génération de programme. */
+  programCredits: number;
+  /** Meilleur forfait du fournisseur, pour convertir les crédits en euros. */
+  bestPack: BestPack | null;
+  /** Prix unitaire du crédit en vigueur chez son fournisseur (centimes). */
+  unitCents: number | null;
+  /** Plafond imposé par le revendeur fournisseur d'IA (0 = aucun). */
+  resellerCap: number;
+}) {
   const tx = usePhrase();
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(editOffer, {} as OfferState);
@@ -30,15 +61,29 @@ export function OfferEditor({ offer, defaultQuota }: { offer: Offer; defaultQuot
   );
 
   const isSub = offer.billing_type === "subscription";
+  const months = isSub ? 12 : offer.duration_months;
   const quotaN = Math.max(0, Math.trunc(Number(quota) || 0));
-  const days = isSub ? programDaysForMonths(12) : programDaysForMonths(offer.duration_months);
-  // Ce que ce quota peut coûter au pire, relu en direct pendant que le coach
-  // tape : c'est la seule raison de changer ce nombre, autant le voir bouger.
-  const maxEur = planMaxCostEur({ programDays: days, dailyQuota: quotaN });
-  const parMois =
-    maxEur.totalEur == null ? null : Math.round((maxEur.totalEur * 100) / (isSub ? 12 : offer.duration_months));
 
-  const euros = (cents: number | null) => (cents == null ? "" : String(cents / 100).replace(".", ","));
+  /**
+   * LE QUOTA RÉELLEMENT SERVI AU CLIENT.
+   *
+   * Ce n'est pas toujours celui qu'on tape. Quand le revendeur fournit l'IA, il
+   * pose son propre plafond et le client obtient le plus petit des deux. Sans
+   * cette ligne à l'écran, un coach qui monte son quota de 15 à 30 constate que
+   * rien ne change chez son client et n'a aucun moyen de comprendre pourquoi.
+   */
+  const effectif = resellerCap > 0 ? (quotaN <= 0 ? resellerCap : Math.min(quotaN, resellerCap)) : quotaN;
+  const bride = resellerCap > 0 && effectif !== quotaN;
+
+  const days = programDaysForMonths(months);
+  // Le coût se calcule sur ce que le client peut RÉELLEMENT consommer.
+  const max = planMaxCredits({ programDays: days, dailyQuota: effectif, programCredits });
+  const creditsParMois = Math.round(max.total / months);
+  const coutParMois = unitCents != null ? Math.round((max.total * unitCents) / months) : null;
+  const maxEur = planMaxCostEur({ programDays: days, dailyQuota: effectif });
+  const eurParMois = maxEur.totalEur == null ? null : Math.round((maxEur.totalEur * 100) / months);
+
+  const illimite = effectif <= 0;
 
   const durationLabel = isSub
     ? tx("Sans durée fixe")
@@ -52,6 +97,7 @@ export function OfferEditor({ offer, defaultQuota }: { offer: Offer; defaultQuot
             <span className="font-archivo font-bold text-[16px] text-ink">{offer.name}</span>
             <Pill>{isSub ? tx("Abonnement") : tx("Paiement unique")}</Pill>
             {!offer.is_active ? <Pill>{tx("Inactif")}</Pill> : null}
+            {offer.is_active && !offer.is_listed ? <Pill>{tx("Masqué")}</Pill> : null}
             {offer.coach_ai ? (
               <Pill tone="brand">
                 {tx("Coach IA")}
@@ -75,13 +121,26 @@ export function OfferEditor({ offer, defaultQuota }: { offer: Offer; defaultQuot
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
             className={`tap rounded-btn px-3.5 py-2 text-[13px] font-semibold ${
-              open
-                ? "border border-ink bg-surface text-ink"
-                : "border border-line-4 text-body hover:border-ink"
+              open ? "border border-ink bg-surface text-ink" : "border border-line-4 text-body hover:border-ink"
             }`}
           >
             {open ? tx("Fermer") : tx("Modifier")}
           </button>
+          <form action={toggleOfferListed}>
+            <input type="hidden" name="id" value={offer.id} />
+            <input type="hidden" name="listed" value={offer.is_listed ? "" : "on"} />
+            <button
+              type="submit"
+              title={
+                offer.is_listed
+                  ? tx("Retirer ce plan de ta page publique, sans couper l'accès de ses clients")
+                  : tx("Remettre ce plan en vente sur ta page publique")
+              }
+              className="tap rounded-btn border border-line-4 px-3.5 py-2 text-[13px] font-semibold text-body hover:border-ink"
+            >
+              {offer.is_listed ? tx("Masquer") : tx("Afficher")}
+            </button>
+          </form>
           <form action={toggleOffer}>
             <input type="hidden" name="id" value={offer.id} />
             <input type="hidden" name="active" value={offer.is_active ? "" : "on"} />
@@ -98,6 +157,14 @@ export function OfferEditor({ offer, defaultQuota }: { offer: Offer; defaultQuot
         </div>
       </div>
 
+      {/* Un plan masqué : on dit ce que ça veut dire là où on le voit, sinon la
+          pastille « Masqué » se confond avec « Inactif ». */}
+      {offer.is_active && !offer.is_listed ? (
+        <p className="text-[12.5px] leading-[1.55] text-muted-2">
+          {tx("Hors vitrine : il n'apparaît pas sur ta page publique, mais ses clients gardent l'accès et tu peux encore y inscrire quelqu'un toi-même.")}
+        </p>
+      ) : null}
+
       {open ? (
         <form action={action} className="flex flex-col gap-4 border-t border-line-2 pt-4">
           <input type="hidden" name="id" value={offer.id} />
@@ -113,46 +180,20 @@ export function OfferEditor({ offer, defaultQuota }: { offer: Offer; defaultQuot
             />
           </label>
 
-          {isSub ? (
-            <div className="flex flex-wrap gap-3">
-              <label className="flex flex-col gap-1.5">
-                <MonoLabel>{tx("Prix par mois (€)")}</MonoLabel>
-                <input
-                  name="price_month_euros"
-                  defaultValue={euros(offer.price_month_cents)}
-                  inputMode="decimal"
-                  className="w-full max-w-[160px] rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <MonoLabel>{tx("Prix par an (€)")}</MonoLabel>
-                <input
-                  name="price_year_euros"
-                  defaultValue={euros(offer.price_year_cents)}
-                  inputMode="decimal"
-                  className="w-full max-w-[160px] rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
-                />
-              </label>
+          {/* Le prix se LIT, il ne se modifie plus. Dit ici, à la place exacte
+              où le champ se trouvait, avec la marche à suivre. */}
+          <div className="flex flex-col gap-1.5 rounded-control border border-line-4 bg-surface p-3.5">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">{tx("Prix")}</span>
+              <span className="font-archivo text-[16px] font-bold text-ink">{priceLabel(offer)}</span>
+              <span className="text-[12.5px] text-muted-2">· {durationLabel}</span>
             </div>
-          ) : (
-            <label className="flex flex-col gap-1.5">
-              <MonoLabel>{tx("Prix (€)")}</MonoLabel>
-              <input
-                name="price_euros"
-                defaultValue={euros(offer.price_cents)}
-                inputMode="decimal"
-                className="w-full max-w-[160px] rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
-              />
-            </label>
-          )}
-
-          {/* Un prix modifié ne rattrape pas les ventes passées. Le dire ici
-              évite au coach de croire qu'il vient d'augmenter tout le monde. */}
-          <span className="-mt-1 text-[12px] leading-relaxed text-muted-2">
-            {isSub
-              ? tx("Le nouveau prix vaut pour les prochains abonnés. Les abonnements déjà en cours gardent le prix auquel ils ont souscrit, c'est Stripe qui le porte.")
-              : tx("Le nouveau prix vaut pour les prochains acheteurs. Les paiements déjà encaissés ne bougent pas.")}
-          </span>
+            <p className="text-[12.5px] leading-[1.6] text-muted">
+              {tx("Le prix, la durée et le mode de paiement ne se modifient pas : ils décrivent ce que tes clients inscrits ont acheté. Pour vendre à un autre tarif, crée un nouveau plan et")}{" "}
+              <span className="text-body">{tx("masque celui-ci")}</span>
+              {tx(" : il disparaît de ta page publique, ses clients gardent tout, et tu peux continuer à y inscrire quelqu'un à la main.")}
+            </p>
+          </div>
 
           <div className="flex flex-col gap-2">
             <MonoLabel>{tx("Inclusions")}</MonoLabel>
@@ -190,51 +231,84 @@ export function OfferEditor({ offer, defaultQuota }: { offer: Offer; defaultQuot
                     {tx("Ce quota s'applique dès l'enregistrement, y compris aux clients déjà inscrits sur ce plan : il est relu à chaque message. Il se remet à zéro chaque jour à minuit, rien ne s'accumule.")}
                   </span>
                 </label>
+
+                {/* Le plafond du revendeur, dit en clair. C'est l'explication du
+                    « j'ai augmenté et rien n'a changé ». */}
+                {bride ? (
+                  <div className="flex flex-col gap-1 rounded-control border border-[#C4471A]/40 bg-[#C4471A]/[0.06] p-3">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#C4471A]">
+                      {tx("Ton revendeur plafonne à")} {resellerCap}/{tx("jour")}
+                    </span>
+                    <span className="text-[12.5px] leading-[1.55] text-body">
+                      {tx("Tes clients reçoivent donc")} <span className="font-semibold">{effectif} {tx("échanges par jour")}</span>
+                      {tx(", pas les")} {quotaN <= 0 ? tx("illimités") : quotaN} {tx("réglés ici. C'est lui qui fournit l'IA, c'est lui qui décide du maximum : monter ce nombre au-delà de son plafond ne changera rien pour eux.")}
+                    </span>
+                  </div>
+                ) : null}
+
                 <div className="flex flex-col gap-1 rounded-control border border-line-4 bg-surface-2 p-3">
                   <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">
                     {tx("Coût maximum de ce plan")}
                   </span>
-                  {parMois != null ? (
+
+                  {illimite ? (
                     <span className="font-archivo text-[20px] font-extrabold leading-none text-ink">
-                      ≈ {formatEuros(parMois)}
+                      {tx("Non borné")}
+                    </span>
+                  ) : creditMode ? (
+                    /* Le coach achète des crédits : c'est dans cette unité qu'il
+                       raisonne. Lui montrer des euros Anthropic serait un
+                       chiffre juste dans une monnaie qu'il n'utilise pas. */
+                    <>
+                      <span className="font-archivo text-[20px] font-extrabold leading-none text-ink">
+                        {creditsParMois.toLocaleString("fr-FR")}{" "}
+                        <span className="font-mono text-[11px] font-normal uppercase tracking-[0.08em] text-muted-2">
+                          {tx("crédits / mois / client")}
+                        </span>
+                      </span>
+                      {coutParMois != null ? (
+                        <span className="text-[13px] text-body">
+                          {tx("soit")} <span className="font-semibold">≈ {formatEuros(coutParMois)}</span>{" "}
+                          {tx("par mois et par client")}
+                          {unitCents != null ? (
+                            <span className="text-muted-2">
+                              {" "}({tx("à")} {formatCentsPrecise(unitCents)} {tx("le crédit")}
+                              {bestPack ? `, ${tx("forfait")} ${bestPack.name}` : ""})
+                            </span>
+                          ) : null}
+                        </span>
+                      ) : (
+                        <span className="text-[12.5px] text-muted-2">
+                          {tx("Ton fournisseur ne propose aucun forfait pour l'instant : impossible de convertir ces crédits en euros sans inventer un prix.")}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="font-archivo text-[20px] font-extrabold leading-none text-ink">
+                      ≈ {eurParMois != null ? formatEuros(eurParMois) : "n.c."}
                       <span className="ml-1 font-mono text-[11px] font-normal uppercase tracking-[0.08em] text-muted-2">
                         {tx("par mois et par client")}
                       </span>
                     </span>
-                  ) : (
-                    <span className="font-archivo text-[20px] font-extrabold leading-none text-ink">
-                      {tx("Non borné")}
-                    </span>
                   )}
+
                   <span className="text-[12px] leading-relaxed text-muted-2">
-                    {parMois != null
-                      ? tx("Si le client saturait son quota tous les jours, ce qu'aucun ne fait. La dépense observée tourne autour du dixième.")
-                      : tx("Un quota à 0 veut dire illimité : rien ne borne alors la dépense de ce plan.")}
+                    {illimite
+                      ? tx("Un quota à 0 veut dire illimité : rien ne borne alors la dépense de ce plan.")
+                      : tx("Si le client saturait son quota tous les jours, ce qu'aucun ne fait. La dépense observée tourne autour du dixième. Générations de programme comprises.")}
                   </span>
                 </div>
               </div>
             ) : null}
 
             <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface p-3.5">
-              <input
-                type="checkbox"
-                name="vip_chat"
-                defaultChecked={offer.vip_chat}
-                className="mt-0.5 size-4 accent-brand"
-              />
+              <input type="checkbox" name="vip_chat" defaultChecked={offer.vip_chat} className="mt-0.5 size-4 accent-brand" />
               <span className="flex flex-col gap-0.5">
                 <span className="font-semibold text-[14px] text-ink">{tx("Chat VIP inclus")}</span>
-                <span className="text-[12px] text-muted-2">
-                  {tx("La messagerie directe avec toi, en plus du Coach IA.")}
-                </span>
+                <span className="text-[12px] text-muted-2">{tx("La messagerie directe avec toi, en plus du Coach IA.")}</span>
               </span>
             </label>
           </div>
-
-          {/* Ce que ce formulaire ne fait PAS, dit avant que le coach le cherche. */}
-          <span className="text-[12px] leading-relaxed text-muted-2">
-            {tx("La durée et le mode de paiement ne se modifient pas : ils décrivent ce que tes clients ont déjà acheté. Pour en changer, crée un nouveau plan, les clients en cours gardent le leur.")}
-          </span>
 
           {state.error ? <Alert>{state.error}</Alert> : null}
           {state.ok ? <Alert tone="info">{tx("Plan mis à jour.")}</Alert> : null}

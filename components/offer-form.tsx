@@ -30,6 +30,7 @@ export function OfferForm({
   creditMode,
   defaultQuota,
   bestPack = null,
+  resellerCap = 0,
 }: {
   atLimit: boolean;
   /** Crédits IA consommés par une génération de programme (réglé par le fournisseur). */
@@ -41,6 +42,8 @@ export function OfferForm({
   /** Forfait de crédits le plus avantageux du revendeur, pour chiffrer le
    *  plafond en euros. null quand le revendeur n'en propose aucun. */
   bestPack?: BestPack | null;
+  /** Plafond journalier imposé par le revendeur fournisseur d'IA (0 = aucun). */
+  resellerCap?: number;
 }) {
   const tx = usePhrase();
   const [state, action, pending] = useActionState(addOffer, {} as OfferState);
@@ -53,7 +56,17 @@ export function OfferForm({
   const product = PRODUCTS[months];
   const priceCents = Math.round((Number(price.replace(",", ".")) || 0) * 100);
   const perMonth = monthlyEquivalentCents(priceCents, months);
-  const quotaN = Math.max(0, Math.trunc(Number(quota) || 0));
+  const quotaSaisi = Math.max(0, Math.trunc(Number(quota) || 0));
+  /**
+   * Ce que le client recevra VRAIMENT.
+   *
+   * Quand le revendeur fournit l'IA, il pose son propre plafond et le client
+   * obtient le plus petit des deux. Chiffrer le coût sur le nombre saisi
+   * annoncerait une dépense que ce plan ne peut pas atteindre.
+   */
+  const quotaN =
+    resellerCap > 0 ? (quotaSaisi <= 0 ? resellerCap : Math.min(quotaSaisi, resellerCap)) : quotaSaisi;
+  const bride = resellerCap > 0 && quotaN !== quotaSaisi;
   const planDays = programDaysForMonths(months);
   // Coût MAXIMUM du plan pour le coach : générations (une par bloc de 3 mois)
   // + quota journalier saturé chaque jour. Il ne paie que l'usage réel.
@@ -247,6 +260,17 @@ export function OfferForm({
                 {tx("Il se remet à ce quota chaque jour à minuit, rien ne s'accumule. Tu n'es débité que de ce que le client utilise vraiment, et il voit son solde dans l'app.")}
               </span>
             </label>
+            {bride ? (
+              <div className="flex flex-col gap-1 rounded-control border border-[#C4471A]/40 bg-[#C4471A]/[0.06] p-3">
+                <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#C4471A]">
+                  {tx("Ton revendeur plafonne à")} {resellerCap}/{tx("jour")}
+                </span>
+                <span className="text-[12.5px] leading-[1.55] text-body">
+                  {tx("Tes clients recevront donc")} <span className="font-semibold">{quotaN} {tx("échanges par jour")}</span>
+                  {tx(". C'est lui qui fournit l'IA, c'est lui qui fixe le maximum : viser plus haut ici ne changera rien pour eux.")}
+                </span>
+              </div>
+            ) : null}
             <div className="flex flex-col gap-2 rounded-control border border-line-4 bg-surface-2 p-3">
               <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2">{tx("Coût maximum de ce plan")}</span>
               {creditMode ? (

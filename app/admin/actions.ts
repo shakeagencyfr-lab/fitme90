@@ -28,7 +28,7 @@ import {
   tenantKeyStatus,
 } from "@/lib/tenant";
 import { secretsEncryptionReady } from "@/lib/crypto";
-import { createOffer, updateOffer, setOfferActive, deleteOffer } from "@/lib/offers";
+import { createOffer, updateOffer, setOfferActive, setOfferListed, deleteOffer } from "@/lib/offers";
 import { setResellerSitePrice, startSiteCheckout } from "@/lib/site-addon";
 import { createPlan, setPlanActive, setPlanSiteIncluded, deletePlan } from "@/lib/plans";
 import { cancelTenantPlan, reactivateTenantPlan, syncTenantSubscription } from "@/lib/tenant-billing";
@@ -474,10 +474,11 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
 }
 
 /**
- * Modifie un plan existant : nom, prix, options, quota du Coach IA.
+ * Modifie un plan existant : nom, Coach IA et son quota.
  *
- * Le mode de paiement et la durée n'y figurent pas, ils décrivent ce qui a été
- * vendu (voir updateOffer). Le formulaire ne les propose donc pas non plus.
+ * Ni le prix, ni la durée, ni le mode de paiement : ils décrivent ce que les
+ * clients inscrits ont acheté (voir updateOffer). Le formulaire ne les propose
+ * donc pas non plus, et invite plutôt à créer un nouveau plan.
  */
 export async function editOffer(_prev: OfferState, formData: FormData): Promise<OfferState> {
   const ctx = await getAdminOrNull();
@@ -493,27 +494,27 @@ export async function editOffer(_prev: OfferState, formData: FormData): Promise<
     return { error: "Quota de messages IA invalide." };
   }
 
-  const price = eurosToCents(formData.get("price_euros"));
-  const month = eurosToCents(formData.get("price_month_euros"));
-  const year = eurosToCents(formData.get("price_year_euros"));
-  if (price.bad || month.bad || year.bad) {
-    return { error: "Prix invalide (ex : 190 ou 29,90)." };
-  }
-
   const res = await updateOffer(tenantId, id, {
     name: String(formData.get("name") ?? ""),
     vipChat: formData.get("vip_chat") === "on",
     coachAi: formData.get("coach_ai") === "on",
     coachAiDailyLimit,
-    priceCents: price.cents,
-    priceMonthCents: month.cents,
-    priceYearCents: year.cents,
   });
   if (!res.ok) return { error: res.error };
   // La landing publique est rendue à la demande : elle relit les offres à
   // chaque visite, il n'y a rien à invalider de ce côté.
   revalidatePath("/admin/plans");
   return { ok: true };
+}
+
+/** Affiche ou masque un plan sur la page publique (form action directe). */
+export async function toggleOfferListed(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await setOfferListed(ctx.profile.tenant_id, id, formData.get("listed") === "on");
+  revalidatePath("/admin/plans");
 }
 
 /** Active / désactive une offre (form action directe). */

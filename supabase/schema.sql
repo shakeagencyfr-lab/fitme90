@@ -919,3 +919,16 @@ alter table public.tenants
 update public.tenants
   set site_addon_enabled = true
   where web_enabled = true and site_addon_enabled = false;
+
+-- ────────────────────────── Masquer un plan de la vente sans le désactiver
+--
+-- « Désactiver » et « masquer » répondaient à la même case, et cela coûtait une
+-- fonctionnalité : un coach qui construit un plan sur mesure pour trois clients
+-- suivis en direct doit pouvoir le retirer de sa page publique tout en
+-- continuant à y inscrire du monde lui-même. Désactiver aurait coupé l'accès de
+-- ces clients ; laisser actif l'exposait à la vente.
+--
+--   is_active : le plan VIT (ses clients y ont accès, il peut en recevoir)
+--   is_listed : le plan est VISIBLE sur la page publique de vente
+alter table public.offers
+  add column if not exists is_listed boolean not null default true;

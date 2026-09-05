@@ -11,6 +11,7 @@ const offer = (o: Partial<Offer>): Offer => ({
   currency: "eur",
   position: 0,
   is_active: true,
+  is_listed: true,
   vip_chat: false,
   coach_ai: true,
   coach_ai_daily_limit: null,

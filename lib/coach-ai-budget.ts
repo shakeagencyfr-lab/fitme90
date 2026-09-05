@@ -35,7 +35,7 @@ export const CLIENT_AI_ROUTES = ["coach", "recipes"] as const;
 const TZ = "Europe/Paris";
 
 // Combine deux plafonds (0 = illimité) : la contrainte la plus stricte gagne.
-function tighter(a: number, b: number): number {
+export function tighter(a: number, b: number): number {
   if (a <= 0) return Math.max(0, b);
   if (b <= 0) return a;
   return Math.min(a, b);
@@ -66,6 +66,35 @@ export function parisNextDayStart(now: Date = new Date()): Date {
   const start = parisDayStart(now);
   // +24 h puis recalage : couvre les changements d'heure (23 h ou 25 h).
   return parisDayStart(new Date(start.getTime() + 26 * 3_600_000));
+}
+
+/**
+ * Le plafond que le revendeur impose aux clients de ce coach (0 = aucun).
+ *
+ * Le coach règle un quota par plan, mais son revendeur peut serrer plus fort
+ * quand c'est lui qui fournit l'IA : le client obtient alors le plus petit des
+ * deux. C'est la cause d'un « j'ai augmenté le quota et rien n'a changé » que
+ * rien n'expliquait à l'écran, l'écran du coach ne connaissant que son propre
+ * chiffre. Cette fonction existe pour qu'il puisse enfin le lire.
+ */
+export async function resellerClientDailyCap(tenantId: string | null): Promise<number> {
+  if (!tenantId) return 0;
+  const admin = createAdminClient();
+  const { data: t } = await admin
+    .from("tenants")
+    .select("parent_id")
+    .eq("id", tenantId)
+    .maybeSingle<{ parent_id: string | null }>();
+  if (!t?.parent_id) return 0;
+  const { data: parent } = await admin
+    .from("tenants")
+    .select("ai_mode, ai_client_daily_limit")
+    .eq("id", t.parent_id)
+    .maybeSingle<{ ai_mode: string | null; ai_client_daily_limit: number | null }>();
+  // Le plafond n'existe que si le revendeur FOURNIT l'IA : sinon il ne paie
+  // rien et n'a pas de raison de limiter quoi que ce soit.
+  if (parent?.ai_mode !== "provider") return 0;
+  return Math.max(0, parent.ai_client_daily_limit ?? 0);
 }
 
 /**
