@@ -1,11 +1,12 @@
 "use client";
 
+import { browserLocalIso } from "@/lib/local-date";
 import { useActionState, useState } from "react";
 import { useT } from "@/components/locale-provider";
 import { updateStartDate, type ProfilState } from "@/app/app/profil/actions";
 import { Card, Button, Alert, MonoLabel } from "@/components/ui";
 
-const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+const iso = (ms: number) => browserLocalIso(new Date(ms));
 
 export function StartDateSetting({ current }: { current: string }) {
   const [state, action, pending] = useActionState(updateStartDate, {} as ProfilState);

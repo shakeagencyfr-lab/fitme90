@@ -151,9 +151,9 @@ export function WhiteLabelStudio({
   const src = previewUrl ? `${previewUrl}?preview=${previewVersion}` : null;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)]">
       {/* Colonne configuration */}
-      <div className="flex flex-col gap-5">
+      <div className="flex min-w-0 flex-col gap-5">
         <BrandingForm branding={branding} namePlaceholder={namePlaceholder} />
         <BrandIdentityForm identity={branding.identity} namePlaceholder={namePlaceholder} />
         <ThemeStudio

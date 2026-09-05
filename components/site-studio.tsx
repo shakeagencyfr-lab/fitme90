@@ -160,7 +160,7 @@ export function SiteStudio({
   const publicUrl = settings.enabled && settings.webSlug ? `/web/${settings.webSlug}` : null;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)]">
       <div className="flex flex-col gap-5">
         <SiteCms
           settings={settings}

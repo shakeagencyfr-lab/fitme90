@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeAccess, accessLabel, unpaidNextStep } from "./access";
+import { computeAccess, accessLabel, unpaidNextStep, programDay } from "./access";
 import { PROGRAM_DAYS, GRACE_DAYS, programDaysForMonths } from "./config";
 
 // Date de référence : le programme démarre le 1er (jour 1).
@@ -91,5 +91,17 @@ describe("tutoriel : pas de plan consultable avant paiement", () => {
 
   it("le rend consultable dès que le programme tourne", () => {
     expect(computeAccess(true, new Date()).planViewable).toBe(true);
+  });
+});
+
+describe("programDay : le jour se lit à l'heure de Paris", () => {
+  it("un programme lancé pour aujourd'hui à 0 h 30 est au J1, pas au J-1", () => {
+    // 22 h 30 UTC le 5 = 0 h 30 à Paris le 6 : le programme du 6 a commencé.
+    expect(programDay(new Date("2026-09-06T00:00:00Z"), new Date("2026-09-05T22:30:00Z"))).toBe(1);
+    expect(computeAccess(true, "2026-09-06", new Date("2026-09-05T22:30:00Z")).phase).toBe("active");
+  });
+
+  it("à midi, rien ne change", () => {
+    expect(programDay(new Date("2026-09-06T00:00:00Z"), new Date("2026-09-05T12:00:00Z"))).toBe(0);
   });
 });

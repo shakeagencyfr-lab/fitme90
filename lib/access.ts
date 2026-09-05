@@ -8,6 +8,7 @@
 //   - Jours 91 → 120 : GRÂCE — plan consultable en LECTURE SEULE, coach coupé.
 //   - Jour 121+      : accès TERMINÉ (verrouillé).
 
+import { localDayUTC } from "@/lib/local-date";
 import { PROGRAM_DAYS, GRACE_DAYS } from "./config";
 import { makeT, type Locale } from "./i18n";
 
@@ -38,12 +39,16 @@ export interface AccessState {
 
 /**
  * Nombre de jours calendaires écoulés depuis `start` jusqu'à `now`, en
- * comptant le jour de départ comme jour 1. On raisonne en dates UTC (minuit)
- * pour éviter les décalages d'heure locale et d'heure d'été.
+ * comptant le jour de départ comme jour 1.
+ *
+ * `start` est une date calendaire (colonne date, lue en UTC minuit). `now`,
+ * lui, est un instant : son jour calendaire se lit dans le fuseau de
+ * l'application, pas en UTC. Sinon, à 0 h 30 à Paris le serveur est encore
+ * la veille, et un programme lancé « pour aujourd'hui » s'affiche J-1.
  */
 export function programDay(start: Date, now: Date = new Date()): number {
   const startUTC = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
-  const nowUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const nowUTC = localDayUTC(now);
   const diffDays = Math.floor((nowUTC - startUTC) / 86_400_000);
   return diffDays + 1;
 }

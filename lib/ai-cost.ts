@@ -69,7 +69,8 @@ export function priceFor(model: string): Price {
 }
 
 export type CostRow = {
-  user_id: string;
+  /** Null quand le client a été supprimé : la dépense, elle, reste. */
+  user_id: string | null;
   route: string;
   /** Modèle réellement appelé. Absent sur les lignes antérieures : on le déduit du route. */
   model?: string | null;
@@ -140,7 +141,7 @@ export async function aiCostForUsers(userIds: string[]): Promise<Map<string, num
     .select("user_id, route, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cache_write_1h_tokens")
     .in("user_id", userIds)
     .limit(100000)
-    .returns<CostRow[]>();
+    .returns<(CostRow & { user_id: string })[]>();
   for (const r of data ?? []) {
     out.set(r.user_id, (out.get(r.user_id) ?? 0) + rowCost(r));
   }
@@ -174,7 +175,7 @@ export async function aiUsageForUsers(userIds: string[]): Promise<Map<string, Us
     .select("user_id, route, model, credits, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cache_write_1h_tokens")
     .in("user_id", userIds)
     .limit(100000)
-    .returns<(CostRow & { credits: number | null })[]>();
+    .returns<(CostRow & { user_id: string; credits: number | null })[]>();
   for (const r of data ?? []) {
     const cur = out.get(r.user_id) ?? { costUsd: 0, credits: 0, calls: 0 };
     out.set(r.user_id, { costUsd: cur.costUsd + rowCost(r), credits: cur.credits + (r.credits ?? 0), calls: cur.calls + 1 });

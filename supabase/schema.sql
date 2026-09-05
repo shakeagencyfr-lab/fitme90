@@ -462,7 +462,9 @@ create table if not exists public.scheduled_pushes (
 
 create table if not exists public.ai_calls (
   id bigint generated always as identity,
-  user_id uuid not null,
+  -- Nullable : la suppression d'un client ne doit pas effacer ce que sa
+  -- consommation a coute au coach ou au revendeur. La ligne reste, anonyme.
+  user_id uuid,
   -- Seau de quota (cf. lib/ratelimit.ts). La fiche exercice compte dans le
   -- plafond « coach » : c'est `action` qui dit ce qui a réellement été fait.
   route text not null,
@@ -651,7 +653,7 @@ alter table public.push_subscriptions
 alter table public.scheduled_pushes
   add constraint scheduled_pushes_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade;
 alter table public.ai_calls
-  add constraint ai_calls_user_id_fkey foreign key (user_id) references auth.users(id) on delete cascade;
+  add constraint ai_calls_user_id_fkey foreign key (user_id) references auth.users(id) on delete set null;
 alter table public.gift_codes
   add constraint gift_codes_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade,
   add constraint gift_codes_offer_id_fkey foreign key (offer_id) references public.offers(id) on delete set null,
