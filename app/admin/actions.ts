@@ -31,7 +31,7 @@ import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, updateOffer, setOfferActive, setOfferListed, deleteOffer } from "@/lib/offers";
 import { setResellerSitePrice, startSiteCheckout } from "@/lib/site-addon";
 import { resellerClientDailyCap, quotaSousPlafond } from "@/lib/coach-ai-budget";
-import { createPlan, setPlanActive, setPlanSiteIncluded, deletePlan } from "@/lib/plans";
+import { createPlan, setPlanActive, setPlanWhitelabelIncluded, deletePlan, saveFreePlan } from "@/lib/plans";
 import { cancelTenantPlan, reactivateTenantPlan, syncTenantSubscription } from "@/lib/tenant-billing";
 import { deleteOwnCoachAccount } from "@/lib/account-deletion";
 import { setAffiliation } from "@/lib/affiliation";
@@ -597,7 +597,12 @@ export async function addPlan(_prev: PlanState, formData: FormData): Promise<Pla
     priceYearCents: year.cents,
     setupFeeCents: setup.cents ?? 0,
     clientLimit,
-    siteIncluded: formData.get("site_included") === "on",
+    whitelabelIncluded: formData.get("whitelabel_included") === "on",
+    aiSupply: formData.get("ai_supply") === "credits" ? "credits" : "byok",
+    // Cases absentes du formulaire revendeur : valeurs sans effet pour un
+    // palier vendu à des coachs, qui n'ont personne en dessous.
+    coachByokAllowed: formData.get("coach_byok_allowed") !== "off",
+    coachCreditsAllowed: formData.get("coach_credits_allowed") === "on",
   });
   if (!res.ok) return { error: res.error };
   revalidatePath("/admin/paliers");
@@ -605,18 +610,48 @@ export async function addPlan(_prev: PlanState, formData: FormData): Promise<Pla
 }
 
 /**
- * Le revendeur ouvre ou ferme « Mon site » sur un palier existant.
+ * Le vendeur règle son palier gratuit : proposé ou non, en clé personnelle ou
+ * en crédits, avec combien de crédits pour démarrer, marque blanche incluse.
+ */
+export async function editFreePlan(_prev: PlanState, formData: FormData): Promise<PlanState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx) return { error: "Accès refusé." };
+  const tenantId = ctx.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte (tenant) rattaché." };
+  const node = await tenantNode(tenantId);
+  if (!node || node.kind === "coach") return { error: "Réservé à la plateforme et aux revendeurs." };
+
+  const starter = Number(String(formData.get("starter_credits") ?? "0").trim() || "0");
+  if (!Number.isInteger(starter) || starter < 0) return { error: "Nombre de crédits de départ invalide." };
+
+  const res = await saveFreePlan(tenantId, {
+    active: formData.get("active") === "on",
+    aiSupply: formData.get("ai_supply") === "credits" ? "credits" : "byok",
+    starterCredits: starter,
+    // La plateforme offre toujours la marque blanche complète à ses
+    // revendeurs : c'est la promesse du programme revendeur, pas une option.
+    whitelabelIncluded: node.kind === "platform" ? true : formData.get("whitelabel_included") === "on",
+    coachByokAllowed: formData.get("coach_byok_allowed") !== "off",
+    coachCreditsAllowed: formData.get("coach_credits_allowed") === "on",
+  });
+  if (!res.ok) return { error: res.error };
+  revalidatePath("/admin/paliers");
+  return { ok: true };
+}
+
+/**
+ * Le vendeur ouvre ou ferme la marque blanche sur un palier existant.
  *
  * Une action à part parce que c'est la seule chose qu'il ait de bonnes raisons
  * de changer sur un palier déjà vendu : le prix et la capacité décrivent, eux,
  * ce que ses coachs ont acheté.
  */
-export async function togglePlanSite(formData: FormData): Promise<void> {
+export async function togglePlanWhitelabel(formData: FormData): Promise<void> {
   const ctx = await getAdminOrNull();
   if (!ctx?.profile?.tenant_id) return;
   const id = String(formData.get("id") ?? "");
   if (!id) return;
-  await setPlanSiteIncluded(ctx.profile.tenant_id, id, formData.get("included") === "on");
+  await setPlanWhitelabelIncluded(ctx.profile.tenant_id, id, formData.get("included") === "on");
   revalidatePath("/admin/paliers");
 }
 

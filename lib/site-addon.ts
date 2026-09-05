@@ -101,10 +101,10 @@ export async function siteAccess(tenantId: string | null): Promise<SiteAccess> {
   if (data.plan_id) {
     const { data: plan } = await admin
       .from("plans")
-      .select("site_included")
+      .select("whitelabel_included")
       .eq("id", data.plan_id)
-      .maybeSingle<{ site_included: boolean | null }>();
-    if (plan?.site_included) {
+      .maybeSingle<{ whitelabel_included: boolean | null }>();
+    if (plan?.whitelabel_included) {
       return { allowed: true, source: "plan", priceCents: null, subStatus };
     }
   }

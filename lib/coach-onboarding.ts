@@ -1,5 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { freeTierLimit } from "@/lib/plans";
+import { applyPlanModel } from "@/lib/plan-apply";
 import { normalizeSlug } from "@/lib/config";
 import { platformTenantId } from "@/lib/hierarchy";
 
@@ -73,7 +75,10 @@ export async function provisionCoachIfPending(
   const parentId = await resolveCoachParent(admin, meta);
   const { data: tenant, error } = await admin
     .from("tenants")
-    .insert({ slug, name: tenantName, kind: "coach", parent_id: parentId })
+    // La place offerte dépend du parent : un client si son palier gratuit
+    // est ouvert, aucun sinon. Le nouveau compte ne part pas d'une valeur
+    // par défaut de la base, il part de ce que son vendeur a décidé.
+    .insert({ slug, name: tenantName, kind: "coach", parent_id: parentId, client_limit: await freeTierLimit(parentId) })
     .select("id")
     .maybeSingle<{ id: string }>();
   if (error || !tenant) return;
@@ -81,6 +86,8 @@ export async function provisionCoachIfPending(
   const patch: Record<string, string> = { tenant_id: tenant.id, role: "owner" };
   if (coachName) patch.name = coachName;
   await admin.from("profiles").update(patch).eq("id", userId);
+  // Le palier gratuit porte son modèle (fourniture d'IA, crédits de départ).
+  await applyPlanModel(tenant.id, null);
 }
 
 /**
@@ -108,7 +115,7 @@ export async function provisionResellerIfPending(
   const parentId = await platformTenantId();
   const { data: tenant, error } = await admin
     .from("tenants")
-    .insert({ slug, name: tenantName, kind: "reseller", parent_id: parentId })
+    .insert({ slug, name: tenantName, kind: "reseller", parent_id: parentId, client_limit: await freeTierLimit(parentId) })
     .select("id")
     .maybeSingle<{ id: string }>();
   if (error || !tenant) return;
@@ -116,4 +123,5 @@ export async function provisionResellerIfPending(
   const patch: Record<string, string> = { tenant_id: tenant.id, role: "owner" };
   if (contactName) patch.name = contactName;
   await admin.from("profiles").update(patch).eq("id", userId);
+  await applyPlanModel(tenant.id, null);
 }

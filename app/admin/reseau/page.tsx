@@ -72,7 +72,7 @@ export default async function AdminNetworkPage({
   // propres paliers, ceux qu'il vend déjà : offrir revient à en donner un sans
   // le facturer, pas à inventer une capacité au cas par cas.
   const planChoices = tenantId
-    ? (await listPlans(tenantId)).map((p) => ({ id: p.id, name: p.name, clientLimit: p.client_limit }))
+    ? (await listPlans(tenantId)).filter((p) => !p.is_free).map((p) => ({ id: p.id, name: p.name, clientLimit: p.client_limit }))
     : [];
   // Chiffre IA de chaque compte : un solde de crédits pour ceux qui achètent
   // leur IA, la dépense du mois pour ceux qui ont leur propre clé. Ce ne sont

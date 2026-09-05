@@ -3,7 +3,8 @@ import type Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripeForTenant } from "@/lib/coach-payments";
 import { billingParentId } from "@/lib/hierarchy";
-import type { Plan } from "@/lib/plans";
+import { planById, freeTierLimit, type Plan } from "@/lib/plans";
+import { applyPlanModel } from "@/lib/plan-apply";
 
 // Abonnement d'un tenant au palier de son PARENT (Lot C·3). Même principe BYOK
 // que les abonnements clients : la session Stripe est créée sur le compte du
@@ -12,8 +13,6 @@ import type { Plan } from "@/lib/plans";
 // depuis le palier à l'achat ; en cas de défaut de paiement elle revient au
 // palier gratuit (voir cron C·3b).
 
-/** Palier gratuit rétabli en cas de défaut de paiement (« 1er client offert »). */
-export const FREE_TIER_CLIENT_LIMIT = 1;
 
 /**
  * Palier POSÉ PAR LE PARENT, sans abonnement Stripe : la plateforme offre un
@@ -28,20 +27,11 @@ export const FREE_TIER_CLIENT_LIMIT = 1;
  */
 export const GRANTED_STATUS = "granted";
 
-const PLAN_COLS =
-  "id, tenant_id, name, price_month_cents, price_year_cents, client_limit, setup_fee_cents, is_active, position, created_at";
-
 function subActive(status: string | null, periodEnd: string | null, now = new Date()): boolean {
   if (status === GRANTED_STATUS) return true;
   if (status === "active" || status === "trialing") return true;
   if (status === "canceled" && periodEnd && new Date(periodEnd) > now) return true;
   return false;
-}
-
-async function planById(planId: string): Promise<Plan | null> {
-  const admin = createAdminClient();
-  const { data } = await admin.from("plans").select(PLAN_COLS).eq("id", planId).maybeSingle<Plan>();
-  return (data as Plan) ?? null;
 }
 
 export interface CheckoutResult {
@@ -179,6 +169,8 @@ export async function verifyPlanCheckout(buyerTenantId: string, sessionId: strin
         client_limit: plan.client_limit, // null = illimité
       })
       .eq("id", buyerTenantId);
+    // Le palier porte son modèle : fourniture d'IA, droits du revendeur.
+    await applyPlanModel(buyerTenantId, plan);
     return true;
   } catch {
     return false;
@@ -262,6 +254,7 @@ export async function switchTenantPlan(
         client_limit: plan.client_limit,
       })
       .eq("id", tenantId);
+    await applyPlanModel(tenantId, plan);
     return { ok: true };
   } catch {
     return { error: "Changement de palier impossible. Réessaie dans un instant." };
@@ -335,9 +328,13 @@ async function applyTenantSub(row: TenantSubRow, sub: Stripe.Subscription): Prom
       sub_current_period_end: periodEnd,
       sub_cancel_at_period_end: !!sub.cancel_at_period_end,
       sub_synced_at: new Date().toISOString(),
-      client_limit: active && plan ? plan.client_limit : FREE_TIER_CLIENT_LIMIT,
+      // Déclassé : la capacité du palier gratuit du parent, qui peut être
+      // nulle s'il ne l'offre pas.
+      client_limit: active && plan ? plan.client_limit : await freeTierLimit(row.parent_id),
     })
     .eq("id", row.id);
+  // Un compte qui retombe sur le gratuit en reprend aussi le modèle.
+  if (!active) await applyPlanModel(row.id, null);
   return !active;
 }
 
@@ -505,12 +502,13 @@ export async function grantTenantPlan(
       sub_current_period_end: null,
       sub_cancel_at_period_end: false,
       sub_synced_at: new Date().toISOString(),
-      client_limit: plan ? plan.client_limit : FREE_TIER_CLIENT_LIMIT,
+      client_limit: plan ? plan.client_limit : await freeTierLimit(actorTenantId),
       // Un compte gelé pour impayé ne doit pas le rester alors qu'on vient de
       // lui offrir son palier : il n'y a plus rien à régulariser.
       ...(plan ? { suspended_at: null, suspended_reason: null } : {}),
     })
     .eq("id", targetTenantId);
   if (error) return { ok: false, error: "Changement de palier impossible." };
+  await applyPlanModel(targetTenantId, plan);
   return { ok: true };
 }
