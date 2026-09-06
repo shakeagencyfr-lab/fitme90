@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   alterneZones,
+  circuitFromSession,
   decoupeBlocs,
   isRescueKind,
   rescueExercises,
@@ -180,5 +181,30 @@ describe("durée d'une séance de dépannage", () => {
     expect(total).toBeGreaterThan(24 * 60);
     expect(total).toBeLessThanOrEqual(38 * 60);
     expect(s.blocks.every((b) => b.rounds <= 6)).toBe(true);
+  });
+});
+
+describe("circuitFromSession avec le matériel du client", () => {
+  const SALLE = ["Barre olympique et disques", "Haltères", "Poulie haute (tirage vertical)", "Presse à cuisses", "Banc plat", "Barre de traction", "Kettlebells"];
+
+  it("garde les mouvements de salle et les met au chrono", () => {
+    const s = circuitFromSession({ session: salle, equipment: SALLE, level: "intermediaire", minutes: 45, cycleIndex: 0, locale: "fr" });
+    expect(s.blocks.length).toBeGreaterThan(0);
+    const noms = s.blocks.flatMap((b) => b.exercises.map((e) => e.name));
+    // Rien n'a été remplacé : le client a tout ce qu'il faut.
+    expect(noms).toContain("Développé couché");
+    expect(noms).toContain("Tirage vertical (poulie haute)");
+    expect(s.dropped).toEqual([]);
+    // Et c'est bien un circuit : des tours, un effort en secondes, pas de charge.
+    for (const b of s.blocks) {
+      expect(b.rounds).toBeGreaterThanOrEqual(2);
+      expect(b.work).toBeGreaterThanOrEqual(15);
+    }
+  });
+
+  it("le dépannage n'est que ce même moteur avec un matériel restreint", () => {
+    const a = circuitFromSession({ session: salle, equipment: RESCUE_EQUIPMENT.aucun, level: "debutant", minutes: 45, cycleIndex: 1, locale: "fr" });
+    const b = rescueSession({ session: salle, kind: "aucun", level: "debutant", minutes: 45, cycleIndex: 1, locale: "fr" });
+    expect(a).toEqual(b);
   });
 });

@@ -15,6 +15,7 @@ import { dateLocale } from "@/lib/i18n";
 import { rpeScale } from "@/lib/i18n/fitness";
 import { CircuitRunner } from "@/components/circuit-runner";
 import { isCircuitSession, sensationScale, targetSensation, circuitLevel, sessionMinutes } from "@/lib/circuit";
+import { isBodyweightExercise } from "@/lib/exercise-alternatives";
 import { isRescueKind, rescueSession } from "@/lib/rescue-circuit";
 
 export const metadata = { title: "Séance" };
@@ -90,6 +91,8 @@ export default async function SeancePage({
     cardio: e.cardio,
     duration: e.duration,
     zone: e.zone,
+    // Des pompes ne se chargent pas : la case « kg » n'a rien à demander.
+    bodyweight: isBodyweightExercise(e.name, e.key),
   }));
 
   const warmup = rescue ? rescue.warmup : warmupBase;

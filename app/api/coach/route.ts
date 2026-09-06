@@ -18,7 +18,9 @@ import { applySessionOps, type SessionOp } from "@/lib/session-edit";
 import { canonicalExercise, type CoachExercise } from "@/lib/allowed-exercises";
 import { listCoachExerciseMedia } from "@/lib/exercise-guide";
 import { missedDays } from "@/lib/streak";
-import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan, sessionSlotForDay, replaceSessionInPlan, cycleSessions } from "@/lib/program";
+import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan, type Session, sessionSlotForDay, replaceSessionInPlan, cycleSessions, cycleIndexForDay } from "@/lib/program";
+import { circuitFromSession, isRescueKind, RESCUE_EQUIPMENT } from "@/lib/rescue-circuit";
+import { circuitLevel, circuitSeconds, flattenBlocks, formatMinutes, sessionMinutes } from "@/lib/circuit";
 import { coachAgenda, coachPlanView, logsDigest, type CoachLog, sessionLines } from "@/lib/coach-context";
 import { addMemoryNote, readMemory, renderMemory } from "@/lib/coach-memory";
 import { blockPosition } from "@/lib/block-logic";
@@ -403,7 +405,7 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     {
       name: "modifier_seance",
       description:
-        "Modifie une séance du programme DANS L'APP du client, sans régénérer : ajouter, retirer, remplacer ou ajuster des exercices (séries, répétitions, charge, note, repos), ou ajouter un finisher cardio (rameur, vélo, marche inclinée). Sur une séance EN CIRCUIT (blocs chronométrés, sans charge), les exercices vivent dans les blocs : ajouter met l'exercice dans le dernier bloc (ou le bloc n° `position`), `series` règle les tours du bloc et `repos_sec` le repos entre exercices. À utiliser dès que le client demande un changement concret sur une séance (« ajoute du hip thrust », « remplace le développé couché », « mets 18 min de rameur en zone 2 à la fin »), une fois le changement convenu avec lui. Par défaut la séance d'aujourd'hui ; `jour_programme` vise un autre jour du calendrier (numéro de jour donné dans le calendrier). Le changement vaut pour cette séance à chaque fois qu'elle revient dans le cycle en cours ; ce que tu ne touches pas reste tel quel. Ne dis JAMAIS que tu ne peux pas modifier la séance : tu le fais avec cet outil, puis tu confirmes. Pour une blessure ou une contrainte durable, utilise adapter_programme.",
+        "Modifie une séance du programme DANS L'APP du client, sans régénérer : ajouter, retirer, remplacer ou ajuster des exercices (séries, répétitions, charge, note, repos), ou ajouter un finisher cardio (rameur, vélo, marche inclinée). Sur une séance EN CIRCUIT (blocs chronométrés, sans charge), les exercices vivent dans les blocs : ajouter met l'exercice dans le dernier bloc (ou le bloc n° `position`), `series` règle les tours du bloc et `repos_sec` le repos entre exercices. À utiliser dès que le client demande un changement concret sur une séance (« ajoute du hip thrust », « remplace le développé couché », « mets 18 min de rameur en zone 2 à la fin »), une fois le changement convenu avec lui. Par défaut la séance d'aujourd'hui ; `jour_programme` vise un autre jour du calendrier (numéro de jour donné dans le calendrier). Le changement vaut pour cette séance à chaque fois qu'elle revient dans le cycle en cours ; ce que tu ne touches pas reste tel quel. Ne dis JAMAIS que tu ne peux pas modifier la séance : tu le fais avec cet outil, puis tu confirmes. Cet outil ne change PAS le format d'une séance : retirer des exercices ne fait pas un circuit. Pour un circuit, du HIIT ou un enchaînement au chrono, utilise passer_en_circuit. Pour une blessure ou une contrainte durable, utilise adapter_programme.",
       input_schema: {
         type: "object",
         properties: {
@@ -445,6 +447,30 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
           },
         },
         required: ["operations"],
+      },
+    },
+    {
+      name: "passer_en_circuit",
+      description:
+        "Transforme une séance du programme en CIRCUIT dans l'app du client : des blocs d'exercices chronométrés qu'il enchaîne au chrono plein écran, avec signal sonore à chaque changement, sans charge ni RPE (on parle de sensations de 1 à 4). Utilise-le dès que le client demande un circuit, du HIIT, un format enchaîné, ou une séance sans matériel qu'il veut faire au chrono. Les exercices sont repris de sa séance du jour et remplacés par des mouvements praticables avec le matériel indiqué, en gardant les mêmes groupes musculaires : tu n'as ni à les inventer ni à les lister. RÈGLE ABSOLUE : n'annonce JAMAIS au client que sa séance est en circuit sans avoir appelé CET outil. Retirer des exercices avec modifier_seance ne fait pas un circuit, et le client verrait toujours ses cases de charge et de répétitions.",
+      input_schema: {
+        type: "object",
+        properties: {
+          jour_programme: {
+            type: "integer",
+            description: "Numéro du jour de programme à passer en circuit (voir le calendrier). Absent = aujourd'hui.",
+          },
+          materiel: {
+            type: "string",
+            enum: ["habituel", "aucun", "hotel", "halteres"],
+            description:
+              "Ce dont le client dispose : « habituel » son matériel déclaré (salle ou maison), « aucun » rien du tout (voyage, chambre), « hotel » haltères légers, banc, tapis, élastiques, « halteres » des haltères seulement. Défaut : habituel.",
+          },
+          duree_min: {
+            type: "integer",
+            description: "Durée visée de la séance en minutes (20 à 90). Absent = la durée habituelle de ses séances.",
+          },
+        },
       },
     },
     {
@@ -582,6 +608,88 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
   // crédit : c'est une écriture déterministe. Le programme est relu à l'instant
   // (un outil précédent du même tour a pu le changer), et une nouvelle version
   // est insérée pour garder l'historique, comme après une adaptation.
+  /**
+   * Passe une séance en circuit chronométré.
+   *
+   * Le contenu n'est PAS demandé au modèle : il est calculé à partir de la
+   * séance du jour et du matériel, par le même moteur que la séance de
+   * dépannage. Le coach décide, l'app construit. C'est ce qui garantit que
+   * l'annonce faite au client (« c'est en circuit ») correspond à ce qu'il
+   * verra vraiment, avec le chrono et les sensations.
+   */
+  async function runCircuit(input: { jour_programme?: unknown; materiel?: unknown; duree_min?: unknown }): Promise<string> {
+    const day = typeof input.jour_programme === "number" && Number.isFinite(input.jour_programme)
+      ? Math.max(1, Math.min(ctx!.access.programDays, Math.trunc(input.jour_programme)))
+      : Math.max(1, ctx!.access.day);
+    if (isRestDay(day, coachPattern, coachStartWd)) {
+      return `Le jour ${day} est un jour de repos, il n'y a pas de séance à passer en circuit. Demande au client quelle séance il veut changer (voir le calendrier) et rappelle avec jour_programme.`;
+    }
+    const { data: prog } = await supabase
+      .from("programs")
+      .select("id, plan, model, duration_months")
+      .eq("user_id", ctx!.userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ id: string; plan: Plan; model: string | null; duration_months: number | null }>();
+    if (!prog?.plan) return "Impossible : programme introuvable.";
+    const at = sessionSlotForDay(prog.plan, day, coachPattern, coachStartWd);
+    if (!at) return "Impossible : aucune séance dans ce cycle.";
+    const current = cycleSessions(prog.plan, at.cycleIndex)[at.slot];
+    if (!current) return "Impossible : séance introuvable.";
+
+    const situation = isRescueKind(input.materiel) ? input.materiel : null;
+    let equipement: string[];
+    if (situation) {
+      equipement = [...RESCUE_EQUIPMENT[situation]];
+    } else {
+      const { data: equipRows } = await supabase
+        .from("equipment")
+        .select("name")
+        .eq("user_id", ctx!.userId)
+        .eq("enabled", true);
+      equipement = (equipRows ?? []).map((e) => e.name as string);
+    }
+
+    const minutes = typeof input.duree_min === "number" && Number.isFinite(input.duree_min)
+      ? Math.max(20, Math.min(90, Math.trunc(input.duree_min)))
+      : sessionMinutes(quiz?.answers?.dur);
+    const built = circuitFromSession({
+      session: current,
+      equipment: equipement,
+      level: circuitLevel(quiz?.answers?.level),
+      minutes,
+      cycleIndex: cycleIndexForDay(day, prog.plan.cycles?.length || 3),
+      locale,
+    });
+    if (!built.blocks.length) {
+      return "Impossible de construire un circuit à partir de cette séance avec ce matériel. Propose au client de garder ses séries, ou demande-lui ce dont il dispose vraiment.";
+    }
+
+    const enCircuit: Session = {
+      ...current,
+      format: "circuit",
+      restSec: 0,
+      warmup: built.warmup,
+      blocks: built.blocks,
+      exercises: flattenBlocks(built.blocks),
+    };
+    const nextPlan = replaceSessionInPlan(prog.plan, at, enCircuit);
+    const { error } = await supabase.from("programs").insert({
+      user_id: ctx!.userId,
+      plan: nextPlan,
+      model: prog.model,
+      duration_months: prog.duration_months,
+    });
+    if (error) return "Impossible d'enregistrer la séance pour l'instant.";
+    adapted = true;
+    const resume = built.blocks
+      .map((b) => `${b.title} (${b.rounds} tours, ${b.work} s / ${b.rest} s) : ${b.exercises.map((e) => e.name).join(", ")}`)
+      .join(" ; ");
+    return `Séance « ${current.title} » (jour ${day}) passée EN CIRCUIT dans l'app : ${resume}. Durée totale ${formatMinutes(circuitSeconds(built.blocks))}.${
+      built.dropped.length ? ` Sans équivalent avec ce matériel, donc retirés : ${built.dropped.join(", ")}.` : ""
+    } Le client la lance depuis sa fiche séance : le chrono enchaîne les blocs tout seul, avec un signal sonore à chaque changement, et il note une sensation de 1 à 4 par bloc au lieu d'une charge. Confirme-lui ça, sans lui redonner la liste complète.`;
+  }
+
   async function runSessionEdit(input: { jour_programme?: unknown; operations?: unknown }): Promise<string> {
     const ops = Array.isArray(input.operations) ? (input.operations as SessionOp[]) : [];
     if (!ops.length) return "Aucune opération fournie : rien changé.";
@@ -784,6 +892,9 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     if (name === "changer_jours_entrainement") {
       const j = (input as { jours?: unknown }).jours;
       return runChangeDays(Array.isArray(j) ? j.map(String) : []);
+    }
+    if (name === "passer_en_circuit") {
+      return runCircuit(input as { jour_programme?: unknown; materiel?: unknown; duree_min?: unknown });
     }
     if (name === "modifier_seance") {
       return runSessionEdit(input as { jour_programme?: unknown; operations?: unknown });

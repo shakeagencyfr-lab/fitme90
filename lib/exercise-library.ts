@@ -1865,6 +1865,20 @@ for (const entry of EXERCISE_LIBRARY) {
  * ponctuation et aux mots-outils près). Aucun rapprochement approché ici :
  * c'est ce que la génération exige du modèle, et ce qu'on vérifie ensuite.
  */
+/**
+ * La fiche d'un exercice de séance : par sa CLÉ d'abord (posée par le
+ * verrouillage sur la bibliothèque), sinon par son nom, exact puis approché.
+ * C'est le seul chemin utilisé partout ailleurs, pour que l'affichage, le
+ * dépannage et les circuits parlent toujours de la même fiche.
+ */
+export function libraryEntry(name: string, key?: string): LibraryExercise | null {
+  if (key) {
+    const parCle = EXERCISE_LIBRARY.find((e) => e.key === key);
+    if (parCle) return parCle;
+  }
+  return exactLibraryExercise(name) ?? matchLibraryExercise(name);
+}
+
 export function exactLibraryExercise(rawName: string): LibraryExercise | null {
   const k = normalizeExerciseName(rawName);
   return k ? (EXACT_INDEX.get(k) ?? null) : null;

@@ -8,6 +8,7 @@ import {
   exercisesForEquipment,
   isCardioKey,
   pickAlternative,
+  isBodyweightExercise,
   type Famille,
 } from "./exercise-alternatives";
 
@@ -274,5 +275,26 @@ describe("exercisesForEquipment", () => {
 
   it("ignore une clé qui n'est pas au catalogue", () => {
     expect(exercisesForEquipment("machine-imaginaire")).toEqual([]);
+  });
+});
+
+describe("isBodyweightExercise", () => {
+  it("reconnaît ce qui se fait sans rien, par clé comme par nom", () => {
+    expect(isBodyweightExercise("Pompes", "pompes")).toBe(true);
+    expect(isBodyweightExercise("Pompes prise large")).toBe(true);
+    expect(isBodyweightExercise("Gainage (planche)")).toBe(true);
+    expect(isBodyweightExercise("Squat au poids du corps")).toBe(true);
+  });
+
+  it("dit non dès qu'il faut du matériel", () => {
+    expect(isBodyweightExercise("Développé couché", "developpe-couche")).toBe(false);
+    expect(isBodyweightExercise("Tirage vertical")).toBe(false);
+    expect(isBodyweightExercise("Tractions")).toBe(false); // une barre reste du matériel
+    expect(isBodyweightExercise("Exercice qui n'existe pas")).toBe(false);
+  });
+
+  it("la clé fait foi quand le nom a été retouché", () => {
+    expect(isBodyweightExercise("Pompes (variante du coach)", "pompes")).toBe(true);
+    expect(isBodyweightExercise("Pompes", "developpe-couche")).toBe(false);
   });
 });
