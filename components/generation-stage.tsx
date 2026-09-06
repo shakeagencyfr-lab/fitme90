@@ -78,7 +78,7 @@ export function GenerationStage({ pct, elapsed }: { pct: number; elapsed: number
       {phrases.map((p, k) => (
         <span
           key={`${cle}-${k}`}
-          className="font-archivo text-[34px] font-extrabold uppercase tracking-[-0.02em] text-ink"
+          className="font-archivo text-[26px] font-extrabold uppercase leading-none tracking-[-0.02em] text-ink"
         >
           {p}
         </span>
@@ -88,20 +88,22 @@ export function GenerationStage({ pct, elapsed }: { pct: number; elapsed: number
 
   return (
     <div className="relative isolate overflow-hidden rounded-card border border-line bg-surface-2">
-      {/* Fond : les phrases défilent en très basse opacité, dans les deux sens. */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 flex flex-col justify-center gap-8 opacity-[0.06]">
-        {[0, 1].map((rang) => (
-          <div key={rang} className="flex overflow-hidden">
-            {piste(rang, `${rang}-a`)}
-            {piste(rang, `${rang}-b`)}
-          </div>
-        ))}
-      </div>
-
       <div className="relative flex flex-col gap-4 p-5">
         {/* Rythme cardiaque : le tracé se dessine en boucle, la pulsation suit
-            la progression réelle (plus on avance, plus le cœur bat vite). */}
+            la progression réelle (plus on avance, plus le cœur bat vite).
+            Les phrases défilent DERRIÈRE ce tracé, et nulle part ailleurs :
+            étalées sur toute la carte, elles passaient sous la phrase mise en
+            avant et sous le compteur, qui devenaient pénibles à lire. Un fond
+            ne doit pas concurrencer le texte qu'il accompagne. */}
         <div className="relative h-[86px] overflow-hidden rounded-control bg-surface/70">
+          <div aria-hidden className="pointer-events-none absolute inset-0 flex flex-col justify-center gap-1 opacity-[0.12]">
+            {[0, 1].map((rang) => (
+              <div key={rang} className="flex overflow-hidden">
+                {piste(rang, `${rang}-a`)}
+                {piste(rang, `${rang}-b`)}
+              </div>
+            ))}
+          </div>
           <svg
             viewBox="0 0 180 80"
             preserveAspectRatio="none"
