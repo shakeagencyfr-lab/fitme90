@@ -11,6 +11,7 @@ import { effectiveMethodology } from "@/lib/methodology";
 import { sanitizePlan, sanitizeSession } from "@/lib/program-sanitize";
 import { allowedExercises, allowedListPrompt, enforceLibrary, enforceIssues, type CoachExercise } from "@/lib/allowed-exercises";
 import { listCoachExerciseMedia } from "@/lib/exercise-guide";
+import { circuitLevel, circuitPrompt, isHomeEquipment, sessionMinutes, trimToBudget, isCircuitSession, flattenBlocks } from "@/lib/circuit";
 
 // Schéma du plan retourné par le modèle (structure de la maquette).
 // Validé après génération : on n'écrit jamais en base un JSON hors-forme.
@@ -42,18 +43,50 @@ const warmupItemShape = z.object({
   detail: z.string().optional().default(""),
 });
 
-const sessionShape = z.object({
-  cycleLabel: z.string(),
-  title: z.string(),
-  meta: z.string().optional().default(""),
-  /** Repos entre séries, en secondes (adapté à l'objectif). */
-  restSec: z.number().optional().default(90),
-  /** Échauffement spécifique à la séance (3 à 5 items). */
-  warmup: z.array(warmupItemShape).optional().default([]),
-  exercises: z.array(exerciseShape).min(1),
+// Un bloc de circuit : des exercices chronométrés, enchaînés sur plusieurs
+// tours (lib/circuit.ts). Les bornes réalistes sont posées à la remise en
+// forme, pas ici : le schéma accepte, le garde-fou corrige.
+const circuitExerciseShape = z.object({
+  name: z.string(),
+  key: z.string().optional(),
+  note: z.string().optional().default(""),
 });
 
+export const circuitBlockShape = z.object({
+  title: z.string().optional().default(""),
+  rounds: z.number(),
+  work: z.number(),
+  rest: z.number().optional().default(15),
+  roundRest: z.number().optional().default(30),
+  restAfter: z.number().optional().default(60),
+  sensation: z.number().optional(),
+  exercises: z.array(circuitExerciseShape),
+});
+
+const sessionShape = z
+  .object({
+    cycleLabel: z.string(),
+    title: z.string(),
+    meta: z.string().optional().default(""),
+    /** Repos entre séries, en secondes (adapté à l'objectif). */
+    restSec: z.number().optional().default(90),
+    /**
+     * "sets" (séries × répétitions, le défaut) ou "circuit" : la séance
+     * entière est faite de blocs chronométrés, et `exercises` n'en est que le
+     * miroir à plat. Une séance "sets" peut aussi porter un bloc en finisher.
+     */
+    format: z.enum(["sets", "circuit"]).optional(),
+    /** Échauffement spécifique à la séance (3 à 5 items). */
+    warmup: z.array(warmupItemShape).optional().default([]),
+    exercises: z.array(exerciseShape).optional().default([]),
+    blocks: z.array(circuitBlockShape).optional(),
+  })
+  .refine((s) => s.exercises.length > 0 || (s.blocks ?? []).some((b) => b.exercises.length > 0), {
+    message: "Séance sans exercice.",
+  });
+
 export type Session = z.infer<typeof sessionShape>;
+export type PlanCircuitBlock = z.infer<typeof circuitBlockShape>;
 
 const cycleShape = z.object({
   label: z.string(),
@@ -379,7 +412,7 @@ Les séances CHANGENT et PROGRESSENT d'un cycle au suivant selon les paramètres
 
 const SYSTEM_RULES = `
 
-Dans chaque cycle, les séances suivent EXACTEMENT la répartition du gabarit (titres, lettres, patrons de mouvement). Chaque séance a pour "title" le titre du gabarit, un "cycleLabel" du type "Cycle 2 · Séance A · Full body A", et 5 à 7 exercices avec sets entier. Le "name" de chaque jour travaillé dans weekPlan reprend le titre de la séance correspondante du PREMIER cycle de ce bloc, en tournant A, B, C sur la semaine.
+Dans chaque cycle, les séances suivent EXACTEMENT la répartition du gabarit (titres, lettres, patrons de mouvement). Chaque séance a pour "title" le titre du gabarit, un "cycleLabel" du type "Cycle 2 · Séance A · Full body A", et 5 à 7 exercices avec sets entier (sauf séance en circuit : voir les règles des circuits dans le brief, les exercices sont alors dans "blocks"). Le "name" de chaque jour travaillé dans weekPlan reprend le titre de la séance correspondante du PREMIER cycle de ce bloc, en tournant A, B, C sur la semaine.
 
 COHÉRENCE SÉANCE ↔ EXERCICES (RÈGLE STRICTE) : les exercices d'une séance DOIVENT correspondre à ses patrons du gabarit, principaux ET secondaire. Une séance « Push » ne contient QUE des mouvements de poussée (pectoraux, épaules, triceps) ; une séance « Pull » QUE du tirage (dos, arrière d'épaule, biceps) ; une séance « Jambes » QUE du bas du corps. Une séance « dominante poussée » contient sa poussée lourde ET son unique tirage léger de rappel (et inversement) : ce rappel est obligatoire, pas une erreur. Une séance « Full body » couvre haut et bas. N'introduis jamais un exercice hors des patrons de la séance : vérifie chaque exercice avant de l'ajouter.
 
@@ -392,6 +425,27 @@ PORTÉS / MARCHES LESTÉES : la marche du fermier (farmer walk), le porté valis
 AVANT DE RÉPONDRE, RELIS CHAQUE EXERCICE cardio:true : s'il utilise haltères/barre/poulie/kettlebell/machine de force, ou s'il s'appelle rowing/tirage/développé/curl/marche du fermier/porté, alors il est FAUX : repasse-le en cardio:false avec sets et reps. Et vérifie qu'aucun cardio ne dépasse 15 min.
 
 Pour la musculation : cardio:false avec sets et reps normaux. REPOS : renseigne "restSec" (repos par défaut de la séance, en secondes) ET, pour CHAQUE exercice de musculation, un "rest" en secondes adapté au cycle. RÈGLE DE STYLE : n'utilise JAMAIS de tiret cadratin (—) ni de tiret demi-cadratin (–) dans les textes ; écris avec une ponctuation naturelle (virgules, deux-points, points, parenthèses). ÉCHAUFFEMENT (3 à 5 items par séance) : chaque item a un "name" et un "detail" CONCRET. Cardio : durée et intensité en zone cardiaque (« 5 min, Z1 puis Z2 sur la dernière minute »). Mobilité : les mouvements précis avec leurs répétitions (« cercles de hanche 8 par sens, balancés de jambe 10 par jambe, squats à vide 10 »), jamais « 6 mouvements » sans dire lesquels. Activation : l'exercice et le nombre de séries légères. ADRESSE : tous les textes lus par le client ("summary", "body" de chaque cycle, "warning", "note" des exercices) sont écrits par le coach QUI PARLE AU CLIENT, à la deuxième personne du singulier (« tu », « ton genou », « tes séances »). Jamais à la troisième personne : pas de « le client », « il », « elle », ni de portrait du type « Prénom, 39 ans, danseuse de formation ». Tu peux dire « Prénom, on construit… » puis continuer en « tu ». REGISTRE : direct et familier comme un coach de salle, jamais vulgaire ni brutal envers le corps du client (pas de « pourrir », « niquer », « bousiller », « cramer », « te tuer », « te défoncer » : dis « abîmer », « user », « fatiguer », « ménager »). Le programme est rédigé dans la langue demandée plus haut ; en anglais, la même règle vaut avec « you ».`;
+
+/**
+ * Garde-fou de durée des circuits : la formule est dans le prompt, mais le
+ * modèle l'enfreint parfois. On retire alors des tours aux blocs les plus
+ * longs (jamais des exercices) jusqu'à tenir dans le temps de la séance,
+ * échauffement déduit, puis on recalcule le miroir à plat.
+ */
+export function fitCircuits(plan: Plan, minutes: number): Plan {
+  const budget = Math.max(15, minutes - 7) * 60;
+  const fit = (s: Session): Session => {
+    if (!isCircuitSession(s)) return s;
+    const blocks = trimToBudget(s.blocks ?? [], budget);
+    return { ...s, blocks, exercises: flattenBlocks(blocks) };
+  };
+  return {
+    ...plan,
+    cycles: (plan.cycles ?? []).map((c) => (c.sessions ? { ...c, sessions: c.sessions.map(fit) } : c)),
+    sessions: plan.sessions ? plan.sessions.map(fit) : plan.sessions,
+    session: plan.session ? fit(plan.session) : plan.session,
+  };
+}
 
 export interface Brief {
   answers: Record<string, unknown>;
@@ -612,6 +666,18 @@ export async function generateProgram(
   const allowed = allowedExercises(brief.equipment, coach);
   const allowedText = allowedListPrompt(allowed);
 
+  // Sans salle, les séances sont des circuits chronométrés ; en salle, le
+  // modèle garde séries et répétitions et peut ajouter un bloc en finisher.
+  const home = isHomeEquipment(brief.equipment);
+  const minutes = sessionMinutes(brief.answers?.dur);
+  const circuitText = circuitPrompt({
+    home,
+    level: circuitLevel(brief.answers?.level),
+    sessionMinutes: minutes,
+    cycleCount: wantCycles,
+    fatLoss: isFatLossGoal(brief.answers),
+  });
+
   const runOnce = async (extra: string) => {
     const stream = client.messages.stream({
       model: MODELS.generate,
@@ -622,7 +688,7 @@ export async function generateProgram(
       messages: [
         {
           role: "user",
-          content: `${buildBrief(brief)}\n\n${allowedText}${extra}\n\nRends ce JSON :\n${SCHEMA_HINT}`,
+          content: `${buildBrief(brief)}\n\n${allowedText}\n\n${circuitText}${extra}\n\nRends ce JSON :\n${SCHEMA_HINT}`,
         },
       ],
     });
@@ -637,7 +703,7 @@ export async function generateProgram(
       firstCycleIndex,
     );
     const verrou = enforceLibrary(brut, brief.equipment, coach);
-    return { plan: verrou.plan, call, verrou };
+    return { plan: fitCircuits(verrou.plan, minutes), call, verrou };
   };
 
   // Le bon nombre de cycles, chacun avec le bon nombre de séances distinctes.

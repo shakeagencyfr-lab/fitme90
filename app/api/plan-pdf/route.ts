@@ -8,6 +8,7 @@ import { planPdf, planPdfFilename, type PlanPdfOptions } from "@/lib/plan-pdf";
 import { decodeImageForPdf } from "@/lib/pdf-image";
 import { karvonen } from "@/lib/fitness";
 import { rpeScale } from "@/lib/i18n/fitness";
+import { sensationScale } from "@/lib/circuit";
 import { dayMeals, pnum } from "@/lib/nutrition";
 import { profilDepuisQuiz, repasDuJour } from "@/lib/recipe-engine";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -123,6 +124,7 @@ export async function GET(req: Request): Promise<Response> {
     logo,
     zones,
     rpe: { intro: RPE_INTRO, steps: RPE },
+    sensations: sensationScale(locale),
     sampleMeals,
   });
 

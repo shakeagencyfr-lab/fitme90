@@ -1,4 +1,5 @@
 import type { Plan, PlanExercise, Session } from "./program";
+import { flattenBlocks, sanitizeBlock } from "./circuit";
 
 // Garde-fou déterministe (« blindage ») du plan généré. PUR (aucune dépendance
 // serveur) donc testable : quoi que renvoie le modèle, on corrige les
@@ -67,8 +68,21 @@ export function sanitizeExercise(e: PlanExercise): PlanExercise {
   return e;
 }
 
+/**
+ * Assainit une séance. Les blocs de circuit sont ramenés dans leurs bornes et
+ * vidés de leurs exercices sans nom ; une séance en circuit tient son miroir
+ * à plat (`exercises`) DES blocs, jamais l'inverse ; une séance "sets" garde
+ * ses exercices et, éventuellement, un bloc en finisher. Une séance qui n'a
+ * que des blocs est un circuit, quoi qu'en dise son "format".
+ */
 export function sanitizeSession(s: Session): Session {
-  return { ...s, exercises: (s.exercises ?? []).map(sanitizeExercise) };
+  const blocks = (s.blocks ?? []).map(sanitizeBlock).filter((b) => b.exercises.length > 0);
+  const exercises = (s.exercises ?? []).map(sanitizeExercise);
+  const circuit = blocks.length > 0 && (s.format === "circuit" || exercises.length === 0);
+  if (circuit) {
+    return { ...s, format: "circuit", restSec: 0, blocks, exercises: flattenBlocks(blocks) };
+  }
+  return { ...s, format: "sets", blocks: blocks.length ? blocks : undefined, exercises };
 }
 
 /** Applique le garde-fou à toutes les séances d'un plan (cycles + repli). */

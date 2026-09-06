@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cycleSessions, type Plan, type Session } from "@/lib/program";
+import { isCircuitSession } from "@/lib/circuit";
 import { PrintButton, pdfButtonClass } from "@/components/print-button";
 import { dateLocale, makeT, type Locale } from "@/lib/i18n";
 import { macrosForDay, pnum, grp } from "@/lib/nutrition";
@@ -106,6 +107,7 @@ export function PlanPdfView({
                       {s.warmup.map((w) => (w.detail ? `${w.name} (${w.detail})` : w.name)).join(" · ")}
                     </p>
                   ) : null}
+                  {isCircuitSession(s) ? null : (
                   <div className="mt-2.5 overflow-x-auto">
                     <table className="w-full border-collapse text-[13px]">
                       <thead>
@@ -128,6 +130,27 @@ export function PlanPdfView({
                       </tbody>
                     </table>
                   </div>
+                  )}
+                  {(s.blocks ?? []).map((b, bi) => (
+                    <div key={bi} className="mt-2.5 rounded-lg border border-line-2 bg-surface-2 px-3 py-2.5">
+                      <div className="font-archivo text-[13.5px] font-bold text-ink">
+                        {isCircuitSession(s) ? "" : `${t("session.finisher")} · `}
+                        {b.title || t("pdf.circuit")}
+                      </div>
+                      <div className="mt-0.5 text-[12px] text-muted">
+                        {t("pdf.circuitLine", { rounds: b.rounds, work: b.work, rest: b.rest, roundRest: b.roundRest })}
+                        {b.sensation ? ` · ${t("pdf.sensation", { n: b.sensation })}` : ""}
+                      </div>
+                      <ul className="mt-1.5 flex flex-col gap-0.5 text-[12.5px]">
+                        {b.exercises.map((e, ei) => (
+                          <li key={ei}>
+                            <span className="font-medium text-ink">{e.name}</span>
+                            {e.note ? <span className="text-muted">, {e.note}</span> : null}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>

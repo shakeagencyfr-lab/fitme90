@@ -1,4 +1,5 @@
-import type { PlanExercise, Session } from "@/lib/program";
+import type { PlanCircuitBlock, PlanExercise, Session } from "@/lib/program";
+import { flattenBlocks, isCircuitSession } from "@/lib/circuit";
 
 /**
  * Retouches d'une séance décidées dans le chat : ajouter, retirer, remplacer
@@ -90,8 +91,107 @@ export function buildExercise(input: ExerciseInput, base?: PlanExercise): PlanEx
 const label = (e: PlanExercise): string =>
   e.cardio ? `${e.name}${e.duration ? ` ${e.duration}` : ""}${e.zone ? ` (${e.zone})` : ""}` : `${e.name} ${e.sets}x${e.reps}${e.load ? ` @ ${e.load}` : ""}`;
 
+/** Où vit un exercice dans les blocs : bloc et position, ou null. */
+function findInBlocks(blocks: PlanCircuitBlock[], name: string): { b: number; i: number } | null {
+  const n = normalizeName(name);
+  if (!n) return null;
+  for (let b = 0; b < blocks.length; b++) {
+    const i = blocks[b].exercises.findIndex((e) => normalizeName(e.name) === n);
+    if (i >= 0) return { b, i };
+  }
+  for (let b = 0; b < blocks.length; b++) {
+    const i = blocks[b].exercises.findIndex((e) => normalizeName(e.name).includes(n) || n.includes(normalizeName(e.name)));
+    if (i >= 0) return { b, i };
+  }
+  return null;
+}
+
+/**
+ * Retouches d'une séance EN CIRCUIT : les exercices vivent dans les blocs,
+ * sans séries ni charge. Ajouter met l'exercice dans le dernier bloc (ou le
+ * bloc donné par `position`, 1 = premier), retirer ne vide jamais un bloc,
+ * remplacer et modifier ne touchent que le nom et la consigne. Le miroir à
+ * plat est recalculé à la fin.
+ */
+function applyCircuitOps(session: Session, ops: SessionOp[]): SessionEditResult {
+  const blocks: PlanCircuitBlock[] = (session.blocks ?? []).map((b) => ({ ...b, exercises: b.exercises.map((e) => ({ ...e })) }));
+  const changes: string[] = [];
+  const errors: string[] = [];
+  const nomBloc = (b: number) => blocks[b].title || `bloc ${b + 1}`;
+
+  for (const op of ops) {
+    const target = op.exercice ?? "";
+    const nom = str(op.nouveau?.nom, 80);
+    const note = op.nouveau?.note !== undefined ? str(op.nouveau.note, 200) : undefined;
+    switch (op.action) {
+      case "ajouter": {
+        if (!nom) {
+          errors.push("ajouter : il manque le nom de l'exercice.");
+          break;
+        }
+        if (findInBlocks(blocks, nom)) {
+          errors.push(`ajouter : « ${nom} » est déjà dans la séance, utilise modifier.`);
+          break;
+        }
+        const b = clampInt(op.position, 1, blocks.length, blocks.length) - 1;
+        blocks[b].exercises.push({ name: nom, note: note ?? "" });
+        changes.push(`ajouté ${nom} (${blocks[b].work} s) dans ${nomBloc(b)}`);
+        break;
+      }
+      case "retirer": {
+        const at = findInBlocks(blocks, target);
+        if (!at) {
+          errors.push(`retirer : « ${target} » n'est pas dans la séance.`);
+          break;
+        }
+        if (blocks[at.b].exercises.length <= 1) {
+          errors.push(`retirer : ${nomBloc(at.b)} garde au moins un exercice.`);
+          break;
+        }
+        const [gone] = blocks[at.b].exercises.splice(at.i, 1);
+        changes.push(`retiré ${gone.name} de ${nomBloc(at.b)}`);
+        break;
+      }
+      case "remplacer": {
+        const at = findInBlocks(blocks, target);
+        if (!at) {
+          errors.push(`remplacer : « ${target} » n'est pas dans la séance.`);
+          break;
+        }
+        if (!nom) {
+          errors.push("remplacer : il manque le nouvel exercice.");
+          break;
+        }
+        const old = blocks[at.b].exercises[at.i].name;
+        blocks[at.b].exercises[at.i] = { name: nom, note: note ?? blocks[at.b].exercises[at.i].note };
+        changes.push(`remplacé ${old} par ${nom} dans ${nomBloc(at.b)}`);
+        break;
+      }
+      case "modifier": {
+        const at = findInBlocks(blocks, target);
+        if (!at) {
+          errors.push(`modifier : « ${target} » n'est pas dans la séance.`);
+          break;
+        }
+        const ex = blocks[at.b].exercises[at.i];
+        if (note !== undefined) ex.note = note;
+        // En circuit, le volume se règle sur le bloc : « séries » = tours,
+        // « repos » = repos entre exercices, pour rester compréhensible.
+        if (op.nouveau?.series !== undefined) blocks[at.b].rounds = clampInt(op.nouveau.series, 1, 8, blocks[at.b].rounds);
+        if (op.nouveau?.repos_sec !== undefined) blocks[at.b].rest = clampInt(op.nouveau.repos_sec, 0, 90, blocks[at.b].rest);
+        changes.push(`ajusté ${ex.name} (${nomBloc(at.b)} : ${blocks[at.b].rounds} tours, ${blocks[at.b].work} s / ${blocks[at.b].rest} s)`);
+        break;
+      }
+      default:
+        errors.push(`action inconnue : ${String((op as { action?: unknown }).action)}`);
+    }
+  }
+  return { session: { ...session, blocks, exercises: flattenBlocks(blocks) }, changes, errors };
+}
+
 /** Applique les opérations dans l'ordre. Celles qui échouent n'annulent pas les autres. */
 export function applySessionOps(session: Session, ops: SessionOp[]): SessionEditResult {
+  if (isCircuitSession(session)) return applyCircuitOps(session, ops);
   const exercises = session.exercises.map((e) => ({ ...e }));
   const changes: string[] = [];
   const errors: string[] = [];

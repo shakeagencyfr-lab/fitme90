@@ -1,4 +1,5 @@
-import { cycleIndexForDay, cycleSessions, sessionForDay, type Plan } from "./program";
+import { cycleIndexForDay, cycleSessions, sessionForDay, type Plan, type Session } from "./program";
+import { isCircuitSession } from "./circuit";
 import { isRestDay } from "./schedule";
 import type { LogEntry } from "./records";
 
@@ -39,6 +40,23 @@ export function coachPlanView(plan: Plan | null | undefined, day: number): Recor
       return i === current ? { ...head, sessions: cycleSessions(plan, i) } : head;
     }),
   };
+}
+
+/**
+ * Une séance en lignes de texte pour le modèle : « Nom 4x8 » en séries, et,
+ * pour un circuit, une ligne par bloc avec ses paramètres et ses exercices.
+ * Un bloc en finisher d'une séance en séries s'ajoute après les exercices.
+ */
+export function sessionLines(s: Session): string[] {
+  const blocs = (s.blocks ?? []).map(
+    (b) =>
+      `${b.title || "Bloc"} : ${b.rounds} tours, ${b.work} s effort / ${b.rest} s repos${b.sensation ? `, sensation ${b.sensation}/4` : ""} : ${b.exercises.map((e) => e.name).join(", ")}`,
+  );
+  if (isCircuitSession(s)) return [`Séance en circuit (chrono, sans charge ni RPE, sensations de 1 à 4)`, ...blocs];
+  return [
+    ...s.exercises.map((e) => (e.cardio ? `${e.name} ${e.duration}${e.zone ? ` (${e.zone})` : ""}` : `${e.name} ${e.sets}x${e.reps}`)),
+    ...blocs.map((b) => `Finisher en circuit, ${b}`),
+  ];
 }
 
 export interface AgendaEntry {
@@ -85,7 +103,7 @@ export function coachAgenda(
       day,
       rest: false,
       title: s?.title ?? "Séance",
-      exercises: s ? s.exercises.map((e) => `${e.name} ${e.sets}x${e.reps}`) : [],
+      exercises: s ? sessionLines(s) : [],
     });
   }
   return out;
@@ -118,7 +136,7 @@ export function logsDigest(logs: CoachLog[]): string {
       const byExercise = new Map<string, Map<string, number>>();
       for (const e of l.entries ?? []) {
         if (!e.exercise) continue;
-        const set = e.cardio ? "cardio" : `${e.kg ?? "?"}kg x${e.reps ?? "?"}`;
+        const set = e.circuit ? `circuit${e.sensation ? `, sensation ${e.sensation}/4` : ""}` : e.cardio ? "cardio" : `${e.kg ?? "?"}kg x${e.reps ?? "?"}`;
         const sets = byExercise.get(e.exercise) ?? new Map<string, number>();
         sets.set(set, (sets.get(set) ?? 0) + 1);
         byExercise.set(e.exercise, sets);
