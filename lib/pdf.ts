@@ -230,9 +230,30 @@ export class PdfPage {
     this.ops.push({ s: `${r} ${g} ${b} RG 0.6 w ${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re S` });
   }
 
+  /** Image (déclarée dans `renderPdf`), positionnée par son coin haut gauche. */
+  image(name: string, x: number, yFromTop: number, w: number, h: number): void {
+    const y = this.height - yFromTop - h;
+    this.ops.push({ s: `q ${w.toFixed(2)} 0 0 ${h.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)} cm /${name} Do Q` });
+  }
+
   stream(): string {
     return this.ops.map((o) => o.s).join("\n");
   }
+}
+
+/**
+ * Une image prête à entrer dans le fichier : un JPEG tel quel (le PDF le
+ * décode lui-même), ou des pixels RVB déjà compressés, avec un masque alpha
+ * séparé pour les PNG transparents. Voir lib/pdf-image.ts pour la préparation.
+ */
+export interface PdfImage {
+  name: string;
+  width: number;
+  height: number;
+  kind: "jpeg" | "rgb";
+  data: Uint8Array;
+  /** Canal alpha (gris 8 bits, compressé), pour `kind: "rgb"` seulement. */
+  alpha?: Uint8Array;
 }
 
 /** Assemble les pages en un fichier PDF complet. */
@@ -247,6 +268,8 @@ export function renderPdf(
      * pouvoir détecter sans lire le document.
      */
     aiMark?: string;
+    /** Images référencées par les pages (`page.image(name, …)`). */
+    images?: PdfImage[];
   } = {},
 ): Uint8Array {
   const objets: string[] = [];
@@ -263,6 +286,29 @@ export function renderPdf(
   const police1 = ajouter("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
   const police2 = ajouter("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
 
+  // Les images : un objet par image (plus un masque pour la transparence),
+  // écrites en binaire dans un flux. Le fichier est assemblé en latin1, chaque
+  // octet y passe tel quel.
+  const bin = (u: Uint8Array) => Buffer.from(u).toString("latin1");
+  const xobjects: string[] = [];
+  for (const img of meta.images ?? []) {
+    let smask = "";
+    if (img.kind === "rgb" && img.alpha) {
+      const n = ajouter(
+        `<< /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /DeviceGray ` +
+          `/BitsPerComponent 8 /Filter /FlateDecode /Length ${img.alpha.length} >>\nstream\n${bin(img.alpha)}\nendstream`,
+      );
+      smask = ` /SMask ${n} 0 R`;
+    }
+    const filtre = img.kind === "jpeg" ? "/DCTDecode" : "/FlateDecode";
+    const n = ajouter(
+      `<< /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /DeviceRGB ` +
+        `/BitsPerComponent 8 /Filter ${filtre}${smask} /Length ${img.data.length} >>\nstream\n${bin(img.data)}\nendstream`,
+    );
+    xobjects.push(`/${img.name} ${n} 0 R`);
+  }
+  const ressourcesImages = xobjects.length ? ` /XObject << ${xobjects.join(" ")} >>` : "";
+
   const numerosPages: number[] = [];
   for (const page of pages) {
     const flux = page.stream();
@@ -270,7 +316,7 @@ export function renderPdf(
     numerosPages.push(
       ajouter(
         `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${page.width.toFixed(2)} ${page.height.toFixed(2)}] ` +
-          `/Resources << /Font << /F1 ${police1} 0 R /F2 ${police2} 0 R >> >> /Contents ${contenu} 0 R >>`,
+          `/Resources << /Font << /F1 ${police1} 0 R /F2 ${police2} 0 R >>${ressourcesImages} >> /Contents ${contenu} 0 R >>`,
       ),
     );
   }
