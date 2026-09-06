@@ -77,3 +77,48 @@ describe("retouches d'une séance décidées dans le chat", () => {
     expect(seance.exercises).toHaveLength(3);
   });
 });
+
+describe("retouches d'une séance en circuit", () => {
+  const circuit: Session = {
+    cycleLabel: "Cycle 1",
+    title: "Full body A",
+    meta: "",
+    restSec: 0,
+    format: "circuit",
+    warmup: [],
+    exercises: [],
+    blocks: [
+      { title: "Bloc 1", rounds: 3, work: 40, rest: 20, roundRest: 30, restAfter: 60, exercises: [{ name: "Pompes", note: "" }, { name: "Squat au poids du corps", note: "" }] },
+      { title: "Bloc 2", rounds: 2, work: 30, rest: 15, roundRest: 30, restAfter: 0, exercises: [{ name: "Burpees", note: "souple" }] },
+    ],
+  };
+
+  it("ajoute dans le dernier bloc ou dans le bloc demandé, et recalcule le miroir", () => {
+    const r = applySessionOps(circuit, [
+      { action: "ajouter", nouveau: { nom: "Gainage planche" } },
+      { action: "ajouter", nouveau: { nom: "Fentes arrière", note: "alterne" }, position: 1 },
+    ]);
+    expect(r.errors).toEqual([]);
+    expect(r.session.blocks![1].exercises.map((e) => e.name)).toEqual(["Burpees", "Gainage planche"]);
+    expect(r.session.blocks![0].exercises.map((e) => e.name)).toEqual(["Pompes", "Squat au poids du corps", "Fentes arrière"]);
+    expect(r.session.exercises.map((e) => e.name)).toEqual(["Pompes", "Squat au poids du corps", "Fentes arrière", "Burpees", "Gainage planche"]);
+    expect(r.session.exercises[3].reps).toBe("30 s");
+  });
+
+  it("ne vide jamais un bloc, remplace sur place, ajuste tours et repos du bloc", () => {
+    const r = applySessionOps(circuit, [
+      { action: "retirer", exercice: "burpees" },
+      { action: "remplacer", exercice: "pompes", nouveau: { nom: "Pompes inclinées" } },
+      { action: "modifier", exercice: "squat", nouveau: { series: 4, repos_sec: 10, note: "profond" } },
+    ]);
+    expect(r.errors).toHaveLength(1);
+    expect(r.errors[0]).toMatch(/garde au moins un exercice/);
+    expect(r.session.blocks![0].exercises[0].name).toBe("Pompes inclinées");
+    expect(r.session.blocks![0].rounds).toBe(4);
+    expect(r.session.blocks![0].rest).toBe(10);
+    expect(r.session.blocks![0].exercises[1].note).toBe("profond");
+    expect(r.changes).toHaveLength(2);
+    // La séance d'origine n'est pas touchée.
+    expect(circuit.blocks![0].rounds).toBe(3);
+  });
+});

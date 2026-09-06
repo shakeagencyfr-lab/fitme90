@@ -12,6 +12,8 @@ import { explainWarmup, bpmLabel } from "@/lib/warmup-guide";
 import { getT, userLocale } from "@/lib/i18n/server";
 import { dateLocale } from "@/lib/i18n";
 import { rpeScale } from "@/lib/i18n/fitness";
+import { CircuitRunner } from "@/components/circuit-runner";
+import { isCircuitSession, sensationScale, targetSensation } from "@/lib/circuit";
 
 export const metadata = { title: "Séance" };
 
@@ -21,6 +23,8 @@ interface SavedEntry {
   kg: number | null;
   reps: number | null;
   cardio?: boolean;
+  circuit?: boolean;
+  sensation?: number;
 }
 
 export default async function SeancePage({
@@ -50,6 +54,12 @@ export default async function SeancePage({
   // unique pour les anciens plans.
   const s = sessionForDay(plan, day, pattern, startWd) ?? plan.session;
   const warmup = warmupSteps(s);
+  // Séance en circuit (client sans salle) : chrono et sensations, pas de
+  // charges ni de RPE. Une séance en séries peut finir par un bloc au chrono.
+  const circuit = isCircuitSession(s);
+  const blocks = s?.blocks ?? [];
+  const sensGoal = targetSensation(day);
+  const sensations = sensationScale(locale);
 
   const exercises: Exercise[] = (s?.exercises ?? []).map((e) => ({
     name: e.name,
@@ -103,7 +113,12 @@ export default async function SeancePage({
   // Reconstruit l'état initial {exIdx-setIdx: {kg, reps}} + les cardio cochés.
   const initial: Record<string, { kg: string; reps: string }> = {};
   const initialCardio: string[] = [];
+  const initialSensations: Record<string, number> = {};
   for (const e of log?.entries ?? []) {
+    if (e.circuit) {
+      if (e.sensation) initialSensations[e.exercise] = e.sensation;
+      continue;
+    }
     if (e.cardio) {
       initialCardio.push(e.exercise);
       continue;
@@ -202,7 +217,40 @@ export default async function SeancePage({
         </details>
       ) : null}
 
-      {/* Charges au ressenti (RPE) */}
+      {/* Sensations (circuit) : l'intensité se règle au ressenti, sans charge */}
+      {circuit ? (
+      <details className="group rounded-card border border-line bg-surface p-4">
+        <summary className="flex cursor-pointer items-center justify-between gap-2 list-none">
+          <span className="font-archivo font-bold text-[16px] text-ink">{t("session.sensations")}</span>
+          <span className="text-muted-2 transition-transform group-open:rotate-180">⌄</span>
+        </summary>
+        <div className="mt-3 flex flex-col gap-3">
+          <p className="text-[13.5px] leading-[1.6] text-muted">{sensations.intro}</p>
+          <p className="text-[13.5px] text-body">
+            {t("session.cycleGoal")} <span className="font-semibold text-brand">{sensations.steps.find((x) => x.id === sensGoal)?.label} ({sensGoal}/4)</span>.
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {sensations.steps.map((r) => {
+              const on = r.id === sensGoal;
+              return (
+                <div
+                  key={r.id}
+                  className={["flex items-start gap-3 rounded-control px-3 py-2", on ? "bg-alert border border-alert-line" : "bg-surface-2"].join(" ")}
+                >
+                  <span className={["font-archivo font-extrabold text-[15px] w-6 shrink-0 text-center", on ? "text-brand" : "text-muted-2"].join(" ")}>
+                    {r.id}
+                  </span>
+                  <div className="min-w-0">
+                    <span className="text-[13.5px] font-semibold text-ink">{r.label}</span>
+                    <span className="text-[13px] text-muted">, {r.body}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </details>
+      ) : (
       <details className="group rounded-card border border-line bg-surface p-4">
         <summary className="flex cursor-pointer items-center justify-between gap-2 list-none">
           <span className="font-archivo font-bold text-[16px] text-ink">{t("session.rpe")}</span>
@@ -234,21 +282,48 @@ export default async function SeancePage({
           </div>
         </div>
       </details>
+      )}
 
-      {ctx.access.coachEnabled ? <CoachLoadSuggestion /> : null}
+      {circuit ? (
+        <>
+          <p className="text-[13.5px] leading-relaxed text-muted">{t("session.circuitIntro")}</p>
+          <CircuitRunner
+            day={day}
+            blocks={blocks}
+            targetSensation={sensGoal}
+            canLog={ctx.access.canLog}
+            alreadyDone={alreadyDone}
+            initialSensations={initialSensations}
+          />
+        </>
+      ) : (
+        <>
+          {ctx.access.coachEnabled ? <CoachLoadSuggestion /> : null}
 
-      <SessionRunner
-        day={day}
-        exercises={exercises}
-        rpeGoal={rpeGoal}
-        canLog={ctx.access.canLog}
-        alreadyDone={alreadyDone}
-        initial={initial}
-        zones={zones}
-        restSec={restSec}
-        initialCardio={initialCardio}
-        canAlternate={ctx.access.coachEnabled}
-      />
+          <SessionRunner
+            day={day}
+            exercises={exercises}
+            rpeGoal={rpeGoal}
+            canLog={ctx.access.canLog}
+            alreadyDone={alreadyDone}
+            initial={initial}
+            zones={zones}
+            restSec={restSec}
+            initialCardio={initialCardio}
+            canAlternate={ctx.access.coachEnabled}
+          />
+
+          {blocks.length ? (
+            <div className="-mt-20 flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <h2 className="font-archivo font-bold text-[18px] text-ink">{t("session.finisher")}</h2>
+                <p className="text-[13.5px] leading-relaxed text-muted">{t("session.finisherIntro")}</p>
+              </div>
+              <CircuitRunner day={day} blocks={blocks} targetSensation={sensGoal} canLog={false} alreadyDone={false} mode="finisher" />
+            </div>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

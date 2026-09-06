@@ -1,4 +1,5 @@
 import { cycleSessions, type Plan, type Session } from "@/lib/program";
+import { isCircuitSession, type SensationStep } from "@/lib/circuit";
 import { macrosForDay, pnum, grp, type ScaledMeal } from "@/lib/nutrition";
 import { A4, PdfPage, ellipsize, renderPdf, textWidth, wrap, type PdfImage } from "@/lib/pdf";
 import type { HeartZone, RpeStep } from "@/lib/fitness";
@@ -54,6 +55,8 @@ export interface PlanPdfInput {
   zones?: HeartZone[] | null;
   /** L'échelle RPE dans la langue du document. */
   rpe?: { intro: string; steps: RpeStep[] } | null;
+  /** L'échelle de sensations (circuits), rendue seulement si le plan en a. */
+  sensations?: { intro: string; steps: SensationStep[] } | null;
   /** Journée type de repas, calculée par lib/nutrition sur les objectifs du plan. */
   sampleMeals?: { training: ScaledMeal[]; rest: ScaledMeal[] } | null;
 }
@@ -185,7 +188,10 @@ function seance(c: Composeur, s: Session, t: ReturnType<typeof makeT>, zones: He
   c.page.line(MARGE, c.y, MARGE + LARGEUR_UTILE, { color: FILET });
   c.y += 8;
 
-  for (const ex of s.exercises) {
+  // Une séance en circuit n'a pas de tableau séries × reps : ses blocs
+  // suivent, avec leurs paramètres. Une séance en séries peut finir par un bloc.
+  const circuit = isCircuitSession(s);
+  for (const ex of circuit ? [] : s.exercises) {
     // Une note longue passe à la ligne : la hauteur d'une rangée dépend d'elle.
     const notes = ex.note ? wrap(ex.note, cols.note - 8, 8.5) : [];
     const hauteur = Math.max(16, notes.length * 12 + 4);
@@ -206,7 +212,38 @@ function seance(c: Composeur, s: Session, t: ReturnType<typeof makeT>, zones: He
     c.y += hauteur;
     c.page.line(MARGE, c.y - 4, MARGE + LARGEUR_UTILE, { color: [0.93, 0.92, 0.91] });
   }
+  for (const b of s.blocks ?? []) {
+    c.reserver(40);
+    const titre = `${circuit ? "" : `${t("session.finisher")} · `}${b.title || t("pdf.circuit")}`;
+    c.page.text(ellipsize(titre, LARGEUR_UTILE - 8, 9.5), MARGE, c.y, { size: 9.5, font: "Helvetica-Bold", color: ENCRE });
+    c.y += 13;
+    const params = t("pdf.circuitLine", { rounds: b.rounds, work: b.work, rest: b.rest, roundRest: b.roundRest });
+    paragraphe(c, b.sensation ? `${params} · ${t("pdf.sensation", { n: b.sensation })}` : params, { size: 8.5, color: GRIS });
+    for (const e of b.exercises) {
+      c.reserver(14);
+      paragraphe(c, `· ${e.name}${e.note ? `, ${e.note}` : ""}`, { size: 8.5, color: GRIS, largeur: LARGEUR_UTILE - 12 });
+    }
+    c.y += 6;
+  }
   c.y += 14;
+}
+
+/** L'échelle de sensations : comment régler l'intensité d'un circuit. */
+function echelleSensations(c: Composeur, sens: { intro: string; steps: SensationStep[] }, t: ReturnType<typeof makeT>): void {
+  c.reserver(130);
+  section(c, t("pdf.sensationTitle"));
+  paragraphe(c, sens.intro, { size: 9, color: GRIS });
+  c.y += 6;
+  for (const step of sens.steps) {
+    c.reserver(16);
+    c.page.text(`${step.id}/4`, MARGE + 6, c.y, { size: 9, font: "Helvetica-Bold", color: ENCRE });
+    c.page.text(step.label, MARGE + 40, c.y, { size: 9, font: "Helvetica-Bold", color: GRIS });
+    c.page.text(ellipsize(step.body, LARGEUR_UTILE - 132, 8.5), MARGE + 126, c.y, { size: 8.5, color: GRIS });
+    c.y += 14;
+  }
+  c.y += 4;
+  paragraphe(c, t("pdf.sensationGoal"), { size: 8.5, color: GRIS_CLAIR });
+  c.y += 8;
 }
 
 /** Les repères nutritionnels, en deux lignes : entraînement et repos. */
@@ -382,7 +419,12 @@ export function planPdf(input: PlanPdfInput): Uint8Array {
 
   // Toujours présents : le client s'entraîne avec ce papier, il doit savoir
   // choisir sa charge et lire une zone cardiaque sans l'app.
-  if (input.rpe) echelleRpe(c, input.rpe, t);
+  // Les deux échelles ne sont pas exclusives : une salle peut avoir un
+  // finisher en circuit, et un programme maison n'a que des sensations.
+  const desBlocs = cycles.some((_, i) => cycleSessions(input.plan, i).some((s) => (s.blocks?.length ?? 0) > 0));
+  const desSeries = cycles.some((_, i) => cycleSessions(input.plan, i).some((s) => !isCircuitSession(s)));
+  if (input.rpe && (desSeries || !desBlocs)) echelleRpe(c, input.rpe, t);
+  if (input.sensations && desBlocs) echelleSensations(c, input.sensations, t);
   zonesCardio(c, zones, t, input.locale);
 
   if (options.nutrition) nutrition(c, input.plan, t);

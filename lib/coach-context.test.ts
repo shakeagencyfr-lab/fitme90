@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { coachAgenda, coachPlanView, logsDigest } from "./coach-context";
+import { coachAgenda, coachPlanView, logsDigest, sessionLines } from "./coach-context";
 import type { Plan, Session } from "./program";
 
 function session(title: string): Session {
@@ -138,5 +138,33 @@ describe("coachAgenda", () => {
 
   it("renvoie une liste vide sans programme", () => {
     expect(coachAgenda(null, 1, pattern, startWd, 90)).toEqual([]);
+  });
+});
+
+describe("séances en circuit dans le contexte du coach", () => {
+  it("décrit un circuit bloc par bloc, et un finisher après les séries", () => {
+    const circuit = {
+      cycleLabel: "C1",
+      title: "Full body A",
+      meta: "",
+      restSec: 0,
+      format: "circuit" as const,
+      warmup: [],
+      exercises: [],
+      blocks: [{ title: "Bloc 1", rounds: 3, work: 40, rest: 20, roundRest: 30, restAfter: 60, sensation: 2, exercises: [{ name: "Pompes", note: "" }, { name: "Burpees", note: "" }] }],
+    };
+    const lignes = sessionLines(circuit as unknown as Session);
+    expect(lignes[0]).toMatch(/circuit/i);
+    expect(lignes[1]).toBe("Bloc 1 : 3 tours, 40 s effort / 20 s repos, sensation 2/4 : Pompes, Burpees");
+
+    const series = { ...session("Haut"), blocks: circuit.blocks };
+    const l2 = sessionLines(series as unknown as Session);
+    expect(l2[0]).toMatch(/Développé couché 4x8/);
+    expect(l2[1]).toMatch(/^Finisher en circuit, Bloc 1/);
+  });
+
+  it("résume un bloc validé par sa sensation", () => {
+    const d = logsDigest([{ day: 3, volume: 0, sets_done: 3, entries: [{ exercise: "Bloc 1", kg: null, reps: null, circuit: true, sensation: 3 }] }]);
+    expect(d).toContain("Bloc 1 circuit, sensation 3/4");
   });
 });

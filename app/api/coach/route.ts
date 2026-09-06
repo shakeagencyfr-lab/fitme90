@@ -19,7 +19,7 @@ import { canonicalExercise, type CoachExercise } from "@/lib/allowed-exercises";
 import { listCoachExerciseMedia } from "@/lib/exercise-guide";
 import { missedDays } from "@/lib/streak";
 import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan, sessionSlotForDay, replaceSessionInPlan, cycleSessions } from "@/lib/program";
-import { coachAgenda, coachPlanView, logsDigest, type CoachLog } from "@/lib/coach-context";
+import { coachAgenda, coachPlanView, logsDigest, type CoachLog, sessionLines } from "@/lib/coach-context";
 import { addMemoryNote, readMemory, renderMemory } from "@/lib/coach-memory";
 import { blockPosition } from "@/lib/block-logic";
 import { CYCLES_PER_BLOCK, LIMIT_ADAPT_PER_WEEK } from "@/lib/config";
@@ -403,7 +403,7 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     {
       name: "modifier_seance",
       description:
-        "Modifie une séance du programme DANS L'APP du client, sans régénérer : ajouter, retirer, remplacer ou ajuster des exercices (séries, répétitions, charge, note, repos), ou ajouter un finisher cardio (rameur, vélo, marche inclinée). À utiliser dès que le client demande un changement concret sur une séance (« ajoute du hip thrust », « remplace le développé couché », « mets 18 min de rameur en zone 2 à la fin »), une fois le changement convenu avec lui. Par défaut la séance d'aujourd'hui ; `jour_programme` vise un autre jour du calendrier (numéro de jour donné dans le calendrier). Le changement vaut pour cette séance à chaque fois qu'elle revient dans le cycle en cours ; ce que tu ne touches pas reste tel quel. Ne dis JAMAIS que tu ne peux pas modifier la séance : tu le fais avec cet outil, puis tu confirmes. Pour une blessure ou une contrainte durable, utilise adapter_programme.",
+        "Modifie une séance du programme DANS L'APP du client, sans régénérer : ajouter, retirer, remplacer ou ajuster des exercices (séries, répétitions, charge, note, repos), ou ajouter un finisher cardio (rameur, vélo, marche inclinée). Sur une séance EN CIRCUIT (blocs chronométrés, sans charge), les exercices vivent dans les blocs : ajouter met l'exercice dans le dernier bloc (ou le bloc n° `position`), `series` règle les tours du bloc et `repos_sec` le repos entre exercices. À utiliser dès que le client demande un changement concret sur une séance (« ajoute du hip thrust », « remplace le développé couché », « mets 18 min de rameur en zone 2 à la fin »), une fois le changement convenu avec lui. Par défaut la séance d'aujourd'hui ; `jour_programme` vise un autre jour du calendrier (numéro de jour donné dans le calendrier). Le changement vaut pour cette séance à chaque fois qu'elle revient dans le cycle en cours ; ce que tu ne touches pas reste tel quel. Ne dis JAMAIS que tu ne peux pas modifier la séance : tu le fais avec cet outil, puis tu confirmes. Pour une blessure ou une contrainte durable, utilise adapter_programme.",
       input_schema: {
         type: "object",
         properties: {
@@ -650,9 +650,7 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     });
     if (error) return "Impossible d'enregistrer la séance pour l'instant.";
     adapted = true;
-    const liste = edited.session.exercises
-      .map((e) => (e.cardio ? `${e.name} ${e.duration}${e.zone ? ` (${e.zone})` : ""}` : `${e.name} ${e.sets}x${e.reps}`))
-      .join(" ; ");
+    const liste = sessionLines(edited.session).join(" ; ");
     return `Séance « ${edited.session.title} » (jour ${day}) mise à jour dans l'app : ${edited.changes.join(" ; ")}.${
       edited.errors.length ? ` Non appliqué : ${edited.errors.join(" ")}` : ""
     } Séance maintenant : ${liste}. Confirme au client que sa fiche séance est à jour, il n'a rien à reporter lui-même.`;

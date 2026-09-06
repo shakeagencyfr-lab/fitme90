@@ -7,6 +7,10 @@ export interface LogEntry {
   kg: number | null;
   reps: number | null;
   cardio?: boolean;
+  /** Bloc de circuit terminé : `exercise` porte le titre du bloc. */
+  circuit?: boolean;
+  /** Sensation notée à la fin du bloc, de 1 (facile) à 4 (à fond). */
+  sensation?: number;
 }
 
 export interface PersonalRecord {

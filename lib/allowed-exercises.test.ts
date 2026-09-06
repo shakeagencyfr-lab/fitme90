@@ -139,3 +139,50 @@ describe("canonicalExercise", () => {
     expect(canonicalExercise("Tirage buste Sébastien", MAISON, COACH)?.key).toBe("coach-tirage-buste");
   });
 });
+
+describe("enforceLibrary sur les blocs de circuit", () => {
+  const circuit = (names: string[]): Plan => {
+    const session = {
+      cycleLabel: "Cycle 1 · Séance A",
+      title: "A",
+      meta: "",
+      restSec: 0,
+      format: "circuit" as const,
+      warmup: [],
+      exercises: [],
+      blocks: [{ title: "Bloc 1", rounds: 3, work: 40, rest: 20, roundRest: 30, restAfter: 60, exercises: names.map((n) => ({ name: n, note: "" })) }],
+    };
+    return {
+      summary: "",
+      cycles: [{ label: "Cycle 1", name: "", weeks: "", body: "", sessions: [session] }],
+      weekPlan: [{ day: "LUN", name: "A", dur: "", rest: false }],
+      sessions: [session],
+      session,
+    } as unknown as Plan;
+  };
+
+  it("pose la clé sur chaque exercice de bloc et recalcule le miroir à plat", () => {
+    const r = enforceLibrary(circuit(["Pompes", "Squat sauté"]), ["poids du corps uniquement"]);
+    expect(enforceIssues(r)).toBe(0);
+    const s = r.plan.cycles![0].sessions![0];
+    expect(s.blocks![0].exercises.map((e) => e.key)).toEqual(["pompes", "squat-saute"]);
+    expect(s.exercises.map((e) => e.key)).toEqual(["pompes", "squat-saute"]);
+  });
+
+  it("répare un nom approché et retire l'inconnu, une seule fois pour les miroirs", () => {
+    const r = enforceLibrary(circuit(["pompes larges au sol", "Gainage planche", "Danse du ventre"]), ["poids du corps uniquement"]);
+    expect(r.removed).toEqual(["Danse du ventre"]);
+    expect(r.repaired.length + r.replaced.length).toBeGreaterThanOrEqual(1);
+    const s = r.plan.cycles![0].sessions![0];
+    expect(s.blocks![0].exercises).toHaveLength(2);
+    expect(s.exercises).toHaveLength(2);
+  });
+
+  it("remplace un mouvement qui demande du matériel absent par un mouvement possible", () => {
+    const r = enforceLibrary(circuit(["Développé couché", "Pompes"]), ["poids du corps uniquement"]);
+    const noms = r.plan.cycles![0].sessions![0].blocks![0].exercises.map((e) => e.name);
+    expect(noms).not.toContain("Développé couché");
+    expect(noms).toHaveLength(2);
+    expect(r.replaced[0]?.from).toBe("Développé couché");
+  });
+});

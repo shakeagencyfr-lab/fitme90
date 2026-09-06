@@ -27,7 +27,8 @@ import {
 } from "@/lib/exercise-library";
 import { EXERCISE_TRAITS, equipmentSupports, pickAlternative, traitsOf } from "@/lib/exercise-alternatives";
 import type { Famille } from "@/lib/exercise-traits";
-import type { Plan, PlanExercise } from "@/lib/program";
+import type { Plan, PlanCircuitBlock, PlanExercise, Session } from "@/lib/program";
+import { flattenBlocks, isCircuitSession } from "@/lib/circuit";
 
 /** Une fiche ajoutée par le coach dans sa bibliothèque (table exercise_media). */
 export interface CoachExercise {
@@ -156,46 +157,71 @@ export function enforceLibrary(
   // cycles (compatibilité des anciens plans) : on les passe aussi au crible,
   // mais sans compter deux fois ce qui a déjà été signalé sur les cycles.
   let compter = true;
-  const resolve = (ex: PlanExercise, avoid: string[]): PlanExercise | null => {
-    const brut = ex.name.trim();
+  type Nom = { name: string; key: string; load?: "" };
+  const resolveNom = (brut: string, avoid: string[], cardio: boolean): Nom | null => {
     // Fiche du coach : permise telle quelle.
     const c = coachParNom.get(normalizeExerciseName(brut));
-    if (c) return { ...ex, name: c.name, key: c.exercise_key };
+    if (c) return { name: c.name, key: c.exercise_key };
 
     const exact = exactLibraryExercise(brut);
-    if (exact && parCle.has(exact.key)) return { ...ex, name: exact.name, key: exact.key };
+    if (exact && parCle.has(exact.key)) return { name: exact.name, key: exact.key };
 
     const proche: LibraryExercise | null = exact ?? matchLibraryExercise(brut);
     if (proche && parCle.has(proche.key)) {
       if (compter) repaired.push({ from: brut, to: proche.name, raison: "approche" });
-      return { ...ex, name: proche.name, key: proche.key };
+      return { name: proche.name, key: proche.key };
     }
     if (proche) {
       // Reconnu, mais le client n'a pas le matériel : même famille, autre
       // mouvement. L'alternative est prise dans ce qu'il peut faire.
-      const alt = pickAlternative({ name: proche.name, equipment, avoid, cardio: !!ex.cardio });
+      const alt = pickAlternative({ name: proche.name, equipment, avoid, cardio });
       if (alt) {
         if (compter) replaced.push({ from: brut, to: alt.name, raison: "materiel" });
-        return { ...ex, name: alt.name, key: alt.key, load: "" };
+        return { name: alt.name, key: alt.key, load: "" };
       }
     }
     if (compter) removed.push(brut);
     return null;
   };
+  const resolve = (ex: PlanExercise, avoid: string[]): PlanExercise | null => {
+    const r = resolveNom(ex.name.trim(), avoid, !!ex.cardio);
+    return r ? { ...ex, ...r } : null;
+  };
 
-  const passeSeance = <S extends { exercises: PlanExercise[] }>(s: S): S => {
+  const passeExercices = (exercises: PlanExercise[]): PlanExercise[] => {
     const gardes: PlanExercise[] = [];
-    const noms = s.exercises.map((e) => e.name);
-    for (const ex of s.exercises) {
+    const noms = exercises.map((e) => e.name);
+    for (const ex of exercises) {
       const r = resolve(ex, [...noms, ...gardes.map((g) => g.name)]);
       if (r) gardes.push(r);
     }
-    if (!gardes.length && s.exercises.length) {
+    if (!gardes.length && exercises.length) {
       // Plutôt une séance douteuse qu'une séance vide : on garde le premier
       // exercice tel quel, sans clé. Il reste dans `removed` pour le signaler.
-      gardes.push(s.exercises[0]);
+      gardes.push(exercises[0]);
     }
-    return { ...s, exercises: gardes };
+    return gardes;
+  };
+
+  // Les blocs de circuit passent au même crible : un mouvement chronométré
+  // est un mouvement, sa fiche doit montrer ce qu'on demande.
+  const passeBloc = (b: PlanCircuitBlock, avoid: string[]): PlanCircuitBlock => {
+    const gardes: PlanCircuitBlock["exercises"] = [];
+    for (const ex of b.exercises) {
+      const r = resolveNom(ex.name.trim(), [...avoid, ...gardes.map((g) => g.name)], false);
+      if (r) gardes.push({ ...ex, name: r.name, key: r.key });
+    }
+    if (!gardes.length && b.exercises.length) gardes.push(b.exercises[0]);
+    return { ...b, exercises: gardes };
+  };
+
+  const passeSeance = (s: Session): Session => {
+    const nomsBlocs = (s.blocks ?? []).flatMap((b) => b.exercises.map((e) => e.name));
+    const blocks = s.blocks ? s.blocks.map((b) => passeBloc(b, nomsBlocs)) : s.blocks;
+    if (isCircuitSession(s) && blocks) {
+      return { ...s, blocks, exercises: flattenBlocks(blocks) };
+    }
+    return { ...s, ...(blocks ? { blocks } : {}), exercises: passeExercices(s.exercises) };
   };
 
   const cycles = (plan.cycles ?? []).map((c) => ({

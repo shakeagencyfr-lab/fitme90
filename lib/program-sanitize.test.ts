@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sanitizeExercise, sanitizePlan } from "./program-sanitize";
+import { sanitizeExercise, sanitizePlan, sanitizeSession } from "./program-sanitize";
 import type { PlanExercise, Plan } from "./program";
 
 function ex(partial: Partial<PlanExercise>): PlanExercise {
@@ -85,5 +85,39 @@ describe("sanitizePlan — parcourt les cycles", () => {
 
     const out = sanitizePlan(plan);
     expect(out.cycles[0].sessions![0].exercises[0].cardio).toBe(false);
+  });
+});
+
+describe("séances en circuit", () => {
+  const base = { cycleLabel: "Cycle 1 · Séance A", title: "Full body A", meta: "", restSec: 90, warmup: [] };
+  const bloc = { title: "Bloc 1", rounds: 3, work: 40, rest: 20, roundRest: 30, restAfter: 60, sensation: 2, exercises: [{ name: "Pompes", note: "" }, { name: "Squat au poids du corps", note: "" }] };
+
+  it("un circuit tient son miroir à plat des blocs, sans repos de séries", () => {
+    const s = sanitizeSession({ ...base, format: "circuit", exercises: [], blocks: [bloc] } as never);
+    expect(s.format).toBe("circuit");
+    expect(s.restSec).toBe(0);
+    expect(s.exercises.map((e) => [e.name, e.sets, e.reps])).toEqual([["Pompes", 3, "40 s"], ["Squat au poids du corps", 3, "40 s"]]);
+  });
+
+  it("une séance qui n'a que des blocs est un circuit, quoi qu'en dise son format", () => {
+    const s = sanitizeSession({ ...base, exercises: [], blocks: [bloc] } as never);
+    expect(s.format).toBe("circuit");
+    expect(s.exercises).toHaveLength(2);
+  });
+
+  it("une séance en séries garde ses exercices et son bloc en finisher", () => {
+    const ex = { name: "Développé couché", sets: 4, reps: "8", load: "", note: "", cardio: false, duration: "", zone: "" };
+    const s = sanitizeSession({ ...base, format: "sets", exercises: [ex], blocks: [bloc] } as never);
+    expect(s.format).toBe("sets");
+    expect(s.exercises).toEqual([ex]);
+    expect(s.blocks).toHaveLength(1);
+  });
+
+  it("un bloc vide disparaît, et sans bloc valable le circuit redevient des séries", () => {
+    const ex = { name: "Développé couché", sets: 4, reps: "8", load: "", note: "", cardio: false, duration: "", zone: "" };
+    const s = sanitizeSession({ ...base, format: "circuit", exercises: [ex], blocks: [{ ...bloc, exercises: [] }] } as never);
+    expect(s.format).toBe("sets");
+    expect(s.blocks).toBeUndefined();
+    expect(s.exercises).toEqual([ex]);
   });
 });

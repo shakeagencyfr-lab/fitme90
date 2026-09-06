@@ -43,6 +43,26 @@ function demoPlan(locale: Locale): Plan {
           ex(s("Extension triceps poulie", "Cable triceps pushdown"), 3, "12-15", 60),
           cardio(s("Rameur", "Rowing machine"), "12 min", "Z2", s("Allure régulière, respiration nasale", "Steady pace, nasal breathing")),
         ],
+        ...(i === 3
+          ? {
+              blocks: [
+                {
+                  title: s("Finisher", "Finisher"),
+                  rounds: 3,
+                  work: 30,
+                  rest: 15,
+                  roundRest: 45,
+                  restAfter: 0,
+                  sensation: 4,
+                  exercises: [
+                    { name: s("Burpees", "Burpees"), note: s("souple, sans claquer les mains", "soft landing, no clapping") },
+                    { name: s("Mountain climber", "Mountain climber"), note: s("bassin stable", "hips steady") },
+                    { name: s("Gainage planche", "Plank"), note: "" },
+                  ],
+                },
+              ],
+            }
+          : {}),
       },
       {
         cycleLabel: `${s("Cycle", "Cycle")} ${i}`,
