@@ -60,6 +60,12 @@ const I = {
       <path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" />
     </>
   ),
+  reservation: (
+    <>
+      <path d="M5 7.5A1.5 1.5 0 0 1 6.5 6h11A1.5 1.5 0 0 1 19 7.5v10a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 17.5z" />
+      <path d="M5 10.5h14M9 4v4M15 4v4M9.5 14.5l1.8 1.8 3.4-3.6" />
+    </>
+  ),
   parrainage: (
     <>
       <circle cx="6" cy="12" r="2.2" />
@@ -81,11 +87,11 @@ type IconKey = keyof typeof I;
 type Item = { href: string; label: string; icon: IconKey };
 
 // Onglets rangés dans « Plus » sur mobile (le reste va dans la barre du bas).
-const IN_MORE = ["/app/evolution", "/app/shop", "/app/chat", "/app/parrainage"];
+const IN_MORE = ["/app/evolution", "/app/shop", "/app/chat", "/app/parrainage", "/app/reservation"];
 
 // Construit la liste des onglets selon les options activées (boutique, chat VIP,
 // parrainage).
-function buildItems(t: TFn, shopEnabled: boolean, vipEnabled: boolean, affiliationEnabled: boolean): Item[] {
+function buildItems(t: TFn, shopEnabled: boolean, vipEnabled: boolean, affiliationEnabled: boolean, bookingEnabled: boolean): Item[] {
   return [
     { href: "/app", label: t("nav.program"), icon: "programme" },
     { href: "/app/agenda", label: t("nav.agenda"), icon: "agenda" },
@@ -93,6 +99,7 @@ function buildItems(t: TFn, shopEnabled: boolean, vipEnabled: boolean, affiliati
     { href: "/app/nutrition", label: t("nav.nutrition"), icon: "nutrition" },
     { href: "/app/evolution", label: t("nav.evolution"), icon: "evolution" },
     ...(vipEnabled ? [{ href: "/app/chat", label: t("nav.vipChat"), icon: "chat" } as Item] : []),
+    ...(bookingEnabled ? [{ href: "/app/reservation", label: t("nav.booking"), icon: "reservation" } as Item] : []),
     ...(shopEnabled ? [{ href: "/app/shop", label: t("nav.shop"), icon: "shop" } as Item] : []),
     ...(affiliationEnabled ? [{ href: "/app/parrainage", label: t("nav.referral"), icon: "parrainage" } as Item] : []),
     { href: "/app/profil", label: t("nav.profile"), icon: "profil" },
@@ -140,6 +147,7 @@ export function AppNav({
   shopEnabled = false,
   vipEnabled = false,
   affiliationEnabled = false,
+  bookingEnabled = false,
   vipUnread = 0,
   brandName = null,
   brandLogoUrl = null,
@@ -152,6 +160,7 @@ export function AppNav({
   shopEnabled?: boolean;
   vipEnabled?: boolean;
   affiliationEnabled?: boolean;
+  bookingEnabled?: boolean;
   vipUnread?: number;
   brandName?: string | null;
   brandLogoUrl?: string | null;
@@ -159,7 +168,7 @@ export function AppNav({
   const pathname = usePathname();
   const [more, setMore] = useState(false);
   const t = useT();
-  const ALL = buildItems(t, shopEnabled, vipEnabled, affiliationEnabled);
+  const ALL = buildItems(t, shopEnabled, vipEnabled, affiliationEnabled, bookingEnabled);
   const PRIMARY = ALL.filter((i) => !IN_MORE.includes(i.href));
   const SECONDARY = ALL.filter((i) => IN_MORE.includes(i.href));
   const isActive = (href: string) =>

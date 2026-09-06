@@ -23,6 +23,8 @@ import { CALENDAR_COLORS, formatHm, type BookingSettings, type HoursRange } from
 import type { BookingBlock, BookingCalendar, BookingService } from "@/lib/booking";
 import { formatEuros } from "@/lib/config";
 import { zonedParts } from "@/lib/booking-time";
+import { BookingAgenda } from "@/components/booking-agenda";
+import type { AgendaBooking } from "@/lib/booking-appointments";
 
 // ------------------------------------------------------------------ *
 // L'écran Réservations d'un coach ou d'une salle, quand le pack est ouvert :
@@ -45,9 +47,13 @@ interface Props {
   ready: { calendars: number; services: number; ready: boolean };
   /** D'où vient le pack : « plan », « addon », « own ». Pour le dire au coach. */
   source: string;
+  /** Rendez-vous de la fenêtre courante (à venir et récents). */
+  agenda: AgendaBooking[];
+  /** Clients du compte, pour poser un rendez-vous à la main. */
+  clients: { id: string; name: string }[];
 }
 
-type Tab = "plannings" | "prestations" | "regles";
+type Tab = "agenda" | "plannings" | "prestations" | "regles";
 
 const TIMEZONES = [
   "Europe/Paris",
@@ -78,9 +84,11 @@ const TIMEZONES = [
 
 const inputCls = "h-10 w-full rounded-control border border-line-4 bg-surface px-3 text-[14px] text-ink outline-none focus:border-ink";
 
-export function BookingAdmin({ active, timezone, settings, calendars, blocks, services, ready, source }: Props) {
+export function BookingAdmin({ active, timezone, settings, calendars, blocks, services, ready, source, agenda, clients }: Props) {
   const tx = usePhrase();
-  const [tab, setTab] = useState<Tab>("plannings");
+  // L'agenda d'abord : c'est ce qu'on ouvre chaque matin. Les réglages ne
+  // servent qu'au début, et quand quelque chose change.
+  const [tab, setTab] = useState<Tab>(ready.ready ? "agenda" : "plannings");
   const [aState, aAction, aPending] = useActionState(setBookingActiveAction, {} as BookingState);
 
   return (
@@ -122,6 +130,7 @@ export function BookingAdmin({ active, timezone, settings, calendars, blocks, se
       <div className="inline-flex self-start rounded-full border border-line-4 p-1" role="tablist">
         {(
           [
+            ["agenda", tx("Agenda")],
             ["plannings", tx("Plannings")],
             ["prestations", tx("Prestations")],
             ["regles", tx("Règles")],
@@ -140,6 +149,7 @@ export function BookingAdmin({ active, timezone, settings, calendars, blocks, se
         ))}
       </div>
 
+      {tab === "agenda" ? <BookingAgenda bookings={agenda} timezone={timezone} calendars={calendars.filter((c) => c.is_active)} services={services.filter((s) => s.is_active)} clients={clients} /> : null}
       {tab === "plannings" ? <CalendarsTab calendars={calendars} blocks={blocks} timezone={timezone} /> : null}
       {tab === "prestations" ? <ServicesTab services={services} /> : null}
       {tab === "regles" ? <RulesTab settings={settings} timezone={timezone} /> : null}

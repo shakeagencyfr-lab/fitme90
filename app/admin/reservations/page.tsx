@@ -4,6 +4,7 @@ import { getAdminOrNull } from "@/lib/admin";
 import { tenantNode } from "@/lib/hierarchy";
 import { bookingSpace, bookingReady, listBlocks, listCalendars, listServices, readBookingSettings } from "@/lib/booking";
 import { verifyBookingCheckout } from "@/lib/booking-billing";
+import { listTenantAgenda, listTenantClientChoices } from "@/lib/booking-appointments";
 import { BookingAdmin } from "@/components/booking-admin";
 import { BookingLocked } from "@/components/booking-locked";
 import { Alert } from "@/components/ui";
@@ -44,18 +45,22 @@ export default async function AdminBookingPage({ searchParams }: { searchParams:
     return <BookingLocked priceCents={space.access.priceCents} erreur={"bk_erreur" in params} annule={"bk_annule" in params} />;
   }
 
-  const [settings, calendars, blocks, services, ready] = await Promise.all([
+  const now = new Date();
+  const [settings, calendars, blocks, services, ready, agenda, clients] = await Promise.all([
     readBookingSettings(tenantId),
     listCalendars(tenantId),
     listBlocks(tenantId),
     listServices(tenantId),
     bookingReady(tenantId),
+    // Sept jours en arrière pour les récents, trente en avant pour l'agenda.
+    listTenantAgenda(tenantId, new Date(now.getTime() - 7 * 86400000), new Date(now.getTime() + 30 * 86400000)),
+    listTenantClientChoices(tenantId),
   ]);
 
   return (
     <div className="flex flex-col gap-4">
       {justPaid ? <Alert tone="info">{tx("Pack activé. Tes clients pourront réserver dès que tu auras un planning avec des horaires et une prestation.")}</Alert> : null}
-      <BookingAdmin active={space.active} timezone={space.timezone} settings={settings} calendars={calendars} blocks={blocks} services={services} ready={ready} source={space.access.source} />
+      <BookingAdmin active={space.active} timezone={space.timezone} settings={settings} calendars={calendars} blocks={blocks} services={services} ready={ready} source={space.access.source} agenda={agenda} clients={clients} />
     </div>
   );
 }

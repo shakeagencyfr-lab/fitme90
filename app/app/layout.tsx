@@ -12,6 +12,7 @@ import { isShopEnabled } from "@/lib/shop";
 import { clientVipContext, clientUnreadVipCount } from "@/lib/vip";
 import { clientCoachAiIncluded } from "@/lib/offers";
 import { affiliationConfig } from "@/lib/affiliation";
+import { clientBookingContext } from "@/lib/booking";
 import { brandForUser } from "@/lib/branding";
 import { themeProps } from "@/components/tenant-theme";
 import { brandMetadataForUser } from "@/lib/brand-metadata";
@@ -39,7 +40,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // Config propre au tenant du client (= celui de son coach) : boutique, prénom
   // du coach IA, Chat VIP, marque blanche. En parallèle après le contexte.
   const tenantId = ctx.profile?.tenant_id ?? null;
-  const [shopEnabled, vip, brand, coachConfig, freeze, aiIncluded, aff, tenantLang] = await Promise.all([
+  const [shopEnabled, vip, brand, coachConfig, freeze, aiIncluded, aff, tenantLang, booking] = await Promise.all([
     isShopEnabled(tenantId),
     clientVipContext(ctx.userId),
     brandForUser(ctx.userId),
@@ -50,6 +51,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     clientCoachAiIncluded(ctx.userId),
     affiliationConfig(tenantId),
     userLocale(ctx.userId),
+    clientBookingContext(ctx.userId),
   ]);
   const coachName = coachConfig.coach_name;
   const methodSource = coachConfig.generation_mode === "custom" && coachConfig.custom_methodology.trim()
@@ -89,6 +91,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         shopEnabled={shopEnabled}
         vipEnabled={vip.enabled}
         affiliationEnabled={aff.enabled}
+        bookingEnabled={booking.enabled}
         vipUnread={vipUnread}
         brandName={brand?.name ?? null}
         brandLogoUrl={brand?.logoUrl ?? null}
