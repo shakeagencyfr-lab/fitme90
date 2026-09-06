@@ -225,3 +225,37 @@ export const CALENDAR_COLORS = ["#E0551F", "#2F6B3C", "#2B5BA8", "#8B4A9C", "#B8
 export function asCalendarColor(v: unknown): string {
   return typeof v === "string" && (CALENDAR_COLORS as readonly string[]).includes(v) ? v : CALENDAR_COLORS[0];
 }
+
+// ────────────────────────────────────────────────── recherche par nom
+
+const fold = (s: string) =>
+  String(s ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+/**
+ * Retrouve un élément par son nom tel qu'un client (ou le Coach IA) l'écrit :
+ * « seance individuelle », « Sarah », « bilan ». Exact d'abord, puis début,
+ * puis inclusion, puis mots communs. null si rien ne ressemble.
+ */
+export function findByName<T extends { name: string }>(list: readonly T[], query: unknown): T | null {
+  const q = fold(typeof query === "string" ? query : "");
+  if (!q) return null;
+  const names = list.map((x) => ({ x, n: fold(x.name) }));
+  const exact = names.find((c) => c.n === q);
+  if (exact) return exact.x;
+  const starts = names.find((c) => c.n.startsWith(q) || q.startsWith(c.n));
+  if (starts) return starts.x;
+  const includes = names.find((c) => c.n.includes(q) || q.includes(c.n));
+  if (includes) return includes.x;
+  const words = new Set(q.split(" ").filter((w) => w.length > 2));
+  let best: { x: T; score: number } | null = null;
+  for (const c of names) {
+    const score = c.n.split(" ").filter((w) => words.has(w)).length;
+    if (score > 0 && (!best || score > best.score)) best = { x: c.x, score };
+  }
+  return best?.x ?? null;
+}
