@@ -19,6 +19,7 @@
 
 import { pick, translate, type Locale, type LocalText } from "@/lib/i18n";
 import { RESCUE_WARMUP_DE } from "@/lib/i18n/pack-de";
+import { RESCUE_WARMUP_ES } from "@/lib/i18n/pack-es";
 import type { Session } from "@/lib/program";
 import { libraryEntry, type LibraryExercise } from "@/lib/exercise-library";
 import { equipmentSupports, pickAlternative, traitsOf } from "@/lib/exercise-alternatives";
@@ -315,6 +316,7 @@ const WARMUP: LocalText<{ name: string; detail: string }[]> = {
     { name: "Activation", detail: "One round of the first block at half speed, to set your stance and your breathing." },
   ],
   de: RESCUE_WARMUP_DE,
+  es: RESCUE_WARMUP_ES,
 };
 
 /**

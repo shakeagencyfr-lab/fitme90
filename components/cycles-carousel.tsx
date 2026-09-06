@@ -6,6 +6,7 @@ import { CYCLES_PER_BLOCK } from "@/lib/config";
 import { useLocale } from "@/components/locale-provider";
 import { pick, translate, type Locale, type LocalText } from "@/lib/i18n";
 import { CYCLE_EXPL_DE, CYCLE_SINGLE_DE } from "@/lib/i18n/pack-de";
+import { CYCLE_EXPL_ES, CYCLE_SINGLE_ES } from "@/lib/i18n/pack-es";
 
 type Cycle = { label: string; name: string; weeks: string; body: string };
 
@@ -62,8 +63,8 @@ const EXPL_SINGLE_EN: Expl = {
 // intermédiaires = progression. Au-delà d'un bloc (produit 12 mois), le
 // « pourquoi » vient de l'orientation du bloc (Fondations, Construction,
 // Intensité, Réalisation) et la position dans le bloc donne le reste.
-const EXPLS: LocalText<Expl[]> = { fr: EXPL_FR, en: EXPL_EN, de: CYCLE_EXPL_DE };
-const EXPL_SINGLES: LocalText<Expl> = { fr: EXPL_SINGLE_FR, en: EXPL_SINGLE_EN, de: CYCLE_SINGLE_DE };
+const EXPLS: LocalText<Expl[]> = { fr: EXPL_FR, en: EXPL_EN, de: CYCLE_EXPL_DE, es: CYCLE_EXPL_ES };
+const EXPL_SINGLES: LocalText<Expl> = { fr: EXPL_SINGLE_FR, en: EXPL_SINGLE_EN, de: CYCLE_SINGLE_DE, es: CYCLE_SINGLE_ES };
 
 function explFor(i: number, total: number, locale: Locale) {
   const EXPL = pick(EXPLS, locale);

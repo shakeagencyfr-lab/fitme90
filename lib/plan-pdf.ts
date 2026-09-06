@@ -6,6 +6,7 @@ import type { HeartZone, RpeStep } from "@/lib/fitness";
 import { explainWarmup, bpmLabel } from "@/lib/warmup-guide";
 import { dateLocale, makeT, pick, type Locale, type LocalText } from "@/lib/i18n";
 import { ZONE_DEFS_DE } from "@/lib/i18n/pack-de";
+import { ZONE_DEFS_ES } from "@/lib/i18n/pack-es";
 import { contentMarkString } from "@/lib/ai-act";
 
 /**
@@ -329,7 +330,7 @@ function zonesCardio(c: Composeur, zones: HeartZone[] | null, t: ReturnType<type
     ["Z4", "Threshold", "Long intervals, heavy breathing"],
     ["Z5", "VO2 max", "Short sprints, maximal effort"],
   ];
-  const ZONE_DEFS: LocalText<[string, string, string][]> = { fr: defs, en: defsEn, de: ZONE_DEFS_DE };
+  const ZONE_DEFS: LocalText<[string, string, string][]> = { fr: defs, en: defsEn, de: ZONE_DEFS_DE, es: ZONE_DEFS_ES };
   const lignes = pick(ZONE_DEFS, locale);
   c.page.rect(MARGE, c.y - 6, LARGEUR_UTILE, 20, FOND);
   c.page.text("ZONE", MARGE + 6, c.y, { size: 7.5, font: "Helvetica-Bold", color: GRIS_CLAIR });

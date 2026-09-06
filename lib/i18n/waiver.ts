@@ -2,6 +2,7 @@ import { PRODUCT_NAME } from "@/lib/config";
 import { MEDICAL_WAIVER_TITLE, MEDICAL_WAIVER_INTRO, MEDICAL_WAIVER_CLAUSES, MEDICAL_WAIVER_CONSENT } from "@/lib/legal";
 import { pick, type Locale, type LocalText } from "./index";
 import { WAIVER_DE } from "./pack-de";
+import { WAIVER_ES } from "./pack-es";
 
 // Décharge médicale dans la langue du client (la source française vit dans lib/legal).
 export interface WaiverText {
@@ -48,7 +49,7 @@ const FR: WaiverText = {
   dated: (date) => `Fait le ${date}. Ta signature électronique est horodatée et conservée.`,
 };
 
-const TEXTS: LocalText<WaiverText> = { fr: FR, en: EN, de: WAIVER_DE };
+const TEXTS: LocalText<WaiverText> = { fr: FR, en: EN, de: WAIVER_DE, es: WAIVER_ES };
 
 export function waiverText(locale: Locale): WaiverText {
   return pick(TEXTS, locale);

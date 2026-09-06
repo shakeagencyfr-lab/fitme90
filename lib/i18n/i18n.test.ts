@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { translate, localeFromAcceptLanguage, asLocale, localeFromLabel, translatePhrase, DICTS, LIVE_LOCALES, LOCALES } from "./index";
 import { PHRASES_EN } from "./phrases-en";
 import { PHRASES_DE } from "./phrases-de";
+import { PHRASES_ES } from "./phrases-es";
 
 describe("i18n", () => {
   it("interpolates variables and falls back to French", () => {
@@ -51,5 +52,11 @@ describe("i18n", () => {
     expect(missing).toEqual([]);
     expect(translate("de", "nav.program")).toBe("Programm");
     expect(translatePhrase("de", "Clients")).toBe("Kunden");
+  });
+
+  it("translates every dashboard phrase in Spanish", () => {
+    const missing = Object.keys(PHRASES_EN).filter((k) => !(k in PHRASES_ES));
+    expect(missing).toEqual([]);
+    expect(translate("es", "nav.program")).toBe("Programa");
   });
 });

@@ -4,6 +4,7 @@ import { productCopy } from "@/lib/i18n/products";
 import type { Offer } from "@/lib/offers";
 import { S } from "@/components/landing-icons";
 import { DE, GYM_DE } from "./coach-copy-de";
+import { ES, GYM_ES } from "./coach-copy-es";
 
 // Tous les textes des landings pro->client (onyx, lumen, volt, sage) dans les
 // deux langues. Les templates ne diffèrent que par le DESIGN : ils lisent ce
@@ -597,8 +598,8 @@ const GYM_EN: Overrides = {
   giftBody: "Gift coaching to someone: you pay, they receive a code to use freely.",
 };
 
-const BASES: LocalText<typeof FR> = { fr: FR, en: EN, de: DE };
-const GYMS: LocalText<Overrides> = { fr: GYM_FR, en: GYM_EN, de: GYM_DE };
+const BASES: LocalText<typeof FR> = { fr: FR, en: EN, de: DE, es: ES };
+const GYMS: LocalText<Overrides> = { fr: GYM_FR, en: GYM_EN, de: GYM_DE, es: GYM_ES };
 
 export function landingCopy(locale: Locale, audience: Audience = "coach"): LandingCopy {
   const base = pick(BASES, locale);
