@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { suspendTenant, reactivateTenant, giftCredits, deleteTenantTree, setResellerSupply, setTenantPlan } from "@/lib/network-admin";
 import { setSupportReturn, readSupportReturn, clearSupportReturn } from "@/lib/support-return";
 import { LANDING_TEMPLATES, BUSINESS_TYPES } from "@/lib/offers";
+import { coachAiOf, isOfferFormula } from "@/lib/offer-formulas";
 import { whitelabelEnabled, setResellerWhitelabelPrice, setHidePoweredBy } from "@/lib/whitelabel";
 import { resellerRights } from "@/lib/cost-view";
 import { startWhitelabelCheckout, type WhitelabelReturn } from "@/lib/whitelabel-billing";
@@ -445,8 +446,14 @@ export async function addOffer(_prev: OfferState, formData: FormData): Promise<O
   const name = String(formData.get("name") ?? "");
   const months = Number(formData.get("duration_months") ?? 0);
   const vipChat = formData.get("vip_chat") === "on";
-  // Le Coach IA est inclus par défaut ; la case l'exclut si décochée.
-  const coachAi = formData.get("coach_ai") === "on";
+  // FORMULE : Mini (le programme seul) ou Max (le Coach IA pendant toute la
+  // durée). Obligatoire, et sans valeur par défaut : ce choix décide de ce que
+  // le plan coûtera au coach pendant des mois, il ne se laisse pas filer.
+  const formule = formData.get("formule");
+  if (!isOfferFormula(formule)) {
+    return { error: "Choisis la formule de ce plan : Mini ou Max." };
+  }
+  const coachAi = coachAiOf(formule);
   // Quota journalier de messages au Coach IA par client sur ce plan (vide =
   // défaut du coach). Recettes et alternatives d'exercice sont calculées sans
   // modèle : elles n'entrent dans aucun plafond.
@@ -513,10 +520,14 @@ export async function editOffer(_prev: OfferState, formData: FormData): Promise<
   const plafond = await resellerClientDailyCap(tenantId);
   const { valeur: coachAiDailyLimit, ramene } = quotaSousPlafond(quotaSaisi, plafond);
 
+  const formule = formData.get("formule");
+  if (!isOfferFormula(formule)) {
+    return { error: "Choisis la formule de ce plan : Mini ou Max." };
+  }
   const res = await updateOffer(tenantId, id, {
     name: String(formData.get("name") ?? ""),
     vipChat: formData.get("vip_chat") === "on",
-    coachAi: formData.get("coach_ai") === "on",
+    coachAi: coachAiOf(formule),
     coachAiDailyLimit,
   });
   if (!res.ok) return { error: res.error };

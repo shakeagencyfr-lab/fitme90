@@ -25,10 +25,10 @@ export const metadata = {
     "Ta propre application de coaching à ta marque, propulsée par l'IA. Sans code, sans technique, premier client offert. Programmes, nutrition, chat VIP, paiements. Un business scalable, clé en main.",
 };
 
-const MARQUEE = ["Marque blanche", "Coach IA 24/7", "Programmes sur-mesure", "Nutrition auto", "Chat VIP", "Paiements Stripe", "Zéro code", "Revenus récurrents", "Premier client offert"];
+const MARQUEE = ["Marque blanche", "Coach IA 24/7", "Programmes sur-mesure", "Nutrition auto", "Chat avec un coach réel", "Paiements Stripe", "Zéro code", "Revenus récurrents", "Premier client offert"];
 
 const FEATURES = [
-  { icon: "chat", title: "Chat VIP premium", desc: "Garde un lien privilégié avec tes clients, sans y laisser tes soirées." },
+  { icon: "chat", title: "Chat avec un coach réel", desc: "Tes clients t'écrivent, messages et photos. Le lien privilégié, sans y laisser tes soirées." },
   { icon: "card", title: "Paiements intégrés", desc: "Abonnements Stripe, tu fixes tes prix et tu encaisses directement." },
   { icon: "crm", title: "CRM & relances", desc: "Suivi, notifications, rétention automatisée. Tes clients restent, ton chiffre monte." },
   { icon: "bolt", title: "Zéro technique", desc: "Pas de code, pas de serveur, pas de maintenance. Tu vends, on gère la tech." },

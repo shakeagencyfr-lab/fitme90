@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { usePhrase } from "@/components/locale-provider";
+import { useLocale, usePhrase } from "@/components/locale-provider";
 import { editOffer, toggleOffer, toggleOfferListed, removeOffer, type OfferState } from "@/app/admin/actions";
 import { Button, Alert, MonoLabel } from "@/components/ui";
 import {
@@ -13,12 +13,15 @@ import {
 } from "@/lib/config";
 import type { Offer } from "@/lib/offers";
 import type { BestPack } from "@/lib/credits";
+import { coachAiOf, formulaOf, formulaCopy, type OfferFormula } from "@/lib/offer-formulas";
+import { OfferFormulaPicker } from "@/components/offer-formula-picker";
+import { OfferMiniCost } from "@/components/offer-mini-cost";
 
 /**
  * Une ligne de la liste des plans, repliée en lecture et dépliée en édition.
  *
  * CE QU'ON PEUT CHANGER, ET CE QU'ON NE PEUT PAS. Les réglages qui n'engagent
- * personne se modifient ici : le nom, le Coach IA, son quota. Le PRIX, la
+ * personne se modifient ici : le nom, la formule (Mini ou Max) et son quota. Le PRIX, la
  * durée et le mode de paiement non : ils décrivent ce que les clients inscrits
  * ont acheté, et les réécrire après coup change le contrat d'une vente conclue
  * sans que personne ne le sache. Pour vendre autrement, on crée un plan et on
@@ -55,10 +58,14 @@ export function OfferEditor({
   resellerCap: number;
 }) {
   const tx = usePhrase();
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(editOffer, {} as OfferState);
 
-  const [coachAi, setCoachAi] = useState(offer.coach_ai);
+  // La formule d'un plan existant est celle qu'il porte déjà : ici, à la
+  // différence de la création, il y en a toujours une de choisie.
+  const [formule, setFormule] = useState<OfferFormula>(formulaOf(offer));
+  const coachAi = coachAiOf(formule);
   const [quota, setQuota] = useState(
     offer.coach_ai_daily_limit == null ? String(defaultQuota) : String(offer.coach_ai_daily_limit),
   );
@@ -107,21 +114,23 @@ export function OfferEditor({
             <Pill>{paymentPill(offer, tx)}</Pill>
             {!offer.is_active ? <Pill>{tx("Inactif")}</Pill> : null}
             {offer.is_active && !offer.is_listed ? <Pill>{tx("Masqué")}</Pill> : null}
+            {/* La pastille annonce ce que le client REÇOIT, pas ce qui est
+                enregistré : c'est elle qu'on lit en diagonale, et elle a fait
+                croire à un quota de 30 là où le revendeur en servait 15. */}
             {offer.coach_ai ? (
-              /* La pastille annonce ce que le client REÇOIT, pas ce qui est
-                 enregistré : c'est elle qu'on lit en diagonale, et elle a fait
-                 croire à un quota de 30 là où le revendeur en servait 15. */
               <Pill tone="brand">
-                {tx("Coach IA")}
+                {formulaCopy("max", locale).name}
                 {enregistreEffectif != null
                   ? ` · ${enregistreEffectif === 0 ? tx("illimité") : `${enregistreEffectif}/${tx("jour")}`}`
                   : ""}
               </Pill>
-            ) : null}
+            ) : (
+              <Pill>{formulaCopy("mini", locale).name}</Pill>
+            )}
             {enregistreBride ? (
               <Pill>{tx("plafonné par ton revendeur")}</Pill>
             ) : null}
-            {offer.vip_chat ? <Pill tone="brand">{tx("Chat VIP")}</Pill> : null}
+            {offer.vip_chat ? <Pill tone="brand">{tx("Coach réel")}</Pill> : null}
           </div>
           <span className="text-[13px] text-muted">
             {durationLabel}
@@ -210,24 +219,12 @@ export function OfferEditor({
             </p>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <MonoLabel>{tx("Inclusions")}</MonoLabel>
-            <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface p-3.5">
-              <input
-                type="checkbox"
-                name="coach_ai"
-                checked={coachAi}
-                onChange={(e) => setCoachAi(e.target.checked)}
-                className="mt-0.5 size-4 accent-brand"
-              />
-              <span className="flex flex-col gap-0.5">
-                <span className="font-semibold text-[14px] text-ink">{tx("Coach IA inclus")}</span>
-                <span className="text-[12px] text-muted-2">
-                  {tx("Décoché, les clients de ce plan perdent l'accès au Coach IA dès l'enregistrement.")}
-                </span>
-              </span>
-            </label>
+          <OfferFormulaPicker value={formule} onChange={setFormule} />
 
+          <div className="flex flex-col gap-2">
+            {formule === "mini" ? (
+              <OfferMiniCost months={months} creditMode={creditMode} programCredits={programCredits} bestPack={bestPack} unitCents={unitCents} aiIncluded={aiIncluded} />
+            ) : null}
             {coachAi ? (
               <div className="ml-3 flex flex-col gap-3 rounded-control border border-brand/30 bg-surface p-3.5">
                 <label className="flex flex-col gap-1.5">
@@ -333,8 +330,9 @@ export function OfferEditor({
             <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface p-3.5">
               <input type="checkbox" name="vip_chat" defaultChecked={offer.vip_chat} className="mt-0.5 size-4 accent-brand" />
               <span className="flex flex-col gap-0.5">
-                <span className="font-semibold text-[14px] text-ink">{tx("Chat VIP inclus")}</span>
-                <span className="text-[12px] text-muted-2">{tx("La messagerie directe avec toi, en plus du Coach IA.")}</span>
+                <span className="font-semibold text-[14px] text-ink">{tx("Chat avec un Coach réel")}</span>
+                <span className="text-[12px] text-muted-2">
+                  {tx("Le client t'écrit directement, messages et photos, et tu réponds depuis ton dashboard. Indépendant de la formule, et sans aucune consommation d'IA.")}</span>
               </span>
             </label>
           </div>

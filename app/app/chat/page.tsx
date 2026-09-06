@@ -6,7 +6,7 @@ import { VipChat } from "@/components/vip-chat";
 import { VipReadOnMount } from "@/components/vip-read-on-mount";
 import { NotificationSetting } from "@/components/notification-setting";
 
-export const metadata = { title: "Chat VIP" };
+export const metadata = { title: "Chat avec ton coach" };
 export const dynamic = "force-dynamic";
 
 export default async function ClientChatPage() {

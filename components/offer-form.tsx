@@ -17,12 +17,15 @@ import {
   type OfferDurationMonths,
 } from "@/lib/config";
 import type { BestPack } from "@/lib/credits";
+import { coachAiOf, type OfferFormula } from "@/lib/offer-formulas";
+import { OfferFormulaPicker } from "@/components/offer-formula-picker";
+import { OfferMiniCost } from "@/components/offer-mini-cost";
 
 /**
  * Formulaire de création d'un plan vendu au client. Le coach choisit d'abord
  * le PRODUIT (3 mois ou 12 mois : c'est lui qui fixe la structure du programme
- * et l'IA spécialisée), puis le mode de paiement (unique ou mensuel), le prix
- * et les inclusions (Chat VIP, Coach IA).
+ * et l'IA spécialisée), puis le mode de paiement (unique ou mensuel), le prix,
+ * la FORMULE (Mini ou Max, obligatoire) et l'option de chat avec lui.
  */
 export function OfferForm({
   atLimit,
@@ -53,7 +56,9 @@ export function OfferForm({
   const [months, setMonths] = useState<OfferDurationMonths>(12);
   const [price, setPrice] = useState("");
   const [monthly, setMonthly] = useState("");
-  const [coachAi, setCoachAi] = useState(true);
+  // Aucune formule par défaut : c'est un choix, pas un réglage à laisser filer.
+  const [formule, setFormule] = useState<OfferFormula | null>(null);
+  const coachAi = formule ? coachAiOf(formule) : false;
   const [quota, setQuota] = useState(String(defaultQuota));
   const product = PRODUCTS[months];
   const priceCents = Math.round((Number(price.replace(",", ".")) || 0) * 100);
@@ -218,23 +223,14 @@ export function OfferForm({
         ) : null}
       </div>
 
-      {/* Inclusions (upsells par plan) */}
+      {/* La formule décide de ce que le plan coûtera au coach, plan après
+          plan : elle se choisit, elle ne se laisse pas par défaut. */}
+      <OfferFormulaPicker value={formule} onChange={setFormule} required />
+
       <div className="flex flex-col gap-2">
-        <MonoLabel>{tx("Inclusions")}</MonoLabel>
-        <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
-          <input
-            type="checkbox"
-            name="coach_ai"
-            checked={coachAi}
-            onChange={(e) => setCoachAi(e.target.checked)}
-            className="mt-0.5 size-4 accent-brand"
-          />
-          <span className="flex flex-col gap-0.5">
-            <span className="font-semibold text-[14px] text-ink">{tx("Coach IA inclus")}</span>
-            <span className="text-[12px] text-muted-2">
-              {tx("L'assistant IA (entraîné sur ta méthode) accompagne le client au quotidien. Décoché, le client n'y a pas accès.")}</span>
-          </span>
-        </label>
+        {formule === "mini" ? (
+          <OfferMiniCost months={months} creditMode={creditMode} programCredits={programCredits} bestPack={bestPack} aiIncluded={aiIncluded} />
+        ) : null}
         {coachAi ? (
           <div className="ml-3 flex flex-col gap-3 rounded-control border border-brand/30 bg-surface p-3.5">
             <label className="flex flex-col gap-1.5">
@@ -375,9 +371,9 @@ export function OfferForm({
         <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
           <input type="checkbox" name="vip_chat" className="mt-0.5 size-4 accent-brand" />
           <span className="flex flex-col gap-0.5">
-            <span className="font-semibold text-[14px] text-ink">{tx("Chat VIP avec toi")}</span>
+            <span className="font-semibold text-[14px] text-ink">{tx("Chat avec un Coach réel")}</span>
             <span className="text-[12px] text-muted-2">
-              {tx("Le client pourra t'écrire (texte et photos) depuis un onglet dédié. Sans coche, l'onglet n'apparaît pas.")}</span>
+              {tx("Le client a accès à un chat avec TOI : il t'envoie des messages et des photos, tu réponds depuis ton dashboard. Bien pour les programmes qui demandent plus d'attention. Cette option est indépendante de la formule, et elle ne consomme aucune IA. Sans coche, l'onglet n'apparaît pas.")}</span>
           </span>
         </label>
       </div>

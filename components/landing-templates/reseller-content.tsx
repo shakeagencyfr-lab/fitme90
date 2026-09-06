@@ -2,12 +2,12 @@
 
 
 export const MARQUEE = [
-  "Marque blanche", "Coach IA 24/7", "Programmes sur-mesure", "Nutrition auto", "Chat VIP",
+  "Marque blanche", "Coach IA 24/7", "Programmes sur-mesure", "Nutrition auto", "Chat avec un coach réel",
   "Paiements Stripe", "Zéro code", "Revenus récurrents", "Ultra-scalable", "1er client offert",
 ];
 
 export const FEATURES = [
-  { icon: "chat", title: "Chat VIP premium", desc: "Garde un lien privilégié avec tes clients, sans y laisser tes soirées." },
+  { icon: "chat", title: "Chat avec un coach réel", desc: "Tes clients t'écrivent, messages et photos. Le lien privilégié, sans y laisser tes soirées." },
   { icon: "card", title: "Paiements intégrés", desc: "Abonnements Stripe, tu fixes tes prix et tu encaisses directement." },
   { icon: "crm", title: "CRM & relances", desc: "Suivi, notifications, rétention automatisée. Tes clients restent, ton chiffre monte." },
   { icon: "bolt", title: "Zéro technique", desc: "Pas de code, pas de serveur, pas de maintenance. Tu vends, on gère la tech." },

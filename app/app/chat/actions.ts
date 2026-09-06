@@ -21,7 +21,7 @@ export async function sendClientVipMessage(_prev: ChatState, formData: FormData)
   if (!ctx) return { error: "Session expirée." };
 
   const vip = await clientVipContext(ctx.userId);
-  if (!vip.enabled) return { error: "Chat VIP non disponible sur ton offre." };
+  if (!vip.enabled) return { error: "Le chat avec ton coach n'est pas inclus dans ton offre." };
 
   const body = String(formData.get("body") ?? "").trim().slice(0, 4000);
   const file = formData.get("image");

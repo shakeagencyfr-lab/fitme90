@@ -41,8 +41,18 @@ export function durationText(months: number, t: TFn): string {
 export function offerCardCopy(offer: Offer, offers: Offer[], t: TFn): OfferCardCopy {
   const isSub = offer.billing_type === "subscription";
   const product = productCopy(offer.duration_months, t);
-  const base = product ? product.bullets : [t("landing.bullets.coachProgram"), t("landing.bullets.nutrition"), t("landing.bullets.ai")];
-  const bullets = [...base, ...(offer.vip_chat ? [t("landing.bullets.vip")] : []), t("landing.bullets.space")];
+  // La page de vente n'annonce QUE ce que le plan contient vraiment : le Coach
+  // IA seulement en formule Max, le chat avec le coach seulement s'il est
+  // inclus. Un plan Mini qui promettrait « Coach IA pendant 90 jours »
+  // vendrait un accompagnement que l'app refuserait ensuite au client.
+  const base = product ? product.bullets : [t("landing.bullets.coachProgram"), t("landing.bullets.nutrition")];
+  const ai = product ? product.aiBullet : t("landing.bullets.ai");
+  const bullets = [
+    ...base,
+    ...(offer.coach_ai ? [ai] : []),
+    ...(offer.vip_chat ? [t("landing.bullets.vip")] : []),
+    t("landing.bullets.space"),
+  ];
   const eyebrow = product
     ? `${t("products.monthsShort", { n: offer.duration_months })} · ${product.promise}`
     : isSub
