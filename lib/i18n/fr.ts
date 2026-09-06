@@ -364,6 +364,8 @@ export const fr = {
     markCardio: "Marquer ce cardio comme fait",
     cardioHint: "Garde cette intensité pendant l'effort. Rien à noter ici : ni charge, ni répétitions.",
     kg: "kg",
+    bodyweightShort: "PDC",
+    bodyweightHint: "Poids du corps : laisse vide, ou note le lest ajouté.",
     reps: "reps",
     saved: "Séance enregistrée. Tu peux la refaire quand tu veux.",
     update: "Mettre à jour ma séance",

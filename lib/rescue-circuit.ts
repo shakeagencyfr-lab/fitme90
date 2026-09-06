@@ -19,7 +19,7 @@
 
 import type { Locale } from "@/lib/i18n";
 import type { Session } from "@/lib/program";
-import { EXERCISE_LIBRARY, exactLibraryExercise, matchLibraryExercise, type LibraryExercise } from "@/lib/exercise-library";
+import { libraryEntry, type LibraryExercise } from "@/lib/exercise-library";
 import { equipmentSupports, pickAlternative, traitsOf } from "@/lib/exercise-alternatives";
 import type { Famille } from "@/lib/exercise-traits";
 import {
@@ -83,19 +83,6 @@ const ZONE_LABEL: Record<Zone, { fr: string; en: string }> = {
   cardio: { fr: "cardio", en: "cardio" },
 };
 
-/**
- * La fiche d'un exercice de séance. La CLÉ d'abord : depuis le verrouillage
- * sur la bibliothèque, chaque exercice généré la porte, et c'est la seule
- * façon de retrouver la fiche sans repasser par un rapprochement de noms.
- */
-function entryOf(name: string, key?: string): LibraryExercise | null {
-  if (key) {
-    const parCle = EXERCISE_LIBRARY.find((e) => e.key === key);
-    if (parCle) return parCle;
-  }
-  return exactLibraryExercise(name) ?? matchLibraryExercise(name);
-}
-
 /** Les noms d'exercices de la séance, circuit ou séries, cardio compris. */
 function namesOf(session: Session): { name: string; key?: string; note?: string }[] {
   if (isCircuitSession(session)) {
@@ -136,14 +123,13 @@ export interface RescueMapping {
  * cherche la même famille principale, en préférant cette fois les mouvements
  * qui UTILISENT le matériel annoncé.
  */
-export function rescueExercises(session: Session, kind: RescueKind): RescueMapping {
-  const equipment = RESCUE_EQUIPMENT[kind];
+export function mapExercises(session: Session, equipment: readonly string[]): RescueMapping {
   const out: RescueExercise[] = [];
   const dropped: string[] = [];
   const pris = new Set<string>();
 
   for (const src of namesOf(session)) {
-    const entry = entryOf(src.name, src.key);
+    const entry = libraryEntry(src.name, src.key);
     const traits = entry ? traitsOf(entry) : null;
     if (!entry || !traits) {
       dropped.push(src.name);
@@ -226,6 +212,23 @@ export function decoupeBlocs(list: readonly RescueExercise[]): RescueExercise[][
   return out;
 }
 
+export interface CircuitFromInput {
+  session: Session;
+  /** Le matériel réellement disponible pour CETTE séance. */
+  equipment: readonly string[];
+  level: CircuitLevel;
+  /** Durée cible de la séance, en minutes. */
+  minutes: number;
+  /** Cycle en cours (0, 1, 2) : il règle effort, repos et tours. */
+  cycleIndex: number;
+  locale: Locale;
+}
+
+/** Les mouvements du dépannage, pour la situation choisie par le client. */
+export function rescueExercises(session: Session, kind: RescueKind): RescueMapping {
+  return mapExercises(session, RESCUE_EQUIPMENT[kind]);
+}
+
 export interface RescueInput {
   session: Session;
   kind: RescueKind;
@@ -258,15 +261,18 @@ const WARMUP: Record<Locale, { name: string; detail: string }[]> = {
 };
 
 /**
- * La séance de dépannage complète : blocs chronométrés et échauffement.
+ * Une séance existante, refaite en circuit avec le matériel donné.
  *
+ * C'est le moteur commun de deux usages : la séance de dépannage (matériel
+ * restreint, choisi par le client dans l'app) et la conversion en circuit
+ * demandée au Coach IA (matériel du client, ou matériel restreint lui aussi).
  * Les paramètres (effort, repos, tours) sont ceux du cycle en cours, pour que
- * le dépannage soit du même niveau d'exigence que le programme, et l'ensemble
+ * le circuit soit du même niveau d'exigence que le programme, et l'ensemble
  * est ramené dans la durée habituelle des séances du client.
  */
-export function rescueSession(input: RescueInput): RescueSession {
+export function circuitFromSession(input: CircuitFromInput): RescueSession {
   const p = circuitParams(input.level, input.cycleIndex);
-  const { exercises, dropped } = rescueExercises(input.session, input.kind);
+  const { exercises, dropped } = mapExercises(input.session, input.equipment);
   const groupes = decoupeBlocs(alterneZones(exercises));
   const lang = input.locale === "en" ? "en" : "fr";
 
@@ -296,4 +302,10 @@ export function rescueSession(input: RescueInput): RescueSession {
     warmup: WARMUP[lang],
     dropped,
   };
+}
+
+/** La séance de dépannage : un circuit avec le matériel de la situation choisie. */
+export function rescueSession(input: RescueInput): RescueSession {
+  const { kind, ...reste } = input;
+  return circuitFromSession({ ...reste, equipment: RESCUE_EQUIPMENT[kind] });
 }

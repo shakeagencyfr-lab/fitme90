@@ -15,6 +15,7 @@ import {
   matchLibraryExercise,
   normalizeExerciseName,
   type LibraryExercise,
+  libraryEntry,
 } from "@/lib/exercise-library";
 import { EQUIPMENT_CATALOG, matchEquipment, type EquipmentFamily } from "@/lib/equipment-catalog";
 
@@ -346,6 +347,18 @@ export function exercisesForEquipment(cle: string): LibraryExercise[] {
 /** Traits d'une entrée de bibliothèque (jamais undefined en pratique : test). */
 export function traitsOf(entry: LibraryExercise): Traits | null {
   return EXERCISE_TRAITS[entry.key] ?? null;
+}
+
+/**
+ * Le mouvement se fait-il au poids du corps ?
+ *
+ * Sert à ne pas demander de kilos pour des pompes : la case « kg » restait
+ * affichée, et le client se demandait ce qu'il devait y mettre.
+ */
+export function isBodyweightExercise(name: string, key?: string): boolean {
+  const entry = libraryEntry(name, key);
+  const t = entry ? traitsOf(entry) : null;
+  return !!t && t.besoin.length === 0;
 }
 
 /** Un exercice est-il du cardio (au sens « durée » et non « séries × reps ») ? */

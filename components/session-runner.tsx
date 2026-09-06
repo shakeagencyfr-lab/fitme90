@@ -62,6 +62,8 @@ export interface Exercise {
   cardio?: boolean;
   duration?: string;
   zone?: string;
+  /** Mouvement au poids du corps : pas de charge à saisir, sauf si le client se leste. */
+  bodyweight?: boolean;
 }
 
 // Petit bouton « alternative » (remplacement d'exercice à la demande).
@@ -516,11 +518,14 @@ export function SessionRunner({
                       ].join(" ")}
                     >
                       <span className="w-6 text-center font-mono text-[11px] text-muted-2">S{si + 1}</span>
+                      {/* Poids du corps : on n'attend pas de charge, mais le
+                          champ reste saisissable pour qui s'ajoute un lest. */}
                       <input
                         inputMode="decimal"
                         value={e.kg}
                         onChange={(ev) => setField(key, "kg", ev.target.value)}
-                        placeholder="kg"
+                        placeholder={ex.bodyweight ? t("session.bodyweightShort") : "kg"}
+                        title={ex.bodyweight ? t("session.bodyweightHint") : undefined}
                         data-tour={tourRow ? "charge" : undefined}
                         className="tap w-full min-w-0 flex-1 rounded-[7px] border border-line-4 bg-surface px-2.5 text-center text-ink placeholder:text-disabled outline-none focus:border-ink"
                       />

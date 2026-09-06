@@ -364,6 +364,8 @@ export const en: Shape<typeof fr> = {
     markCardio: "Mark this cardio as done",
     cardioHint: "Keep this intensity during the effort. Nothing to log here: no load, no reps.",
     kg: "kg",
+    bodyweightShort: "BW",
+    bodyweightHint: "Bodyweight: leave empty, or log any added load.",
     reps: "reps",
     saved: "Workout saved. You can redo it whenever you want.",
     update: "Update my workout",
