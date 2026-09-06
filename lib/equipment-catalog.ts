@@ -560,6 +560,15 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
     aliases: ["poids du corps", "bodyweight", "body weight", "aucun materiel", "sans materiel"],
   },
   {
+    key: "ballon-gym",
+    nom: "Ballon de gym (swiss ball)",
+    name: "Stability ball",
+    famille: "ballon de gym (swiss ball)",
+    groupes: ["abdos", "fessiers", "polyvalent"],
+    photo: "crunch-ballon",
+    aliases: ["ballon de gym", "swiss ball", "gym ball", "fitball", "ballon suisse", "stability ball", "physioball", "gros ballon"],
+  },
+  {
     key: "tapis-sol",
     nom: "Tapis de sol",
     name: "Exercise mat",

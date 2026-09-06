@@ -120,7 +120,7 @@ describe("matchLibraryExercise", () => {
     expect(matchLibraryExercise("Crunch à la poulie")?.key).toBe("crunch-poulie");
     expect(matchLibraryExercise("Crunch")?.key).toBe("crunch");
     expect(matchLibraryExercise("Slam ball")?.key).toBe("slam-ball");
-    expect(matchLibraryExercise("Wall ball")?.key).toBe("slam-ball");
+    expect(matchLibraryExercise("Overhead slam")?.key).toBe("slam-ball");
     expect(matchLibraryExercise("Russian twist")?.key).toBe("russian-twist");
   });
 
@@ -139,14 +139,51 @@ describe("images des fiches", () => {
     expect(manquantes).toEqual([]);
   });
 
-  it("les fiches « à la machine » gardent la photo du mouvement", () => {
-    // Régression vue en séance : ces fiches sont nées du catalogue de matériel
-    // et affichaient la silhouette, alors que le mouvement est le même et que
-    // sa photo existait déjà. Le catalogue, lui, reste sans photo : là, l'image
-    // doit permettre de reconnaître LA MACHINE avant de la cocher.
+  it("une fiche ne montre jamais un autre exercice que le sien", () => {
+    // La règle a changé de sens après relecture des visuels par le client :
+    // une photo doit montrer CE mouvement, sur CE matériel. Le crunch à la
+    // machine a désormais sa propre photo ; le hip thrust et le kickback à la
+    // machine n'en ont aucune dans le jeu d'images, donc ils n'en montrent pas.
     const frames = (key: string) => framesOf(EXERCISE_LIBRARY.find((e) => e.key === key)!);
-    expect(frames("hip-thrust-machine")).toEqual(frames("hip-thrust"));
-    expect(frames("kickback-fessier-machine")).toEqual(frames("kickback-fessier-poulie"));
-    expect(frames("crunch-machine")).toEqual(frames("crunch-poulie"));
+    expect(frames("crunch-machine")).toEqual(["/exercises/crunch-machine/0.jpg", "/exercises/crunch-machine/1.jpg"]);
+    expect(frames("hip-thrust-machine")).toEqual([]);
+    expect(frames("kickback-fessier-machine")).toEqual([]);
+    // Et une fiche qui renvoie vers un autre dossier ne peut le faire que vers
+    // un mouvement identique : aucune ne le fait plus aujourd'hui.
+    expect(EXERCISE_LIBRARY.filter((e) => e.photo).map((e) => e.key)).toEqual([]);
+  });
+
+  it("lot maison : chaque nouvelle fiche se retrouve par son nom", () => {
+    const paires: [string, string][] = [
+      ["Pompes inclinées", "pompes-inclinees"],
+      ["Pompes pieds surélevés", "pompes-pieds-sureleves"],
+      ["Pompes serrées", "pompes-serrees"],
+      ["Squat sauté", "squat-saute"],
+      ["Fentes sautées", "fentes-sautees"],
+      ["Saut étoile", "saut-etoile"],
+      ["Talons-fesses", "talons-fesses"],
+      ["Crunch inversé", "crunch-inverse"],
+      ["Crunch vélo", "crunch-velo"],
+      ["V-up", "jackknife"],
+      ["Rowing inversé sous une barre", "rowing-inverse-barre"],
+      ["Squat haltères", "squat-halteres"],
+      ["Rowing buste penché deux haltères", "rowing-deux-halteres"],
+      ["Rowing haltère un bras", "rowing-halteres"],
+      ["Swing kettlebell à un bras", "kettlebell-swing-un-bras"],
+      ["Kettlebell swing", "kettlebell-swing"],
+      ["Turkish get-up", "turkish-get-up"],
+      ["Renegade row", "renegade-row"],
+      ["Pull apart", "pull-apart"],
+      ["Monster walk", "monster-walk"],
+      ["Squat à l'élastique", "squat-elastique"],
+      ["Passe poitrine medecine ball", "passe-poitrine-medecine-ball"],
+      ["Leg curl sur ballon", "leg-curl-ballon"],
+      ["Crunch sur ballon", "crunch-ballon"],
+      ["Mollets debout à la machine", "mollets-debout-machine"],
+      ["Extension des mollets debout", "mollets-debout"],
+    ];
+    for (const [nom, cle] of paires) {
+      expect(matchLibraryExercise(nom)?.key, nom).toBe(cle);
+    }
   });
 });

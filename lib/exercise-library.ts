@@ -7,6 +7,9 @@
 // Images : jeu « free-exercise-db » (yuhonas), licence Unlicense (domaine public),
 // auto-hébergées dans /public/exercises/<clé>/{0,1}.jpg.
 
+import type { Traits } from "./exercise-traits";
+import { EXERCISE_LIBRARY_MAISON } from "./exercise-library-maison";
+
 export interface ExerciseGuide {
   steps: string[]; // exécution, pas à pas
   cues: string[]; // conseils clés
@@ -21,6 +24,12 @@ export interface LibraryExercise {
   guide: ExerciseGuide;
   /** Pas de photo : le visuel affiché est l'illustration du groupe musculaire. */
   noPhoto?: boolean;
+  /**
+   * Familles travaillées et matériel requis, quand la fiche les porte
+   * elle-même (bibliothèque maison). Les fiches de base ont les leurs dans
+   * la table de `lib/exercise-alternatives`.
+   */
+  traits?: Traits;
   /**
    * Dossier d'images à utiliser, quand ce n'est pas celui de la clé.
    *
@@ -110,6 +119,11 @@ const MOVEMENT = new Set(
     "elliptical", "tapis", "treadmill", "course", "abduction", "adduction", "superman", "mollet",
     "calf", "velo", "sled", "traineau", "pousse", "poussee", "kettlebell", "farmer", "fermier",
     "tractions", "lunge", "hyperextension", "lombaire", "clean", "snatch", "arrache", "epaule",
+    "jackknife", "skipping", "bond", "saut", "etoile", "talon", "battement", "rentre", "toucher",
+    "coude", "araignee", "spider", "crawl", "scaption", "rotation", "monster", "apart", "windmill",
+    "moulin", "figure", "turkish", "get", "renegade", "passe", "lancer", "throw", "slam",
+    "flexion", "bend", "scapulaire", "scapular", "inverse", "inverted", "claquee", "plyo",
+    "equilibre", "handstand", "sumo", "high", "thruster", "sit", "up", "pedalage", "bicycle",
   ].map(stem),
 );
 
@@ -117,7 +131,8 @@ function movementTokens(tokens: readonly string[]): string[] {
   return tokens.filter((t) => MOVEMENT.has(t));
 }
 
-export const EXERCISE_LIBRARY: LibraryExercise[] = [
+/** La bibliothèque écrite pour la salle. La maison est dans son propre fichier. */
+const EXERCISE_LIBRARY_BASE: LibraryExercise[] = [
   {
     key: "squat",
     name: "Squat",
@@ -141,7 +156,7 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     aliases: ["squat au poids du corps", "squat poids du corps", "squat sans charge", "air squat", "bodyweight squat"],
     guide: {
       steps: [
-        "Debout, pieds largeur d'épaules, bras tendus devant toi pour l'équilibre.",
+        "Debout, pieds largeur d'épaules, mains derrière la tête (ou bras tendus devant toi pour l'équilibre).",
         "Descends les hanches vers l'arrière et le bas, dos droit.",
         "Cuisses parallèles au sol si possible, puis remonte en poussant dans les talons.",
       ],
@@ -292,7 +307,9 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     name: "Hip thrust à la machine",
     muscle: "Fessiers",
     aliases: ["hip thrust machine", "machine a hip thrust", "hip thrust guide", "glute drive", "banc a hip thrust"],
-    photo: "hip-thrust",
+    // Aucune photo du jeu ne montre cette machine : la photo du hip thrust à
+    // la barre ferait croire à un autre matériel. Illustration du muscle.
+    noPhoto: true,
     guide: {
       steps: [
         "Assis dans la machine, dos calé, coussin sur le bassin et pieds à plat largeur de hanches.",
@@ -713,7 +730,6 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     name: "Crunch à la machine",
     muscle: "Abdominaux",
     aliases: ["crunch machine", "machine a abdominaux", "machine a abdos", "ab crunch machine", "abdominal crunch machine", "crunch guide"],
-    photo: "crunch-poulie",
     guide: {
       steps: [
         "Assis, dos contre le dossier, poignées au-dessus des épaules et pieds calés.",
@@ -728,8 +744,7 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     key: "slam-ball",
     name: "Slam ball (lancer au sol)",
     muscle: "Abdominaux et corps entier",
-    aliases: ["slam ball", "medecine ball slam", "ball slam", "lancer de ballon au sol", "med ball slam", "wall ball"],
-    noPhoto: true,
+    aliases: ["slam ball", "medecine ball slam", "ball slam", "lancer de ballon au sol", "med ball slam", "overhead slam"],
     guide: {
       steps: [
         "Debout, pieds largeur d'épaules, ballon lesté tenu à deux mains.",
@@ -887,7 +902,7 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     aliases: ["oiseau", "reverse fly", "elevations buste penche", "deltoide posterieur", "rear delt fly"],
     guide: {
       steps: [
-        "Buste penché en avant, dos droit, un haltère léger dans chaque main.",
+        "Assis au bord d'un banc, buste penché sur les cuisses, dos droit, un haltère léger dans chaque main derrière les mollets.",
         "Ouvre les bras sur les côtés en serrant les omoplates.",
         "Reviens en contrôle sans relâcher le dos.",
       ],
@@ -1531,7 +1546,8 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     name: "Extension fessier à la machine",
     muscle: "Fessiers",
     aliases: ["kickback machine", "machine a kickback", "glute kickback machine", "extension fessier machine", "machine a fessiers", "kickback fessier machine"],
-    photo: "kickback-fessier-poulie",
+    // Même règle : la version poulie n'est pas la machine. Illustration.
+    noPhoto: true,
     guide: {
       steps: [
         "Face à la machine, buste appuyé sur le support, un pied sur la plateforme.",
@@ -1810,9 +1826,31 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
 
 ];
 
+/**
+ * Toutes les fiches, salle puis maison. L'ordre compte peu pour le
+ * rapprochement (il prend le meilleur score), il compte pour l'affichage du
+ * catalogue coach, qui suit cet ordre.
+ */
+export const EXERCISE_LIBRARY: LibraryExercise[] = [...EXERCISE_LIBRARY_BASE, ...EXERCISE_LIBRARY_MAISON];
+
 /** Recherche l'entrée de bibliothèque correspondant à un nom d'exercice, ou null.
  *  Rapprochement par JETONS : un alias dont TOUS les jetons figurent dans le nom
  *  gagne (l'alias le plus spécifique d'abord), sinon un fort recouvrement partiel. */
+/**
+ * Index des alias, calculé une fois : jetons et mots de mouvement de chaque
+ * alias. Le rapprochement les recalculait à chaque appel pour chaque alias
+ * (un millier de normalisations par nom cherché), ce qui se voyait à peine
+ * avec cent fiches et devenait le poste principal avec deux cents.
+ */
+const ALIAS_INDEX: { entry: LibraryExercise; at: string[]; aMove: string[] }[] = [];
+for (const entry of EXERCISE_LIBRARY) {
+  for (const alias of entry.aliases) {
+    const at = tokensOf(alias);
+    if (at.length === 0) continue;
+    ALIAS_INDEX.push({ entry, at, aMove: movementTokens(at) });
+  }
+}
+
 export function matchLibraryExercise(rawName: string): LibraryExercise | null {
   const qTokens = tokensOf(rawName);
   if (qTokens.length === 0) return null;
@@ -1820,15 +1858,12 @@ export function matchLibraryExercise(rawName: string): LibraryExercise | null {
   const qMove = movementTokens(qTokens);
 
   let best: { entry: LibraryExercise; score: number } | null = null;
-  for (const entry of EXERCISE_LIBRARY) {
-    for (const alias of entry.aliases) {
-      const at = tokensOf(alias);
-      if (at.length === 0) continue;
+  for (const { entry, at, aMove } of ALIAS_INDEX) {
+    {
       const shared = at.filter((t) => qSet.has(t)).length;
       if (shared === 0) continue;
 
       // Le mouvement doit coïncider quand les deux côtés en nomment un.
-      const aMove = movementTokens(at);
       if (qMove.length && aMove.length && !aMove.some((t) => qSet.has(t))) continue;
 
       let score: number;

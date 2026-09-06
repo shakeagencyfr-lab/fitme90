@@ -18,69 +18,8 @@ import {
 } from "@/lib/exercise-library";
 import { EQUIPMENT_CATALOG, matchEquipment, type EquipmentFamily } from "@/lib/equipment-catalog";
 
-/**
- * Famille de travail. Plus fine qu'un « groupe musculaire » affiché : c'est la
- * clé de substitution, donc elle sépare ce qui ne se remplace pas (un tirage
- * vertical ne remplace pas un rowing) et regroupe ce qui se remplace.
- */
-export type Famille =
-  | "quadriceps"
-  | "ischios"
-  | "fessiers"
-  | "mollets"
-  | "adducteurs"
-  | "pectoraux"
-  | "dos_vertical"
-  | "dos_horizontal"
-  | "epaules"
-  | "epaules_arriere"
-  | "trapezes"
-  | "biceps"
-  | "triceps"
-  | "avant_bras"
-  | "abdos"
-  | "obliques"
-  | "lombaires"
-  | "cardio"
-  | "corps_entier";
-
-/**
- * Ce qu'il FAUT posséder pour exécuter le mouvement. Un exercice sans besoin
- * se fait au poids du corps : c'est le repli universel, et c'est pour ça que
- * chaque famille du haut du corps en compte au moins un.
- */
-export type Besoin =
-  | "barre"
-  | "banc"
-  | "halteres"
-  | "kettlebell"
-  | "poulie"
-  | "machine"
-  | "traction"
-  | "dips"
-  | "step"
-  | "elastique"
-  | "corde"
-  | "rameur"
-  | "velo"
-  | "elliptique"
-  | "tapis"
-  | "roulette"
-  | "medecine";
-
-export interface Traits {
-  /** Muscles travaillés, du plus au moins sollicité. Le PREMIER fait foi. */
-  familles: Famille[];
-  /** Matériels tous requis (ET, pas OU). Vide = poids du corps. */
-  besoin: Besoin[];
-  /**
-   * Quand le mouvement demande UNE machine précise, ses clés au catalogue
-   * (l'une d'elles suffit). Sans ça, « besoin : machine » se contentait de
-   * n'importe quelle machine : un client équipé d'un seul pec deck se voyait
-   * proposer un leg curl.
-   */
-  machine?: string[];
-}
+import type { Besoin, Traits } from "@/lib/exercise-traits";
+export type { Besoin, Famille, Traits } from "@/lib/exercise-traits";
 
 /**
  * La table de correspondance, une ligne par entrée de bibliothèque.
@@ -91,7 +30,7 @@ export interface Traits {
  * plus court à écrire et faux à chaque nouvelle entrée ; ici, une entrée
  * ajoutée sans sa ligne est détectée par un test.
  */
-export const EXERCISE_TRAITS: Record<string, Traits> = {
+const TRAITS_SALLE: Record<string, Traits> = {
   // ─────────────────────────────────────────────────────────── bas du corps
   "squat": { familles: ["quadriceps", "fessiers"], besoin: ["barre"] },
   "squat-poids-du-corps": { familles: ["quadriceps", "fessiers", "adducteurs"], besoin: [] },
@@ -229,6 +168,16 @@ export const EXERCISE_TRAITS: Record<string, Traits> = {
 };
 
 /**
+ * La table complète : les fiches de salle ont leurs traits ici, les fiches
+ * maison portent les leurs (colocalisés avec l'image et le texte). Une fiche
+ * qui aurait les deux garde ceux qu'elle porte.
+ */
+export const EXERCISE_TRAITS: Record<string, Traits> = {
+  ...TRAITS_SALLE,
+  ...Object.fromEntries(EXERCISE_LIBRARY.filter((e) => e.traits).map((e) => [e.key, e.traits!])),
+};
+
+/**
  * Mots qui, dans le matériel déclaré par le client, prouvent un besoin.
  *
  * Le matériel arrive en texte libre (saisie manuelle ou lecture de photos) :
@@ -258,6 +207,7 @@ const INDICES: Record<Besoin, string[]> = {
   tapis: ["tapis de course", "tapis roulant", "treadmill", "course"],
   roulette: ["roulette", "ab wheel", "ab roller"],
   medecine: ["medecine ball", "med ball", "slam ball", "wall ball", "ballon lest"],
+  swiss: ["ballon de gym", "swiss ball", "gym ball", "fitball", "ballon suisse", "physioball", "stability ball"],
 };
 
 /** Normalise un nom de matériel : minuscules, sans accents ni ponctuation. */
@@ -320,6 +270,7 @@ const CLES_BESOIN: Record<Besoin, string[]> = {
   tapis: ["tapis-course"],
   roulette: ["ab-roller"],
   medecine: ["medecine-ball"],
+  swiss: ["ballon-gym"],
 };
 
 /** Mots qui trahissent une machine sans dire laquelle. */
