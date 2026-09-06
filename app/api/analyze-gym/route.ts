@@ -7,7 +7,8 @@ import { checkLimit, recordCalls } from "@/lib/ratelimit";
 import { MODELS, textOf, parseJsonLoose, effortConfig, apiCallOf, type ApiCall } from "@/lib/anthropic";
 import { anthropicForUser } from "@/lib/tenant";
 import { LIMIT_ANALYZE_GYM_TOTAL, GYM_PHOTOS_PER_BATCH } from "@/lib/config";
-import { EQUIPMENT_FAMILIES } from "@/lib/equipment";
+import { EQUIPMENT_FAMILIES, equipmentKey } from "@/lib/equipment";
+import { EQUIPMENT_CATALOG, canonicalEquipment, matchEquipment } from "@/lib/equipment-catalog";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
 import { aiLanguageInstruction } from "@/lib/i18n";
 
@@ -71,7 +72,9 @@ export async function POST(req: NextRequest) {
     "Tu identifies le matériel de musculation et de fitness visible sur des photos de salle.",
     "Procède photo par photo, dans l'ordre, avant de fusionner ta liste.",
     'Réponds UNIQUEMENT par un JSON valide : {"equipment":[{"name":"","family":"","confidence":"high|medium|low"}]}.',
-    "`name` : le nom précis de la machine telle que tu la vois, dans la langue du client.",
+    "`name` : le nom de la machine. Si elle figure dans le catalogue ci-dessous, reprends son nom EXACTEMENT ; sinon, décris-la précisément dans la langue du client.",
+    "Catalogue des machines connues :",
+    EQUIPMENT_CATALOG.map((m) => (locale === "en" ? m.name : m.nom)).join(" | ") + ".",
     "`family` : la famille correspondante, reprise EXACTEMENT dans cette liste :",
     EQUIPMENT_FAMILIES.join(" | ") + ".",
     "Si rien ne correspond, mets family à \"\" plutôt que d'inventer une famille.",
@@ -115,7 +118,7 @@ export async function POST(req: NextRequest) {
       action: "analyse-salle",
       credits: 0,
     });
-    return NextResponse.json({ equipment: result.equipment });
+    return NextResponse.json({ equipment: canonicaliser(result.equipment, locale) });
   } catch {
     if (call) {
       await recordCalls(ctx.userId, "analyze-gym", [call], {
@@ -130,4 +133,31 @@ export async function POST(req: NextRequest) {
       { status: 502 },
     );
   }
+}
+
+/**
+ * Ramène les machines reconnues au vocabulaire du catalogue.
+ *
+ * Le modèle a beau recevoir la liste, il écrit parfois « presse à cuisses
+ * inclinée » ou « leg press » pour la même machine : deux entrées pour un seul
+ * appareil, et deux matériels différents dans le brief de génération. Le
+ * rattachement se fait donc ici, à la source, et ce qui n'est pas reconnu est
+ * gardé tel quel plutôt que jeté.
+ */
+function canonicaliser(
+  list: { name: string; confidence: string }[],
+  locale: "fr" | "en",
+): { name: string; confidence: string }[] {
+  const vus = new Set<string>();
+  const sortie: { name: string; confidence: string }[] = [];
+  for (const e of list) {
+    const nom = canonicalEquipment(e.name, locale);
+    if (!nom) continue;
+    const cat = matchEquipment(e.name);
+    const cle = cat ? `cat:${cat.key}` : equipmentKey(nom);
+    if (!cle || vus.has(cle)) continue;
+    vus.add(cle);
+    sortie.push({ name: nom, confidence: e.confidence });
+  }
+  return sortie;
 }

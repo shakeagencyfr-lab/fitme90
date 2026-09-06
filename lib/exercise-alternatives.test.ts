@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { EXERCISE_LIBRARY, matchLibraryExercise } from "./exercise-library";
+import { EQUIPMENT_CATALOG } from "./equipment-catalog";
 import {
   EXERCISE_TRAITS,
   alternativeExercise,
@@ -36,22 +37,66 @@ describe("table des familles", () => {
 
 describe("equipmentSupports", () => {
   it("laisse passer un mouvement sans besoin, même sans matériel", () => {
-    expect(equipmentSupports([], [])).toBe(true);
-    expect(equipmentSupports([], MAISON)).toBe(true);
+    expect(equipmentSupports({ besoin: [] }, [])).toBe(true);
+    expect(equipmentSupports({ besoin: [] }, MAISON)).toBe(true);
   });
 
   it("« poids du corps uniquement » ne couvre aucun besoin", () => {
-    expect(equipmentSupports(["halteres"], MAISON)).toBe(false);
-    expect(equipmentSupports(["poulie"], MAISON)).toBe(false);
+    expect(equipmentSupports({ besoin: ["halteres"] }, MAISON)).toBe(false);
+    expect(equipmentSupports({ besoin: ["poulie"] }, MAISON)).toBe(false);
   });
 
   it("exige TOUS les besoins, pas un seul", () => {
-    expect(equipmentSupports(["barre", "banc"], ["barre olympique"])).toBe(false);
-    expect(equipmentSupports(["barre", "banc"], ["barre olympique", "banc plat"])).toBe(true);
+    expect(equipmentSupports({ besoin: ["barre", "banc"] }, ["barre olympique"])).toBe(false);
+    expect(equipmentSupports({ besoin: ["barre", "banc"] }, ["barre olympique", "banc plat"])).toBe(true);
   });
 
   it("accepte un kettlebell là où un haltère suffit", () => {
-    expect(equipmentSupports(["halteres"], ["kettlebells"])).toBe(true);
+    expect(equipmentSupports({ besoin: ["halteres"] }, ["kettlebells"])).toBe(true);
+  });
+
+  it("reconnaît le matériel écrit autrement, via le catalogue", () => {
+    expect(equipmentSupports({ besoin: ["barre"] }, ["Barbell"])).toBe(true);
+    expect(equipmentSupports({ besoin: ["machine"] }, ["Leg press"])).toBe(true);
+    expect(equipmentSupports({ besoin: ["machine"] }, ["presse à cuisses inclinée 45°"])).toBe(true);
+  });
+
+  it("ne prend pas la machine à tirage horizontal pour un rameur", () => {
+    // « Rowing machine » désigne les deux en salle : le catalogue tranche.
+    expect(equipmentSupports({ besoin: ["rameur"] }, ["Rowing machine (assis)"])).toBe(false);
+    expect(equipmentSupports({ besoin: ["rameur"] }, ["Rameur"])).toBe(true);
+  });
+
+  it("exige LA machine nommée, pas n'importe laquelle", () => {
+    const legCurl = { besoin: ["machine"] as const, machine: ["leg-curl-allonge", "leg-curl-assis"] };
+    expect(equipmentSupports({ ...legCurl, besoin: ["machine"] }, ["Pec deck"])).toBe(false);
+    expect(equipmentSupports({ ...legCurl, besoin: ["machine"] }, ["Leg curl allongé"])).toBe(true);
+  });
+
+  it("accorde le bénéfice du doute à une salle décrite en texte libre", () => {
+    // Rien à rattacher au catalogue, mais le mot « machine » est là : mieux
+    // vaut proposer le mouvement que vider la séance.
+    expect(
+      equipmentSupports(
+        { besoin: ["machine"], machine: ["leg-curl-allonge"] },
+        ["machine multifonction de la salle"],
+      ),
+    ).toBe(true);
+  });
+
+  it("nomme une machine du catalogue pour chaque mouvement guidé", () => {
+    const sans = Object.entries(EXERCISE_TRAITS)
+      .filter(([, t]) => t.besoin.includes("machine") && !t.machine?.length)
+      .map(([k]) => k);
+    expect(sans).toEqual([]);
+  });
+
+  it("ne cite que des clés qui existent au catalogue", () => {
+    const cles = new Set(EQUIPMENT_CATALOG.map((i) => i.key));
+    const inconnues = Object.entries(EXERCISE_TRAITS)
+      .flatMap(([k, t]) => (t.machine ?? []).map((m) => `${k}:${m}`))
+      .filter((pair) => !cles.has(pair.split(":")[1]));
+    expect(inconnues).toEqual([]);
   });
 });
 

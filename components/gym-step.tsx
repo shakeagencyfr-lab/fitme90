@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { compressImage, base64Of } from "@/lib/image";
 import {
@@ -10,59 +10,67 @@ import {
   GYM_PHOTO_QUALITY,
 } from "@/lib/config";
 import { confidenceLabel, equipmentKey } from "@/lib/equipment";
+import { equipmentPhoto, matchEquipment, type EquipmentItem } from "@/lib/equipment-catalog";
+import { EquipmentPicker } from "@/components/equipment-picker";
 import { saveEquipment, type EquipItem } from "@/app/salle/actions";
-import { Button, Alert, Card, MonoLabel, Field } from "@/components/ui";
+import { Button, Alert, Card, MonoLabel } from "@/components/ui";
 import { useLocale, useT } from "@/components/locale-provider";
+import type { Locale } from "@/lib/i18n";
 
-const FALLBACK: Record<"fr" | "en", string[]> = {
-  fr: [
-    "Rack à squat + barre olympique",
-    "Banc réglable",
-    "Haltères",
-    "Poulie haute / basse",
-    "Presse à cuisses",
-    "Tapis de course",
-    "Rameur",
-    "Kettlebells",
-    "Élastiques",
-    "Poids du corps uniquement",
-  ],
-  en: [
-    "Squat rack + Olympic bar",
-    "Adjustable bench",
-    "Dumbbells",
-    "Cable machine (high / low)",
-    "Leg press",
-    "Treadmill",
-    "Rowing machine",
-    "Kettlebells",
-    "Resistance bands",
-    "Bodyweight only",
-  ],
-};
+type Ligne = EquipItem & { on: boolean };
+
+/** Le nom d'une machine du catalogue dans la langue du client. */
+function nomLocal(item: EquipmentItem, locale: Locale): string {
+  return locale === "en" ? item.name : item.nom;
+}
 
 export function GymStep({ nextHref = "/generation" }: { nextHref?: string }) {
   const router = useRouter();
   const t = useT();
   const locale = useLocale();
-  const [items, setItems] = useState<(EquipItem & { on: boolean })[]>([]);
+  const [items, setItems] = useState<Ligne[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [manual, setManual] = useState("");
+  const [picker, setPicker] = useState(false);
 
-  // Fusion entre lots : « Presse à cuisses » et « presse a cuisses » vues sur
-  // deux photos différentes ne doivent donner qu'une seule ligne.
+  // Chaque ligne est rattachée au catalogue quand c'est possible : c'est ce
+  // qui donne la photo, et ce qui fait qu'une machine vue en photo et la même
+  // machine cochée à la main ne font qu'une entrée.
+  const resolues = useMemo(
+    () => items.map((it) => ({ ligne: it, cat: matchEquipment(it.name) })),
+    [items],
+  );
+
+  const cochees = useMemo(() => {
+    const s = new Set<string>();
+    for (const r of resolues) if (r.cat && r.ligne.on) s.add(r.cat.key);
+    return s;
+  }, [resolues]);
+
+  /**
+   * Fusion des sources. Deux photos de la même machine, ou une machine vue en
+   * photo puis cochée à la main, ne donnent qu'une ligne : la clé de
+   * dédoublonnage passe par le catalogue quand le nom y est reconnu, et
+   * retombe sur le texte normalisé sinon.
+   */
   function addItems(list: EquipItem[]) {
     setItems((cur) => {
-      const seen = new Set(cur.map((i) => equipmentKey(i.name)));
-      const add: (EquipItem & { on: boolean })[] = [];
+      const cle = (nom: string) => {
+        const cat = matchEquipment(nom);
+        return cat ? `cat:${cat.key}` : equipmentKey(nom);
+      };
+      const seen = new Set(cur.map((i) => cle(i.name)));
+      const add: Ligne[] = [];
       for (const i of list) {
-        const key = equipmentKey(i.name);
-        if (!key || seen.has(key)) continue;
-        seen.add(key);
-        add.push({ ...i, on: true });
+        const k = cle(i.name);
+        if (!k || seen.has(k)) continue;
+        seen.add(k);
+        // Nom canonique dès qu'il est reconnu : le générateur reçoit alors un
+        // vocabulaire fermé au lieu des cinq façons d'écrire « presse ».
+        const cat = matchEquipment(i.name);
+        add.push({ ...i, name: cat ? nomLocal(cat, locale) : i.name, on: true });
       }
       return [...cur, ...add];
     });
@@ -127,11 +135,20 @@ export function GymStep({ nextHref = "/generation" }: { nextHref?: string }) {
     e.target.value = "";
   }
 
-  function addManual() {
-    const name = manual.trim();
-    if (!name) return;
-    addItems([{ name, source: "manuel" }]);
-    setManual("");
+  /**
+   * Clic sur une tuile du menu. Une machine déjà retenue en sort (c'est un
+   * sélecteur : on décoche ce qu'on a coché par erreur) ; une machine
+   * décochée à la pastille redevient simplement active.
+   */
+  function toggleCatalogue(item: EquipmentItem) {
+    setItems((cur) => {
+      const i = cur.findIndex((l) => matchEquipment(l.name)?.key === item.key);
+      if (i < 0) {
+        return [...cur, { name: nomLocal(item, locale), source: "manuel", on: true }];
+      }
+      if (!cur[i].on) return cur.map((l, j) => (j === i ? { ...l, on: true } : l));
+      return cur.filter((_, j) => j !== i);
+    });
   }
 
   async function validate() {
@@ -170,55 +187,65 @@ export function GymStep({ nextHref = "/generation" }: { nextHref?: string }) {
               : t("gym.analyzing")
             : t("gym.analyze")}
         </Button>
+        <Button onClick={() => setPicker(true)} className="h-12">{t("gym.pick")}</Button>
         <span className="text-[12.5px] text-muted-2">{t("gym.photoHint", { max: MAX_GYM_PHOTOS })}</span>
       </div>
 
       <Card className="flex flex-col gap-3">
         <MonoLabel>{t("gym.yourEquipment")}</MonoLabel>
-        {items.length ? (
+        {resolues.length ? (
           <div className="flex flex-wrap gap-2">
-            {items.map((it, i) => (
-              <button
-                key={i}
-                onClick={() => setItems((c) => c.map((x, j) => (j === i ? { ...x, on: !x.on } : x)))}
-                className={[
-                  "tap rounded-pill border px-4 text-[14px]",
-                  it.on ? "bg-brand text-white border-brand" : "bg-surface text-muted-2 border-line-4 line-through",
-                ].join(" ")}
-              >
-                {it.name}
-                {confidenceLabel(it.confidence, locale) ? (
-                  <span className="opacity-70"> · {confidenceLabel(it.confidence, locale)}</span>
-                ) : null}
-              </button>
-            ))}
+            {resolues.map(({ ligne, cat }, i) => {
+              const photo = cat ? equipmentPhoto(cat) : null;
+              return (
+                <button
+                  key={i}
+                  onClick={() => setItems((c) => c.map((x, j) => (j === i ? { ...x, on: !x.on } : x)))}
+                  className={[
+                    "tap flex items-center gap-2 rounded-pill border py-1 pr-4 text-[14px]",
+                    photo ? "pl-1" : "pl-4",
+                    ligne.on ? "bg-brand text-white border-brand" : "bg-surface text-muted-2 border-line-4 line-through",
+                  ].join(" ")}
+                >
+                  {photo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={photo}
+                      alt=""
+                      loading="lazy"
+                      className={["size-7 shrink-0 rounded-full object-cover", ligne.on ? "" : "opacity-50"].join(" ")}
+                    />
+                  ) : null}
+                  <span>
+                    {ligne.name}
+                    {confidenceLabel(ligne.confidence, locale) ? (
+                      <span className="opacity-70"> · {confidenceLabel(ligne.confidence, locale)}</span>
+                    ) : null}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         ) : (
           <p className="text-[14px] text-muted-2">{t("gym.empty")}</p>
         )}
-        <div className="flex items-end gap-2">
-          <Field
-            id="manual"
-            label={t("gym.addManually")}
-            value={manual}
-            onChange={(e) => setManual(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addManual())}
-            placeholder={t("gym.addPlaceholder")}
-          />
-          <Button onClick={addManual} variant="outline" className="h-11">{t("gym.add")}</Button>
-        </div>
-        <div className="flex flex-wrap gap-1.5 pt-1">
-          {FALLBACK[locale].map((name) => (
-            <button
-              key={name}
-              onClick={() => addItems([{ name, source: "manuel" }])}
-              className="tap rounded-pill border border-line-3 bg-surface-2 px-3 text-[12.5px] text-muted"
-            >
-              + {name}
-            </button>
-          ))}
-        </div>
+        <button
+          type="button"
+          onClick={() => setPicker(true)}
+          className="tap w-fit rounded-btn border border-dashed border-line-4 bg-surface-2 px-4 py-2 text-[13.5px] font-medium text-muted hover:border-ink hover:text-ink"
+        >
+          + {t("gym.pick")}
+        </button>
       </Card>
+
+      {picker ? (
+        <EquipmentPicker
+          chosen={cochees}
+          onToggle={toggleCatalogue}
+          onFreeText={(nom) => addItems([{ name: nom, source: "manuel" }])}
+          onClose={() => setPicker(false)}
+        />
+      ) : null}
 
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" onClick={validate} className="h-[52px]">{t("gym.skip")}</Button>
