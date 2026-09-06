@@ -37,7 +37,7 @@ export const fr = {
     session: "Séance",
     nutrition: "Nutrition",
     evolution: "Évolution",
-    vipChat: "Chat VIP",
+    vipChat: "Coach réel",
     shop: "Boutique",
     referral: "Parrainage",
     profile: "Profil",
@@ -347,7 +347,7 @@ export const fr = {
       coachProgram: "Programme conçu par ton coach",
       nutrition: "Accompagnement nutritionnel",
       ai: "Coach IA inclus",
-      vip: "Chat VIP avec ton coach",
+      vip: "Chat avec un coach réel (messages et photos)",
       space: "Espace client et suivi",
     },
   },
@@ -554,7 +554,7 @@ export const fr = {
   },
   chat: {
     intro: "Une ligne directe avec ton coach. Pose tes questions, envoie des photos de tes repas ou de tes séances.",
-    title: "Chat VIP",
+    title: "Chat avec ton coach",
     empty: "Aucun message pour l'instant. Écris à ton coach, il te répondra ici.",
   },
   referral: {
@@ -606,7 +606,7 @@ export const fr = {
   notif: {
     title: "Notifications",
     on: "Activées",
-    body: "Reçois une notification les jours d'entraînement pour ne jamais oublier ta séance, et dès que ton coach te répond dans le Chat VIP.",
+    body: "Reçois une notification les jours d'entraînement pour ne jamais oublier ta séance, et dès que ton coach te répond dans le chat.",
     checking: "Vérification…",
     disable: "Désactiver les notifications",
     enable: "Activer les notifications",

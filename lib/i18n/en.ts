@@ -39,7 +39,7 @@ export const en: Shape<typeof fr> = {
     session: "Workout",
     nutrition: "Nutrition",
     evolution: "Progress",
-    vipChat: "VIP chat",
+    vipChat: "Real coach",
     shop: "Shop",
     referral: "Referral",
     profile: "Profile",
@@ -347,7 +347,7 @@ export const en: Shape<typeof fr> = {
       coachProgram: "Program designed by your coach",
       nutrition: "Nutrition coaching",
       ai: "AI coach included",
-      vip: "VIP chat with your coach",
+      vip: "Chat with a real coach (messages and photos)",
       space: "Client space and tracking",
     },
   },
@@ -554,7 +554,7 @@ export const en: Shape<typeof fr> = {
   },
   chat: {
     intro: "A direct line to your coach. Ask your questions, send photos of your meals or your sessions.",
-    title: "VIP chat",
+    title: "Chat with your coach",
     empty: "No message yet. Write to your coach, they'll answer here.",
   },
   referral: {
@@ -606,7 +606,7 @@ export const en: Shape<typeof fr> = {
   notif: {
     title: "Notifications",
     on: "Enabled",
-    body: "Get a notification on training days so you never forget your session, and as soon as your coach replies in the VIP Chat.",
+    body: "Get a notification on training days so you never forget your session, and as soon as your coach replies in the chat.",
     checking: "Checking…",
     disable: "Disable notifications",
     enable: "Enable notifications",

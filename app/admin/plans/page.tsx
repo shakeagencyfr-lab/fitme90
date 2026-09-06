@@ -54,7 +54,7 @@ export default async function AdminPlansPage() {
           <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
             {tx("Plans")}</h1>
           <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
-            {tx("Tes formules vendues aux clients, au même endroit : paiement unique OU abonnement, au choix. Active des options par plan (Coach IA, Chat VIP). Jusqu'à")} {MAX_OFFERS_PER_TENANT} {tx("plans au total.")}</p>
+            {tx("Tes formules vendues aux clients, au même endroit : paiement unique OU abonnement, au choix. Chaque plan porte sa formule (Mini ou Max) et, si tu veux, le chat avec toi. Jusqu'à")} {MAX_OFFERS_PER_TENANT} {tx("plans au total.")}</p>
         </div>
         {slug ? (
           <Link

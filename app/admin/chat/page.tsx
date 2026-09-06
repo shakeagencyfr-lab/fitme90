@@ -4,7 +4,7 @@ import { getAdminOrNull } from "@/lib/admin";
 import { listCoachVipThreads } from "@/lib/vip";
 import { Alert, Card } from "@/components/ui";
 
-export const metadata = { title: "Chat VIP" };
+export const metadata = { title: "Chat avec mes clients" };
 export const dynamic = "force-dynamic";
 
 const fmtWhen = (d: string | null) =>
@@ -19,16 +19,16 @@ export default async function AdminChatPage() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <h1 className="font-archivo font-extrabold text-[clamp(26px,5vw,36px)] leading-[1.05] tracking-[-0.03em] text-ink">
-          {tx("Chat VIP")}</h1>
+          {tx("Chat avec mes clients")}</h1>
         <p className="max-w-[70ch] text-[15px] leading-[1.6] text-muted">
-          {tx("Tes échanges directs avec les clients qui ont une offre « Chat VIP ». Configure tes e-mails de notification dans l'onglet Notifications.")}</p>
+          {tx("Tes échanges directs avec les clients dont le plan inclut le « Chat avec un Coach réel ». Configure tes e-mails de notification dans l'onglet Notifications.")}</p>
       </div>
 
       {!tenantId ? (
         <Alert>{tx("Aucun compte (tenant) n'est rattaché à ton profil.")}</Alert>
       ) : threads.length === 0 ? (
         <Alert tone="info">
-          {tx("Aucun client VIP pour l'instant. Active l'option « Chat VIP » sur une offre (onglet Ma page) : les clients qui l'achètent apparaîtront ici.")}</Alert>
+          {tx("Aucun client pour l'instant. Active l'option « Chat avec un Coach réel » sur un plan (onglet Plans) : les clients qui l'achètent apparaîtront ici.")}</Alert>
       ) : (
         <div className="flex flex-col gap-2.5">
           {threads.map((t) => (

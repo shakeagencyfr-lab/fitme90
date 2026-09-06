@@ -15,7 +15,7 @@ export function NotifyEmailsForm({ emails }: { emails: string[] }) {
       <div className="flex flex-col gap-1">
         <div className="font-archivo font-bold text-[17px] text-ink">{tx("Notifications par e-mail")}</div>
         <p className="text-[13px] text-muted">
-          {tx("Reçois un e-mail dès qu'un client t'écrit dans le Chat VIP. Sépare plusieurs adresses par une virgule ou un espace.")}</p>
+          {tx("Reçois un e-mail dès qu'un client t'écrit dans le chat. Sépare plusieurs adresses par une virgule ou un espace.")}</p>
       </div>
       <form action={action} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1.5">

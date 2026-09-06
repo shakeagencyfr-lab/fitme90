@@ -109,7 +109,9 @@ export default async function PaiementPage() {
           offerName={offer.name}
           eyebrow={product ? `${offer.name} · ${product.promise}` : offer.name}
           pitch={product ? product.pitch : t("payment.genericPitch", { duration: durationLabel, days: programDaysForMonths(offer.duration_months) })}
-          bullets={product ? product.bullets : []}
+          // Même règle que la page de vente : le Coach IA n'est annoncé que si
+          // la formule du plan l'inclut.
+          bullets={product ? [...product.bullets, ...(offer.coach_ai ? [product.aiBullet] : [])] : []}
           onceCents={offer.price_cents}
           monthlyCents={offer.price_month_cents}
           months={offer.duration_months}

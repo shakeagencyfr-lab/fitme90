@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { landingCopy, type Audience } from "@/components/landing-templates/coach-copy";
+import { landingCopy, offerCardCopy, type Audience } from "@/components/landing-templates/coach-copy";
+import { makeT } from "@/lib/i18n";
+import type { Offer } from "@/lib/offers";
 import type { Locale } from "@/lib/i18n";
 
 const CASES: { locale: Locale; audience: Audience }[] = [
@@ -94,5 +96,45 @@ describe("la variante salle parle vraiment d'une salle", () => {
   it("les clés non redéfinies retombent sur le socle", () => {
     expect(fr.footerLegal).toBe(frCoach.footerLegal);
     expect(fr.nutritionTitle).toBe(frCoach.nutritionTitle);
+  });
+});
+
+describe("la carte de vente n'annonce que ce que le plan contient", () => {
+  const offre = (over: Record<string, unknown>) =>
+    ({
+      id: "o1", tenant_id: "t", name: "Plan", duration_months: 3, price_cents: 19000, currency: "eur",
+      position: 0, is_active: true, is_listed: true, vip_chat: false, coach_ai: true,
+      coach_ai_daily_limit: null, recipe_ai_daily_limit: null, billing_type: "one_time",
+      price_month_cents: null, price_year_cents: null, created_at: "",
+      ...over,
+    }) as unknown as Offer;
+
+  it("en formule Max, le Coach IA figure dans les arguments", () => {
+    const t = makeT("fr");
+    const c = offerCardCopy(offre({ coach_ai: true }), [], t);
+    expect(c.bullets.some((b) => /Coach IA/.test(b))).toBe(true);
+  });
+
+  it("en formule Mini, il n'y figure pas : le client ne l'aura pas", () => {
+    const t = makeT("fr");
+    const c = offerCardCopy(offre({ coach_ai: false }), [], t);
+    expect(c.bullets.some((b) => /Coach IA/.test(b))).toBe(false);
+    // Le reste du produit est bien là.
+    expect(c.bullets.length).toBeGreaterThanOrEqual(3);
+    expect(c.bullets.some((b) => /nutrition/i.test(b))).toBe(true);
+  });
+
+  it("le chat avec le coach n'est annoncé que s'il est inclus", () => {
+    const t = makeT("fr");
+    expect(offerCardCopy(offre({ vip_chat: true }), [], t).bullets.some((b) => /coach réel/i.test(b))).toBe(true);
+    expect(offerCardCopy(offre({ vip_chat: false }), [], t).bullets.some((b) => /coach réel/i.test(b))).toBe(false);
+  });
+
+  it("vaut aussi pour le 12 mois et en anglais", () => {
+    const t = makeT("en");
+    const mini = offerCardCopy(offre({ duration_months: 12, coach_ai: false }), [], t);
+    expect(mini.bullets.some((b) => /AI Coach/i.test(b))).toBe(false);
+    const max = offerCardCopy(offre({ duration_months: 12, coach_ai: true }), [], t);
+    expect(max.bullets.some((b) => /AI Coach/i.test(b))).toBe(true);
   });
 });
