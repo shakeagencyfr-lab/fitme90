@@ -4,6 +4,7 @@ import { syncAllSubscriptions } from "@/lib/subscription";
 import { syncAllTenantSubscriptions } from "@/lib/tenant-billing";
 import { syncWhitelabelSubscriptions } from "@/lib/whitelabel-billing";
 import { syncBookingSubscriptions } from "@/lib/booking-billing";
+import { expireBookingHolds } from "@/lib/booking-appointments";
 import { autoAppendBlocks } from "@/lib/blocks";
 import { purgeLapsedClients } from "@/lib/lapsed";
 import { reconcileTenantPayments } from "@/lib/coach-payments";
@@ -44,6 +45,8 @@ export async function GET(req: Request) {
   const whitelabel = await syncWhitelabelSubscriptions();
   // Pack réservation vendu à part : même relecture, même fermeture.
   const booking = await syncBookingSubscriptions();
+  // Créneaux tenus pour un paiement jamais arrivé : libérés, client prévenu.
+  const expiredHolds = await expireBookingHolds();
   // Relances des prospects du lead magnet, chez les coachs qui les ont
   // activées. Une adresse captée puis jamais recontactée ne vaut rien.
   const followups = await runProspectFollowups();
@@ -51,5 +54,5 @@ export async function GET(req: Request) {
   // 3) Suppression des comptes clients en impayé prolongé (> 14 j). DRY-RUN tant
   //    que ENABLE_ACCOUNT_PURGE≠"1" : on compte sans supprimer.
   const purge = await purgeLapsedClients();
-  return NextResponse.json({ reconciled, followups, synced, restricted, tenantSynced, tenantDowngraded, whitelabel, booking, blocks, purge, broadcast });
+  return NextResponse.json({ reconciled, followups, synced, restricted, tenantSynced, tenantDowngraded, whitelabel, booking, expiredHolds, blocks, purge, broadcast });
 }

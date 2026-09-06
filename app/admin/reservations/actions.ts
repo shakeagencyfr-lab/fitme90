@@ -21,6 +21,7 @@ import {
   updateService,
 } from "@/lib/booking";
 import { parseHm, sanitizeService, type HoursRange } from "@/lib/booking-rules";
+import { cancelBooking, coachCreateBooking, coachSetBookingStatus } from "@/lib/booking-appointments";
 import { instantOf } from "@/lib/booking-time";
 
 // Actions de l'écran Réservations (coach ou salle). Chacune relit le tenant
@@ -230,5 +231,52 @@ export async function setClientBookingAction(_prev: BookingState, formData: Form
   const ok = await setClientBookingEnabled(g.tenantId, clientId, formData.get("enabled") === "on");
   if (!ok) return { error: "Client introuvable." };
   revalidatePath(`/admin/clients/${clientId}`);
+  return { ok: true };
+}
+
+// ───────────────────────────── agenda du coach
+
+export async function coachConfirmBookingAction(formData: FormData): Promise<void> {
+  const g = await gate();
+  if ("error" in g) return;
+  const id = str(formData, "id");
+  if (!isUuid(id)) return;
+  await coachSetBookingStatus(g.tenantId, id, "confirmed");
+  revalidatePath(PATH);
+}
+
+export async function coachBookingStatusAction(formData: FormData): Promise<void> {
+  const g = await gate();
+  if ("error" in g) return;
+  const id = str(formData, "id");
+  const status = str(formData, "status");
+  if (!isUuid(id) || (status !== "done" && status !== "no_show")) return;
+  await coachSetBookingStatus(g.tenantId, id, status);
+  revalidatePath(PATH);
+}
+
+export async function coachCancelBookingAction(formData: FormData): Promise<void> {
+  const g = await gate();
+  if ("error" in g) return;
+  const id = str(formData, "id");
+  if (!isUuid(id)) return;
+  await cancelBooking({ bookingId: id, by: "coach", tenantId: g.tenantId, reason: str(formData, "reason") });
+  revalidatePath(PATH);
+}
+
+/** Le coach pose un rendez-vous à la main, pour un de ses clients. */
+export async function coachAddBookingAction(_prev: BookingState, formData: FormData): Promise<BookingState> {
+  const g = await gate();
+  if ("error" in g) return { error: g.error };
+  const clientId = str(formData, "client_id");
+  const calendarId = str(formData, "calendar_id");
+  const serviceId = str(formData, "service_id");
+  if (!isUuid(clientId) || !isUuid(calendarId) || !isUuid(serviceId)) return { error: "Client, planning et prestation, s'il te plaît." };
+  const tz = await tenantTimezone(g.tenantId);
+  const start = instantOf(str(formData, "day"), str(formData, "time"), tz);
+  if (!start) return { error: "Date ou heure illisible." };
+  const res = await coachCreateBooking({ tenantId: g.tenantId, clientId, calendarId, serviceId, start, note: str(formData, "note") });
+  if (res.error) return { error: res.error };
+  revalidatePath(PATH);
   return { ok: true };
 }

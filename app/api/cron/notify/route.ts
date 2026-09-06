@@ -8,6 +8,7 @@ import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
 import { missedDays } from "@/lib/streak";
 import { PROGRAM_DAYS, programDaysForMonths } from "@/lib/config";
 import type { Plan } from "@/lib/program";
+import { remindUpcomingBookings } from "@/lib/booking-appointments";
 
 // Seuil de relance : nombre de séances en retard à partir duquel on envoie un
 // rappel de rattrapage (les jours sans séance prévue aujourd'hui).
@@ -40,13 +41,15 @@ export async function GET(req: Request) {
   // Notifications programmées : même dispatcher que /api/cron/push, qui tourne
   // beaucoup plus souvent. La passe quotidienne sert de filet de rattrapage.
   const { sent: broadcastSent } = await dispatchScheduledPushes(now);
+  // Rendez-vous en présentiel des prochaines 24 h : un rappel au client, une fois.
+  const bookingReminders = await remindUpcomingBookings(now);
 
   const { data: subs } = await db
     .from("push_subscriptions")
     .select("endpoint, user_id, p256dh, auth")
     .returns<SubRow[]>();
   if (!subs || subs.length === 0) {
-    return NextResponse.json({ sent: 0, removed: 0, users: 0, broadcastSent });
+    return NextResponse.json({ sent: 0, removed: 0, users: 0, broadcastSent, bookingReminders });
   }
 
   // Regroupe les abonnements par utilisateur (plusieurs appareils possibles).
