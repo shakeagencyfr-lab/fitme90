@@ -1,7 +1,7 @@
 import "server-only";
 import { aiLanguageInstruction, type Locale } from "./i18n";
 import { z } from "zod";
-import { anthropic, MODELS, textOf, parseJsonLoose, effortConfig, apiCallOf, type ApiCall } from "@/lib/anthropic";
+import { anthropic, MODELS, textOf, parseJsonLoose, effortConfig, apiCallOf, type ApiCall, type Effort } from "@/lib/anthropic";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
 import { restPatternFromTrainDays, isRestDay } from "@/lib/schedule";
 import { scheduledTrainingDays } from "@/lib/streak";
@@ -544,13 +544,21 @@ export interface GenerateResult {
 
 /**
  * Appelle le modèle (streaming) et renvoie un plan validé.
- * `effort` : "high" pour la 1re génération ; réduit ("low"/"medium") pour les
- * régénérations rapides (changement de jours, adaptation) afin de tenir dans le
- * budget temps d'une requête coach (Vercel Hobby ≈ 60 s).
+ *
+ * `effort` gradue la dépense de réflexion, et le bon niveau n'est pas le même
+ * partout :
+ *  - "max" pour le programme du client, qu'il paie et garde trois mois. C'est
+ *    le seul livrable où la justesse prime franchement sur le coût, et monter
+ *    l'effort sur le modèle en place coûte bien moins cher que de passer au
+ *    modèle du dessus, facturé au double du tarif par jeton.
+ *  - "medium" pour le bloc suivant d'un programme de douze mois : il s'appuie
+ *    sur un bloc déjà écrit et validé, il a moins à inventer.
+ *  - "low" pour les régénérations en direct (changement de jours, adaptation),
+ *    qui doivent tenir dans le budget temps d'une requête coach.
  */
 export async function generateProgram(
   brief: Brief,
-  effort: "low" | "medium" | "high" = "high",
+  effort: Effort = "max",
   apiKey?: string,
   tenantId: string | null = null,
   /**
@@ -619,7 +627,7 @@ export async function generateProgram(
   // Garde-fou périodisation : si un cycle manque de séances distinctes (bug
   // « même séance partout »), on relance une fois avec une consigne explicite
   // (1re génération uniquement, où le budget temps le permet).
-  if (effort === "high" && (wantSessions >= 2 || wantCycles >= 2) && !cyclesOk(plan)) {
+  if ((effort === "high" || effort === "xhigh" || effort === "max") && (wantSessions >= 2 || wantCycles >= 2) && !cyclesOk(plan)) {
     try {
       const retry = await runOnce(
         `\n\nATTENTION : le plan doit contenir EXACTEMENT ${wantCycles} cycle(s), et CHAQUE cycle doit contenir EXACTEMENT ${wantSessions} séances DISTINCTES dans "cycles[i].sessions" (une par jour d'entraînement), et les séances doivent CHANGER d'un cycle au suivant. Ne renvoie pas une seule séance ni des cycles sans séances.`,

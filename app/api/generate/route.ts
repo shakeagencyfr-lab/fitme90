@@ -174,7 +174,10 @@ async function generateForClient(
         programDays,
         locale: await resolveLocale(await userLocale(ctx.userId)),
       },
-      "high",
+      // Le programme du client : effort maximum. C'est le livrable qu'il paie
+      // et qu'il garde trois mois, et c'est le levier de qualité le moins cher
+      // avant de changer de modèle.
+      "max",
       billing.key,
       ctx.profile?.tenant_id ?? null,
       journal,
