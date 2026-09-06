@@ -3,7 +3,7 @@
 import { usePhrase } from "@/components/locale-provider";
 
 import { useMemo, useState } from "react";
-import { EXERCISE_LIBRARY, libraryFrames, normalizeExerciseName, type LibraryExercise } from "@/lib/exercise-library";
+import { EXERCISE_LIBRARY, framesOf, normalizeExerciseName, type LibraryExercise } from "@/lib/exercise-library";
 import { MuscleIllustration } from "@/components/muscle-illustration";
 import { ModalLayer } from "@/components/modal-layer";
 
@@ -12,7 +12,7 @@ import { ModalLayer } from "@/components/modal-layer";
 // Ce sont les ressources appliquées automatiquement à ses clients.
 
 function CatalogCard({ ex, onOpen }: { ex: LibraryExercise; onOpen: () => void }) {
-  const [f] = libraryFrames(ex.key);
+  const [f] = framesOf(ex);
   return (
     <button
       type="button"
@@ -20,7 +20,7 @@ function CatalogCard({ ex, onOpen }: { ex: LibraryExercise; onOpen: () => void }
       className="tap group flex flex-col overflow-hidden rounded-card border border-line bg-surface text-left transition-colors hover:border-ink/40"
     >
       <div className="flex aspect-[3/2] w-full items-center justify-center overflow-hidden bg-surface-2 text-muted-2">
-        {ex.noPhoto ? (
+        {!f ? (
           <MuscleIllustration muscle={ex.muscle} className="h-[86%] w-auto py-1.5" />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
@@ -37,7 +37,7 @@ function CatalogCard({ ex, onOpen }: { ex: LibraryExercise; onOpen: () => void }
 
 function DetailModal({ ex, onClose }: { ex: LibraryExercise; onClose: () => void }) {
   const tx = usePhrase();
-  const [a, b] = libraryFrames(ex.key);
+  const [a, b] = framesOf(ex);
   return (
     <ModalLayer onClose={onClose} label={ex.name} closeLabel={tx("Fermer")}>
       <div className="relative z-10 flex max-h-[88dvh] w-full max-w-[560px] flex-col overflow-hidden rounded-t-[16px] border border-line bg-surface shadow-xl sm:rounded-card">
@@ -51,7 +51,7 @@ function DetailModal({ ex, onClose }: { ex: LibraryExercise; onClose: () => void
           </button>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {ex.noPhoto ? (
+          {!a ? (
             <div className="flex aspect-[5/3] w-full items-center justify-center bg-surface-2 py-4 text-muted-2">
               <MuscleIllustration muscle={ex.muscle} className="h-full w-auto" />
             </div>

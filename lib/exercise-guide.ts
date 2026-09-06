@@ -8,7 +8,7 @@ import { recordCalls } from "@/lib/ratelimit";
 import {
   matchLibraryExercise,
   normalizeExerciseName,
-  libraryFrames,
+  framesOf,
 } from "@/lib/exercise-library";
 
 // Résolveur de fiche exercice, en trois couches de priorité :
@@ -59,7 +59,7 @@ function libraryGuide(name: string): ResolvedGuide | null {
   return {
     name: entry.name,
     muscle: entry.muscle,
-    frames: entry.noPhoto ? [] : libraryFrames(entry.key),
+    frames: framesOf(entry),
     steps: entry.guide.steps,
     cues: entry.guide.cues,
     mistakes: entry.guide.mistakes,

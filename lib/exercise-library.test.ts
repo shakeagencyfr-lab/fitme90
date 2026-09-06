@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { matchLibraryExercise, normalizeExerciseName } from "./exercise-library";
+import { existsSync } from "node:fs";
+import { EXERCISE_LIBRARY, framesOf, matchLibraryExercise, normalizeExerciseName } from "./exercise-library";
 
 describe("normalizeExerciseName", () => {
   it("retire accents, mots-outils et ponctuation (garde le matériel)", () => {
@@ -127,5 +128,25 @@ describe("matchLibraryExercise", () => {
     // « machine » ou « poulie » seuls ne disent rien du mouvement.
     expect(matchLibraryExercise("Adducteurs à la poulie")?.key).not.toBe("extension-fessier-poulie");
     expect(matchLibraryExercise("Abduction de hanche")?.key).not.toBe("extension-fessier-poulie");
+  });
+});
+
+describe("images des fiches", () => {
+  it("toute fiche annoncée avec photo a bien ses deux images sur le disque", () => {
+    const manquantes = EXERCISE_LIBRARY.flatMap((e) =>
+      framesOf(e).filter((f) => !existsSync(`public${f}`)).map((f) => `${e.key} : ${f}`),
+    );
+    expect(manquantes).toEqual([]);
+  });
+
+  it("les fiches « à la machine » gardent la photo du mouvement", () => {
+    // Régression vue en séance : ces fiches sont nées du catalogue de matériel
+    // et affichaient la silhouette, alors que le mouvement est le même et que
+    // sa photo existait déjà. Le catalogue, lui, reste sans photo : là, l'image
+    // doit permettre de reconnaître LA MACHINE avant de la cocher.
+    const frames = (key: string) => framesOf(EXERCISE_LIBRARY.find((e) => e.key === key)!);
+    expect(frames("hip-thrust-machine")).toEqual(frames("hip-thrust"));
+    expect(frames("kickback-fessier-machine")).toEqual(frames("kickback-fessier-poulie"));
+    expect(frames("crunch-machine")).toEqual(frames("crunch-poulie"));
   });
 });

@@ -21,11 +21,36 @@ export interface LibraryExercise {
   guide: ExerciseGuide;
   /** Pas de photo : le visuel affiché est l'illustration du groupe musculaire. */
   noPhoto?: boolean;
+  /**
+   * Dossier d'images à utiliser, quand ce n'est pas celui de la clé.
+   *
+   * Sert aux fiches qui décrivent le MÊME mouvement sur un autre matériel : le
+   * hip thrust à la machine, c'est le hip thrust, dos calé, hanche qui s'ouvre.
+   * La photo du mouvement les sert toutes les deux, et la dupliquer sur le
+   * disque ferait deux fichiers pour une seule image.
+   */
+  photo?: string;
 }
 
-/** Deux images (départ / arrivée) d'une entrée de bibliothèque. */
+/** Deux images (départ / arrivée) d'un dossier de la bibliothèque. */
 export function libraryFrames(key: string): string[] {
   return [`/exercises/${key}/0.jpg`, `/exercises/${key}/1.jpg`];
+}
+
+/**
+ * Les images d'une fiche, vide quand elle n'en a pas.
+ *
+ * Passe TOUJOURS par ici plutôt que par `libraryFrames(entry.key)` : c'est le
+ * seul endroit qui connaît `noPhoto` et le renvoi vers un autre dossier.
+ *
+ * À ne pas confondre avec la photo du CATALOGUE DE MATÉRIEL : là, l'image doit
+ * permettre de RECONNAÎTRE une machine avant de la cocher, donc la photo d'un
+ * hip thrust à la barre y serait trompeuse et reste absente. Ici, la photo
+ * montre le MOUVEMENT à quelqu'un qui est déjà devant sa machine.
+ */
+export function framesOf(entry: LibraryExercise): string[] {
+  if (entry.noPhoto) return [];
+  return libraryFrames(entry.photo ?? entry.key);
 }
 
 // Mots-outils (grammaire) à ignorer. On GARDE le matériel (haltères, barre,
@@ -267,7 +292,7 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     name: "Hip thrust à la machine",
     muscle: "Fessiers",
     aliases: ["hip thrust machine", "machine a hip thrust", "hip thrust guide", "glute drive", "banc a hip thrust"],
-    noPhoto: true,
+    photo: "hip-thrust",
     guide: {
       steps: [
         "Assis dans la machine, dos calé, coussin sur le bassin et pieds à plat largeur de hanches.",
@@ -688,7 +713,7 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     name: "Crunch à la machine",
     muscle: "Abdominaux",
     aliases: ["crunch machine", "machine a abdominaux", "machine a abdos", "ab crunch machine", "abdominal crunch machine", "crunch guide"],
-    noPhoto: true,
+    photo: "crunch-poulie",
     guide: {
       steps: [
         "Assis, dos contre le dossier, poignées au-dessus des épaules et pieds calés.",
@@ -1506,7 +1531,7 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     name: "Extension fessier à la machine",
     muscle: "Fessiers",
     aliases: ["kickback machine", "machine a kickback", "glute kickback machine", "extension fessier machine", "machine a fessiers", "kickback fessier machine"],
-    noPhoto: true,
+    photo: "kickback-fessier-poulie",
     guide: {
       steps: [
         "Face à la machine, buste appuyé sur le support, un pied sur la plateforme.",
