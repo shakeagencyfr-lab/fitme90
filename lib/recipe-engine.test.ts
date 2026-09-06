@@ -155,12 +155,10 @@ describe("scaleRecipe", () => {
         for (let jour = 1; jour <= 21; jour++) {
           const total = menuForDay({ jour, repas, macros, profil }).reduce((a, r) => a + r.macros.kcal, 0);
           const ecart = (total - macros.kcal) / macros.kcal;
-          // Le dépassement est le vrai défaut, on le borne serré. Le manque,
-          // lui, est une limite physique des portions : deux repas par jour à
-          // 2 580 kcal, cela ferait 1 290 kcal par assiette, et aucune recette
-          // sensée ne monte jusque-là.
-          const plancher = n === "2" ? -0.18 : -0.12;
-          if (ecart > 0.08 || ecart < plancher)
+          // Le dépassement reste le vrai défaut, borné serré. Le manque a une
+          // marge un peu plus large : les portions sont arrondies au multiple
+          // de dix grammes, et trois arrondis par repas finissent par se voir.
+          if (ecart > 0.08 || ecart < -0.1)
             ecarts.push(`${n} repas j${jour} ${macros.kcal} kcal : ${Math.round(total)} (${Math.round(ecart * 100)} %)`);
         }
       }

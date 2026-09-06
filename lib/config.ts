@@ -219,7 +219,24 @@ export const LIMIT_ADAPT_PER_WEEK = 2;
  * savoir s'il date d'avant ou d'après le dernier changement de modèle.
  */
 export const AI_COST_MEASURED_ON = "5 septembre 2026";
-/** Coût estimé d'UN message Coach IA, écriture de cache amortie sur la session. */
+/**
+ * Coût estimé d'UN message Coach IA, écriture de cache amortie sur la session.
+ *
+ * MESURÉ DANS LE JOURNAL, ET LA MESURE A RÉVÉLÉ UN DÉFAUT. Avant correction, la
+ * moyenne réelle était de 0,0094 $, soit plus du double de cette constante : la
+ * mémoire du client vivait dans le préfixe mis en cache, si bien que chaque
+ * mémorisation en cours de conversation faisait RÉÉCRIRE les 8 000 tokens de
+ * persona, profil et programme au double du tarif. Cinq réécritures en quarante
+ * minutes sur une seule conversation, 92 % de la facture du chat. La mémoire est
+ * depuis renvoyée après les points de reprise (voir app/api/coach/route.ts) :
+ * un message coûte alors une lecture de cache (10 % du tarif d'entrée) plus une
+ * écriture par heure d'activité, ce que cette constante représente.
+ *
+ * À REMESURER sur le journal après quelques semaines d'usage réel : c'est le
+ * seul juge. Un message isolé qui déclenche une adaptation de programme coûte,
+ * lui, jusqu'à 0,07 $ ; il est compté à part (AI_COST_ACTION_USD ne couvre pas
+ * une régénération de bloc).
+ */
 export const AI_COST_COACH_MSG_USD = 0.004;
 /**
  * Coût estimé d'UNE action IA « simple » = 1 crédit.
@@ -229,7 +246,20 @@ export const AI_COST_COACH_MSG_USD = 0.004;
  * le crédit et le message se confondent désormais.
  */
 export const AI_COST_ACTION_USD = AI_COST_COACH_MSG_USD;
-/** Coût de la seule génération (Opus 5, jetons mesurés), sans les photos de salle. */
+/**
+ * Coût de la seule génération (Opus 5, jetons mesurés), sans les photos de salle.
+ *
+ * PRUDENT ET ASSUMÉ. La seule génération Opus du journal a coûté 0,345 $
+ * (12 352 tokens d'entrée, 11 339 de sortie) ; les générations Sonnet qui l'ont
+ * précédée, 0,27 $. Cette constante est donc environ deux fois au-dessus du
+ * mesuré, ce qui est le bon sens du côté sûr : elle sert à calculer une MARGE
+ * de revente, et une marge calculée sur un coût sous-estimé se retourne contre
+ * le revendeur. Un programme à cinq séances par semaine, ou un cycle plus long,
+ * produit mécaniquement plus de texte que l'unique cas mesuré.
+ *
+ * Ne la baisser qu'avec une dizaine de générations au journal, en prenant le
+ * PIRE cas observé et non la moyenne.
+ */
 export const AI_COST_GENERATION_USD = 0.75;
 /** Coût MESURÉ de l'analyse d'un lot de photos de salle (Haiku, vision). */
 export const AI_COST_GYM_PHOTOS_USD = 0.011;

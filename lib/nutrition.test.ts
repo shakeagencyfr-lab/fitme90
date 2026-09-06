@@ -176,8 +176,11 @@ describe("shoppingList — le caddie correspond exactement aux recettes", () => 
 });
 
 describe("repasDuJour — ce que le client a répondu", () => {
-  it("deux repas par jour retirent le petit-déjeuner", () => {
-    expect(repasDuJour({ meals_per_day: "2" })).toEqual(["dejeuner", "diner"]);
+  it("deux repas par jour retirent le petit-déjeuner et ajoutent une collation", () => {
+    // Une collation n'est pas un repas : le client garde ses deux assiettes,
+    // et la collation (qui peut être un simple shaker) absorbe le reste de la
+    // cible au lieu de gonfler les deux assiettes au-delà du mangeable.
+    expect(repasDuJour({ meals_per_day: "2" })).toEqual(["dejeuner", "diner", "collation"]);
   });
 
   it("cinq repas donnent deux collations, servies différemment", () => {

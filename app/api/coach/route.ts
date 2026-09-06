@@ -241,7 +241,7 @@ ${aiLanguageInstruction(locale)}
 PROFIL DU CLIENT :
 ${profileLines.length ? profileLines.join("\n") : "Non renseigné."}
 Jours d'entraînement : ${quiz?.train_days?.join(", ") || "non précisés"}.
-${memoryBlock ? `\n${memoryBlock}\n` : ""}
+
 PROGRAMME (JSON, cycle en cours détaillé) :
 ${JSON.stringify(coachPlanView((program?.plan as Plan | undefined) ?? null, ctx.access.day))}`;
 
@@ -298,9 +298,23 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
   // coûter plus cher que pas de cache du tout. C'est exactement ce qui s'est
   // produit ici (voir le commentaire sur `convo` plus bas).
   const longCache = { type: "ephemeral", ttl: "1h" } as const;
+  // LA MÉMOIRE VIENT APRÈS LES POINTS DE REPRISE, ET SANS CACHE.
+  //
+  // Elle y était avant, dans le bloc « stable », et c'est ce qui coûtait cher.
+  // Le cache fonctionne par préfixe : quand le coach mémorise quelque chose au
+  // milieu d'une conversation, la mémoire grossit de quelques dizaines de
+  // tokens, le préfixe change, et les 8 000 tokens de persona, profil et
+  // programme sont RÉÉCRITS au double du tarif. Le journal le montre sans
+  // ambiguïté : cinq réécritures complètes en quarante minutes sur une seule
+  // conversation, soit 92 % du coût du chat pour ce client.
+  //
+  // Renvoyée en clair à chaque message, la mémoire coûte quelques centaines de
+  // tokens au tarif plein. C'est dix fois moins qu'une réécriture, et le
+  // préfixe, lui, tient enfin plusieurs jours.
   const system: Anthropic.TextBlockParam[] = [
     { type: "text", text: systemStable, cache_control: longCache },
     { type: "text", text: systemVolatile, cache_control: longCache },
+    ...(memoryBlock ? [{ type: "text" as const, text: memoryBlock }] : []),
   ];
 
   const userContent: Anthropic.ContentBlockParam[] = [];

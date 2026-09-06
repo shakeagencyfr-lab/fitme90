@@ -159,7 +159,8 @@ export function scaleRecipe(tpl: RecipeTemplate, cible: Macros): ScaledRecipe {
           .map((i) => apport(FOODS[i.food], qty.get(i.food) ?? i.qty)),
       );
       const besoin = cible[macro] - autres[macro];
-      let vise = besoin / parGramme;
+      const viseExact = besoin / parGramme;
+      let plafond = Infinity;
 
       // UNE ANCRE NE DÉFONCE PAS LES AUTRES MACROS POUR SATISFAIRE LA SIENNE.
       //
@@ -189,18 +190,23 @@ export function scaleRecipe(tpl: RecipeTemplate, cible: Macros): ScaledRecipe {
         if (autre === macro) continue;
         const parGrammeAutre = food[autre] / 100;
         if (parGrammeAutre <= 0) continue;
-        vise = Math.min(vise, (cible[autre] * TOLERANCE_MACRO - plancher[autre]) / parGrammeAutre);
+        plafond = Math.min(plafond, (cible[autre] * TOLERANCE_MACRO - plancher[autre]) / parGrammeAutre);
       }
 
       const [min, max] = bornes(ancre);
-      const brut = Math.min(max, Math.max(min, vise));
       const step = pas(food, role);
+      const brut = Math.min(max, Math.max(min, Math.min(viseExact, plafond)));
       let g = Math.min(max, Math.max(min, arrondi(brut, step)));
       // L'arrondi va au plus proche : sur un aliment qui se compte, il peut
-      // repasser AU-DESSUS du garde-fou qu'on vient de calculer (un deuxième
-      // œuf entier là où il n'y avait la place que pour un et demi). On
-      // redescend d'un cran quand c'est le cas, sans passer sous la borne.
-      if (g > vise && g - step >= min) g -= step;
+      // repasser AU-DESSUS du plafond qu'on vient de calculer (un deuxième œuf
+      // entier là où il n'y avait la place que pour un et demi). On redescend
+      // alors d'un cran, sans passer sous la borne basse.
+      //
+      // On ne redescend QUE contre le plafond, jamais contre le besoin exact :
+      // dépasser sa propre cible d'un demi-cran d'arrondi est sans importance,
+      // alors que redescendre systématiquement faisait perdre une soixantaine
+      // de kilocalories par repas, soit une journée entière sous sa cible.
+      if (g > plafond && g - step >= min) g -= step;
       qty.set(ancre.food, g);
     }
   }
@@ -604,15 +610,22 @@ export function profilDepuisQuiz(a: Record<string, unknown>): Profil {
 /**
  * Combien de repas afficher, d'après « repas par jour » du questionnaire.
  *
- * Deux repas par jour est une réponse possible : c'est alors le petit-déjeuner
- * qui saute, parce que c'est celui que sautent réellement les gens qui
- * répondent cela. Cinq repas, c'est deux collations, pas une.
+ * UNE COLLATION N'EST PAS UN REPAS. C'est la règle qui décide ici : le client
+ * qui répond « 2 repas » veut deux vraies assiettes, pas deux tiers de sa
+ * journée dans chacune. Deux repas seuls, cela demandait 1 290 kcal par
+ * assiette sur un objectif courant, ce qu'aucune recette sensée n'atteint : la
+ * journée tombait alors 15 % sous sa cible. La collation absorbe l'écart, et
+ * elle peut porter un complément (whey, protéine végétale) plutôt qu'un
+ * troisième plat, ce qui est exactement l'usage.
+ *
+ * Deux repas, c'est le petit-déjeuner qui saute : c'est celui que sautent
+ * réellement les gens qui répondent cela. Cinq repas, c'est deux collations.
  */
 export function repasDuJour(a: Record<string, unknown>): Repas[] {
   const n = parseInt(String(a.meals_per_day ?? "3"), 10);
-  if (!Number.isFinite(n)) return ["petit-dejeuner", "dejeuner", "diner"];
-  if (n <= 2) return ["dejeuner", "diner"];
   const base: Repas[] = ["petit-dejeuner", "dejeuner", "diner"];
+  if (!Number.isFinite(n)) return base;
+  if (n <= 2) return ["dejeuner", "diner", "collation"];
   if (n === 3) return base;
   if (n === 4) return [...base, "collation"];
   return [...base, "collation", "collation"];
