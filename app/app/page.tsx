@@ -22,6 +22,9 @@ import { DAYS_PER_MONTH } from "@/lib/config";
 import { getT, userLocale } from "@/lib/i18n/server";
 import { dateLocale } from "@/lib/i18n";
 import { dayLabel } from "@/lib/i18n/quiz";
+import { clientBookingContext } from "@/lib/booking";
+import { listClientBookings } from "@/lib/booking-appointments";
+import { BookingNext } from "@/components/booking-next";
 
 export const metadata = { title: "Programme" };
 
@@ -231,6 +234,10 @@ export default async function ProgrammePage({
     if (w && w.length >= 2) weightDelta = +(w[w.length - 1].kg - w[0].kg).toFixed(1);
   }
 
+  // Rendez-vous en présentiel, quand son coach lui a ouvert la réservation.
+  const booking = await clientBookingContext(ctx.userId);
+  const rdv = booking.enabled ? (await listClientBookings(ctx.userId)).upcoming : [];
+
   return (
     <div className="mx-auto flex max-w-[880px] flex-col gap-6">
       <header className="flex flex-col gap-2">
@@ -252,6 +259,10 @@ export default async function ProgrammePage({
       {sp.upgrade === "0" ? <Alert>{t("dashboard.upgradeCancelled")}</Alert> : null}
 
       {blockMissing ? <NextBlockPrompt label={nextBlockName} /> : null}
+
+      {/* Le prochain rendez-vous en présentiel, avant tout le reste : c'est ce
+          qui a une heure, et donc ce qui se rate. */}
+      <BookingNext upcoming={rdv} timezone={booking.timezone} locale={locale} t={t} />
 
       {quote ? (
         <UpgradeCard

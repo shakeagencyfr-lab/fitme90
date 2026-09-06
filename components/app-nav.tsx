@@ -87,7 +87,9 @@ type IconKey = keyof typeof I;
 type Item = { href: string; label: string; icon: IconKey };
 
 // Onglets rangés dans « Plus » sur mobile (le reste va dans la barre du bas).
-const IN_MORE = ["/app/evolution", "/app/shop", "/app/chat", "/app/parrainage", "/app/reservation"];
+// La réservation N'EST PAS dans « Plus » : un rendez-vous a une heure, donc
+// il se rate, et un onglet caché derrière un menu ne se consulte pas.
+const IN_MORE = ["/app/evolution", "/app/shop", "/app/chat", "/app/parrainage"];
 
 // Construit la liste des onglets selon les options activées (boutique, chat VIP,
 // parrainage).

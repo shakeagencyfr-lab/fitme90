@@ -13,6 +13,10 @@ import {
 import { DAYS } from "@/lib/questionnaire";
 import { MonoLabel } from "@/components/ui";
 import { cycleIndexForDay } from "@/lib/program";
+import { clientBookingContext } from "@/lib/booking";
+import { listClientBookings } from "@/lib/booking-appointments";
+import { byDayKey } from "@/lib/booking-summary";
+import { humanTime } from "@/lib/booking-time";
 
 export const metadata = { title: "Agenda" };
 
@@ -44,6 +48,15 @@ export default async function AgendaPage() {
     .select("day")
     .eq("user_id", ctx.userId);
   const done = new Set((logs ?? []).map((l) => l.day as number));
+
+  // Les rendez-vous en présentiel se posent SUR le même calendrier que les
+  // séances : c'est le même corps et la même semaine. Les tenir dans deux
+  // écrans séparés, c'est comment on double-réserve son samedi matin.
+  const booking = await clientBookingContext(ctx.userId);
+  const rdv = booking.enabled ? (await listClientBookings(ctx.userId)).upcoming : [];
+  const rdvParJour = byDayKey(rdv, booking.timezone);
+  // La case du calendrier est une date UTC : on la lit comme une date nue.
+  const keyOf = (dUTC: number) => new Date(dUTC).toISOString().slice(0, 10);
 
   const fmtMonth = (dUTC: number) =>
     new Date(dUTC).toLocaleDateString(dateLocale(locale), { month: "long", year: "numeric", timeZone: "UTC" });
@@ -143,6 +156,13 @@ export default async function AgendaPage() {
                           className={`absolute bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full ${CYCLE_DOT[cycleOf(pd)]}`}
                         />
                       ) : null}
+                      {rdvParJour.has(keyOf(dUTC)) ? (
+                        <span
+                          className="absolute left-1 top-1 size-1.5 rounded-full bg-cardio"
+                          title={t("booking.title")}
+                          aria-hidden
+                        />
+                      ) : null}
                     </Link>
                   );
                 })}
@@ -151,6 +171,34 @@ export default async function AgendaPage() {
           );
         })}
       </div>
+
+      {rdv.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          <MonoLabel>{t("booking.mine")}</MonoLabel>
+          <ul className="flex flex-col gap-1.5">
+            {rdv.map((b) => (
+              <li key={b.id} className="flex items-center gap-3 rounded-card border border-line bg-surface px-3.5 py-2.5">
+                <span className="size-2 shrink-0 rounded-full bg-cardio" aria-hidden />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-[14px] font-semibold text-ink">{b.service_name}</span>
+                  <span className="text-[12.5px] text-muted-2">
+                    {new Date(b.starts_at).toLocaleDateString(dateLocale(locale), {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                      timeZone: booking.timezone,
+                    })}{" "}
+                    {t("dates.at")} {humanTime(new Date(b.starts_at), booking.timezone, locale)}
+                  </span>
+                </span>
+                <Link href="/app/reservation" className="tap shrink-0 text-[13px] font-semibold text-brand hover:underline">
+                  {t("booking.change")}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <MonoLabel>{t("agenda.legend")}</MonoLabel>
     </div>

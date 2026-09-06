@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { agendaView, bookingFigures, isLive } from "./booking-summary";
+import { agendaView, bookingFigures, byDayKey, isLive } from "./booking-summary";
 import type { Booking, BookingStatus } from "./booking-model";
 
 const TZ = "Europe/Paris";
@@ -109,5 +109,28 @@ describe("bookingFigures", () => {
     // 2 honorées sur 3 séances terminées : l'annulation ne compte pas contre.
     expect(bookingFigures(list, NOW).attendancePct).toBe(67);
     expect(bookingFigures([], NOW).attendancePct).toBeNull();
+  });
+});
+
+describe("byDayKey", () => {
+  it("range les rendez-vous vivants par jour du coach, dans l'ordre", () => {
+    const m = byDayKey(
+      [
+        rdv("b", "2026-03-11T11:00:00Z"),
+        rdv("a", "2026-03-11T09:00:00Z"),
+        rdv("c", "2026-03-12T09:00:00Z"),
+        rdv("x", "2026-03-11T15:00:00Z", "cancelled"),
+      ],
+      TZ,
+    );
+    expect([...m.keys()].sort()).toEqual(["2026-03-11", "2026-03-12"]);
+    expect(m.get("2026-03-11")!.map((b) => b.id)).toEqual(["a", "b"]);
+  });
+
+  it("range un rendez-vous tardif au bon jour dans le fuseau du coach", () => {
+    // 23 h 30 UTC un 11 mars, c'est déjà le 12 à Paris : c'est ce jour-là que
+    // le client doit se présenter, donc celui qu'il doit lire sur sa case.
+    const m = byDayKey([rdv("tard", "2026-03-11T23:30:00Z")], TZ);
+    expect([...m.keys()]).toEqual(["2026-03-12"]);
   });
 });
