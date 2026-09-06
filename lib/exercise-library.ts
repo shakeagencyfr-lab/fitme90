@@ -251,7 +251,7 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     key: "hip-thrust",
     name: "Hip thrust",
     muscle: "Fessiers",
-    aliases: ["hip thrust", "poussee de hanches", "thrust", "hip thrust barre", "hip thrust machine", "hip thrust haltere", "hip thrust au banc"],
+    aliases: ["hip thrust", "poussee de hanches", "thrust", "hip thrust barre", "hip thrust haltere", "hip thrust au banc"],
     guide: {
       steps: [
         "Haut du dos appuyé sur un banc, barre (ou poids) sur le bassin, pieds à plat.",
@@ -260,6 +260,22 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
       ],
       cues: ["Menton rentré, regard vers l'avant", "Serre fort les fessiers en haut", "Tibias verticaux en position haute"],
       mistakes: ["Cambrer le bas du dos en haut", "Amplitude trop courte"],
+    },
+  },
+  {
+    key: "hip-thrust-machine",
+    name: "Hip thrust à la machine",
+    muscle: "Fessiers",
+    aliases: ["hip thrust machine", "machine a hip thrust", "hip thrust guide", "glute drive", "banc a hip thrust"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Assis dans la machine, dos calé, coussin sur le bassin et pieds à plat largeur de hanches.",
+        "Pousse dans les talons pour ouvrir la hanche jusqu'à aligner épaules, hanches et genoux.",
+        "Serre les fessiers une seconde en haut, puis reviens en retenant la charge.",
+      ],
+      cues: ["Menton rentré, côtes basses", "Tibias verticaux en position haute", "La charge monte par la hanche, pas par le dos"],
+      mistakes: ["Cambrer le bas du dos pour monter plus haut", "Laisser la charge redescendre d'un coup"],
     },
   },
   {
@@ -665,6 +681,38 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
       ],
       cues: ["Mouvement d'enroulement du buste", "Hanches fixes", "Contracte les abdos"],
       mistakes: ["Tirer avec les bras", "Bouger les hanches au lieu du buste"],
+    },
+  },
+  {
+    key: "crunch-machine",
+    name: "Crunch à la machine",
+    muscle: "Abdominaux",
+    aliases: ["crunch machine", "machine a abdominaux", "machine a abdos", "ab crunch machine", "abdominal crunch machine", "crunch guide"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Assis, dos contre le dossier, poignées au-dessus des épaules et pieds calés.",
+        "Enroule le buste vers l'avant en rentrant les côtes, sans tirer avec les bras.",
+        "Reviens en retenant la charge, sans te redresser complètement.",
+      ],
+      cues: ["Enroulement du buste, pas une flexion de hanche", "Expire en enroulant", "Hanches immobiles"],
+      mistakes: ["Tirer sur les poignées avec les bras", "Charge trop lourde qui bloque l'enroulement"],
+    },
+  },
+  {
+    key: "slam-ball",
+    name: "Slam ball (lancer au sol)",
+    muscle: "Abdominaux et corps entier",
+    aliases: ["slam ball", "medecine ball slam", "ball slam", "lancer de ballon au sol", "med ball slam", "wall ball"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Debout, pieds largeur d'épaules, ballon lesté tenu à deux mains.",
+        "Monte le ballon au-dessus de la tête en montant sur la pointe des pieds.",
+        "Projette-le au sol devant toi en enroulant le buste, ramasse et recommence.",
+      ],
+      cues: ["Le ventre gaine avant le lancer", "Descends chercher le ballon en pliant les genoux", "Souffle au moment du lancer"],
+      mistakes: ["Arrondir le dos pour ramasser le ballon", "Lancer avec les bras seuls, sans le buste"],
     },
   },
   {
@@ -1451,6 +1499,22 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
       steps: ["Sangle à la cheville sur une poulie basse, face à la machine, mains sur le montant, buste légèrement penché.", "Pousse la jambe tendue vers l'arrière en serrant la fesse, sans cambrer le bas du dos.", "Marque un temps en arrière, puis reviens lentement, genou souple."],
       cues: ["Bassin stable, pas de rotation", "Le mouvement part de la hanche, pas du dos", "Amplitude courte et propre"],
       mistakes: ["Cambrer pour monter la jambe plus haut", "Balancer la jambe avec de l'élan"],
+    },
+  },
+  {
+    key: "kickback-fessier-machine",
+    name: "Extension fessier à la machine",
+    muscle: "Fessiers",
+    aliases: ["kickback machine", "machine a kickback", "glute kickback machine", "extension fessier machine", "machine a fessiers", "kickback fessier machine"],
+    noPhoto: true,
+    guide: {
+      steps: [
+        "Face à la machine, buste appuyé sur le support, un pied sur la plateforme.",
+        "Pousse la plateforme vers l'arrière en serrant la fesse, jambe presque tendue.",
+        "Marque un temps en fin de poussée, puis reviens sans laisser la charge claquer.",
+      ],
+      cues: ["Bassin stable, sans rotation", "Le mouvement part de la hanche", "Amplitude courte et propre"],
+      mistakes: ["Cambrer pour pousser plus loin", "Prendre de l'élan avec le buste"],
     },
   },
   {

@@ -65,7 +65,8 @@ export type Besoin =
   | "velo"
   | "elliptique"
   | "tapis"
-  | "roulette";
+  | "roulette"
+  | "medecine";
 
 export interface Traits {
   /** Muscles travaillés, du plus au moins sollicité. Le PREMIER fait foi. */
@@ -114,17 +115,19 @@ export const EXERCISE_TRAITS: Record<string, Traits> = {
   "leg-curl-assis": { familles: ["ischios"], besoin: ["machine"], machine: ["leg-curl-assis", "leg-curl-allonge"] },
 
   "hip-thrust": { familles: ["fessiers", "ischios"], besoin: ["banc"] },
+  "hip-thrust-machine": { familles: ["fessiers", "ischios"], besoin: ["machine"], machine: ["hip-thrust-machine"] },
   "glute-bridge": { familles: ["fessiers", "ischios"], besoin: [] },
   "extension-fessier-poulie": { familles: ["fessiers"], besoin: ["poulie"] },
   "kettlebell-swing": { familles: ["fessiers", "ischios", "cardio"], besoin: ["kettlebell"] },
 
   "mollets-debout": { familles: ["mollets"], besoin: [] },
-  "mollets-assis": { familles: ["mollets"], besoin: ["machine"], machine: ["mollets-assis", "mollets-debout"] },
+  "mollets-assis": { familles: ["mollets"], besoin: ["machine"], machine: ["mollets-assis"] },
   "adducteurs-machine": { familles: ["adducteurs"], besoin: ["machine"], machine: ["adducteurs-machine"] },
   "abduction-hanche-machine": { familles: ["fessiers", "adducteurs"], besoin: ["machine"], machine: ["abducteurs-machine"] },
   "abduction-hanche-debout": { familles: ["fessiers"], besoin: [] },
   "adduction-hanche-poulie": { familles: ["adducteurs"], besoin: ["poulie"] },
   "kickback-fessier-poulie": { familles: ["fessiers"], besoin: ["poulie"] },
+  "kickback-fessier-machine": { familles: ["fessiers"], besoin: ["machine"], machine: ["kickback-machine"] },
   "pont-fessier-unilateral": { familles: ["fessiers", "ischios"], besoin: [] },
   "pull-through-poulie": { familles: ["fessiers", "ischios"], besoin: ["poulie"] },
   "fentes-arriere": { familles: ["quadriceps", "fessiers"], besoin: [] },
@@ -137,7 +140,7 @@ export const EXERCISE_TRAITS: Record<string, Traits> = {
   "machine-a-marches": { familles: ["cardio", "quadriceps", "fessiers"], besoin: ["machine"], machine: ["stairmaster"] },
   "velo-stationnaire": { familles: ["cardio", "quadriceps"], besoin: ["velo"] },
   "sled-push": { familles: ["quadriceps", "fessiers", "cardio"], besoin: ["machine"], machine: ["sled"] },
-  "developpe-incline-machine": { familles: ["pectoraux", "epaules", "triceps"], besoin: ["machine"], machine: ["developpe-incline-machine", "developpe-couche-machine"] },
+  "developpe-incline-machine": { familles: ["pectoraux", "epaules", "triceps"], besoin: ["machine"], machine: ["developpe-incline-machine"] },
   "developpe-couche-machine": { familles: ["pectoraux", "triceps"], besoin: ["machine"], machine: ["developpe-couche-machine"] },
   "rowing-machine": { familles: ["dos_horizontal", "biceps"], besoin: ["machine"], machine: ["rowing-machine"] },
   "developpe-epaules-machine": { familles: ["epaules", "triceps"], besoin: ["machine"], machine: ["developpe-epaules-machine"] },
@@ -204,9 +207,11 @@ export const EXERCISE_TRAITS: Record<string, Traits> = {
   "dead-bug": { familles: ["abdos"], besoin: [] },
   "crunch": { familles: ["abdos"], besoin: [] },
   "crunch-poulie": { familles: ["abdos"], besoin: ["poulie"] },
+  "crunch-machine": { familles: ["abdos"], besoin: ["machine"], machine: ["machine-abdos"] },
   "releve-jambes-allonge": { familles: ["abdos"], besoin: [] },
   "releve-jambes-suspendu": { familles: ["abdos"], besoin: ["traction"] },
   "russian-twist": { familles: ["obliques"], besoin: [] },
+  "slam-ball": { familles: ["abdos", "corps_entier"], besoin: ["medecine"] },
   "pallof-press": { familles: ["obliques", "abdos"], besoin: ["poulie"] },
   "ab-roller": { familles: ["abdos"], besoin: ["roulette"] },
   "superman": { familles: ["lombaires"], besoin: [] },
@@ -252,6 +257,7 @@ const INDICES: Record<Besoin, string[]> = {
   elliptique: ["elliptique", "elliptical"],
   tapis: ["tapis de course", "tapis roulant", "treadmill", "course"],
   roulette: ["roulette", "ab wheel", "ab roller"],
+  medecine: ["medecine ball", "med ball", "slam ball", "wall ball", "ballon lest"],
 };
 
 /** Normalise un nom de matériel : minuscules, sans accents ni ponctuation. */
@@ -290,7 +296,8 @@ const FAMILLES_MACHINE: readonly EquipmentFamily[] = [
  * moteur compare enfin des identifiants au lieu de chercher des mots.
  */
 const CLES_BESOIN: Record<Besoin, string[]> = {
-  barre: ["barre-olympique", "barre-ez", "rack-squat", "smith-machine"],
+  // Le T-bar row à charger porte sa propre barre : le poste suffit.
+  barre: ["barre-olympique", "barre-ez", "rack-squat", "smith-machine", "rowing-t-bar"],
   banc: ["banc-plat", "banc-incline", "banc-decline"],
   // Un kettlebell fait le travail d'un haltère sur tout ce qui se tient à la main.
   halteres: ["halteres", "kettlebells"],
@@ -312,6 +319,7 @@ const CLES_BESOIN: Record<Besoin, string[]> = {
   elliptique: ["elliptique"],
   tapis: ["tapis-course"],
   roulette: ["ab-roller"],
+  medecine: ["medecine-ball"],
 };
 
 /** Mots qui trahissent une machine sans dire laquelle. */
@@ -364,6 +372,24 @@ export function equipmentSupports(
     return inconnus.some((e) => MOTS_MACHINE.some((m) => e.includes(m)));
   }
   return true;
+}
+
+/**
+ * Les exercices que CETTE machine rend possibles, à elle seule.
+ *
+ * C'est la lecture inverse du catalogue, et elle sert de garde-fou : une
+ * machine que le client peut cocher sans qu'aucun exercice ne s'ouvre derrière
+ * est une promesse vide. Un test le vérifie pour tout le catalogue, hors les
+ * quelques accessoires dont ce n'est pas le rôle (le tapis de sol ne débloque
+ * rien, il rend le sol supportable).
+ */
+export function exercisesForEquipment(cle: string): LibraryExercise[] {
+  const item = EQUIPMENT_CATALOG.find((i) => i.key === cle);
+  if (!item) return [];
+  return EXERCISE_LIBRARY.filter((e) => {
+    const t = traitsOf(e);
+    return !!t && t.besoin.length > 0 && equipmentSupports(t, [item.key]);
+  });
 }
 
 /** Traits d'une entrée de bibliothèque (jamais undefined en pratique : test). */
