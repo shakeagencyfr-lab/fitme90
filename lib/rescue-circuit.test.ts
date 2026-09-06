@@ -9,7 +9,7 @@ import {
   RESCUE_EQUIPMENT,
   type RescueExercise,
 } from "./rescue-circuit";
-import { circuitSeconds, isCircuitSession } from "./circuit";
+import { circuitBudgetSec, circuitSeconds, isCircuitSession } from "./circuit";
 import { EXERCISE_TRAITS, equipmentSupports } from "./exercise-alternatives";
 import type { PlanExercise, Session } from "./program";
 
@@ -136,7 +136,7 @@ describe("rescueSession", () => {
     expect(s.blocks.at(-1)!.restAfter).toBe(0);
     expect(s.warmup).toHaveLength(3);
     expect(s.dropped).toContain("Tirage vertical (poulie haute)");
-    expect(circuitSeconds(s.blocks)).toBeLessThanOrEqual(38 * 60);
+    expect(circuitSeconds(s.blocks)).toBeLessThanOrEqual(circuitBudgetSec(45));
     // Les paramètres suivent le cycle en cours.
     expect(s.blocks[0].work).toBe(40);
     expect(s.blocks[0].sensation).toBe(2);
@@ -147,7 +147,7 @@ describe("rescueSession", () => {
 
   it("tient dans une durée courte en retirant des tours", () => {
     const court = rescueSession({ session: salle, kind: "aucun", level: "avance", minutes: 25, cycleIndex: 1, locale: "fr" });
-    expect(circuitSeconds(court.blocks)).toBeLessThanOrEqual(18 * 60);
+    expect(circuitSeconds(court.blocks)).toBeLessThanOrEqual(circuitBudgetSec(25));
     expect(court.blocks.every((b) => b.exercises.length >= 2)).toBe(true);
   });
 
@@ -174,13 +174,21 @@ describe("isRescueKind", () => {
 });
 
 describe("durée d'une séance de dépannage", () => {
-  it("remplit le temps dont le client dispose, sans le dépasser", () => {
-    const s = rescueSession({ session: salle, kind: "aucun", level: "intermediaire", minutes: 45, cycleIndex: 0, locale: "fr" });
-    const total = circuitSeconds(s.blocks);
-    // Entre les deux tiers et la totalité des 38 minutes disponibles.
-    expect(total).toBeGreaterThan(24 * 60);
-    expect(total).toBeLessThanOrEqual(38 * 60);
-    expect(s.blocks.every((b) => b.rounds <= 6)).toBe(true);
+  it("tient la durée annoncée, à toutes les durées proposées", () => {
+    // Le coach annonçait trente minutes et le chrono en affichait vingt : la
+    // durée que lit le client doit être celle qu'on lui a promise.
+    for (const minutes of [30, 45, 60]) {
+      const s = rescueSession({ session: salle, kind: "aucun", level: "intermediaire", minutes, cycleIndex: 0, locale: "fr" });
+      const budget = circuitBudgetSec(minutes);
+      const total = circuitSeconds(s.blocks);
+      expect(total).toBeLessThanOrEqual(budget);
+      expect(total).toBeGreaterThan(budget * 0.9);
+    }
+    // Au-delà, une séance convertie n'a pas assez de mouvements pour remplir
+    // honnêtement le temps : elle ne déborde jamais, et l'appelant annonce la
+    // durée réellement construite plutôt que celle demandée.
+    const long = rescueSession({ session: salle, kind: "aucun", level: "intermediaire", minutes: 90, cycleIndex: 0, locale: "fr" });
+    expect(circuitSeconds(long.blocks)).toBeLessThanOrEqual(circuitBudgetSec(90));
   });
 });
 

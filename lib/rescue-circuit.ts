@@ -26,10 +26,10 @@ import { equipmentSupports, pickAlternative, traitsOf } from "@/lib/exercise-alt
 import { EXERCISE_LIBRARY } from "@/lib/exercise-library";
 import type { Famille } from "@/lib/exercise-traits";
 import {
+  circuitBudgetSec,
   circuitParams,
-  fillToBudget,
+  fitToDuration,
   isCircuitSession,
-  trimToBudget,
   type CircuitBlock,
   type CircuitLevel,
 } from "@/lib/circuit";
@@ -359,12 +359,12 @@ export function circuitFromSession(input: CircuitFromInput): RescueSession {
     };
   });
 
-  // Le temps disponible, échauffement déduit. On rogne s'il y a trop, on
-  // ajoute des tours s'il y a trop peu : quatre mouvements praticables ne
-  // doivent pas donner un quart d'heure là où le client en a quarante-cinq.
-  const budget = Math.max(15, input.minutes - 7) * 60;
+  // Le temps disponible, échauffement déduit. On vise ce temps-là, on ne se
+  // contente pas d'y tenir : quatre mouvements praticables ne doivent pas
+  // donner vingt minutes là où le client en a trente.
+  const budget = circuitBudgetSec(input.minutes);
   return {
-    blocks: fillToBudget(trimToBudget(blocks, budget), budget),
+    blocks: fitToDuration(blocks, budget),
     warmup: pick(WARMUP, locale),
     dropped,
   };

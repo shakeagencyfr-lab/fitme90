@@ -18,9 +18,9 @@ import { applySessionOps, type SessionOp } from "@/lib/session-edit";
 import { canonicalExercise, type CoachExercise } from "@/lib/allowed-exercises";
 import { listCoachExerciseMedia } from "@/lib/exercise-guide";
 import { missedDays } from "@/lib/streak";
-import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan, type Session, sessionSlotForDay, sessionForDay, replaceSessionInPlan, cycleSessions, cycleIndexForDay, setDayOverride, clearDayOverride, hasDayOverride } from "@/lib/program";
+import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan, type Session, sessionSlotForDay, sessionForDay, replaceSessionInPlan, cycleSessions, cycleIndexForDay, setDayOverride, clearDayOverride, hasDayOverride, backupSession, hasSessionBackup, restoreSessionInPlan } from "@/lib/program";
 import { circuitFromSession, isRescueKind, RESCUE_EQUIPMENT } from "@/lib/rescue-circuit";
-import { circuitLevel, circuitSeconds, flattenBlocks, formatMinutes, sessionMinutes } from "@/lib/circuit";
+import { WARMUP_MINUTES, circuitLevel, circuitSeconds, flattenBlocks, formatMinutes, sessionMinutes } from "@/lib/circuit";
 import { coachAgenda, coachPlanView, logsDigest, type CoachLog, sessionLines } from "@/lib/coach-context";
 import { addMemoryNote, readMemory, renderMemory } from "@/lib/coach-memory";
 import { blockPosition } from "@/lib/block-logic";
@@ -513,13 +513,19 @@ S'il te demande quoi manger, pars de ce qui est déjà consommé et de ce qui re
     {
       name: "restaurer_seance",
       description:
-        "Annule la séance à part posée sur un jour (circuit d'un jour, retouche d'un jour) et rend au client sa séance de programme normale. À utiliser quand il dit que ce n'était que pour un jour, qu'il s'est trompé, ou qu'il veut revenir à son programme.",
+        "Rend au client la séance qu'il avait avant, et défait donc un passage en circuit ou une retouche. Deux portées : « jour » annule la séance à part posée sur ce jour-là, « cycle » remet la séance de programme d'origine partout où elle revient dans le cycle. Utilise « cycle » dès que le client parle de plusieurs occurrences (« remets mes séances de musculation le lundi », « je veux retrouver mon programme normal »), et « jour » quand il ne parle que d'une journée. Quand il veut garder le circuit sur un seul jour et récupérer le reste, appelle cet outil en « cycle » PUIS passer_en_circuit en portee « jour » sur le jour à garder.",
       input_schema: {
         type: "object",
         properties: {
           jour_programme: {
             type: "integer",
-            description: "Numéro du jour de programme à restaurer (voir le calendrier). Absent = aujourd'hui.",
+            description: "Numéro du jour de programme concerné (voir le calendrier). Absent = aujourd'hui. En portée « cycle », c'est ce jour qui désigne le créneau à restaurer.",
+          },
+          portee: {
+            type: "string",
+            enum: ["jour", "cycle"],
+            description:
+              "« jour » (défaut) : la séance à part de ce jour est retirée. « cycle » : la séance de programme d'origine revient sur ce créneau, à chaque fois qu'il revient dans le cycle en cours.",
           },
         },
       },
@@ -740,7 +746,7 @@ S'il te demande quoi manger, pars de ce qui est déjà consommé et de ce qui re
     const nextPlan =
       portee === "jour"
         ? setDayOverride(prog.plan, day, enCircuit)
-        : clearDayOverride(replaceSessionInPlan(prog.plan, at, enCircuit), day);
+        : clearDayOverride(replaceSessionInPlan(backupSession(prog.plan, at, current), at, enCircuit), day);
     const { error } = await supabase.from("programs").insert({
       user_id: ctx!.userId,
       plan: nextPlan,
@@ -756,13 +762,25 @@ S'il te demande quoi manger, pars de ce qui est déjà consommé et de ce qui re
       portee === "jour"
         ? `UNIQUEMENT le jour ${day} : le reste du programme n'a pas bougé, et les autres fois où cette séance revient restent en séries et charges.`
         : `TOUTES les fois où cette séance revient dans le cycle en cours.`;
-    return `Séance « ${current.title} » (jour ${day}) passée EN CIRCUIT dans l'app, ${etendue} Contenu : ${resume}. Durée totale ${formatMinutes(circuitSeconds(built.blocks))}.${
+    // Le total réellement construit, échauffement compris : c'est CE chiffre
+    // que le client lit en haut de son circuit, et donc le seul que le coach
+    // ait le droit d'annoncer.
+    const totalSec = circuitSeconds(built.blocks) + WARMUP_MINUTES * 60;
+    const reel = Math.round(totalSec / 60);
+    const ecart =
+      reel < minutes - 4
+        ? ` ATTENTION : la séance ne fait que ${formatMinutes(totalSec)} et non ${minutes} minutes, faute d'assez de mouvements praticables avec ce matériel. Annonce ${formatMinutes(totalSec)} au client, pas ${minutes} minutes.`
+        : "";
+    return `Séance « ${current.title} » (jour ${day}) passée EN CIRCUIT dans l'app, ${etendue} Contenu : ${resume}. Durée totale ${formatMinutes(totalSec)}, échauffement compris.${ecart}${
       built.dropped.length ? ` Sans équivalent avec ce matériel, donc retirés : ${built.dropped.join(", ")}.` : ""
     } Le client la lance depuis sa fiche séance : le chrono enchaîne les blocs tout seul, avec un signal sonore à chaque changement, et il note une sensation de 1 à 4 par bloc au lieu d'une charge. Dis-lui la portée exacte du changement, sans lui redonner la liste complète.`;
   }
 
-  /** Restaure la séance de programme d'un jour : la dérogation saute. */
-  async function runRestore(input: { jour_programme?: unknown }): Promise<string> {
+  /**
+   * Rend au client sa séance d'avant : la dérogation d'un jour saute, ou la
+   * séance de programme d'origine revient sur tout le cycle.
+   */
+  async function runRestore(input: { jour_programme?: unknown; portee?: unknown }): Promise<string> {
     const day = typeof input.jour_programme === "number" && Number.isFinite(input.jour_programme)
       ? Math.max(1, Math.min(ctx!.access.programDays, Math.trunc(input.jour_programme)))
       : Math.max(1, ctx!.access.day);
@@ -774,8 +792,37 @@ S'il te demande quoi manger, pars de ce qui est déjà consommé et de ce qui re
       .limit(1)
       .maybeSingle<{ id: string; plan: Plan; model: string | null; duration_months: number | null }>();
     if (!prog?.plan) return "Impossible : programme introuvable.";
+    const portee = porteeDe(input.portee, "jour");
+
+    // Portée cycle : la séance d'origine reprend sa place partout où elle
+    // revient. C'est ce que demande « remets mes séances de musculation le
+    // lundi » : la dérogation du jour ne suffirait pas.
+    if (portee === "cycle") {
+      const at = sessionSlotForDay(prog.plan, day, coachPattern, coachStartWd);
+      if (!at) return "Impossible : aucune séance dans ce cycle.";
+      const restored = restoreSessionInPlan(prog.plan, at);
+      if (!restored) {
+        return `Rien à restaurer sur ce créneau : la séance du cycle n'a jamais été remplacée durablement, ou elle l'a déjà été remise. Si le client parle d'un seul jour, rappelle l'outil avec portee « jour ».`;
+      }
+      const nextPlan = clearDayOverride(restored, day);
+      const { error } = await supabase.from("programs").insert({
+        user_id: ctx!.userId,
+        plan: nextPlan,
+        model: prog.model,
+        duration_months: prog.duration_months,
+      });
+      if (error) return "Impossible d'enregistrer la séance pour l'instant.";
+      adapted = true;
+      const revenue = sessionForDay(nextPlan, day, coachPattern, coachStartWd);
+      return `Séance de programme d'origine remise en place sur ce créneau : « ${revenue?.title ?? "sa séance"} », avec ses séries et ses charges, TOUTES les fois où elle revient dans le cycle en cours (jour ${day} compris). Si le client veut garder un circuit sur un jour précis, pose-le maintenant avec passer_en_circuit en portee « jour ».`;
+    }
+
     if (!hasDayOverride(prog.plan, day)) {
-      return `Le jour ${day} suit déjà sa séance de programme normale : il n'y a rien à annuler. Vérifie le jour avec le client (voir le calendrier).`;
+      const at = sessionSlotForDay(prog.plan, day, coachPattern, coachStartWd);
+      const durable = at && hasSessionBackup(prog.plan, at);
+      return durable
+        ? `Le jour ${day} n'a pas de séance à part : c'est la séance DU CYCLE qui a été remplacée durablement. Pour rendre au client sa séance d'origine partout où elle revient, rappelle cet outil avec portee « cycle ».`
+        : `Le jour ${day} suit déjà sa séance de programme normale : il n'y a rien à annuler. Vérifie le jour avec le client (voir le calendrier).`;
     }
     const nextPlan = clearDayOverride(prog.plan, day);
     const { error } = await supabase.from("programs").insert({
@@ -856,7 +903,7 @@ S'il te demande quoi manger, pars de ce qui est déjà consommé et de ce qui re
     const nextPlan =
       portee === "jour"
         ? setDayOverride(prog.plan, day, edited.session)
-        : clearDayOverride(replaceSessionInPlan(prog.plan, at, edited.session), day);
+        : clearDayOverride(replaceSessionInPlan(backupSession(prog.plan, at, current), at, edited.session), day);
     const { error } = await supabase.from("programs").insert({
       user_id: ctx!.userId,
       plan: nextPlan,
