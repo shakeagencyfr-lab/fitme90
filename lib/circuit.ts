@@ -279,6 +279,85 @@ export function trimToBudget(blocks: readonly CircuitBlock[], budgetSec: number)
 }
 
 /**
+ * Minutes d'échauffement déduites du temps de séance avant de bâtir les blocs.
+ *
+ * Le client qui a réglé « 30 min » a trente minutes DEVANT LUI, échauffement
+ * compris : construire trente minutes de blocs lui en ferait faire trente-cinq.
+ * On en retire donc le temps de l'échauffement, et un seul chiffre le décide,
+ * pour que la durée annoncée par le coach et celle du chrono soient la même.
+ */
+export const WARMUP_MINUTES = 5;
+
+/** Le temps de blocs disponible, en secondes, pour une séance de N minutes. */
+export function circuitBudgetSec(minutes: number): number {
+  return Math.max(10, Math.round(minutes) - WARMUP_MINUTES) * 60;
+}
+
+/**
+ * Les blocs ajustés pour REMPLIR le temps disponible, pas seulement pour y
+ * tenir.
+ *
+ * Le remplissage seul visait 80 % du budget et s'arrêtait à six tours : une
+ * séance de trente minutes rendait vingt minutes de chrono, et le client
+ * lisait « 20 MIN AU TOTAL » sous une phrase qui lui en promettait trente.
+ * Ici on approche le budget par trois leviers, du moins intrusif au plus :
+ * les tours d'abord (la structure du bloc ne bouge pas), puis la durée
+ * d'effort par pas de 5 s dans une fourchette raisonnable, et on rogne si on
+ * a dépassé. Le résultat tombe à quelques pour cent de la cible.
+ */
+export function fitToDuration(
+  blocks: readonly CircuitBlock[],
+  budgetSec: number,
+  opts: { maxRounds?: number; maxWork?: number; minWork?: number } = {},
+): CircuitBlock[] {
+  const maxRounds = opts.maxRounds ?? 8;
+  const maxWork = opts.maxWork ?? 60;
+  const minWork = opts.minWork ?? 25;
+  let out = trimToBudget(blocks, budgetSec).map((b) => ({ ...b }));
+  if (!out.length) return out;
+
+  // 1. Des tours en plus, tant que ça tient. Le bloc le plus court d'abord :
+  // c'est celui dont un tour de plus déséquilibre le moins la séance.
+  let garde = 0;
+  while (garde++ < 60) {
+    let idx = -1;
+    let min = Infinity;
+    out.forEach((b, i) => {
+      if (b.rounds >= maxRounds || !b.exercises.length) return;
+      const d = blockSeconds(b);
+      if (d < min) {
+        min = d;
+        idx = i;
+      }
+    });
+    if (idx < 0) break;
+    const essai = out.map((b, i) => (i === idx ? { ...b, rounds: b.rounds + 1 } : b));
+    if (circuitSeconds(essai) > budgetSec) break;
+    out = essai;
+  }
+
+  // 2. Il reste du temps que les tours ne savent plus combler : on allonge
+  // l'effort, par pas de 5 s, sans jamais sortir de la fourchette.
+  garde = 0;
+  while (circuitSeconds(out) < budgetSec && garde++ < 20) {
+    const essai = out.map((b) => (b.work < maxWork ? { ...b, work: Math.min(maxWork, b.work + 5) } : b));
+    if (circuitSeconds(essai) > budgetSec) break;
+    if (essai.every((b, i) => b.work === out[i].work)) break;
+    out = essai;
+  }
+
+  // 3. Dépassement résiduel : on raccourcit l'effort avant de retirer un tour,
+  // qui coûterait bien plus de temps que le débord.
+  garde = 0;
+  while (circuitSeconds(out) > budgetSec && garde++ < 20) {
+    const essai = out.map((b) => (b.work > minWork ? { ...b, work: Math.max(minWork, b.work - 5) } : b));
+    if (essai.every((b, i) => b.work === out[i].work)) break;
+    out = essai;
+  }
+  return trimToBudget(out, budgetSec);
+}
+
+/**
  * L'inverse de `trimToBudget` : ajoute des tours tant que la séance reste
  * nettement plus courte que le temps dont le client dispose.
  *

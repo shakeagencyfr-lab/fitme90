@@ -11,7 +11,7 @@ import { effectiveMethodology } from "@/lib/methodology";
 import { sanitizePlan, sanitizeSession } from "@/lib/program-sanitize";
 import { allowedExercises, allowedListPrompt, enforceLibrary, enforceIssues, type CoachExercise } from "@/lib/allowed-exercises";
 import { listCoachExerciseMedia } from "@/lib/exercise-guide";
-import { circuitLevel, circuitPrompt, isHomeEquipment, sessionMinutes, trimToBudget, isCircuitSession, flattenBlocks } from "@/lib/circuit";
+import { circuitBudgetSec, circuitLevel, circuitPrompt, fitToDuration, isHomeEquipment, sessionMinutes, isCircuitSession, flattenBlocks } from "@/lib/circuit";
 
 // Schéma du plan retourné par le modèle (structure de la maquette).
 // Validé après génération : on n'écrit jamais en base un JSON hors-forme.
@@ -128,6 +128,18 @@ export const planSchema = z.object({
    * son jour, ne touche pas le programme, et se retire d'un geste.
    */
   dayOverrides: z.record(z.string(), sessionShape).optional(),
+  /**
+   * La séance d'ORIGINE d'un créneau de cycle, mise de côté la première fois
+   * qu'une demande du client l'a remplacée durablement (passage en circuit,
+   * retouche à l'échelle du cycle), rangée par « cycle:créneau ».
+   *
+   * Sans elle, « remets mes séances de musculation le lundi » était une
+   * promesse que rien ne pouvait tenir : la séance d'avant avait été écrasée,
+   * et le coach n'avait plus que la version en circuit à proposer. La
+   * sauvegarde ne s'écrase jamais : la première est la bonne, celle que le
+   * programme avait écrite.
+   */
+  sessionBackups: z.record(z.string(), sessionShape).optional(),
   nutrition: z.object({
     kcal: z.string(),
     protein: z.string(),
@@ -325,6 +337,42 @@ export function replaceSessionInPlan(plan: Plan, at: SessionSlot, session: Sessi
   return { ...plan, session };
 }
 
+/** La clé de rangement d'une séance de cycle : « cycle:créneau ». */
+export function slotKey(at: SessionSlot): string {
+  return `${at.cycleIndex}:${at.slot}`;
+}
+
+/**
+ * Le plan avec la séance d'origine d'un créneau mise de côté, si ce n'est
+ * pas déjà fait. À appeler AVANT d'écrire par-dessus, jamais après.
+ */
+export function backupSession(plan: Plan, at: SessionSlot, original: Session): Plan {
+  const key = slotKey(at);
+  if (plan.sessionBackups?.[key]) return plan;
+  return { ...plan, sessionBackups: { ...(plan.sessionBackups ?? {}), [key]: original } };
+}
+
+/** Y a-t-il une séance d'origine à rendre sur ce créneau ? */
+export function hasSessionBackup(plan: Plan, at: SessionSlot): boolean {
+  return !!plan.sessionBackups?.[slotKey(at)];
+}
+
+/**
+ * Le plan avec la séance d'origine remise en place sur ce créneau, et la
+ * sauvegarde consommée. Rend `null` quand il n'y a rien à restaurer : c'est
+ * à l'appelant de le dire au client plutôt que d'annoncer un retour en
+ * arrière qui n'a pas eu lieu.
+ */
+export function restoreSessionInPlan(plan: Plan, at: SessionSlot): Plan | null {
+  const key = slotKey(at);
+  const original = plan.sessionBackups?.[key];
+  if (!original) return null;
+  const rest = { ...(plan.sessionBackups ?? {}) };
+  delete rest[key];
+  const restored = replaceSessionInPlan(plan, at, sanitizeSession(original));
+  return { ...restored, sessionBackups: Object.keys(rest).length ? rest : undefined };
+}
+
 /**
  * Titres de la SEMAINE TYPE, un par jour LUN→DIM (`null` = repos).
  *
@@ -470,10 +518,10 @@ Pour la musculation : cardio:false avec sets et reps normaux. REPOS : renseigne 
  * échauffement déduit, puis on recalcule le miroir à plat.
  */
 export function fitCircuits(plan: Plan, minutes: number): Plan {
-  const budget = Math.max(15, minutes - 7) * 60;
+  const budget = circuitBudgetSec(minutes);
   const fit = (s: Session): Session => {
     if (!isCircuitSession(s)) return s;
-    const blocks = trimToBudget(s.blocks ?? [], budget);
+    const blocks = fitToDuration(s.blocks ?? [], budget);
     return { ...s, blocks, exercises: flattenBlocks(blocks) };
   };
   return {

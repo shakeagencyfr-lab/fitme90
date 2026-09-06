@@ -1,10 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
   blockSeconds,
+  circuitBudgetSec,
   circuitLevel,
   circuitParams,
   circuitPrompt,
   circuitSeconds,
+  fillToBudget,
+  fitToDuration,
   flattenBlocks,
   isHomeEquipment,
   sanitizeBlock,
@@ -14,7 +17,6 @@ import {
   timeline,
   timelineSeconds,
   trimToBudget,
-  fillToBudget,
   type CircuitBlock,
 } from "./circuit";
 
@@ -186,5 +188,45 @@ describe("circuitPrompt", () => {
     expect(p).toMatch(/OPTION/);
     expect(p).toContain('"format":"sets"');
     expect(p).not.toMatch(/RÈGLE ABSOLUE/);
+  });
+});
+
+describe("fitToDuration", () => {
+  const bloc = (n: number): CircuitBlock => ({
+    title: `Bloc ${n}`,
+    rounds: 3,
+    work: 40,
+    rest: 15,
+    roundRest: 30,
+    restAfter: 60,
+    exercises: Array.from({ length: 4 }, (_, i) => ({ name: `Exo ${n}.${i + 1}`, note: "" })),
+  });
+
+  it("déduit l'échauffement du temps de séance", () => {
+    expect(circuitBudgetSec(30)).toBe(25 * 60);
+    expect(circuitBudgetSec(90)).toBe(85 * 60);
+  });
+
+  it("remplit le temps disponible au lieu de s'arrêter à 80 %", () => {
+    for (const minutes of [30, 45, 60, 90]) {
+      const budget = circuitBudgetSec(minutes);
+      const blocks = fitToDuration([bloc(1), bloc(2)], budget);
+      const total = circuitSeconds(blocks);
+      expect(total).toBeLessThanOrEqual(budget);
+      // Au moins 90 % du temps annoncé : c'est ce qui manquait, une séance de
+      // 30 min qui rendait 20 min de chrono.
+      expect(total).toBeGreaterThan(budget * 0.9);
+    }
+  });
+
+  it("rogne une séance trop longue pour le temps disponible", () => {
+    const budget = circuitBudgetSec(20);
+    const gros = { ...bloc(1), rounds: 8 };
+    const blocks = fitToDuration([gros, { ...bloc(2), rounds: 8 }], budget);
+    expect(circuitSeconds(blocks)).toBeLessThanOrEqual(budget);
+  });
+
+  it("rend une liste vide telle quelle", () => {
+    expect(fitToDuration([], 1200)).toEqual([]);
   });
 });
