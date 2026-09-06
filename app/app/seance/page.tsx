@@ -8,6 +8,7 @@ import { SessionRunner, type Exercise } from "@/components/session-runner";
 import { CoachLoadSuggestion } from "@/components/coach-loads";
 import { DepannageButton } from "@/components/depannage-button";
 import { targetRpe, karvonen, resolveRestSeconds } from "@/lib/fitness";
+import { explainWarmup, bpmLabel } from "@/lib/warmup-guide";
 import { getT, userLocale } from "@/lib/i18n/server";
 import { dateLocale } from "@/lib/i18n";
 import { rpeScale } from "@/lib/i18n/fitness";
@@ -77,6 +78,8 @@ export default async function SeancePage({
   ]);
   const alreadyDone = !!log;
   const zones = karvonen(prof?.age || 34, prof?.rest_hr || 62, prof?.sex ?? undefined).zones;
+  // Sans âge ni FC de repos, les pulsations affichées seraient celles d'un profil moyen : on annonce la zone, pas les chiffres.
+  const hasHrProfile = !!(prof?.age && prof?.rest_hr);
 
   // Vraie date du jour de séance : on n'affiche jamais le jour figé du modèle,
   // mais la vraie date calculée du jour choisi.
@@ -172,17 +175,29 @@ export default async function SeancePage({
             <span className="text-muted-2 transition-transform group-open:rotate-180">⌄</span>
           </summary>
           <ol className="mt-3 flex flex-col gap-2">
-            {warmup.map((w, i) => (
-              <li key={i} className="flex items-start gap-3 rounded-control bg-surface-2 px-3 py-2">
-                <span className="font-archivo font-extrabold text-[14px] w-5 shrink-0 text-center text-muted-2">
-                  {i + 1}
-                </span>
-                <div className="min-w-0">
-                  <span className="text-[14px] font-semibold text-ink">{w.name}</span>
-                  {w.detail ? <span className="text-[13px] text-muted">, {w.detail}</span> : null}
-                </div>
-              </li>
-            ))}
+            {warmup.map((w, i) => {
+              const ex = explainWarmup(w, hasHrProfile ? zones : null, locale === "en" ? "en" : "fr");
+              return (
+                <li key={i} className="flex items-start gap-3 rounded-control bg-surface-2 px-3 py-2">
+                  <span className="font-archivo font-extrabold text-[14px] w-5 shrink-0 text-center text-muted-2">
+                    {i + 1}
+                  </span>
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <div>
+                      <span className="text-[14px] font-semibold text-ink">{w.name}</span>
+                      {w.detail ? <span className="text-[13px] text-muted">, {w.detail}</span> : null}
+                    </div>
+                    {ex.zone ? (
+                      <span className="inline-flex w-fit items-center gap-1.5 rounded-pill border border-cardio/40 bg-cardio/10 px-2.5 py-0.5 font-mono text-[11px] text-cardio">
+                        {ex.zone.id}{ex.zone.name ? ` ${ex.zone.name}` : ""}
+                        {ex.zone.range ? ` · ${bpmLabel(ex.zone.range, locale === "en" ? "en" : "fr")}` : ` · ${t("session.zoneHint")}`}
+                      </span>
+                    ) : null}
+                    {ex.how ? <p className="text-[12.5px] leading-[1.55] text-muted">{ex.how}</p> : null}
+                  </div>
+                </li>
+              );
+            })}
           </ol>
         </details>
       ) : null}
