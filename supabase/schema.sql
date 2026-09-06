@@ -1039,3 +1039,66 @@ alter table public.tenants
 --   is_listed : le plan est VISIBLE sur la page publique de vente
 alter table public.offers
   add column if not exists is_listed boolean not null default true;
+
+-- ────────────────────────── Journal alimentaire et scan de code-barres
+--
+-- Le client note ce qu'il mange en scannant un code-barres : la fiche vient
+-- d'Open Food Facts (base collaborative et ouverte, alimentée par les rayons
+-- européens), la quantité vient de lui, et la journée se compare aux besoins
+-- du jour. Aucune IA : arithmétique pure, donc gratuit et hors quotas.
+--
+--   food_products  cache des fiches Open Food Facts, par code-barres. Sert à
+--                  ne pas rappeler la base pour un produit déjà vu, et à
+--                  rester utilisable quand elle est lente. SERVICE ROLE
+--                  UNIQUEMENT : le navigateur passe par /api/food/*.
+--   food_searches  cache des recherches par nom, même logique.
+--   food_log       une ligne par aliment noté : le repas, la quantité et la
+--                  fiche pour 100 g figée au moment de l'ajout (une fiche
+--                  qui change plus tard ne réécrit pas l'historique).
+--
+-- Le jour est le NUMÉRO DE JOUR DU PROGRAMME, comme session_logs, jusqu'à 400
+-- pour couvrir un programme de douze mois.
+create table if not exists public.food_products (
+  barcode text not null,
+  product jsonb not null,
+  fetched_at timestamptz not null default now(),
+  constraint food_products_pkey primary key (barcode)
+);
+
+create table if not exists public.food_searches (
+  key text not null,
+  results jsonb not null,
+  fetched_at timestamptz not null default now(),
+  constraint food_searches_pkey primary key (key)
+);
+
+create table if not exists public.food_log (
+  id uuid not null default gen_random_uuid(),
+  user_id uuid not null,
+  day integer not null,
+  slot text not null,
+  name text not null,
+  brand text,
+  barcode text,
+  grams numeric not null,
+  kcal_100 numeric not null default 0,
+  protein_100 numeric not null default 0,
+  carbs_100 numeric not null default 0,
+  fat_100 numeric not null default 0,
+  created_at timestamptz not null default now(),
+  constraint food_log_pkey primary key (id),
+  constraint food_log_user_id_fkey foreign key (user_id) references auth.users(id) on delete cascade,
+  constraint food_log_day_check check (day >= 1 and day <= 400),
+  constraint food_log_slot_check check (slot in ('petit-dejeuner', 'dejeuner', 'collation', 'diner')),
+  constraint food_log_grams_check check (grams > 0 and grams <= 5000)
+);
+
+create index if not exists food_log_user_day_idx on public.food_log (user_id, day);
+
+alter table public.food_products enable row level security;
+alter table public.food_searches enable row level security;
+alter table public.food_log enable row level security;
+
+grant select, insert, update, delete on public.food_log to authenticated;
+drop policy if exists food_log_own on public.food_log;
+create policy food_log_own on public.food_log for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
