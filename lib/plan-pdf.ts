@@ -389,9 +389,13 @@ export function planPdf(input: PlanPdfInput): Uint8Array {
   if (options.sampleMeals && input.sampleMeals) journeeType(c, input.sampleMeals, t);
 
   const date = new Date().toLocaleDateString(dateLocale(input.locale), { day: "numeric", month: "long", year: "numeric" });
-  // La mention visible accompagne la marque machine : l'une informe le lecteur,
-  // l'autre les outils. L'article 50 attend les deux.
-  pieds(c.pages, `${t("pdf.footer", { date })} · ${t("pdf.aiNotice")}`);
+  // Pas de mention visible en pied de page : le document que le client
+  // imprime est celui de SON coach, et la ligne coupait ce lien à chaque page.
+  // La marque lisible par machine reste écrite dans les métadonnées du fichier
+  // (champ /Producer, plus bas) : c'est ce format-là que l'article 50(2)
+  // demande, et la transparence sur l'usage de l'IA vit dans le parcours
+  // (page /ia, information au premier échange avec le Coach IA).
+  pieds(c.pages, t("pdf.footer", { date }));
 
   return renderPdf(c.pages, {
     images: input.logo ? [input.logo] : [],

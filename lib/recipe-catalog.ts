@@ -2135,8 +2135,8 @@ export const RECIPES: readonly RecipeTemplate[] = [
     minutes: 15,
     ingredients: [
       { food: "dattes", qty: 60, role: "glucide", min: 24, max: 110 },
-      { food: "avoine", qty: 35 },
-      { food: "beurre_cacahuete", qty: 30, role: "proteine", min: 20, max: 45 },
+      { food: "avoine", qty: 25 },
+      { food: "beurre_cacahuete", qty: 30, role: "proteine", min: 15, max: 45 },
       { food: "cacao", qty: 8 },
     ],
   },

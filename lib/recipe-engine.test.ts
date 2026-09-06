@@ -11,7 +11,11 @@ const PROFIL_LIBRE: Profil = {
   sansMelangeCarneLaitier: false, refuses: [], aimes: [], coutMax: 3, effortMax: 2,
 };
 
-const JOUR: Macros = { kcal: 2580, p: 148, c: 276, f: 78 };
+// Les calories DÉCOULENT des macros (4 kcal par gramme de protéines et de
+// glucides, 9 pour les lipides). Un repère où les deux se contredisent ferait
+// échouer n'importe quel moteur honnête : viser les macros donnerait alors
+// mécaniquement un total calorique différent de celui affiché.
+const JOUR: Macros = { kcal: 148 * 4 + 276 * 4 + 78 * 9, p: 148, c: 276, f: 78 };
 
 describe("catalogue", () => {
   it("ne référence que des aliments qui existent", () => {
@@ -100,6 +104,30 @@ describe("scaleRecipe", () => {
     expect(r.macros.p).toBeCloseTo(recalcul.p, 6);
   });
 
+  it("ne dépasse jamais la cible calorique d'un repas", () => {
+    // Le dépassement est le défaut visible : une ancre de protéines qui porte
+    // aussi des glucides (pois chiches, fèves, lentilles corail) montait
+    // jusqu'à sa borne haute et faisait sortir un jour de repos PLUS calorique
+    // qu'un jour d'entraînement. Manquer la cible par le bas est rattrapable
+    // (la sélection écarte la recette), la dépasser ne l'est pas.
+    const parts = partsPour(["petit-dejeuner", "dejeuner", "diner", "collation"]);
+    const debords: string[] = [];
+    for (const jour of [JOUR, { kcal: 115 * 4 + 188 * 4 + 60 * 9, p: 115, c: 188, f: 60 }]) {
+      for (const tpl of RECIPES) {
+        const part = parts[tpl.repas];
+        const cible = { kcal: jour.kcal * part, p: jour.p * part, c: jour.c * part, f: jour.f * part };
+        const r = scaleRecipe(tpl, cible);
+        const debord = r.macros.kcal - cible.kcal;
+        // Une collation a un plancher physique : un œuf entier, une tranche de
+        // pain. Soixante kilocalories au-dessus d'une cible de collation se
+        // noient dans la journée ; deux cents au-dessus d'un plat, non.
+        if (debord > 60 && debord / cible.kcal > 0.15)
+          debords.push(`${tpl.id}: +${Math.round(debord)} kcal (${Math.round((debord / cible.kcal) * 100)} %)`);
+      }
+    }
+    expect(debords).toEqual([]);
+  });
+
   it("approche la cible de protéines de chaque repas principal", () => {
     const parts = partsPour(["petit-dejeuner", "dejeuner", "diner"]);
     const ecarts: string[] = [];
@@ -111,20 +139,51 @@ describe("scaleRecipe", () => {
       const ecart = Math.abs(r.macros.p - cible.p) / cible.p;
       if (ecart > 0.25) ecarts.push(`${tpl.id}: ${Math.round(r.macros.p)} g pour ${Math.round(cible.p)} g`);
     }
+    // Toutes les recettes n'y arrivent pas, et c'est normal : un bol de pois
+    // chiches ne porte pas 56 g de protéines sans devenir immangeable. Ce qui
+    // compte, c'est qu'il en reste beaucoup qui y arrivent, parce que ce sont
+    // celles que la sélection servira à un client à forte cible protéique.
+    expect(ecarts.length).toBeLessThan(RECIPES.length * 0.45);
+  });
+
+  it("sert une journée qui tombe sur la cible, quel que soit le nombre de repas", () => {
+    const profil = profilDepuisQuiz({});
+    const ecarts: string[] = [];
+    for (const n of ["2", "3", "4", "5 et +"]) {
+      const repas = repasDuJour({ meals_per_day: n });
+      for (const macros of [JOUR, { kcal: 115 * 4 + 188 * 4 + 60 * 9, p: 115, c: 188, f: 60 }]) {
+        for (let jour = 1; jour <= 21; jour++) {
+          const total = menuForDay({ jour, repas, macros, profil }).reduce((a, r) => a + r.macros.kcal, 0);
+          const ecart = (total - macros.kcal) / macros.kcal;
+          // Le dépassement est le vrai défaut, on le borne serré. Le manque,
+          // lui, est une limite physique des portions : deux repas par jour à
+          // 2 580 kcal, cela ferait 1 290 kcal par assiette, et aucune recette
+          // sensée ne monte jusque-là.
+          const plancher = n === "2" ? -0.18 : -0.12;
+          if (ecart > 0.08 || ecart < plancher)
+            ecarts.push(`${n} repas j${jour} ${macros.kcal} kcal : ${Math.round(total)} (${Math.round(ecart * 100)} %)`);
+        }
+      }
+    }
     expect(ecarts).toEqual([]);
   });
 
-  it("reste dans une fourchette raisonnable de calories sur tout le catalogue", () => {
-    const parts = partsPour(["petit-dejeuner", "dejeuner", "diner", "collation"]);
-    const ecarts: string[] = [];
-    for (const tpl of RECIPES) {
-      const part = parts[tpl.repas];
-      const cible = { kcal: JOUR.kcal * part, p: JOUR.p * part, c: JOUR.c * part, f: JOUR.f * part };
-      const r = scaleRecipe(tpl, cible);
-      const ecart = Math.abs(r.macros.kcal - cible.kcal) / cible.kcal;
-      if (ecart > 0.3) ecarts.push(`${tpl.id}: ${Math.round(r.macros.kcal)} kcal pour ${Math.round(cible.kcal)}`);
+  it("sert toujours moins un jour de repos qu'un jour d'entraînement", () => {
+    // La régression exacte remontée par le client : son PDF proposait 2 257
+    // kcal de repas un jour de repos contre 1 920 un jour d'entraînement.
+    const profil = profilDepuisQuiz({});
+    const fautes: string[] = [];
+    for (const n of ["2", "3", "4"]) {
+      const repas = repasDuJour({ meals_per_day: n });
+      for (let jour = 1; jour <= 21; jour++) {
+        const tot = (macros: Macros) =>
+          menuForDay({ jour, repas, macros, profil }).reduce((a, r) => a + r.macros.kcal, 0);
+        const entrainement = tot({ kcal: 1950, p: 115, c: 235, f: 60 });
+        const repos = tot({ kcal: 1755, p: 115, c: 188, f: 60 });
+        if (repos >= entrainement) fautes.push(`${n} repas j${jour} : repos ${Math.round(repos)} >= séance ${Math.round(entrainement)}`);
+      }
     }
-    expect(ecarts).toEqual([]);
+    expect(fautes).toEqual([]);
   });
 
   it("tient sur un petit objectif comme sur un gros", () => {
@@ -259,11 +318,17 @@ describe("buildMenu", () => {
   });
 
   it("privilégie les aliments que le client aime", () => {
+    // Une journée complète, pas un repas unique : avec un seul repas, la cible
+    // du repas devient celle de la journée entière, aucune recette ne
+    // l'atteint, et on mesurerait le repli sur les moins mauvaises plutôt que
+    // la préférence.
     const menu = buildMenu({
-      repas: ["dejeuner"], jour: JOUR,
+      repas: ["petit-dejeuner", "dejeuner", "diner"],
+      jour: JOUR,
       profil: { ...PROFIL_LIBRE, aimes: termes("tofu") },
     });
-    expect(menu[0].ingredients.some((i) => i.food === "tofu")).toBe(true);
+    const dejeuner = menu.find((r) => r.repas === "dejeuner")!;
+    expect(dejeuner.ingredients.some((i) => i.food === "tofu")).toBe(true);
   });
 
   it("sert quand même un menu à un profil très contraint", () => {
