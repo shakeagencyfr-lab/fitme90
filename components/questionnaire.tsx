@@ -1,24 +1,33 @@
 "use client";
 
 import { browserLocalIso } from "@/lib/local-date";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { QUIZ, DAYS, MAX_TRAIN_DAYS, trainDaysError, type Field } from "@/lib/questionnaire";
 import { saveQuestionnaire } from "@/app/questionnaire/actions";
 import { MedicalWaiver } from "@/components/medical-waiver";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
-import { useLocale, useT } from "@/components/locale-provider";
+import { useLocale } from "@/components/locale-provider";
 import { fieldText, optionLabel, sectionText, dayLabel } from "@/lib/i18n/quiz";
-import type { Locale } from "@/lib/i18n";
+import { makeT, type Locale } from "@/lib/i18n";
 
 type Answers = Record<string, string | string[]>;
 
 export function Questionnaire() {
   const router = useRouter();
-  const locale = useLocale();
-  const t = useT();
+  const localeInitiale = useLocale();
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<Answers>({ program_lang: locale === "en" ? "English" : "Français" });
+  const [answers, setAnswers] = useState<Answers>({
+    program_lang: localeInitiale === "en" ? "English" : "Français",
+  });
+  // Le questionnaire bascule DÈS que le client choisit sa langue, sans attendre
+  // la fin du parcours. Avant, la langue n'était appliquée qu'à
+  // l'enregistrement : on cochait « English » et on continuait à répondre à des
+  // questions en français, ce qui donnait l'impression que le choix n'avait
+  // pas été pris en compte.
+  const locale: Locale =
+    answers.program_lang === "English" ? "en" : answers.program_lang === "Français" ? "fr" : localeInitiale;
+  const t = useMemo(() => makeT(locale), [locale]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   // Situation de santé déclarée : décharge à signer (ne bloque plus l'accès).

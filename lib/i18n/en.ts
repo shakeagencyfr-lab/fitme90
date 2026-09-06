@@ -249,7 +249,7 @@ export const en: Shape<typeof fr> = {
     failed: "Generation failed",
     failedBody: "Generation failed.",
     notPaid: "Payment not confirmed. If you just paid, wait a moment and try again.",
-    takesTime: "This usually takes less than a minute.",
+    takesTime: "Writing your plan can take up to 5 minutes: your AI coach builds all three cycles, session by session. Keep this page open, you will be redirected automatically.",
     retry: "Try again",
     signAndGenerate: "Sign and generate my program",
     steps: {
