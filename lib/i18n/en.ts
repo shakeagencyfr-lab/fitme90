@@ -389,6 +389,8 @@ export const en: Shape<typeof fr> = {
     moreIdeas: "More ideas",
     generateIdeas: "Generate recipe ideas",
     shopping: "Shopping list",
+    shoppingHint: "This list is the exact sum of the meals above: everything they call for is on it.",
+    pantry: "Not listed, because they live in your cupboard: salt, pepper, spices, garlic, herbs, cooking oil.",
     analyzeImpossible: "Analysis failed.",
     restShort: "rest",
     trainingShort: "training",

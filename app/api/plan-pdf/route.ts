@@ -8,7 +8,8 @@ import { planPdf, planPdfFilename, type PlanPdfOptions } from "@/lib/plan-pdf";
 import { decodeImageForPdf } from "@/lib/pdf-image";
 import { karvonen } from "@/lib/fitness";
 import { rpeScale } from "@/lib/i18n/fitness";
-import { bannedTags, dayMeals, dislikeTerms, pnum } from "@/lib/nutrition";
+import { dayMeals, pnum } from "@/lib/nutrition";
+import { profilDepuisQuiz, repasDuJour } from "@/lib/recipe-engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Téléchargement du plan en PDF.
@@ -98,12 +99,17 @@ export async function GET(req: Request): Promise<Response> {
   let sampleMeals: { training: ReturnType<typeof dayMeals>; rest: ReturnType<typeof dayMeals> } | null = null;
   if (options.sampleMeals) {
     const answers = quiz?.answers ?? {};
-    const banned = bannedTags((answers.allerg as string[]) ?? [], (answers.diet as string) ?? undefined);
-    const dislikes = dislikeTerms(answers.dislikes as string | string[] | undefined);
-    const baseKcal = pnum(plan.nutrition?.kcal ?? "") || 2580;
+    const profil = profilDepuisQuiz(answers);
+    const repas = repasDuJour(answers);
+    const base = {
+      kcal: pnum(plan.nutrition?.kcal ?? "") || 2580,
+      protein: pnum(plan.nutrition?.protein ?? "") || 140,
+      carbs: pnum(plan.nutrition?.carbs ?? "") || 260,
+      fat: pnum(plan.nutrition?.fat ?? "") || 75,
+    };
     sampleMeals = {
-      training: dayMeals(1, false, baseKcal, banned, dislikes),
-      rest: dayMeals(2, true, baseKcal, banned, dislikes),
+      training: dayMeals(1, false, base, profil, repas),
+      rest: dayMeals(2, true, base, profil, repas),
     };
   }
 

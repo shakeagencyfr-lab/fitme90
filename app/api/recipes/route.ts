@@ -5,6 +5,7 @@ import { getSessionContext } from "@/lib/guard";
 import { saveClientRecipes, readClientRecipes } from "@/lib/recipes-store";
 import { pnum } from "@/lib/nutrition";
 import { buildMenu, profilDepuisQuiz, repasDuJour, REPAS_LABEL } from "@/lib/recipe-engine";
+import { RECIPE_STEPS } from "@/lib/recipe-steps";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
 
 export const runtime = "nodejs";
@@ -81,8 +82,8 @@ export async function POST() {
     carbs: `${Math.round(r.macros.c)} g`,
     fat: `${Math.round(r.macros.f)} g`,
     ingredients: r.ingredients.map((i) => ({ food: i.nom, qty: i.libelle })),
-    steps: r.etapes,
-    tip: r.astuce,
+    steps: RECIPE_STEPS[r.id]?.etapes ?? [],
+    tip: RECIPE_STEPS[r.id]?.astuce ?? "",
   }));
 
   await saveClientRecipes(ctx.userId, recipes);

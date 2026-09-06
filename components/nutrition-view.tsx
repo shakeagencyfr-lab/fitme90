@@ -11,6 +11,8 @@ import {
   pnum,
   grp,
 } from "@/lib/nutrition";
+import type { Profil } from "@/lib/recipe-engine";
+import type { Repas } from "@/lib/recipe-catalog";
 import { Card, MonoLabel, Button, Alert } from "@/components/ui";
 import { setShoppingCheck, saveRecipeAction, deleteSavedRecipeAction, dismissRecipeAction } from "@/app/app/nutrition/actions";
 import { dateOfProgramDay } from "@/lib/schedule";
@@ -36,8 +38,10 @@ interface Props {
   restPattern: boolean[]; // 7 booléens, ordre LUN→DIM
   startWeekday?: number; // index (0=LUN) du jour de semaine de la date de début
   dayNames: string[]; // 7 codes (LUN…DIM)
-  banned: Record<string, 1>;
-  dislikes: string[]; // aliments non aimés (termes minuscules)
+  /** Profil alimentaire issu du questionnaire (allergies, régime, budget…). */
+  profil: Profil;
+  /** Repas servis dans la journée, d'après « repas par jour » du questionnaire. */
+  repas: Repas[];
   macros: { protein: string; carbs: string; fat: string };
   canGenerate: boolean;
   initialChecks?: string[]; // clés d'articles déjà cochées (persistées)
@@ -56,8 +60,8 @@ export function NutritionView({
   restPattern,
   startWeekday = 0,
   dayNames,
-  banned,
-  dislikes,
+  profil,
+  repas,
   macros,
   canGenerate,
   initialChecks = [],
@@ -166,13 +170,21 @@ export function NutritionView({
   );
   const dayRest = isRestOf(day);
 
-  const meals = useMemo(() => dayMeals(day, dayRest, baseKcal, banned, dislikes), [day, dayRest, baseKcal, banned, dislikes]);
-  const groups = useMemo(() => shoppingList(day, span, isRestOf, baseKcal, banned, 90, dislikes), [day, span, isRestOf, baseKcal, banned, dislikes]);
-
   // Macros deux états. La règle vit dans lib/nutrition, partagée avec le PDF :
   // les deux doivent afficher les mêmes chiffres, sinon le client croit à une
   // erreur de l'un des deux.
-  const base = { kcal: baseKcal, protein: pnum(macros.protein), carbs: pnum(macros.carbs), fat: pnum(macros.fat) };
+  const base = useMemo(
+    () => ({ kcal: baseKcal, protein: pnum(macros.protein), carbs: pnum(macros.carbs), fat: pnum(macros.fat) }),
+    [baseKcal, macros.protein, macros.carbs, macros.fat],
+  );
+
+  // Journée type et liste de courses sortent du même moteur de recettes : ce
+  // qui est proposé à table est exactement ce qu'il y a dans le caddie.
+  const meals = useMemo(() => dayMeals(day, dayRest, base, profil, repas), [day, dayRest, base, profil, repas]);
+  const groups = useMemo(
+    () => shoppingList(day, span, isRestOf, base, profil, repas, programDays, locale === "en" ? "en" : "fr"),
+    [day, span, isRestOf, base, profil, repas, programDays, locale],
+  );
   const train = macrosForDay(base, false);
   const repos = macrosForDay(base, true);
 
@@ -458,7 +470,10 @@ export function NutritionView({
       {/* Liste des courses */}
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <MonoLabel>{t("nutrition.shopping")}</MonoLabel>
+          <div className="flex flex-col gap-1">
+            <MonoLabel>{t("nutrition.shopping")}</MonoLabel>
+            <p className="max-w-[46ch] text-[13px] text-muted">{t("nutrition.shoppingHint")}</p>
+          </div>
           <div className="flex items-center gap-1.5">
             {([3, 7, 14] as const).map((d) => (
               <button
@@ -510,6 +525,7 @@ export function NutritionView({
             </div>
           </Card>
         ))}
+        <p className="text-[12px] text-muted-2">{t("nutrition.pantry")}</p>
         <p className="text-[12px] text-muted-2">{t("nutrition.allergenNote")}</p>
       </section>
     </div>

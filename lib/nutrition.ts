@@ -1,100 +1,23 @@
 // ------------------------------------------------------------------ *
-// My Fitness App — logique métier NUTRITION (recopiée fidèlement de la maquette)
+// My Fitness App, logique métier NUTRITION : la journée type et la liste
+// de courses de l'espace client.
 //
 // Le README l'exige : c'est le seul endroit du projet où un bug est
 // invisible à l'œil nu (filtrage d'allergènes, régimes, mise à l'échelle
 // des quantités, agrégation de la liste de courses). D'où les tests.
+//
+// Ce fichier ne décide plus de ce qu'on mange : il met en forme ce que le
+// moteur de recettes a choisi (lib/recipe-engine.ts). Les deux écrans qu'il
+// sert, la journée type et les courses, sortent ainsi du MÊME catalogue que
+// les fiches recettes, filtré par le MÊME questionnaire.
 //
 // Fonctions PURES et déterministes : aucune dépendance réseau ni horloge.
 // Le jour (`dayIndex`) et le caractère « jour de repos » sont fournis par
 // l'appelant, qui les tient du plan généré.
 // ------------------------------------------------------------------ */
 
-export type MealItem = [food: string, qty: number, unit: string];
-
-export interface MealVariant {
-  name: string;
-  kcal: number;
-  /** étiquettes d'allergènes / catégorie : gluten, lactose, nuts, egg, fish, shell, soy, meat */
-  tags: string[];
-  items: MealItem[];
-}
-
-export interface MealSlot {
-  slot: string;
-  time: string;
-  share: number;
-  v: MealVariant[];
-}
-
-// Banque de repas — reprise telle quelle de la maquette (BANK).
-export const BANK: MealSlot[] = [
-  {
-    slot: "Petit-déjeuner",
-    time: "7 h 30",
-    share: 0.24,
-    v: [
-      { name: "Avoine & skyr", kcal: 600, tags: ["gluten", "lactose"], items: [["Flocons d'avoine", 80, "g"], ["Skyr nature", 200, "g"], ["Myrtilles", 100, "g"], ["Beurre de cacahuète", 15, "g"]] },
-      { name: "Omelette & pain complet", kcal: 590, tags: ["egg", "gluten"], items: [["Œufs", 3, ""], ["Pain complet", 80, "g"], ["Avocat", 60, "g"]] },
-      { name: "Bowl riz coco & fruits", kcal: 575, tags: [], items: [["Riz cuit", 200, "g"], ["Lait de coco", 80, "ml"], ["Banane", 1, ""], ["Graines de courge", 20, "g"]] },
-      { name: "Pancakes protéinés", kcal: 610, tags: ["egg", "lactose"], items: [["Farine de riz", 70, "g"], ["Œufs", 2, ""], ["Fromage blanc", 150, "g"], ["Sirop d'érable", 15, "g"]] },
-    ],
-  },
-  {
-    slot: "Déjeuner",
-    time: "12 h 30",
-    share: 0.31,
-    v: [
-      { name: "Poulet, riz, courgettes", kcal: 740, tags: ["meat"], items: [["Blanc de poulet", 180, "g"], ["Riz basmati cuit", 220, "g"], ["Courgettes rôties", 200, "g"], ["Huile d'olive", 10, "g"]] },
-      { name: "Bœuf haché & patate douce", kcal: 760, tags: ["meat"], items: [["Bœuf haché 5 %", 160, "g"], ["Patate douce", 280, "g"], ["Haricots verts", 200, "g"]] },
-      { name: "Dahl lentilles corail", kcal: 700, tags: [], items: [["Lentilles corail", 120, "g"], ["Lait de coco", 60, "ml"], ["Épinards", 150, "g"], ["Riz complet cuit", 150, "g"]] },
-      { name: "Cabillaud & quinoa", kcal: 720, tags: ["fish"], items: [["Cabillaud", 200, "g"], ["Quinoa cuit", 220, "g"], ["Poivrons rôtis", 180, "g"]] },
-      { name: "Bowl tofu & sarrasin", kcal: 710, tags: ["soy"], items: [["Tofu ferme", 200, "g"], ["Sarrasin cuit", 200, "g"], ["Brocoli", 180, "g"], ["Sauce soja", 15, "ml"]] },
-    ],
-  },
-  {
-    slot: "Collation",
-    time: "16 h 00",
-    share: 0.15,
-    v: [
-      { name: "Avant séance", kcal: 350, tags: ["lactose"], items: [["Banane", 1, ""], ["Galettes de riz", 3, ""], ["Whey isolate", 25, "g"]] },
-      { name: "Fruits & amandes", kcal: 330, tags: ["nuts"], items: [["Pomme", 1, ""], ["Amandes", 30, "g"], ["Compote sans sucre", 100, "g"]] },
-      { name: "Toast houmous", kcal: 345, tags: ["gluten"], items: [["Pain complet", 60, "g"], ["Houmous", 60, "g"], ["Tomates cerises", 100, "g"]] },
-      { name: "Skyr & miel", kcal: 320, tags: ["lactose"], items: [["Skyr", 250, "g"], ["Miel", 15, "g"], ["Flocons d'avoine", 25, "g"]] },
-    ],
-  },
-  {
-    slot: "Dîner",
-    time: "20 h 00",
-    share: 0.3,
-    v: [
-      { name: "Saumon & patate douce", kcal: 690, tags: ["fish"], items: [["Saumon", 150, "g"], ["Patate douce", 250, "g"], ["Épinards à l'ail", 150, "g"]] },
-      { name: "Omelette & salade de pois chiches", kcal: 660, tags: ["egg"], items: [["Œufs", 3, ""], ["Pois chiches cuits", 180, "g"], ["Roquette", 80, "g"], ["Huile d'olive", 10, "g"]] },
-      { name: "Dinde & purée de céleri", kcal: 670, tags: ["meat"], items: [["Escalope de dinde", 170, "g"], ["Céleri-rave", 300, "g"], ["Pomme de terre", 150, "g"]] },
-      { name: "Curry de pois cassés", kcal: 650, tags: [], items: [["Pois cassés cuits", 220, "g"], ["Riz cuit", 150, "g"], ["Chou-fleur", 200, "g"], ["Lait de coco", 50, "ml"]] },
-    ],
-  },
-];
-
-// Libellé du questionnaire → étiquette d'allergène interne.
-export const ALLERGEN_MAP: Record<string, string> = {
-  Gluten: "gluten",
-  Lactose: "lactose",
-  "Fruits à coque": "nuts",
-  Œuf: "egg",
-  Poisson: "fish",
-  Crustacés: "shell",
-  Soja: "soy",
-};
-
-// Classement des ingrédients par rayon (ordre = ordre d'affichage).
-const RAYONS: [string, RegExp][] = [
-  ["Fruits & légumes", /myrtille|banane|pomme de terre|pomme|courgette|haricot|épinard|poivron|brocoli|tomate|roquette|chou-fleur|patate douce|céleri|avocat/i],
-  ["Viandes & poissons", /poulet|bœuf|dinde|saumon|cabillaud/i],
-  ["Crémerie & œufs", /skyr|fromage blanc|œuf|whey/i],
-  ["Épicerie sèche", /avoine|riz|quinoa|sarrasin|lentille|pois|farine|galette|amande|graine|houmous|pain|tofu/i],
-  ["Liquides & condiments", /huile|lait de coco|sauce soja|miel|sirop|cacahuète|compote/i],
-];
+import { menuForDay, shoppingEntries, REPAS_LABEL, type Profil } from "@/lib/recipe-engine";
+import { RAYON_LABEL, RAYON_ORDRE, type Repas } from "@/lib/recipe-catalog";
 
 // ------------------------------------------------------------------ helpers
 
@@ -116,81 +39,11 @@ export function grp(n: number): string {
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
-function rayonOf(food: string): string {
-  for (const [name, re] of RAYONS) if (re.test(food)) return name;
-  return "Autres";
-}
 
-/**
- * Étiquettes interdites, à partir des allergies déclarées et du régime.
- * Végétarien exclut viande + poisson ; végétalien exclut en plus œuf + lactose.
- */
-export function bannedTags(
-  allergies: string[] | undefined | null,
-  diet?: string | null,
-): Record<string, 1> {
-  const banned: Record<string, 1> = {};
-  (Array.isArray(allergies) ? allergies : []).forEach((a) => {
-    if (ALLERGEN_MAP[a]) banned[ALLERGEN_MAP[a]] = 1;
-  });
-  if (diet === "Végétarien") {
-    banned.meat = 1;
-    banned.fish = 1;
-  }
-  if (diet === "Végétalien") {
-    banned.meat = 1;
-    banned.fish = 1;
-    banned.egg = 1;
-    banned.lactose = 1;
-  }
-  return banned;
-}
 
-/**
- * Facteur d'échelle des quantités : rapport kcal cible / kcal de base,
- * borné entre 0,7 et 1,45 (évite les portions absurdes).
- */
-export function scaleFactor(targetKcal: number, baseSum: number): number {
-  return Math.max(0.7, Math.min(1.45, targetKcal / (baseSum || 1)));
-}
 
-/**
- * Normalise une liste d'aliments non aimés (texte libre ou tableau) en termes
- * minuscules exploitables pour le filtrage (« Brocoli, fromage bleu » → …).
- */
-export function dislikeTerms(dislikes?: string | string[] | null): string[] {
-  const raw = Array.isArray(dislikes) ? dislikes.join(",") : dislikes ?? "";
-  return raw
-    .split(/[,;\n]/)
-    .map((s) => s.trim().toLowerCase())
-    .filter((s) => s.length >= 3 && s !== "aucun" && s !== "aucune" && s !== "non");
-}
 
-/** Une variante contient-elle un aliment non aimé (nom ou ingrédient) ? */
-function hasDislikedFood(v: MealVariant, terms: string[]): boolean {
-  if (!terms.length) return false;
-  const hay = (v.name + " " + v.items.map((i) => i[0]).join(" ")).toLowerCase();
-  return terms.some((t) => hay.includes(t));
-}
 
-/**
- * Choisit une variante par créneau, en écartant les variantes contenant un
- * allergène/catégorie interdit OU un aliment non aimé. Repli progressif :
- * on garde toujours au minimum les variantes sans allergène (les allergies
- * priment sur les préférences). Rotation déterministe selon `dayIndex`.
- */
-function pickVariants(
-  dayIndex: number,
-  banned: Record<string, 1>,
-  terms: string[] = [],
-): MealVariant[] {
-  return BANK.map((b, si) => {
-    const allergenSafe = b.v.filter((v) => !v.tags.some((t) => banned[t]));
-    const liked = allergenSafe.filter((v) => !hasDislikedFood(v, terms));
-    const pool = liked.length ? liked : allergenSafe.length ? allergenSafe : b.v;
-    return pool[(dayIndex + si * 3) % pool.length];
-  });
-}
 
 /** Calories cible du jour : base, réduite de 10 % un jour de repos. */
 export function targetKcalForDay(baseKcal: number, isRestDay: boolean): number {
@@ -242,58 +95,47 @@ export interface ScaledMeal {
   items: { food: string; qty: string }[];
 }
 
+/** Heure indicative de chaque repas, pour la journée type et le PDF. */
+const HEURE: Record<Repas, string> = {
+  "petit-dejeuner": "7 h 30",
+  dejeuner: "12 h 30",
+  collation: "16 h 00",
+  diner: "20 h 00",
+};
+
 /**
- * Repas du jour : variantes filtrées puis quantités mises à l'échelle des
- * calories cibles du jour.
+ * Les repas d'un jour donné, tirés du CATALOGUE DE RECETTES.
+ *
+ * Ils sortaient jusqu'ici d'une banque de repas séparée, écrite pour la
+ * maquette : le client lisait une journée type et une liste de courses qui
+ * n'avaient aucun rapport avec les recettes qu'on lui proposait par ailleurs,
+ * et son filtrage se limitait à sept étiquettes d'allergènes. Une seule source
+ * règle les deux problèmes d'un coup : la journée type applique désormais tout
+ * le questionnaire (régime, cadre religieux, aliments refusés, budget, temps
+ * de cuisine), et la liste de courses ci-dessous est l'addition exacte de ces
+ * mêmes recettes.
  */
 export function dayMeals(
   dayIndex: number,
   isRestDay: boolean,
-  baseKcal: number,
-  banned: Record<string, 1>,
-  dislikes: string[] = [],
+  base: DayMacros,
+  profil: Profil,
+  repas: readonly Repas[] = ["petit-dejeuner", "dejeuner", "diner", "collation"],
 ): ScaledMeal[] {
-  const target = targetKcalForDay(baseKcal, isRestDay);
-  const chosen = pickVariants(dayIndex, banned, dislikes);
-  const baseSum = chosen.reduce((a, v) => a + v.kcal, 0) || 1;
-  const scale = scaleFactor(target, baseSum);
-  return chosen.map((v, i) => ({
-    time: BANK[i].time,
-    slot: BANK[i].slot,
-    name: v.name,
-    kcal: Math.round(v.kcal * scale),
-    items: v.items.map(([food, qty, unit]) => ({
-      food,
-      qty: unit
-        ? `${Math.max(1, Math.round(qty * scale))} ${unit}`
-        : String(Math.max(1, Math.round(qty * scale))),
-    })),
+  const cible = macrosForDay(base, isRestDay);
+  const menu = menuForDay({
+    jour: dayIndex,
+    repas,
+    macros: { kcal: cible.kcal, p: cible.protein, c: cible.carbs, f: cible.fat },
+    profil,
+  });
+  return menu.map((r) => ({
+    time: HEURE[r.repas],
+    slot: REPAS_LABEL[r.repas],
+    name: r.nom,
+    kcal: Math.round(r.macros.kcal),
+    items: r.ingredients.map((i) => ({ food: i.nom, qty: i.libelle })),
   }));
-}
-
-interface RawItem {
-  food: string;
-  qty: number;
-  unit: string;
-}
-
-/** Ingrédients bruts (quantités fractionnaires) d'un jour, pour agrégation. */
-function itemsForDay(
-  dayIndex: number,
-  isRestDay: boolean,
-  baseKcal: number,
-  banned: Record<string, 1>,
-  dislikes: string[] = [],
-): RawItem[] {
-  const target = targetKcalForDay(baseKcal, isRestDay);
-  const chosen = pickVariants(dayIndex, banned, dislikes);
-  const sum = chosen.reduce((a, v) => a + v.kcal, 0) || 1;
-  const sc = scaleFactor(target, sum);
-  const out: RawItem[] = [];
-  chosen.forEach((v) =>
-    v.items.forEach(([food, qty, unit]) => out.push({ food, qty: qty * sc, unit })),
-  );
-  return out;
 }
 
 // Arrondi « courses » : masse/volume arrondi à un pas lisible, converti en
@@ -323,51 +165,57 @@ export interface ShoppingGroup {
 /**
  * Liste des courses agrégée de `startDay` à `startDay + spanDays - 1`
  * (bornée à `maxDay`), classée par rayon.
+ *
+ * C'est l'addition, aliment par aliment, des recettes que la journée type
+ * servira sur la période. Le client peut donc cuisiner tout ce qu'on lui
+ * propose avec ce qu'il vient d'acheter, ni plus ni moins. Restent en dehors
+ * les fonds de placard cités dans les étapes (sel, poivre, épices, ail,
+ * herbes) : ils ne pèsent rien dans les macros et alourdiraient la liste à
+ * chaque semaine.
+ *
  * @param isRestOf renvoie true si le jour donné est un jour de repos.
  */
 export function shoppingList(
   startDay: number,
   spanDays: number,
   isRestOf: (dayIndex: number) => boolean,
-  baseKcal: number,
-  banned: Record<string, 1>,
+  base: DayMacros,
+  profil: Profil,
+  repas: readonly Repas[] = ["petit-dejeuner", "dejeuner", "diner", "collation"],
   maxDay = 90,
-  dislikes: string[] = [],
+  locale: "fr" | "en" = "fr",
 ): ShoppingGroup[] {
-  const acc: Record<string, RawItem> = {};
+  const jours: ReturnType<typeof menuForDay>[] = [];
   const end = Math.min(maxDay, startDay + spanDays - 1);
   for (let d = startDay; d <= end; d++) {
-    itemsForDay(d, isRestOf(d), baseKcal, banned, dislikes).forEach(({ food, qty, unit }) => {
-      const k = food + "|" + unit;
-      if (!acc[k]) acc[k] = { food, unit, qty: 0 };
-      acc[k].qty += qty;
-    });
+    const cible = macrosForDay(base, isRestOf(d));
+    jours.push(
+      menuForDay({
+        jour: d,
+        repas,
+        macros: { kcal: cible.kcal, p: cible.protein, c: cible.carbs, f: cible.fat },
+        profil,
+      }),
+    );
   }
 
-  const rows: ShoppingRow[] = Object.keys(acc)
-    .map((k) => {
-      const it = acc[k];
-      const q = roundQty(it.qty, it.unit) + shopUnit(it.qty, it.unit);
-      return {
-        key: k,
-        food: it.food,
-        qty: it.unit ? q : q + " " + plural(Math.ceil(it.qty), "pièce", "pièces"),
-        rayon: rayonOf(it.food),
-      };
-    })
-    .sort((a, b) => a.food.localeCompare(b.food, "fr"));
+  const rows = shoppingEntries(jours).map((e) => {
+    // Un aliment qui se compte se lit en pièces : « 14 œufs », pas « 770 g ».
+    const qty = e.piece
+      ? (() => {
+          const n = Math.ceil(e.grammes / e.piece);
+          const [un, plusieurs] = e.pieceLabel ?? ["pièce", "pièces"];
+          return `${n} ${n > 1 ? plusieurs : un}`;
+        })()
+      : roundQty(e.grammes, e.unite) + shopUnit(e.grammes, e.unite);
+    return { key: e.food, food: e.nom, qty, rayon: RAYON_LABEL[e.rayon][locale] };
+  });
 
-  const order = RAYONS.map((r) => r[0]).concat(["Autres"]);
-  return order
-    .map((name) => {
-      const items = rows.filter((r) => r.rayon === name);
-      return {
-        name,
-        count: items.length + " " + plural(items.length, "article", "articles"),
-        items,
-      };
-    })
-    .filter((g) => g.items.length > 0);
+  return RAYON_ORDRE.map((r) => {
+    const name = RAYON_LABEL[r][locale];
+    const items = rows.filter((x) => x.rayon === name);
+    return { name, count: items.length + " " + plural(items.length, "article", "articles"), items };
+  }).filter((g) => g.items.length > 0);
 }
 
 /** Version texte de la liste (pour le bouton « copier »). */

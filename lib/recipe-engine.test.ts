@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { FOODS, RECIPES } from "./recipe-catalog";
+import { FOODS, RECIPES, RAYON_ORDRE } from "./recipe-catalog";
+import { RECIPE_STEPS } from "./recipe-steps";
 import {
-  apport, buildMenu, convient, partsPour, profilDepuisQuiz, repasDuJour,
-  scaleRecipe, termes, type Macros, type Profil,
+  apport, buildMenu, convient, menuForDay, partsPour, poolServable, profilDepuisQuiz,
+  repasDuJour, scaleRecipe, shoppingEntries, termes, type Macros, type Profil,
 } from "./recipe-engine";
 
 const PROFIL_LIBRE: Profil = {
@@ -46,17 +47,35 @@ describe("catalogue", () => {
     expect(new Set(RECIPES.map((r) => r.id)).size).toBe(RECIPES.length);
   });
 
+  it("donne une fiche de préparation à chaque recette, et aucune orpheline", () => {
+    const sansEtapes = RECIPES.filter((r) => !RECIPE_STEPS[r.id]).map((r) => r.id);
+    const ids = new Set(RECIPES.map((r) => r.id));
+    const orphelines = Object.keys(RECIPE_STEPS).filter((k) => !ids.has(k));
+    expect(sansEtapes).toEqual([]);
+    expect(orphelines).toEqual([]);
+  });
+
+  it("range chaque aliment dans un rayon connu", () => {
+    const mauvais = Object.entries(FOODS)
+      .filter(([, f]) => !RAYON_ORDRE.includes(f.rayon))
+      .map(([k]) => k);
+    expect(mauvais).toEqual([]);
+  });
+
   it("n'utilise pas de tiret cadratin dans les textes", () => {
-    const fautes = RECIPES.filter((r) =>
-      [r.nom, r.astuce, ...r.etapes].some((t) => t.includes("—") || t.includes("–")),
-    ).map((r) => r.id);
+    const fautes = RECIPES.filter((r) => {
+      const st = RECIPE_STEPS[r.id];
+      return [r.nom, st?.astuce ?? "", ...(st?.etapes ?? [])].some((t) => t.includes("—") || t.includes("–"));
+    }).map((r) => r.id);
     expect(fautes).toEqual([]);
   });
 
   it("écrit des étapes sans quantité chiffrée en grammes", () => {
     // Une étape qui citerait « 80 g de riz » mentirait dès la première mise à
     // l'échelle : les quantités vivent dans les ingrédients, pas dans le texte.
-    const fautes = RECIPES.filter((r) => r.etapes.some((e) => /\d+\s?g\b/.test(e))).map((r) => r.id);
+    const fautes = RECIPES.filter((r) =>
+      (RECIPE_STEPS[r.id]?.etapes ?? []).some((e) => /\d+\s?g\b/.test(e)),
+    ).map((r) => r.id);
     expect(fautes).toEqual([]);
   });
 
@@ -256,5 +275,81 @@ describe("buildMenu", () => {
     });
     const menu = buildMenu({ repas: ["petit-dejeuner", "dejeuner", "diner"], jour: JOUR, profil });
     expect(menu.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("couverture des profils du questionnaire", () => {
+  // Chaque ligne est une combinaison de réponses réellement possible. Le seuil
+  // est bas volontairement : il ne dit pas « le choix est large », il dit
+  // « cet écran n'est jamais vide ». Un client végétalien qui ne cuisine pas
+  // n'avait, avant ce test, aucun déjeuner ni aucun dîner à se mettre sous la
+  // dent : l'onglet nutrition lui affichait deux repas sur quatre.
+  const CAS: [string, Record<string, unknown>][] = [
+    ["omnivore sans contrainte", {}],
+    ["végétalien", { diet: "Végétalien" }],
+    ["végétarien", { diet: "Végétarien" }],
+    ["végétalien sans gluten", { diet: "Végétalien", allerg: ["Gluten"] }],
+    [
+      "tous les allergènes du questionnaire",
+      { allerg: ["Gluten", "Lactose", "Fruits à coque", "Œuf", "Poisson", "Crustacés", "Soja"] },
+    ],
+    ["budget serré", { budget: "Serré" }],
+    ["ne cuisine pas", { cook_time: "Non" }],
+    ["ne cuisine pas, budget serré", { cook_time: "Non", budget: "Serré" }],
+    ["végétalien, budget serré", { diet: "Végétalien", budget: "Serré" }],
+    ["végétalien, ne cuisine pas", { diet: "Végétalien", cook_time: "Non" }],
+    ["casher", { religion: "Casher" }],
+    ["halal", { religion: "Halal" }],
+    ["sans lactose ni gluten", { allerg: ["Gluten", "Lactose"] }],
+    ["refus larges", { dislikes: "poulet, poisson, brocoli, tomate" }],
+  ];
+
+  it.each(CAS)("sert au moins trois recettes par repas : %s", (_nom, quiz) => {
+    const profil = profilDepuisQuiz(quiz);
+    const maigres = (["petit-dejeuner", "dejeuner", "diner", "collation"] as const)
+      .map((r) => [r, poolServable(r, profil).length] as const)
+      .filter(([, n]) => n < 3)
+      .map(([r, n]) => `${r}: ${n}`);
+    expect(maigres).toEqual([]);
+  });
+});
+
+describe("menuForDay — la journée servie, et donc la liste de courses", () => {
+  const JOUR_LIBRE = { jour: 1, repas: ["petit-dejeuner", "dejeuner", "diner", "collation"] as const, macros: JOUR, profil: PROFIL_LIBRE };
+
+  it("est stable pour un jour donné et change d'un jour à l'autre", () => {
+    const a = menuForDay(JOUR_LIBRE).map((r) => r.id);
+    expect(menuForDay(JOUR_LIBRE).map((r) => r.id)).toEqual(a);
+    expect(menuForDay({ ...JOUR_LIBRE, jour: 2 }).map((r) => r.id)).not.toEqual(a);
+  });
+
+  it("fait tourner le catalogue au lieu de resservir la même semaine", () => {
+    const vus = new Set<string>();
+    for (let j = 1; j <= 30; j++) for (const r of menuForDay({ ...JOUR_LIBRE, jour: j })) vus.add(r.id);
+    expect(vus.size).toBeGreaterThanOrEqual(20);
+  });
+
+  it("ne sert jamais deux fois la même recette dans la journée", () => {
+    const repas = repasDuJour({ meals_per_day: "5 et +" });
+    for (let j = 1; j <= 30; j++) {
+      const ids = menuForDay({ ...JOUR_LIBRE, jour: j, repas }).map((r) => r.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+
+  it("n'agrège dans les courses que ce que les recettes demandent", () => {
+    const jours = [1, 2, 3].map((j) => menuForDay({ ...JOUR_LIBRE, jour: j }));
+    const entrees = shoppingEntries(jours);
+    const attendus = new Set(jours.flat().flatMap((r) => r.ingredients.map((i) => i.food)));
+    expect(new Set(entrees.map((e) => e.food))).toEqual(attendus);
+    // Les quantités s'additionnent, elles ne se remplacent pas.
+    for (const e of entrees) {
+      const somme = jours
+        .flat()
+        .flatMap((r) => r.ingredients)
+        .filter((i) => i.food === e.food)
+        .reduce((a, i) => a + i.grammes, 0);
+      expect(e.grammes).toBeCloseTo(somme, 5);
+    }
   });
 });
