@@ -74,4 +74,34 @@ describe("matchLibraryExercise", () => {
     expect(matchLibraryExercise("Yoga du matin")).toBeNull();
     expect(matchLibraryExercise("")).toBeNull();
   });
+
+  it("lot 3 : hanches, machines et variantes ne se confondent plus", () => {
+    // Le bug d'origine : « abduction » tombait sur le kickback (« extension
+    // hanche poulie »), et la fiche décrivait un autre exercice.
+    expect(matchLibraryExercise("Abduction de hanche à la poulie")?.key).toBe("abduction-hanche-debout");
+    expect(matchLibraryExercise("Abduction hanche machine")?.key).toBe("abduction-hanche-machine");
+    expect(matchLibraryExercise("Extension fessier poulie")?.key).toBe("kickback-fessier-poulie");
+    expect(matchLibraryExercise("Kickback fessier")?.key).toBe("extension-fessier-poulie");
+    expect(matchLibraryExercise("Machine à marches")?.key).toBe("machine-a-marches");
+    expect(matchLibraryExercise("Rowing machine tirage horizontal lourd")?.key).toBe("rowing-machine");
+    expect(matchLibraryExercise("Rameur HIIT")?.key).toBe("rameur");
+    expect(matchLibraryExercise("Poussée inclinée machine à pectoraux")?.key).toBe("developpe-incline-machine");
+    expect(matchLibraryExercise("Développé militaire haltères assis (banc réglable)")?.key).toBe("developpe-epaules-halteres-assis");
+    expect(matchLibraryExercise("Développé militaire haltères debout")?.key).toBe("developpe-epaules-halteres");
+    expect(matchLibraryExercise("Fentes statiques courtes")?.key).toBe("fentes-statiques");
+    expect(matchLibraryExercise("Leg curl élastique (secondaire)")?.key).toBe("leg-curl-elastique");
+    expect(matchLibraryExercise("Tractions assistées aux sangles de suspension")?.key).toBe("tractions-assistees");
+    expect(matchLibraryExercise("Tirage vertical poulie haute prise neutre")?.key).toBe("tirage-vertical-prise-serree");
+    expect(matchLibraryExercise("Vélo")?.key).toBe("velo-stationnaire");
+    expect(matchLibraryExercise("Vélo Assault intervalles")?.key).toBe("air-bike");
+    expect(matchLibraryExercise("Squat gobelet")?.key).toBe("squat-gobelet");
+    expect(matchLibraryExercise("Soulevé roumain haltères léger")?.key).toBe("souleve-de-terre-roumain");
+    expect(matchLibraryExercise("Extension triceps haltère")?.key).toBe("extension-triceps-verticale");
+  });
+
+  it("un seul mot de matériel en commun ne fait pas une correspondance", () => {
+    // « machine » ou « poulie » seuls ne disent rien du mouvement.
+    expect(matchLibraryExercise("Adducteurs à la poulie")?.key).not.toBe("extension-fessier-poulie");
+    expect(matchLibraryExercise("Abduction de hanche")?.key).not.toBe("extension-fessier-poulie");
+  });
 });

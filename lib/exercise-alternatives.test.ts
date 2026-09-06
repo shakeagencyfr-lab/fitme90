@@ -159,4 +159,22 @@ describe("alternativeExercise", () => {
     expect(ex).not.toBeNull();
     expect(matchLibraryExercise(ex!.name)).not.toBeNull();
   });
+
+  it("une variante reste dans la famille musculaire du mouvement d'origine", () => {
+    const equip = ["Haltères", "Barre olympique", "Poulie", "Machine", "Banc", "Élastique"];
+    const bas = ["Abduction de hanche à la poulie", "Hip thrust barre", "Presse à cuisses légère", "Leg curl élastique", "Machine à marches"];
+    for (const n of bas) {
+      const alt = pickAlternative({ name: n, equipment: equip });
+      expect(alt, n).not.toBeNull();
+      const f = EXERCISE_TRAITS[alt!.key].familles;
+      expect(["quadriceps", "fessiers", "ischios", "adducteurs", "mollets", "cardio"], n).toContain(f[0]);
+    }
+    const haut = ["Rowing machine tirage horizontal", "Poussée inclinée machine", "Développé militaire haltères assis"];
+    for (const n of haut) {
+      const alt = pickAlternative({ name: n, equipment: equip });
+      expect(alt, n).not.toBeNull();
+      const f = EXERCISE_TRAITS[alt!.key].familles;
+      expect(["pectoraux", "epaules", "epaules_arriere", "dos_horizontal", "dos_vertical", "triceps", "biceps", "trapezes"], n).toContain(f[0]);
+    }
+  });
 });
