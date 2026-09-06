@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useLocale } from "@/components/locale-provider";
 import { pick, translate, type Locale, type LocalText } from "@/lib/i18n";
 import { GEN_PHRASES_DE } from "@/lib/i18n/pack-de";
+import { GEN_PHRASES_ES } from "@/lib/i18n/pack-es";
 
 /**
  * L'écran d'attente de la génération du programme.
@@ -51,6 +52,7 @@ const PHRASES: LocalText<string[]> = {
     "Pack your bag tonight. Half the work is already done.",
   ],
   de: GEN_PHRASES_DE,
+  es: GEN_PHRASES_ES,
 };
 
 /** Un tracé de rythme cardiaque, en coordonnées d'un motif qui se répète. */

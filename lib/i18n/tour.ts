@@ -1,5 +1,6 @@
 import { pick, type Locale, type LocalText } from "./index";
 import { TOUR_DE, TOUR_UI_DE } from "./pack-de";
+import { TOUR_ES, TOUR_UI_ES } from "./pack-es";
 
 // Textes du tutoriel guidé (espace client), dans les deux langues. La
 // structure (page ouverte, élément encadré) vit dans components/onboarding-tour.
@@ -65,11 +66,12 @@ const EN: TourText[] = [
   ] },
 ];
 
-const TEXTS: LocalText<TourText[]> = { fr: FR, en: EN, de: TOUR_DE };
+const TEXTS: LocalText<TourText[]> = { fr: FR, en: EN, de: TOUR_DE, es: TOUR_ES };
 const UI: LocalText<{ skip: string; next: string; start: string }> = {
   fr: { skip: "Passer", next: "Suivant", start: "C'est parti" },
   en: { skip: "Skip", next: "Next", start: "Let's go" },
   de: TOUR_UI_DE,
+  es: TOUR_UI_ES,
 };
 
 export function tourTexts(locale: Locale): TourText[] {
