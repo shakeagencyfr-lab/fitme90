@@ -29,6 +29,7 @@ import { revalidatePath } from "next/cache";
 import { pnum, grp, macrosForDay } from "@/lib/nutrition";
 import { readFoodDay } from "@/lib/food-log-store";
 import { journalDigest } from "@/lib/food-log";
+import { loadBookingToolkit } from "@/lib/coach-booking-tools";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
 import { aiLanguageInstruction } from "@/lib/i18n";
 
@@ -182,6 +183,10 @@ export async function POST(req: NextRequest) {
   // Journal alimentaire du jour : le coach sait ce qui a déjà été mangé avant
   // de conseiller un repas. Lu en session, donc RLS.
   const journalRows = ctx.access.day >= 1 ? await readFoodDay(ctx.userId, ctx.access.day) : [];
+  // Rendez-vous en présentiel : trois outils et un bloc de contexte, seulement
+  // si le coach a ouvert la réservation à ce client. Sinon rien : le modèle
+  // ne doit même pas savoir que ça existe pour lui.
+  const bookingKit = await loadBookingToolkit(ctx.userId);
 
   // Toutes les séances validées (jours) : pour repérer les retards à rattraper.
   const { data: doneRows } = await supabase
@@ -299,7 +304,7 @@ ${logsDigest((logs ?? []) as CoachLog[])}
 
 JOURNAL ALIMENTAIRE D'AUJOURD'HUI (scans de code-barres et saisies du client, face à sa cible du jour) :
 ${journalDigest(journalRows, journalTarget, locale)}
-S'il te demande quoi manger, pars de ce qui est déjà consommé et de ce qui reste. Un journal vide ne veut pas dire qu'il n'a rien mangé : demande-lui plutôt que supposer.`;
+S'il te demande quoi manger, pars de ce qui est déjà consommé et de ce qui reste. Un journal vide ne veut pas dire qu'il n'a rien mangé : demande-lui plutôt que supposer.${bookingKit ? `\n\n${bookingKit.block}` : ""}`;
 
   // Cache de prompt en DURÉE LONGUE (1 heure) plutôt que les 5 minutes par
   // défaut. Une conversation avec un coach n'est pas une rafale : le client
@@ -536,6 +541,8 @@ S'il te demande quoi manger, pars de ce qui est déjà consommé et de ce qui re
       },
     },
   ];
+
+  if (bookingKit) tools.push(...bookingKit.tools);
 
   // UN message du client, ce sont un à trois appels au modèle : la réponse, et
   // un appel de plus par tour d'outils. Ils sont retenus un par un, et non
@@ -1018,6 +1025,10 @@ S'il te demande quoi manger, pars de ce qui est déjà consommé et de ce qui re
         calories?: number;
       };
       return runNutrition(i);
+    }
+    if (bookingKit) {
+      const out = await bookingKit.exec(name, input);
+      if (out !== null) return out;
     }
     return "Action inconnue.";
   }

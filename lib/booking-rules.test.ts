@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   clientCanCancel,
+  findByName,
   formatHm,
   normalizeHours,
   parseHm,
@@ -94,5 +95,17 @@ describe("annulation par le client", () => {
     expect(clientCanCancel(new Date("2026-09-07T10:00:00Z"), 24, now)).toBe(true);
     expect(clientCanCancel(new Date("2026-09-07T09:59:00Z"), 24, now)).toBe(false);
     expect(clientCanCancel(new Date("2026-09-06T10:30:00Z"), 0, now)).toBe(true);
+  });
+});
+
+describe("findByName", () => {
+  const list = [{ name: "Séance individuelle" }, { name: "Bilan de départ" }, { name: "Séance duo" }];
+  it("retrouve par nom exact, début, inclusion, mots communs, sans accents", () => {
+    expect(findByName(list, "seance individuelle")?.name).toBe("Séance individuelle");
+    expect(findByName(list, "Bilan")?.name).toBe("Bilan de départ");
+    expect(findByName(list, "la séance en duo")?.name).toBe("Séance duo");
+    expect(findByName(list, "individuelle")?.name).toBe("Séance individuelle");
+    expect(findByName(list, "yoga")).toBeNull();
+    expect(findByName(list, 42)).toBeNull();
   });
 });
