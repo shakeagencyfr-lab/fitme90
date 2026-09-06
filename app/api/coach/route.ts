@@ -15,6 +15,8 @@ import { buildPersona, DEFAULT_BRAND } from "@/lib/coach-persona";
 import { readCoachName } from "@/lib/methodology";
 import { restPattern, startWeekday, isRestDay } from "@/lib/schedule";
 import { applySessionOps, type SessionOp } from "@/lib/session-edit";
+import { canonicalExercise, type CoachExercise } from "@/lib/allowed-exercises";
+import { listCoachExerciseMedia } from "@/lib/exercise-guide";
 import { missedDays } from "@/lib/streak";
 import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan, sessionSlotForDay, replaceSessionInPlan, cycleSessions } from "@/lib/program";
 import { coachAgenda, coachPlanView, logsDigest, type CoachLog } from "@/lib/coach-context";
@@ -602,7 +604,40 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     const current = cycleSessions(prog.plan, at.cycleIndex)[at.slot];
     if (!current) return "Impossible : séance introuvable.";
 
-    const edited = applySessionOps(current, ops);
+    // Même vocabulaire fermé qu'à la génération : un exercice ajouté ou
+    // remplacé doit être une fiche de la bibliothèque (ou du coach) que le
+    // matériel du client permet. Sinon la fiche affichée ne montrerait pas le
+    // bon mouvement, et c'est exactement ce que le verrouillage évite.
+    const { data: equipRows } = await supabase
+      .from("equipment")
+      .select("name")
+      .eq("user_id", ctx!.userId)
+      .eq("enabled", true);
+    const equipement = (equipRows ?? []).map((e) => e.name as string);
+    const fichesCoach: CoachExercise[] = ctx!.profile?.tenant_id
+      ? await listCoachExerciseMedia(ctx!.profile.tenant_id).catch(() => [])
+      : [];
+    const refus: string[] = [];
+    const opsVerrouillees: SessionOp[] = [];
+    for (const op of ops) {
+      const nom = op.nouveau?.nom?.trim();
+      if ((op.action === "ajouter" || op.action === "remplacer") && nom) {
+        const canon = canonicalExercise(nom, equipement, fichesCoach);
+        if (!canon) {
+          refus.push(`« ${nom} » n'est pas dans la bibliothèque d'exercices, ou demande un matériel que le client n'a pas.`);
+          continue;
+        }
+        opsVerrouillees.push({ ...op, nouveau: { ...op.nouveau, nom: canon.name } });
+        continue;
+      }
+      opsVerrouillees.push(op);
+    }
+    if (refus.length && !opsVerrouillees.length) {
+      return `Rien n'a été modifié. ${refus.join(" ")} Choisis un exercice de la bibliothèque (le nom exact d'un mouvement courant, sans variante inventée) et rappelle l'outil.`;
+    }
+
+    const edited = applySessionOps(current, opsVerrouillees);
+    if (refus.length) edited.errors.push(...refus);
     if (!edited.changes.length) {
       return `Rien n'a été modifié : ${edited.errors.join(" ")} Vérifie les noms d'exercices tels qu'ils figurent dans la séance.`;
     }
