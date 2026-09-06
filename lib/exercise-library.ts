@@ -1851,6 +1851,25 @@ for (const entry of EXERCISE_LIBRARY) {
   }
 }
 
+/** Nom ou alias normalisé -> fiche, pour le rapprochement EXACT. */
+const EXACT_INDEX = new Map<string, LibraryExercise>();
+for (const entry of EXERCISE_LIBRARY) {
+  for (const a of [entry.name, ...entry.aliases]) {
+    const k = normalizeExerciseName(a);
+    if (k && !EXACT_INDEX.has(k)) EXACT_INDEX.set(k, entry);
+  }
+}
+
+/**
+ * La fiche dont le nom ou un alias est EXACTEMENT ce nom (aux accents, à la
+ * ponctuation et aux mots-outils près). Aucun rapprochement approché ici :
+ * c'est ce que la génération exige du modèle, et ce qu'on vérifie ensuite.
+ */
+export function exactLibraryExercise(rawName: string): LibraryExercise | null {
+  const k = normalizeExerciseName(rawName);
+  return k ? (EXACT_INDEX.get(k) ?? null) : null;
+}
+
 export function matchLibraryExercise(rawName: string): LibraryExercise | null {
   const qTokens = tokensOf(rawName);
   if (qTokens.length === 0) return null;

@@ -9,12 +9,20 @@ import { COACH_CREDENTIAL, CYCLES_PER_BLOCK } from "@/lib/config";
 import { templatePrompt, cycleWeeksLabel, blocksForMonths } from "@/lib/templates";
 import { effectiveMethodology } from "@/lib/methodology";
 import { sanitizePlan, sanitizeSession } from "@/lib/program-sanitize";
+import { allowedExercises, allowedListPrompt, enforceLibrary, enforceIssues, type CoachExercise } from "@/lib/allowed-exercises";
+import { listCoachExerciseMedia } from "@/lib/exercise-guide";
 
 // Schéma du plan retourné par le modèle (structure de la maquette).
 // Validé après génération : on n'écrit jamais en base un JSON hors-forme.
 
 export const exerciseShape = z.object({
   name: z.string(),
+  /**
+   * Clé de la fiche de bibliothèque (ou de la fiche du coach) dont ce nom est
+   * tiré. Posée par le verrouillage après génération, jamais par le modèle :
+   * l'affichage s'en sert pour ne plus jamais deviner la fiche à partir du nom.
+   */
+  key: z.string().optional(),
   sets: z.number(),
   reps: z.string(),
   load: z.string().optional().default(""),
@@ -532,6 +540,12 @@ export interface GenerateResult {
   /** Modèle qui a produit le plan retenu, tel que l'API l'a servi. */
   model: string;
   /**
+   * Ce que le verrouillage sur la bibliothèque a dû faire au plan retenu :
+   * noms réécrits (même mouvement), remplacés (même famille, matériel
+   * possible), retirés (inconnus). Zéro partout est la situation normale.
+   */
+  library: { repaired: number; replaced: number; removed: number };
+  /**
    * TOUS les appels passés à l'API, y compris celui dont le plan a été jeté.
    *
    * C'était un total unique auparavant, et ce total mentait deux fois : la
@@ -591,6 +605,13 @@ export async function generateProgram(
   });
   const firstCycleIndex = blockIndex * CYCLES_PER_BLOCK;
 
+  // Vocabulaire fermé : la bibliothèque filtrée par le matériel du client, plus
+  // les fiches de son coach. Le modèle y prend chaque nom tel quel ; on vérifie
+  // ensuite, et on répare sans changer de mouvement quand c'est possible.
+  const coach: CoachExercise[] = tenantId ? await listCoachExerciseMedia(tenantId).catch(() => []) : [];
+  const allowed = allowedExercises(brief.equipment, coach);
+  const allowedText = allowedListPrompt(allowed);
+
   const runOnce = async (extra: string) => {
     const stream = client.messages.stream({
       model: MODELS.generate,
@@ -601,7 +622,7 @@ export async function generateProgram(
       messages: [
         {
           role: "user",
-          content: `${buildBrief(brief)}${extra}\n\nRends ce JSON :\n${SCHEMA_HINT}`,
+          content: `${buildBrief(brief)}\n\n${allowedText}${extra}\n\nRends ce JSON :\n${SCHEMA_HINT}`,
         },
       ],
     });
@@ -611,11 +632,12 @@ export async function generateProgram(
     // flux et non sur le message final, d'où le second argument.
     const call = apiCallOf(message, stream.request_id);
     journal.push(call);
-    const plan = relabelCycles(
+    const brut = relabelCycles(
       normalizePlan(planSchema.parse(parseJsonLoose(textOf(message)))),
       firstCycleIndex,
     );
-    return { plan, call };
+    const verrou = enforceLibrary(brut, brief.equipment, coach);
+    return { plan: verrou.plan, call, verrou };
   };
 
   // Le bon nombre de cycles, chacun avec le bon nombre de séances distinctes.
@@ -623,18 +645,45 @@ export async function generateProgram(
     (p.cycles?.length ?? 0) >= wantCycles &&
     (p.cycles ?? []).every((c) => (c.sessions?.length ?? 0) >= wantSessions);
 
-  let { plan, call: retenu } = await runOnce("");
-  // Garde-fou périodisation : si un cycle manque de séances distinctes (bug
-  // « même séance partout »), on relance une fois avec une consigne explicite
-  // (1re génération uniquement, où le budget temps le permet).
-  if ((effort === "high" || effort === "xhigh" || effort === "max") && (wantSessions >= 2 || wantCycles >= 2) && !cyclesOk(plan)) {
-    try {
-      const retry = await runOnce(
-        `\n\nATTENTION : le plan doit contenir EXACTEMENT ${wantCycles} cycle(s), et CHAQUE cycle doit contenir EXACTEMENT ${wantSessions} séances DISTINCTES dans "cycles[i].sessions" (une par jour d'entraînement), et les séances doivent CHANGER d'un cycle au suivant. Ne renvoie pas une seule séance ni des cycles sans séances.`,
+  let premier = await runOnce("");
+  let retenu = premier;
+
+  // Deux garde-fous, une seule relance, sur les efforts hauts seulement (le
+  // budget temps d'une régénération en direct ne la permet pas) :
+  //  - périodisation : un cycle sans ses séances distinctes (bug « même séance
+  //    partout ») ;
+  //  - bibliothèque : des noms hors liste. Réécrits ou remplacés, ils ne
+  //    coûtent rien au client ; retirés, ils font une séance plus courte que
+  //    prévu. On relance dès qu'un nom a dû être retiré, ou que plusieurs ont
+  //    dû être réparés : c'est le signe que le modèle n'a pas lu la liste.
+  const effortHaut = effort === "high" || effort === "xhigh" || effort === "max";
+  const cyclesKo = (wantSessions >= 2 || wantCycles >= 2) && !cyclesOk(premier.plan);
+  const nomsKo = premier.verrou.removed.length > 0 || enforceIssues(premier.verrou) >= 3;
+  if (effortHaut && (cyclesKo || nomsKo)) {
+    const consignes: string[] = [];
+    if (cyclesKo) {
+      consignes.push(
+        `ATTENTION : le plan doit contenir EXACTEMENT ${wantCycles} cycle(s), et CHAQUE cycle doit contenir EXACTEMENT ${wantSessions} séances DISTINCTES dans "cycles[i].sessions" (une par jour d'entraînement), et les séances doivent CHANGER d'un cycle au suivant. Ne renvoie pas une seule séance ni des cycles sans séances.`,
       );
-      if (cyclesOk(retry.plan)) {
-        plan = retry.plan;
-        retenu = retry.call;
+    }
+    if (nomsKo) {
+      const fautifs = [
+        ...premier.verrou.removed,
+        ...premier.verrou.replaced.map((r) => r.from),
+        ...premier.verrou.repaired.map((r) => r.from),
+      ].slice(0, 12);
+      consignes.push(
+        `ATTENTION : ces noms ne figurent PAS dans la liste des exercices autorisés : ${fautifs.map((n) => `« ${n} »`).join(", ")}. Reprends chaque exercice avec un nom de la liste, à la lettre. Mets les précisions d'exécution dans "note", jamais dans "name".`,
+      );
+    }
+    try {
+      const relance = await runOnce(`\n\n${consignes.join("\n")}`);
+      // On garde la relance si elle fait mieux sur ce qui a motivé la relance,
+      // sans jamais reprendre un plan dont les cycles seraient cassés.
+      const mieuxCycles = cyclesOk(relance.plan) || !cyclesOk(premier.plan);
+      const mieuxNoms = enforceIssues(relance.verrou) <= enforceIssues(premier.verrou);
+      if (cyclesOk(relance.plan) && (!cyclesKo || mieuxNoms || !nomsKo) && (mieuxCycles && (mieuxNoms || cyclesKo))) {
+        retenu = relance;
       }
     } catch {
       // On garde le 1er plan si la relance échoue. L'appel raté, lui, est déjà
@@ -642,5 +691,20 @@ export async function generateProgram(
     }
   }
 
-  return { plan, model: retenu.model, calls: journal };
+  const v = retenu.verrou;
+  if (v.removed.length || v.replaced.length) {
+    // Signal serveur, sans donnée personnelle : de quoi voir, dans les logs,
+    // si le modèle respecte la liste.
+    console.warn(
+      `[generation] bibliothèque : ${v.repaired.length} réécrit(s), ${v.replaced.length} remplacé(s), ${v.removed.length} retiré(s)` +
+        (v.removed.length ? ` : ${v.removed.slice(0, 5).join(" ; ")}` : ""),
+    );
+  }
+  premier = retenu;
+  return {
+    plan: retenu.plan,
+    model: retenu.call.model,
+    calls: journal,
+    library: { repaired: v.repaired.length, replaced: v.replaced.length, removed: v.removed.length },
+  };
 }
