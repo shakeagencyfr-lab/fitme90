@@ -8,6 +8,7 @@ import { coachAiOf, isOfferFormula } from "@/lib/offer-formulas";
 import { whitelabelEnabled, setResellerWhitelabelPrice, setHidePoweredBy } from "@/lib/whitelabel";
 import { resellerRights } from "@/lib/cost-view";
 import { startWhitelabelCheckout, type WhitelabelReturn } from "@/lib/whitelabel-billing";
+import { setResellerBookingPrice, startBookingCheckout } from "@/lib/booking-billing";
 import { SITE_TEMPLATES, MAX_SERVICES, MAX_SITE_PHOTOS } from "@/lib/site-templates";
 import { webSlugAvailable } from "@/lib/site";
 import { sendEmail } from "@/lib/email";
@@ -35,7 +36,7 @@ import {
 import { secretsEncryptionReady } from "@/lib/crypto";
 import { createOffer, updateOffer, setOfferActive, setOfferListed, deleteOffer } from "@/lib/offers";
 import { resellerClientDailyCap, quotaSousPlafond } from "@/lib/coach-ai-budget";
-import { createPlan, setPlanActive, setPlanWhitelabelIncluded, deletePlan, saveFreePlan } from "@/lib/plans";
+import { createPlan, setPlanActive, setPlanWhitelabelIncluded, setPlanBookingIncluded, deletePlan, saveFreePlan } from "@/lib/plans";
 import { cancelTenantPlan, reactivateTenantPlan, syncTenantSubscription } from "@/lib/tenant-billing";
 import { deleteOwnCoachAccount } from "@/lib/account-deletion";
 import { setAffiliation } from "@/lib/affiliation";
@@ -612,6 +613,7 @@ export async function addPlan(_prev: PlanState, formData: FormData): Promise<Pla
     setupFeeCents: setup.cents ?? 0,
     clientLimit,
     whitelabelIncluded: formData.get("whitelabel_included") === "on",
+    bookingIncluded: formData.get("booking_included") === "on",
     aiSupply: formData.get("ai_supply") === "credits" ? "credits" : "byok",
     // Cases absentes du formulaire revendeur : valeurs sans effet pour un
     // palier vendu à des coachs, qui n'ont personne en dessous.
@@ -645,6 +647,8 @@ export async function editFreePlan(_prev: PlanState, formData: FormData): Promis
     // La plateforme offre toujours la marque blanche complète à ses
     // revendeurs : c'est la promesse du programme revendeur, pas une option.
     whitelabelIncluded: node.kind === "platform" ? true : formData.get("whitelabel_included") === "on",
+    // Même promesse pour la réservation : un revendeur l'a d'office.
+    bookingIncluded: node.kind === "platform" ? true : formData.get("booking_included") === "on",
     coachByokAllowed: formData.get("coach_byok_allowed") !== "off",
     coachCreditsAllowed: formData.get("coach_credits_allowed") === "on",
   });
@@ -670,6 +674,16 @@ export async function togglePlanWhitelabel(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await setPlanWhitelabelIncluded(ctx.profile.tenant_id, id, formData.get("included") === "on");
+  revalidatePath("/admin/paliers");
+}
+
+/** Le vendeur ouvre ou ferme le pack réservation sur un palier existant. */
+export async function togglePlanBooking(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await setPlanBookingIncluded(ctx.profile.tenant_id, id, formData.get("included") === "on");
   revalidatePath("/admin/paliers");
 }
 
@@ -1394,6 +1408,31 @@ export async function saveWhitelabelPrice(_prev: ResellerAiState, formData: Form
   await setResellerWhitelabelPrice(ctx.profile.tenant_id, cents);
   revalidatePath("/admin/paliers");
   return { ok: true };
+}
+
+/** Le revendeur fixe (ou retire) le prix mensuel de son pack réservation vendu à part. */
+export async function saveBookingPrice(_prev: ResellerAiState, formData: FormData): Promise<ResellerAiState> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return { error: "Accès refusé." };
+  const raw = String(formData.get("price_euros") ?? "").replace(",", ".").trim();
+  let cents: number | null = null;
+  if (raw) {
+    const n = Math.round(Number(raw) * 100);
+    if (!Number.isFinite(n) || n < 0) return { error: "Prix invalide." };
+    cents = n > 0 ? n : null;
+  }
+  await setResellerBookingPrice(ctx.profile.tenant_id, cents);
+  revalidatePath("/admin/paliers");
+  return { ok: true };
+}
+
+/** Le coach souscrit le pack réservation (paiement chez son revendeur). */
+export async function buyBookingPack(): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const res = await startBookingCheckout(ctx.profile.tenant_id, ctx.email ?? null);
+  if (res.url) redirect(res.url);
+  redirect("/admin/reservations?bk_erreur=1");
 }
 
 /**

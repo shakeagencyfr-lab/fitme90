@@ -53,6 +53,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
       { href: "/admin/tableau-de-bord", label: "Tableau de bord", icon: <I d="M4 13h6V4H4z||M14 20h6v-9h-6z||M4 20h6v-4H4z||M14 8h6V4h-6z" /> },
       { href: "/admin", label: "Clients", kinds: ["coach"], icon: <I d="M16 19a4 4 0 0 0-8 0||M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7||M20 19a3.5 3.5 0 0 0-4-3.4||M8 15.6A3.5 3.5 0 0 0 4 19" /> },
       { href: "/admin/prospects", label: "Prospects", kinds: ["coach"], icon: <I d="M15 19a4 4 0 0 0-8 0||M11 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7||M18 8v6||M21 11h-6" /> },
+      { href: "/admin/reservations", label: "Réservations", kinds: ["coach"], icon: <I d="M5 6.5A1.5 1.5 0 0 1 6.5 5h11A1.5 1.5 0 0 1 19 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 17.5z||M5 10h14||M9 3v4||M15 3v4||M9.5 14.5l1.8 1.8 3.4-3.6" /> },
       { href: "/admin/reseau", label: "Mon réseau", kinds: ["platform", "reseller"], icon: <I d="M12 3v4||M6 21v-3a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v3||M12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4" /> },
     ],
   },

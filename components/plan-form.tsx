@@ -131,15 +131,26 @@ export function PlanForm({
       {comptes ? (
         <ResellerRightsFields byok={byok} setByok={setByok} credits={credits || creditsForced} setCredits={setCredits} creditsForced={creditsForced} />
       ) : (
-        <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
-          <input type="checkbox" name="whitelabel_included" className="mt-0.5 size-4 accent-brand" />
-          <span className="flex flex-col gap-0.5">
-            <span className="text-[14px] font-semibold text-ink">{tx("Inclure le pack marque blanche")}</span>
-            <span className="text-[12px] leading-[1.5] text-muted-2">
-              {tx("Domaine personnalisé, e-mails depuis son serveur, site de présentation. Décoché, les comptes de ce palier peuvent souscrire le pack à part si tu en fixes le prix plus bas.")}
+        <>
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
+            <input type="checkbox" name="whitelabel_included" className="mt-0.5 size-4 accent-brand" />
+            <span className="flex flex-col gap-0.5">
+              <span className="text-[14px] font-semibold text-ink">{tx("Inclure le pack marque blanche")}</span>
+              <span className="text-[12px] leading-[1.5] text-muted-2">
+                {tx("Domaine personnalisé, e-mails depuis son serveur, site de présentation. Décoché, les comptes de ce palier peuvent souscrire le pack à part si tu en fixes le prix plus bas.")}
+              </span>
             </span>
-          </span>
-        </label>
+          </label>
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
+            <input type="checkbox" name="booking_included" className="mt-0.5 size-4 accent-brand" />
+            <span className="flex flex-col gap-0.5">
+              <span className="text-[14px] font-semibold text-ink">{tx("Inclure le pack réservation")}</span>
+              <span className="text-[12px] leading-[1.5] text-muted-2">
+                {tx("Rendez-vous en présentiel depuis l'espace client, plannings, paiement en ligne, Coach IA qui réserve. Décoché, les comptes de ce palier peuvent le souscrire à part si tu en fixes le prix plus bas.")}
+              </span>
+            </span>
+          </label>
+        </>
       )}
 
       <div className="rounded-control border border-line-4 bg-surface-2 p-3.5 text-[12.5px] leading-relaxed text-muted">

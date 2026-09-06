@@ -1102,3 +1102,157 @@ alter table public.food_log enable row level security;
 grant select, insert, update, delete on public.food_log to authenticated;
 drop policy if exists food_log_own on public.food_log;
 create policy food_log_own on public.food_log for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+
+-- ────────────────────────── Réservation de séances en présentiel (pack)
+--
+-- Un coach (ou une salle) ouvre des plannings, y déclare ses horaires et ses
+-- absences, propose des prestations (durée, prix), et ses clients réservent
+-- depuis leur espace, ou par le Coach IA quand leur plan l'inclut. Le pack se
+-- vend comme la marque blanche : inclus dans un palier du revendeur
+-- (`plans.booking_included`) ou souscrit à part au prix qu'il fixe
+-- (`tenants.booking_addon_price_cents`), abonnement relu par le cron.
+--
+-- Le RENDEZ-VOUS est protégé contre la double réservation PAR LA BASE : une
+-- contrainte d'exclusion sur (planning, intervalle) refuse deux rendez-vous
+-- vivants qui se chevauchent, quoi que fassent deux clients au même instant.
+-- Les heures sont stockées en instants (timestamptz) ; le fuseau du compte
+-- (`tenants.timezone`) sert à les lire et à les écrire.
+--
+-- Toutes ces tables sont SERVICE ROLE UNIQUEMENT : l'accès passe par le
+-- serveur, qui vérifie l'appartenance au tenant et au client.
+create extension if not exists btree_gist with schema extensions;
+
+alter table public.plans add column if not exists booking_included boolean not null default false;
+
+alter table public.tenants
+  add column if not exists timezone text not null default 'Europe/Paris',
+  add column if not exists booking_addon_price_cents integer,
+  add column if not exists booking_enabled boolean not null default false,
+  add column if not exists booking_sub_id text,
+  add column if not exists booking_sub_status text,
+  -- Le coach a allumé la réservation dans son espace (le pack étant acquis).
+  add column if not exists booking_active boolean not null default false;
+
+-- Le coach ouvre la réservation en ligne client par client.
+alter table public.profiles add column if not exists booking_enabled boolean not null default false;
+
+create table if not exists public.booking_settings (
+  tenant_id uuid not null,
+  slot_step_min integer not null default 30,
+  min_notice_hours integer not null default 12,
+  max_advance_days integer not null default 30,
+  cancel_limit_hours integer not null default 24,
+  buffer_min integer not null default 0,
+  payment text not null default 'none',
+  confirmation text not null default 'auto',
+  address text not null default '',
+  instructions text not null default '',
+  updated_at timestamptz not null default now(),
+  constraint booking_settings_pkey primary key (tenant_id),
+  constraint booking_settings_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade,
+  constraint booking_settings_payment_check check (payment in ('none', 'required')),
+  constraint booking_settings_confirmation_check check (confirmation in ('auto', 'manual'))
+);
+
+-- Un planning = un coach dans une salle, ou le seul planning d'un coach indépendant.
+create table if not exists public.booking_calendars (
+  id uuid not null default gen_random_uuid(),
+  tenant_id uuid not null,
+  name text not null,
+  color text not null default '#E0551F',
+  is_active boolean not null default true,
+  "position" integer not null default 0,
+  created_at timestamptz not null default now(),
+  constraint booking_calendars_pkey primary key (id),
+  constraint booking_calendars_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade
+);
+
+-- Plages d'ouverture hebdomadaires : jour (0 = lundi), minutes depuis minuit.
+create table if not exists public.booking_hours (
+  id uuid not null default gen_random_uuid(),
+  calendar_id uuid not null,
+  weekday integer not null,
+  start_min integer not null,
+  end_min integer not null,
+  constraint booking_hours_pkey primary key (id),
+  constraint booking_hours_calendar_id_fkey foreign key (calendar_id) references public.booking_calendars(id) on delete cascade,
+  constraint booking_hours_weekday_check check (weekday between 0 and 6),
+  constraint booking_hours_range_check check (start_min >= 0 and end_min <= 1440 and end_min > start_min)
+);
+
+-- Absences et fermetures : un intervalle où l'on ne réserve pas.
+create table if not exists public.booking_blocks (
+  id uuid not null default gen_random_uuid(),
+  calendar_id uuid not null,
+  starts_at timestamptz not null,
+  ends_at timestamptz not null,
+  reason text,
+  constraint booking_blocks_pkey primary key (id),
+  constraint booking_blocks_calendar_id_fkey foreign key (calendar_id) references public.booking_calendars(id) on delete cascade,
+  constraint booking_blocks_range_check check (ends_at > starts_at)
+);
+
+create table if not exists public.booking_services (
+  id uuid not null default gen_random_uuid(),
+  tenant_id uuid not null,
+  name text not null,
+  description text not null default '',
+  duration_min integer not null,
+  price_cents integer,
+  is_active boolean not null default true,
+  "position" integer not null default 0,
+  created_at timestamptz not null default now(),
+  constraint booking_services_pkey primary key (id),
+  constraint booking_services_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade,
+  constraint booking_services_duration_check check (duration_min between 10 and 240)
+);
+
+create table if not exists public.bookings (
+  id uuid not null default gen_random_uuid(),
+  tenant_id uuid not null,
+  calendar_id uuid not null,
+  service_id uuid,
+  client_id uuid not null,
+  starts_at timestamptz not null,
+  ends_at timestamptz not null,
+  status text not null default 'confirmed',
+  source text not null default 'client',
+  -- Copie du nom et du prix de la prestation au moment de la réservation.
+  service_name text not null default '',
+  price_cents integer,
+  paid boolean not null default false,
+  stripe_session_id text,
+  -- Réservation en attente de paiement : le créneau est tenu jusque-là.
+  hold_until timestamptz,
+  client_note text,
+  coach_note text,
+  cancelled_by text,
+  cancel_reason text,
+  reminded_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint bookings_pkey primary key (id),
+  constraint bookings_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade,
+  constraint bookings_calendar_id_fkey foreign key (calendar_id) references public.booking_calendars(id) on delete cascade,
+  constraint bookings_service_id_fkey foreign key (service_id) references public.booking_services(id) on delete set null,
+  constraint bookings_client_id_fkey foreign key (client_id) references public.profiles(id) on delete cascade,
+  constraint bookings_range_check check (ends_at > starts_at),
+  constraint bookings_status_check check (status in ('pending', 'confirmed', 'cancelled', 'done', 'no_show')),
+  constraint bookings_source_check check (source in ('client', 'coach', 'ai')),
+  -- Jamais deux rendez-vous vivants qui se chevauchent sur un même planning.
+  constraint bookings_no_overlap exclude using gist (calendar_id with =, tstzrange(starts_at, ends_at) with &&) where (status in ('pending', 'confirmed'))
+);
+
+create index if not exists booking_calendars_tenant_idx on public.booking_calendars (tenant_id, "position");
+create index if not exists booking_hours_calendar_idx on public.booking_hours (calendar_id, weekday);
+create index if not exists booking_blocks_calendar_idx on public.booking_blocks (calendar_id, starts_at);
+create index if not exists booking_services_tenant_idx on public.booking_services (tenant_id, "position");
+create index if not exists bookings_tenant_starts_idx on public.bookings (tenant_id, starts_at);
+create index if not exists bookings_client_starts_idx on public.bookings (client_id, starts_at);
+
+alter table public.booking_settings enable row level security;
+alter table public.booking_calendars enable row level security;
+alter table public.booking_hours enable row level security;
+alter table public.booking_blocks enable row level security;
+alter table public.booking_services enable row level security;
+alter table public.bookings enable row level security;

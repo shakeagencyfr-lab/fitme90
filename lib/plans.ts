@@ -40,6 +40,8 @@ export interface Plan {
   setup_fee_cents: number;
   /** Le pack marque blanche (domaine, SMTP, site) est inclus. */
   whitelabel_included: boolean;
+  /** Le pack réservation (rendez-vous en présentiel) est inclus. */
+  booking_included: boolean;
   /** L'acheteur branche sa clé (byok) ou achète ses crédits au vendeur. */
   ai_supply: PlanAiSupply;
   /** Plateforme -> revendeur : le revendeur pourra laisser ses coachs en clé personnelle. */
@@ -56,7 +58,7 @@ export interface Plan {
 }
 
 export const PLAN_COLS =
-  "id, tenant_id, name, price_month_cents, price_year_cents, client_limit, setup_fee_cents, whitelabel_included, ai_supply, coach_byok_allowed, coach_credits_allowed, is_free, starter_credits, is_active, position, created_at";
+  "id, tenant_id, name, price_month_cents, price_year_cents, client_limit, setup_fee_cents, whitelabel_included, booking_included, ai_supply, coach_byok_allowed, coach_credits_allowed, is_free, starter_credits, is_active, position, created_at";
 
 /** Le palier a un prix : il se vend. Le gratuit n'en a pas, il s'offre. */
 export function planIsSellable(p: Plan): boolean {
@@ -131,6 +133,7 @@ export async function freePlanOf(tenantId: string): Promise<Plan> {
       // La plateforme offre la marque blanche complète à ses revendeurs dès
       // le départ : c'est la promesse du programme revendeur.
       whitelabel_included: seller.kind === "platform",
+      booking_included: seller.kind === "platform",
       position: -1,
     })
     .select(PLAN_COLS)
@@ -160,6 +163,7 @@ export async function freePlanOf(tenantId: string): Promise<Plan> {
     client_limit: FREE_PLAN_CLIENT_LIMIT,
     setup_fee_cents: 0,
     whitelabel_included: seller.kind === "platform",
+    booking_included: seller.kind === "platform",
     ai_supply: aiSupply,
     coach_byok_allowed: true,
     coach_credits_allowed: false,
@@ -197,6 +201,7 @@ export interface FreePlanInput {
   aiSupply: PlanAiSupply;
   starterCredits: number;
   whitelabelIncluded: boolean;
+  bookingIncluded: boolean;
   coachByokAllowed: boolean;
   coachCreditsAllowed: boolean;
 }
@@ -225,6 +230,7 @@ export async function saveFreePlan(tenantId: string, input: FreePlanInput): Prom
       // promettre quelque chose.
       starter_credits: input.aiSupply === "credits" ? starter : 0,
       whitelabel_included: input.whitelabelIncluded,
+      booking_included: input.bookingIncluded,
       coach_byok_allowed: input.coachByokAllowed,
       coach_credits_allowed: input.coachCreditsAllowed,
     })
@@ -264,6 +270,7 @@ export interface CreatePlanInput {
   clientLimit?: number | null;
   setupFeeCents?: number | null;
   whitelabelIncluded?: boolean;
+  bookingIncluded?: boolean;
   aiSupply?: PlanAiSupply;
   coachByokAllowed?: boolean;
   coachCreditsAllowed?: boolean;
@@ -328,6 +335,7 @@ export async function createPlan(tenantId: string, input: CreatePlanInput): Prom
     client_limit: clientLimit,
     setup_fee_cents: setupFeeCents ?? 0,
     whitelabel_included: !!input.whitelabelIncluded,
+    booking_included: !!input.bookingIncluded,
     ai_supply: input.aiSupply === "credits" ? "credits" : "byok",
     coach_byok_allowed: byok,
     coach_credits_allowed: credits,
@@ -359,6 +367,12 @@ export async function setPlanWhitelabelIncluded(
     .update({ whitelabel_included: included })
     .eq("id", planId)
     .eq("tenant_id", tenantId);
+}
+
+/** Ouvre ou ferme le pack réservation sur un palier existant (même logique que la marque blanche). */
+export async function setPlanBookingIncluded(tenantId: string, planId: string, included: boolean): Promise<void> {
+  const admin = createAdminClient();
+  await admin.from("plans").update({ booking_included: included }).eq("id", planId).eq("tenant_id", tenantId);
 }
 
 /** Active / désactive un palier. */

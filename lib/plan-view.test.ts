@@ -21,6 +21,7 @@ function plan(over: Partial<Plan> & { id: string }): Plan {
     client_limit: null,
     setup_fee_cents: 0,
     whitelabel_included: false,
+    booking_included: false,
     ai_supply: "byok",
     coach_byok_allowed: true,
     coach_credits_allowed: false,
