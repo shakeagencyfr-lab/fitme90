@@ -5,15 +5,26 @@ import {
   EXERCISE_TRAITS,
   alternativeExercise,
   equipmentSupports,
+  exercisesForEquipment,
   isCardioKey,
   pickAlternative,
   type Famille,
 } from "./exercise-alternatives";
 
+/**
+ * Une salle correctement équipée, nommée dans le vocabulaire du catalogue.
+ *
+ * La liste était écrite à la main et disait « machine à mollets » sans préciser
+ * laquelle : depuis que le moteur compare des identifiants, une salle qui ne
+ * possède QUE la machine debout ne peut effectivement pas proposer des mollets
+ * assis. Le correctif est du côté de la liste, pas du moteur : une vraie salle
+ * a les deux.
+ */
 const SALLE = [
-  "barre olympique", "rack à squat", "banc plat", "haltères", "poulie haute",
-  "barre de traction", "barres parallèles", "presse à cuisses", "leg curl",
-  "machine à mollets", "tapis de course", "rameur", "vélo", "corde à sauter",
+  "barre olympique", "rack à squat", "banc plat", "banc inclinable", "haltères",
+  "poulie haute", "barre de traction", "barres parallèles", "presse à cuisses",
+  "leg curl allongé", "machine à mollets debout", "machine à mollets assis",
+  "tapis de course", "rameur", "vélo d'appartement", "corde à sauter",
 ];
 const MAISON: string[] = ["poids du corps uniquement"];
 
@@ -221,5 +232,43 @@ describe("alternativeExercise", () => {
       const f = EXERCISE_TRAITS[alt!.key].familles;
       expect(["pectoraux", "epaules", "epaules_arriere", "dos_horizontal", "dos_vertical", "triceps", "biceps", "trapezes"], n).toContain(f[0]);
     }
+  });
+});
+
+describe("exercisesForEquipment", () => {
+  /**
+   * Accessoires dont le rôle n'est PAS de débloquer un mouvement. Chacun a sa
+   * raison, écrite ici pour qu'on ne rallonge pas la liste par facilité.
+   */
+  const SANS_EXERCICE: Record<string, string> = {
+    "poids-du-corps": "c'est l'absence de matériel, par définition",
+    "tapis-sol": "il rend le sol supportable, il n'ouvre aucun mouvement",
+    "mollets-debout": "la version debout se fait déjà sur une marche : la machine la charge, elle ne l'invente pas",
+  };
+
+  it("chaque machine du catalogue débloque au moins un exercice", () => {
+    const vides = EQUIPMENT_CATALOG.filter(
+      (m) => !(m.key in SANS_EXERCICE) && exercisesForEquipment(m.key).length === 0,
+    ).map((m) => m.key);
+    expect(vides).toEqual([]);
+  });
+
+  it("les exceptions déclarées sont bien vides (sinon la liste ment)", () => {
+    const fausses = Object.keys(SANS_EXERCICE).filter((k) => exercisesForEquipment(k).length > 0);
+    expect(fausses).toEqual([]);
+  });
+
+  it("rend les exercices de la machine, pas ceux du voisin", () => {
+    const cles = (k: string) => exercisesForEquipment(k).map((e) => e.key);
+    expect(cles("presse-cuisses")).toEqual(["presse-jambes"]);
+    // Une machine à développé couché ne fait pas d'incliné.
+    expect(cles("developpe-couche-machine")).toEqual(["developpe-couche-machine"]);
+    // Une machine à mollets debout ne fait pas de mollets assis.
+    expect(cles("mollets-assis")).toEqual(["mollets-assis"]);
+    expect(cles("hip-thrust-machine")).toEqual(["hip-thrust-machine"]);
+  });
+
+  it("ignore une clé qui n'est pas au catalogue", () => {
+    expect(exercisesForEquipment("machine-imaginaire")).toEqual([]);
   });
 });

@@ -105,6 +105,24 @@ describe("matchLibraryExercise", () => {
     expect(matchLibraryExercise("Extension triceps haltère")?.key).toBe("extension-triceps-verticale");
   });
 
+  it("lot 4 : la version machine ne se confond plus avec la version libre", () => {
+    // Ces quatre fiches sont nées du catalogue de matériel : une machine que le
+    // client peut cocher devait ouvrir un exercice, sinon la case ne sert à rien.
+    expect(matchLibraryExercise("Hip thrust machine")?.key).toBe("hip-thrust-machine");
+    expect(matchLibraryExercise("Machine à hip thrust")?.key).toBe("hip-thrust-machine");
+    expect(matchLibraryExercise("Hip thrust")?.key).toBe("hip-thrust");
+    expect(matchLibraryExercise("Hip thrust barre")?.key).toBe("hip-thrust");
+    expect(matchLibraryExercise("Extension fessier à la machine")?.key).toBe("kickback-fessier-machine");
+    expect(matchLibraryExercise("Extension fessier à la poulie")?.key).toBe("kickback-fessier-poulie");
+    expect(matchLibraryExercise("Crunch à la machine")?.key).toBe("crunch-machine");
+    expect(matchLibraryExercise("Machine à abdominaux")?.key).toBe("crunch-machine");
+    expect(matchLibraryExercise("Crunch à la poulie")?.key).toBe("crunch-poulie");
+    expect(matchLibraryExercise("Crunch")?.key).toBe("crunch");
+    expect(matchLibraryExercise("Slam ball")?.key).toBe("slam-ball");
+    expect(matchLibraryExercise("Wall ball")?.key).toBe("slam-ball");
+    expect(matchLibraryExercise("Russian twist")?.key).toBe("russian-twist");
+  });
+
   it("un seul mot de matériel en commun ne fait pas une correspondance", () => {
     // « machine » ou « poulie » seuls ne disent rien du mouvement.
     expect(matchLibraryExercise("Adducteurs à la poulie")?.key).not.toBe("extension-fessier-poulie");
