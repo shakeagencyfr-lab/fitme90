@@ -39,6 +39,32 @@ export const MODELS = {
 
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 
+const EFFORTS: readonly Effort[] = ["low", "medium", "high", "xhigh", "max"] as const;
+
+function envEffort(v: string | undefined, defaut: Effort): Effort {
+  return EFFORTS.includes(v as Effort) ? (v as Effort) : defaut;
+}
+
+/**
+ * Effort de réflexion de la génération de programme.
+ *
+ * POURQUOI PAS « max ». Le programme est le livrable que le client paie, et
+ * l'effort maximum semblait donc l'évidence. Les chiffres disent autre chose :
+ * une génération sortait en moyenne 21 000 jetons (réflexion comprise), et le
+ * temps passé à les produire a fini par dépasser les 300 secondes accordées à
+ * une fonction serverless. Le client voyait « la génération a échoué » après
+ * cinq minutes d'attente, ce qui est le pire des résultats.
+ *
+ * Le reste du système a beaucoup changé depuis ce choix : le gabarit impose la
+ * structure, la bibliothèque impose le vocabulaire, les garde-fous corrigent
+ * cardio, durées et circuits. Le modèle a bien moins à inventer, donc bien
+ * moins à peser. L'effort « high » tient dans le temps imparti tout en gardant
+ * la qualité là où elle se joue vraiment.
+ *
+ * Surchargeable par variable d'environnement, pour retoucher sans redéployer.
+ */
+export const GENERATE_EFFORT: Effort = envEffort(process.env.ANTHROPIC_EFFORT_GENERATE, "high");
+
 /**
  * Le paramètre `output_config.effort` n'est PAS supporté par tous les modèles :
  * il déclenche une erreur 400 sur Haiku 4.5 et les générations ≤ 4.5 (l'effort

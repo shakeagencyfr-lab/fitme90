@@ -1,7 +1,7 @@
 import "server-only";
 import { aiLanguageInstruction, type Locale } from "./i18n";
 import { z } from "zod";
-import { anthropic, MODELS, textOf, parseJsonLoose, effortConfig, apiCallOf, type ApiCall, type Effort } from "@/lib/anthropic";
+import { anthropic, MODELS, GENERATE_EFFORT, textOf, parseJsonLoose, effortConfig, apiCallOf, type ApiCall, type Effort } from "@/lib/anthropic";
 import { describeAnswers, DAYS } from "@/lib/questionnaire";
 import { restPatternFromTrainDays, isRestDay } from "@/lib/schedule";
 import { scheduledTrainingDays } from "@/lib/streak";
@@ -626,7 +626,7 @@ export interface GenerateResult {
  */
 export async function generateProgram(
   brief: Brief,
-  effort: Effort = "max",
+  effort: Effort = GENERATE_EFFORT,
   apiKey?: string,
   tenantId: string | null = null,
   /**
@@ -638,6 +638,16 @@ export async function generateProgram(
    * qu'Anthropic a facturé avant l'échec.
    */
   journal: ApiCall[] = [],
+  /**
+   * Instant (Date.now()) au-delà duquel il ne faut plus rien lancer.
+   *
+   * La route qui appelle vit dans une fonction serverless au temps borné :
+   * dépassé, la plateforme tue le processus et le client reçoit une page
+   * d'erreur au lieu d'un programme. On lui passe donc son échéance, et cette
+   * fonction décide avec : elle ne relance une vérification que si le temps
+   * restant peut réellement la contenir.
+   */
+  deadline?: number,
 ): Promise<GenerateResult> {
   const client = anthropic(apiKey);
   // Méthodologie propre au tenant (base evidence-based, ou méthode du coach).
@@ -678,12 +688,13 @@ export async function generateProgram(
     fatLoss: isFatLossGoal(brief.answers),
   });
 
-  const runOnce = async (extra: string) => {
+  const runOnce = async (extra: string, effortDeCetAppel: Effort = effort) => {
+    const debut = Date.now();
     const stream = client.messages.stream({
       model: MODELS.generate,
       // Sortie volumineuse : jusqu'à 6 cycles × séances distinctes + nutrition.
       max_tokens: 32000,
-      ...effortConfig(MODELS.generate, effort),
+      ...effortConfig(MODELS.generate, effortDeCetAppel),
       system: `${systemPrompt(wantCycles, template)}${SYSTEM_RULES}\n\n${methodology}\n\n${aiLanguageInstruction(brief.locale ?? "fr")}`,
       messages: [
         {
@@ -703,7 +714,7 @@ export async function generateProgram(
       firstCycleIndex,
     );
     const verrou = enforceLibrary(brut, brief.equipment, coach);
-    return { plan: fitCircuits(verrou.plan, minutes), call, verrou };
+    return { plan: fitCircuits(verrou.plan, minutes), call, verrou, ms: Date.now() - debut };
   };
 
   // Le bon nombre de cycles, chacun avec le bon nombre de séances distinctes.
@@ -725,7 +736,23 @@ export async function generateProgram(
   const effortHaut = effort === "high" || effort === "xhigh" || effort === "max";
   const cyclesKo = (wantSessions >= 2 || wantCycles >= 2) && !cyclesOk(premier.plan);
   const nomsKo = premier.verrou.removed.length > 0 || enforceIssues(premier.verrou) >= 3;
-  if (effortHaut && (cyclesKo || nomsKo)) {
+  /**
+   * LE TEMPS DISPONIBLE DÉCIDE.
+   *
+   * La relance est une deuxième génération complète : elle prend à peu près
+   * aussi longtemps que la première. Lancée sans regarder l'heure, elle a fait
+   * dépasser le temps maximal de la fonction serverless, et le client s'est
+   * retrouvé devant « la génération a échoué » alors que son programme était
+   * écrit et payé. On ne relance donc que si l'échéance peut la contenir, avec
+   * une marge : mieux vaut un plan imparfait qu'un plan perdu.
+   *
+   * Elle tourne en plus à un effort plus bas : elle ne conçoit pas, elle
+   * corrige un plan déjà écrit à partir de consignes précises.
+   */
+  const effortRelance: Effort = effort === "max" || effort === "xhigh" ? "high" : effort === "high" ? "medium" : effort;
+  const tempsPourRelance =
+    deadline == null || Date.now() + premier.ms * 1.15 + 5000 < deadline;
+  if (effortHaut && tempsPourRelance && (cyclesKo || nomsKo)) {
     const consignes: string[] = [];
     if (cyclesKo) {
       consignes.push(
@@ -743,7 +770,7 @@ export async function generateProgram(
       );
     }
     try {
-      const relance = await runOnce(`\n\n${consignes.join("\n")}`);
+      const relance = await runOnce(`\n\n${consignes.join("\n")}`, effortRelance);
       // On garde la relance si elle fait mieux sur ce qui a motivé la relance,
       // sans jamais reprendre un plan dont les cycles seraient cassés.
       const mieuxCycles = cyclesOk(relance.plan) || !cyclesOk(premier.plan);
@@ -755,6 +782,14 @@ export async function generateProgram(
       // On garde le 1er plan si la relance échoue. L'appel raté, lui, est déjà
       // dans `journal` : il a été facturé, il doit se voir.
     }
+  }
+
+  if (effortHaut && !tempsPourRelance && (cyclesKo || nomsKo)) {
+    // Sans donnée personnelle : de quoi voir, dans les logs, que la
+    // vérification a été sautée et pourquoi.
+    console.warn(
+      `[generation] relance écartée faute de temps (1er appel ${Math.round(premier.ms / 1000)} s, échéance dans ${deadline == null ? "?" : Math.round((deadline - Date.now()) / 1000)} s)`,
+    );
   }
 
   const v = retenu.verrou;
