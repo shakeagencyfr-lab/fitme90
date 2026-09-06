@@ -299,6 +299,16 @@ create table if not exists public.credit_packs (
   constraint credit_packs_credits_positive check (credits > 0)
 );
 
+-- Recettes que le client garde (« Mes recettes »). Service role seulement.
+create table if not exists public.saved_recipes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  recipe jsonb not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists saved_recipes_user_id_idx on public.saved_recipes (user_id, created_at desc);
+alter table public.saved_recipes enable row level security;
+
 create table if not exists public.questionnaires (
   id uuid not null default gen_random_uuid(),
   user_id uuid not null,

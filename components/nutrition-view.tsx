@@ -12,10 +12,11 @@ import {
   grp,
 } from "@/lib/nutrition";
 import { Card, MonoLabel, Button, Alert } from "@/components/ui";
-import { setShoppingCheck } from "@/app/app/nutrition/actions";
+import { setShoppingCheck, saveRecipeAction, deleteSavedRecipeAction, dismissRecipeAction } from "@/app/app/nutrition/actions";
 import { dateOfProgramDay } from "@/lib/schedule";
 
 interface Recipe {
+  id?: string;
   name: string;
   level?: string;
   time: string;
@@ -42,6 +43,8 @@ interface Props {
   initialChecks?: string[]; // clés d'articles déjà cochées (persistées)
   /** Recettes déjà générées, rechargées depuis la base (survivent au refresh). */
   initialRecipes?: Recipe[];
+  /** « Mes recettes » : celles que le client a gardées. */
+  initialSaved?: { id: string; recipe: Recipe }[];
   startDate?: string; // date de début du programme (pour les vraies dates)
   /** Durée du programme en jours (offre du client). Défaut 90 j ≈ 13 semaines. */
   programDays?: number;
@@ -59,6 +62,7 @@ export function NutritionView({
   canGenerate,
   initialChecks = [],
   initialRecipes = [],
+  initialSaved = [],
   startDate = "",
   programDays = 90,
 }: Props) {
@@ -112,6 +116,41 @@ export function NutritionView({
   }
 
   const [recipes, setRecipes] = useState<Recipe[]>(initialRecipes);
+  const [saved, setSaved] = useState<{ id: string; recipe: Recipe }[]>(initialSaved);
+  const [recipeTab, setRecipeTab] = useState<"ideas" | "saved">("ideas");
+  // Cartes repliées par défaut : quatre recettes dépliées faisaient un onglet
+  // interminable. Clé = onglet + position, pour que replier l'une ne touche pas l'autre.
+  const [openCards, setOpenCards] = useState<Record<string, boolean>>({});
+  const [recipeActionBusy, setRecipeActionBusy] = useState<string | null>(null);
+
+  async function keepRecipe(i: number) {
+    const r = recipes[i];
+    if (!r) return;
+    setRecipeActionBusy(`ideas-${i}`);
+    const res = await saveRecipeAction(r);
+    setRecipeActionBusy(null);
+    if (res.error) {
+      setRecipeErr(res.error);
+      return;
+    }
+    if (res.id) setSaved((prev) => [{ id: res.id!, recipe: r }, ...prev]);
+  }
+
+  async function dismissRecipe(i: number) {
+    setRecipeActionBusy(`ideas-${i}`);
+    await dismissRecipeAction(i);
+    setRecipeActionBusy(null);
+    setRecipes((prev) => prev.filter((_, j) => j !== i));
+  }
+
+  async function removeSaved(id: string) {
+    setRecipeActionBusy(`saved-${id}`);
+    await deleteSavedRecipeAction(id);
+    setRecipeActionBusy(null);
+    setSaved((prev) => prev.filter((x) => x.id !== id));
+  }
+
+  const isKept = (r: Recipe) => saved.some((x) => (r.id && x.recipe.id === r.id) || x.recipe.name === r.name);
   // Deux actions distinctes (générer / photo) : un état de chargement PAR bouton
   // pour n'afficher le spinner que sur celui réellement cliqué.
   const [recipeBusy, setRecipeBusy] = useState(false);
@@ -306,88 +345,113 @@ export function NutritionView({
         ))}
       </section>
 
-      {/* Générateur de recettes */}
+      {/* Recettes : idées du jour (remplacées à chaque génération) et celles
+          que le client garde. Cartes repliées : titre, repas et macros
+          suffisent pour choisir, le détail s'ouvre à la demande. */}
       {canGenerate ? (
         <section className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <MonoLabel>{t("nutrition.recipes")}</MonoLabel>
             <p className="text-[13px] text-muted">{t("nutrition.recipesHint")}</p>
           </div>
-          {recipeErr ? <Alert>{recipeErr}</Alert> : null}
-          {recipes.map((r, i) => (
-            <Card key={i} className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="font-archivo font-semibold text-[16.5px] leading-tight text-ink">{r.name}</div>
-                  {r.level ? (
-                    <span className="shrink-0 rounded-pill border border-brand/40 bg-brand/10 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-brand">
-                      {r.level}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] text-muted-2">
-                  <span>{r.time}</span>
-                  {r.servings ? <span>· {r.servings}</span> : null}
-                  <span>· {r.kcal} kcal</span>
-                  <span>· P {r.protein}</span>
-                  {r.carbs ? <span>· G {r.carbs}</span> : null}
-                  {r.fat ? <span>· L {r.fat}</span> : null}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">{t("nutrition.ingredients")}</div>
-                {r.ingredients.map((it, j) => (
-                  <div key={j} className="flex justify-between border-b border-line-2 py-1 text-[14px] text-body last:border-0">
-                    <span>{it.food}</span>
-                    <span className="text-muted-2">{it.qty}</span>
-                  </div>
-                ))}
-              </div>
-
-              {r.steps && r.steps.length ? (
-                <div className="flex flex-col gap-1.5">
-                  <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">{t("nutrition.preparation")}</div>
-                  <ol className="flex flex-col gap-2">
-                    {r.steps.map((st, j) => (
-                      <li key={j} className="flex items-start gap-2.5 text-[13.5px] leading-[1.5] text-body">
-                        <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-brand/15 font-mono text-[11px] font-bold text-brand">
-                          {j + 1}
-                        </span>
-                        <span>{st}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              ) : null}
-
-              {r.tip ? (
-                <div className="rounded-control bg-surface-2 px-3.5 py-2.5 text-[13px] leading-[1.5] text-muted">
-                  <span className="font-semibold text-body">{t("nutrition.tip")}</span> {r.tip}
-                </div>
-              ) : null}
-            </Card>
-          ))}
-          <input
-            ref={photoRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={(e) => {
-              onFoodPhoto(e.target.files?.[0]);
-              e.target.value = "";
-            }}
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={genRecipes} loading={recipeBusy} disabled={photoBusy} className="h-11">
-              {recipes.length ? t("nutrition.moreIdeas") : t("nutrition.generateIdeas")}
-            </Button>
-            <Button variant="outline" onClick={() => photoRef.current?.click()} loading={photoBusy} disabled={recipeBusy} className="h-11">
-              {t("nutrition.foodPhoto")}
-            </Button>
+          <div className="inline-flex self-start rounded-full border border-line-4 p-1" role="tablist">
+            {(["ideas", "saved"] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                role="tab"
+                aria-selected={recipeTab === tab}
+                onClick={() => setRecipeTab(tab)}
+                className={[
+                  "tap rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors",
+                  recipeTab === tab ? "bg-brand text-white" : "text-muted hover:text-ink",
+                ].join(" ")}
+              >
+                {tab === "ideas" ? t("nutrition.todayIdeas") : `${t("nutrition.myRecipes")} (${saved.length})`}
+              </button>
+            ))}
           </div>
-          <p className="text-[12px] text-muted-2">{t("nutrition.foodPhotoHint")}</p>
+          {recipeErr ? <Alert>{recipeErr}</Alert> : null}
+
+          {recipeTab === "ideas" ? (
+            <>
+              {recipes.length === 0 ? <p className="text-[13px] text-muted-2">{t("nutrition.noIdeas")}</p> : null}
+              {recipes.map((r, i) => (
+                <RecipeCard
+                  key={`ideas-${i}-${r.name}`}
+                  r={r}
+                  open={!!openCards[`ideas-${i}`]}
+                  onToggle={() => setOpenCards((o) => ({ ...o, [`ideas-${i}`]: !o[`ideas-${i}`] }))}
+                  busy={recipeActionBusy === `ideas-${i}`}
+                  actions={
+                    <>
+                      <Button
+                        variant="outline"
+                        onClick={() => keepRecipe(i)}
+                        disabled={isKept(r) || recipeActionBusy !== null}
+                        className="h-9 px-3 text-[13px]"
+                      >
+                        {isKept(r) ? t("nutrition.savedRecipe") : t("nutrition.saveRecipe")}
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={() => dismissRecipe(i)}
+                        disabled={recipeActionBusy !== null}
+                        className="tap text-[13px] text-muted-2 underline hover:text-ink disabled:opacity-50"
+                      >
+                        {t("nutrition.dismissRecipe")}
+                      </button>
+                    </>
+                  }
+                  t={t}
+                />
+              ))}
+              <input
+                ref={photoRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  onFoodPhoto(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" onClick={genRecipes} loading={recipeBusy} disabled={photoBusy} className="h-11">
+                  {recipes.length ? t("nutrition.moreIdeas") : t("nutrition.generateIdeas")}
+                </Button>
+                <Button variant="outline" onClick={() => photoRef.current?.click()} loading={photoBusy} disabled={recipeBusy} className="h-11">
+                  {t("nutrition.foodPhoto")}
+                </Button>
+              </div>
+              <p className="text-[12px] text-muted-2">{t("nutrition.foodPhotoHint")}</p>
+            </>
+          ) : (
+            <>
+              {saved.length === 0 ? <p className="text-[13px] text-muted-2">{t("nutrition.noSaved")}</p> : null}
+              {saved.map((x) => (
+                <RecipeCard
+                  key={`saved-${x.id}`}
+                  r={x.recipe}
+                  open={!!openCards[`saved-${x.id}`]}
+                  onToggle={() => setOpenCards((o) => ({ ...o, [`saved-${x.id}`]: !o[`saved-${x.id}`] }))}
+                  busy={recipeActionBusy === `saved-${x.id}`}
+                  actions={
+                    <button
+                      type="button"
+                      onClick={() => removeSaved(x.id)}
+                      disabled={recipeActionBusy !== null}
+                      className="tap text-[13px] text-muted-2 underline hover:text-ink disabled:opacity-50"
+                    >
+                      {t("nutrition.deleteRecipe")}
+                    </button>
+                  }
+                  t={t}
+                />
+              ))}
+            </>
+          )}
         </section>
       ) : null}
 
@@ -514,6 +578,92 @@ function MacroCard({
             </div>
           ))}
         </div>
+      </div>
+    </Card>
+  );
+}
+
+/** Une recette repliée par défaut : l'en-tête suffit pour choisir. */
+function RecipeCard({
+  r,
+  open,
+  onToggle,
+  busy,
+  actions,
+  t,
+}: {
+  r: Recipe;
+  open: boolean;
+  onToggle: () => void;
+  busy: boolean;
+  actions: React.ReactNode;
+  t: ReturnType<typeof useT>;
+}) {
+  return (
+    <Card className={`flex flex-col gap-3 ${busy ? "opacity-60" : ""}`}>
+      <button type="button" onClick={onToggle} aria-expanded={open} className="tap flex w-full flex-col gap-1.5 text-left">
+        <div className="flex items-start justify-between gap-2">
+          <div className="font-archivo font-semibold text-[16.5px] leading-tight text-ink">{r.name}</div>
+          <div className="flex shrink-0 items-center gap-2">
+            {r.level ? (
+              <span className="rounded-pill border border-brand/40 bg-brand/10 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-brand">
+                {r.level}
+              </span>
+            ) : null}
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden className={`text-muted-2 transition-transform ${open ? "rotate-180" : ""}`}>
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] text-muted-2">
+          <span>{r.time}</span>
+          {r.servings ? <span>· {r.servings}</span> : null}
+          <span>· {r.kcal} kcal</span>
+          <span>· P {r.protein}</span>
+          {r.carbs ? <span>· G {r.carbs}</span> : null}
+          {r.fat ? <span>· L {r.fat}</span> : null}
+        </div>
+      </button>
+
+      {open ? (
+        <>
+          <div className="flex flex-col gap-1">
+            <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">{t("nutrition.ingredients")}</div>
+            {r.ingredients.map((it, j) => (
+              <div key={j} className="flex justify-between border-b border-line-2 py-1 text-[14px] text-body last:border-0">
+                <span>{it.food}</span>
+                <span className="text-muted-2">{it.qty}</span>
+              </div>
+            ))}
+          </div>
+          {r.steps && r.steps.length ? (
+            <div className="flex flex-col gap-1.5">
+              <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">{t("nutrition.preparation")}</div>
+              <ol className="flex flex-col gap-2">
+                {r.steps.map((st, j) => (
+                  <li key={j} className="flex items-start gap-2.5 text-[13.5px] leading-[1.5] text-body">
+                    <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-brand/15 font-mono text-[11px] font-bold text-brand">
+                      {j + 1}
+                    </span>
+                    <span>{st}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
+          {r.tip ? (
+            <div className="rounded-control bg-surface-2 px-3.5 py-2.5 text-[13px] leading-[1.5] text-muted">
+              <span className="font-semibold text-body">{t("nutrition.tip")}</span> {r.tip}
+            </div>
+          ) : null}
+        </>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-3">
+        {actions}
+        <button type="button" onClick={onToggle} className="tap ml-auto text-[13px] text-brand hover:underline">
+          {open ? t("nutrition.hideDetails") : t("nutrition.showDetails")}
+        </button>
       </div>
     </Card>
   );
