@@ -389,6 +389,8 @@ export const fr = {
     moreIdeas: "De nouvelles idées",
     generateIdeas: "Générer des idées de recettes",
     shopping: "Liste des courses",
+    shoppingHint: "Cette liste est l'addition exacte des repas ci-dessus : tout ce qu'ils demandent y figure.",
+    pantry: "Non listés, parce qu'ils vivent dans ton placard : sel, poivre, épices, ail, herbes, huile de cuisson.",
     analyzeImpossible: "Analyse impossible.",
     restShort: "repos",
     trainingShort: "entraînement",
