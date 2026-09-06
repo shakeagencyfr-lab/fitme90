@@ -6,7 +6,7 @@ import { getSessionContext } from "@/lib/guard";
 import { checkLimit, recordCalls } from "@/lib/ratelimit";
 import { screen, type QuizHealthAnswers } from "@/lib/screening";
 import { generateProgram } from "@/lib/program";
-import type { ApiCall } from "@/lib/anthropic";
+import { GENERATE_EFFORT, type ApiCall } from "@/lib/anthropic";
 import { anthropicKeyForBilling, AI_NOT_CONFIGURED_MESSAGE } from "@/lib/tenant";
 import { clientOffer } from "@/lib/offers";
 import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
@@ -16,6 +16,16 @@ import { todayIso } from "@/lib/local-date";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // génération longue : jusqu'à 5 min
+
+/**
+ * Ce qu'on s'autorise réellement, en millisecondes.
+ *
+ * Passé `maxDuration`, la plateforme tue le processus : le client reçoit une
+ * page d'erreur au lieu de JSON, le verrou de génération n'est pas relâché, et
+ * personne ne sait pourquoi. On s'arrête donc AVANT, de nous-mêmes, avec une
+ * marge pour écrire en base et répondre proprement.
+ */
+const BUDGET_MS = (maxDuration - 35) * 1000;
 
 // Ordre imposé (BUILD_PLAN étape 4/6) : session → paiement → rate limit →
 // validation/garde santé → appel modèle → validation JSON → écriture → réponse.
@@ -92,6 +102,8 @@ async function generateForClient(
   t: ReturnType<typeof makeT>,
   admin: ReturnType<typeof createAdminClient>,
 ) {
+  // L'heure de départ fait foi pour tout le budget de temps de la requête.
+  const debut = Date.now();
   // 3. Rate limit (plafond total d'appels de génération)
   const limit = await checkLimit(ctx.userId, "generate", LIMIT_GENERATE_TOTAL);
   if (!limit.ok) {
@@ -165,24 +177,37 @@ async function generateForClient(
   // Rempli au fil des appels, y compris quand la génération échoue : Anthropic
   // facture ce qu'elle a produit, même si nous n'avons rien pu en faire.
   const journal: ApiCall[] = [];
+  const deadline = debut + BUDGET_MS;
+  let expire = false;
   try {
-    result = await generateProgram(
-      {
-        answers: quiz.answers,
-        trainDays: quiz.train_days ?? [],
-        equipment,
-        programDays,
-        locale: await resolveLocale(await userLocale(ctx.userId)),
-      },
-      // Le programme du client : effort maximum. C'est le livrable qu'il paie
-      // et qu'il garde trois mois, et c'est le levier de qualité le moins cher
-      // avant de changer de modèle.
-      "max",
-      billing.key,
-      ctx.profile?.tenant_id ?? null,
-      journal,
-    );
-  } catch {
+    result = await Promise.race([
+      generateProgram(
+        {
+          answers: quiz.answers,
+          trainDays: quiz.train_days ?? [],
+          equipment,
+          programDays,
+          locale: await resolveLocale(await userLocale(ctx.userId)),
+        },
+        // Effort réglé dans lib/anthropic : assez haut pour la qualité du
+        // livrable, assez bas pour tenir dans le temps d'une fonction.
+        GENERATE_EFFORT,
+        billing.key,
+        ctx.profile?.tenant_id ?? null,
+        journal,
+        deadline,
+      ),
+      // Le garde-temps. Il ne coupe pas l'appel en cours (le SDK finira dans le
+      // vide), mais il nous rend la main à temps pour répondre en JSON, relâcher
+      // le verrou et laisser le client relancer.
+      new Promise<never>((_, rejeter) =>
+        setTimeout(() => {
+          expire = true;
+          rejeter(new Error("deadline"));
+        }, Math.max(1000, deadline - Date.now())),
+      ),
+    ]);
+  } catch (e) {
     // Zéro crédit et hors quota : le client n'a pas eu son programme, il ne
     // doit ni payer ni perdre son droit à générer. La dépense, elle, se voit.
     await recordCalls(ctx.userId, "generate", journal, {
@@ -191,11 +216,26 @@ async function generateForClient(
       credits: 0,
       countsForQuota: false,
     }).catch(() => {});
+    // Sans donnée personnelle, mais avec la cause : une génération qui échoue
+    // en silence ne se diagnostique qu'en la reproduisant, et elle coûte un
+    // appel au modèle à chaque fois.
+    console.error(
+      `[generation] échec après ${Math.round((Date.now() - debut) / 1000)} s (${journal.length} appel(s)) : ${
+        expire ? "temps imparti dépassé" : e instanceof Error ? e.message : "erreur inconnue"
+      }`,
+    );
     return NextResponse.json(
-      { error: t("srv.genFailed") },
-      { status: 502 },
+      { error: expire ? t("srv.genTimeout") : t("srv.genFailed") },
+      { status: expire ? 504 : 502 },
     );
   }
+
+  // Sans donnée personnelle : la durée et le poids d'une génération réussie.
+  // C'est cette mesure qui a manqué quand la génération a commencé à dépasser
+  // le temps imparti, et c'est elle qui permettra de régler l'effort.
+  console.info(
+    `[generation] ${Math.round((Date.now() - debut) / 1000)} s, ${journal.length} appel(s), ${journal.reduce((a, c) => a + c.usage.output_tokens, 0)} jetons de sortie`,
+  );
 
   // 7. Écriture : programme + start_date (posée UNE fois, à la 1re génération).
   // Durée : celle de l'offre achetée (sinon défaut 3 mois via NULL).

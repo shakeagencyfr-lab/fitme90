@@ -65,7 +65,14 @@ export function GenerateStep() {
       if (res.status === 402) {
         throw new Error(t("generate.notPaid"));
       }
-      if (!res.ok) throw new Error(data.error || t("generate.failedBody"));
+      // 502/504 sans corps JSON : la plateforme a coupé avant que la route ne
+      // puisse répondre. On le dit tel quel plutôt que « la génération a
+      // échoué », qui laisse croire à un refus du modèle.
+      if (!res.ok) {
+        throw new Error(
+          data.error || (res.status === 504 || res.status === 502 ? t("generate.tooLong") : t("generate.failedBody")),
+        );
+      }
       setStatus("done");
       setTimeout(() => router.push("/app?genere=1"), 600);
     } catch (err) {
