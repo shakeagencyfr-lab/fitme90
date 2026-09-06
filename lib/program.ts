@@ -117,6 +117,17 @@ export const planSchema = z.object({
   // Compat historique : séance unique / séances non cyclées des anciens plans.
   session: sessionShape.optional(),
   sessions: z.array(sessionShape).min(1).optional(),
+  /**
+   * Séances valables POUR UN SEUL JOUR, par numéro de jour de programme.
+   *
+   * Les séances vivent dans les cycles, et une séance revient plusieurs fois
+   * dans son cycle : la modifier change donc tous les lundis d'un coup. C'est
+   * ce qu'on veut pour une préférence durable (« mets du hip thrust dans ma
+   * séance jambes »), et exactement ce qu'on ne veut pas pour une situation
+   * d'un jour (« demain je suis à l'hôtel »). Une dérogation ne concerne que
+   * son jour, ne touche pas le programme, et se retire d'un geste.
+   */
+  dayOverrides: z.record(z.string(), sessionShape).optional(),
   nutrition: z.object({
     kcal: z.string(),
     protein: z.string(),
@@ -233,10 +244,36 @@ export function sessionForDay(
   pattern: boolean[],
   startWd: number,
 ): Session | undefined {
+  // Une dérogation posée sur CE jour l'emporte sur la rotation des cycles.
+  const derogation = dayOverride(plan, day);
+  if (derogation) return derogation;
   const at = sessionSlotForDay(plan, day, pattern, startWd);
   if (!at) return undefined;
   const pool = cycleSessions(plan, at.cycleIndex);
   return pool[at.slot] ?? pool[0];
+}
+
+/** La séance dérogatoire d'un jour, assainie, ou undefined. */
+export function dayOverride(plan: Plan, day: number): Session | undefined {
+  const s = plan.dayOverrides?.[String(Math.trunc(day))];
+  return s ? sanitizeSession(s) : undefined;
+}
+
+/** Le plan avec une séance valable pour ce seul jour. */
+export function setDayOverride(plan: Plan, day: number, session: Session): Plan {
+  return { ...plan, dayOverrides: { ...(plan.dayOverrides ?? {}), [String(Math.trunc(day))]: session } };
+}
+
+/** Le plan sans la dérogation de ce jour : il retrouve sa séance de cycle. */
+export function clearDayOverride(plan: Plan, day: number): Plan {
+  const rest = { ...(plan.dayOverrides ?? {}) };
+  delete rest[String(Math.trunc(day))];
+  return { ...plan, dayOverrides: Object.keys(rest).length ? rest : undefined };
+}
+
+/** Y a-t-il une séance à part sur ce jour ? */
+export function hasDayOverride(plan: Plan, day: number): boolean {
+  return !!plan.dayOverrides?.[String(Math.trunc(day))];
 }
 
 /** Où vit la séance d'un jour : son cycle et son créneau dans la rotation. */

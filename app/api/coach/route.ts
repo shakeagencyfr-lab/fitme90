@@ -18,7 +18,7 @@ import { applySessionOps, type SessionOp } from "@/lib/session-edit";
 import { canonicalExercise, type CoachExercise } from "@/lib/allowed-exercises";
 import { listCoachExerciseMedia } from "@/lib/exercise-guide";
 import { missedDays } from "@/lib/streak";
-import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan, type Session, sessionSlotForDay, replaceSessionInPlan, cycleSessions, cycleIndexForDay } from "@/lib/program";
+import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan, type Session, sessionSlotForDay, sessionForDay, replaceSessionInPlan, cycleSessions, cycleIndexForDay, setDayOverride, clearDayOverride, hasDayOverride } from "@/lib/program";
 import { circuitFromSession, isRescueKind, RESCUE_EQUIPMENT } from "@/lib/rescue-circuit";
 import { circuitLevel, circuitSeconds, flattenBlocks, formatMinutes, sessionMinutes } from "@/lib/circuit";
 import { coachAgenda, coachPlanView, logsDigest, type CoachLog, sessionLines } from "@/lib/coach-context";
@@ -445,6 +445,12 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
               required: ["action"],
             },
           },
+          portee: {
+            type: "string",
+            enum: ["jour", "cycle"],
+            description:
+              "« cycle » (défaut) : le changement vaut chaque fois que cette séance revient dans le cycle en cours, pour une préférence durable. « jour » : ce jour-là seulement, pour une situation passagère. Écoute ce que dit le client : « demain », « aujourd'hui », « juste pour cette fois » veulent dire « jour ».",
+          },
         },
         required: ["operations"],
       },
@@ -469,6 +475,26 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
           duree_min: {
             type: "integer",
             description: "Durée visée de la séance en minutes (20 à 90). Absent = la durée habituelle de ses séances.",
+          },
+          portee: {
+            type: "string",
+            enum: ["jour", "cycle"],
+            description:
+              "« jour » (défaut) : ce jour-là seulement, le reste du programme ne bouge pas. C'est le bon choix pour une situation passagère (déplacement, hôtel, journée courte). « cycle » : toutes les fois où cette séance revient dans le cycle en cours, pour un changement durable. Dans le doute, prends « jour » : une dérogation d'un jour s'annule, un cycle réécrit ne se retrouve pas.",
+          },
+        },
+      },
+    },
+    {
+      name: "restaurer_seance",
+      description:
+        "Annule la séance à part posée sur un jour (circuit d'un jour, retouche d'un jour) et rend au client sa séance de programme normale. À utiliser quand il dit que ce n'était que pour un jour, qu'il s'est trompé, ou qu'il veut revenir à son programme.",
+      input_schema: {
+        type: "object",
+        properties: {
+          jour_programme: {
+            type: "integer",
+            description: "Numéro du jour de programme à restaurer (voir le calendrier). Absent = aujourd'hui.",
           },
         },
       },
@@ -617,7 +643,12 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
    * l'annonce faite au client (« c'est en circuit ») correspond à ce qu'il
    * verra vraiment, avec le chrono et les sensations.
    */
-  async function runCircuit(input: { jour_programme?: unknown; materiel?: unknown; duree_min?: unknown }): Promise<string> {
+  /** Où écrire une séance retouchée : ce jour seulement, ou tout le cycle. */
+  function porteeDe(v: unknown, defaut: "jour" | "cycle"): "jour" | "cycle" {
+    return v === "jour" || v === "cycle" ? v : defaut;
+  }
+
+  async function runCircuit(input: { jour_programme?: unknown; materiel?: unknown; duree_min?: unknown; portee?: unknown }): Promise<string> {
     const day = typeof input.jour_programme === "number" && Number.isFinite(input.jour_programme)
       ? Math.max(1, Math.min(ctx!.access.programDays, Math.trunc(input.jour_programme)))
       : Math.max(1, ctx!.access.day);
@@ -634,7 +665,13 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     if (!prog?.plan) return "Impossible : programme introuvable.";
     const at = sessionSlotForDay(prog.plan, day, coachPattern, coachStartWd);
     if (!at) return "Impossible : aucune séance dans ce cycle.";
-    const current = cycleSessions(prog.plan, at.cycleIndex)[at.slot];
+    // Une séance déjà à part sur ce jour est le point de départ : on ne repart
+    // pas du programme quand le client a déjà fait adapter sa journée.
+    const portee = porteeDe(input.portee, "jour");
+    const current =
+      portee === "jour"
+        ? sessionForDay(prog.plan, day, coachPattern, coachStartWd)
+        : cycleSessions(prog.plan, at.cycleIndex)[at.slot];
     if (!current) return "Impossible : séance introuvable.";
 
     const situation = isRescueKind(input.materiel) ? input.materiel : null;
@@ -673,7 +710,10 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
       blocks: built.blocks,
       exercises: flattenBlocks(built.blocks),
     };
-    const nextPlan = replaceSessionInPlan(prog.plan, at, enCircuit);
+    const nextPlan =
+      portee === "jour"
+        ? setDayOverride(prog.plan, day, enCircuit)
+        : clearDayOverride(replaceSessionInPlan(prog.plan, at, enCircuit), day);
     const { error } = await supabase.from("programs").insert({
       user_id: ctx!.userId,
       plan: nextPlan,
@@ -685,12 +725,45 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     const resume = built.blocks
       .map((b) => `${b.title} (${b.rounds} tours, ${b.work} s / ${b.rest} s) : ${b.exercises.map((e) => e.name).join(", ")}`)
       .join(" ; ");
-    return `Séance « ${current.title} » (jour ${day}) passée EN CIRCUIT dans l'app : ${resume}. Durée totale ${formatMinutes(circuitSeconds(built.blocks))}.${
+    const etendue =
+      portee === "jour"
+        ? `UNIQUEMENT le jour ${day} : le reste du programme n'a pas bougé, et les autres fois où cette séance revient restent en séries et charges.`
+        : `TOUTES les fois où cette séance revient dans le cycle en cours.`;
+    return `Séance « ${current.title} » (jour ${day}) passée EN CIRCUIT dans l'app, ${etendue} Contenu : ${resume}. Durée totale ${formatMinutes(circuitSeconds(built.blocks))}.${
       built.dropped.length ? ` Sans équivalent avec ce matériel, donc retirés : ${built.dropped.join(", ")}.` : ""
-    } Le client la lance depuis sa fiche séance : le chrono enchaîne les blocs tout seul, avec un signal sonore à chaque changement, et il note une sensation de 1 à 4 par bloc au lieu d'une charge. Confirme-lui ça, sans lui redonner la liste complète.`;
+    } Le client la lance depuis sa fiche séance : le chrono enchaîne les blocs tout seul, avec un signal sonore à chaque changement, et il note une sensation de 1 à 4 par bloc au lieu d'une charge. Dis-lui la portée exacte du changement, sans lui redonner la liste complète.`;
   }
 
-  async function runSessionEdit(input: { jour_programme?: unknown; operations?: unknown }): Promise<string> {
+  /** Restaure la séance de programme d'un jour : la dérogation saute. */
+  async function runRestore(input: { jour_programme?: unknown }): Promise<string> {
+    const day = typeof input.jour_programme === "number" && Number.isFinite(input.jour_programme)
+      ? Math.max(1, Math.min(ctx!.access.programDays, Math.trunc(input.jour_programme)))
+      : Math.max(1, ctx!.access.day);
+    const { data: prog } = await supabase
+      .from("programs")
+      .select("id, plan, model, duration_months")
+      .eq("user_id", ctx!.userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ id: string; plan: Plan; model: string | null; duration_months: number | null }>();
+    if (!prog?.plan) return "Impossible : programme introuvable.";
+    if (!hasDayOverride(prog.plan, day)) {
+      return `Le jour ${day} suit déjà sa séance de programme normale : il n'y a rien à annuler. Vérifie le jour avec le client (voir le calendrier).`;
+    }
+    const nextPlan = clearDayOverride(prog.plan, day);
+    const { error } = await supabase.from("programs").insert({
+      user_id: ctx!.userId,
+      plan: nextPlan,
+      model: prog.model,
+      duration_months: prog.duration_months,
+    });
+    if (error) return "Impossible d'enregistrer la séance pour l'instant.";
+    adapted = true;
+    const revenue = sessionForDay(nextPlan, day, coachPattern, coachStartWd);
+    return `Séance à part retirée du jour ${day} : le client y retrouve « ${revenue?.title ?? "sa séance de programme"} », telle qu'elle est dans son programme. Confirme-le-lui.`;
+  }
+
+  async function runSessionEdit(input: { jour_programme?: unknown; operations?: unknown; portee?: unknown }): Promise<string> {
     const ops = Array.isArray(input.operations) ? (input.operations as SessionOp[]) : [];
     if (!ops.length) return "Aucune opération fournie : rien changé.";
     const day = typeof input.jour_programme === "number" && Number.isFinite(input.jour_programme)
@@ -709,7 +782,11 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     if (!prog?.plan) return "Impossible : programme introuvable.";
     const at = sessionSlotForDay(prog.plan, day, coachPattern, coachStartWd);
     if (!at) return "Impossible : aucune séance dans ce cycle.";
-    const current = cycleSessions(prog.plan, at.cycleIndex)[at.slot];
+    const portee = porteeDe(input.portee, "cycle");
+    const current =
+      portee === "jour"
+        ? sessionForDay(prog.plan, day, coachPattern, coachStartWd)
+        : cycleSessions(prog.plan, at.cycleIndex)[at.slot];
     if (!current) return "Impossible : séance introuvable.";
 
     // Même vocabulaire fermé qu'à la génération : un exercice ajouté ou
@@ -749,7 +826,10 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     if (!edited.changes.length) {
       return `Rien n'a été modifié : ${edited.errors.join(" ")} Vérifie les noms d'exercices tels qu'ils figurent dans la séance.`;
     }
-    const nextPlan = replaceSessionInPlan(prog.plan, at, edited.session);
+    const nextPlan =
+      portee === "jour"
+        ? setDayOverride(prog.plan, day, edited.session)
+        : clearDayOverride(replaceSessionInPlan(prog.plan, at, edited.session), day);
     const { error } = await supabase.from("programs").insert({
       user_id: ctx!.userId,
       plan: nextPlan,
@@ -759,9 +839,13 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
     if (error) return "Impossible d'enregistrer la séance pour l'instant.";
     adapted = true;
     const liste = sessionLines(edited.session).join(" ; ");
-    return `Séance « ${edited.session.title} » (jour ${day}) mise à jour dans l'app : ${edited.changes.join(" ; ")}.${
+    const etendue =
+      portee === "jour"
+        ? `UNIQUEMENT le jour ${day}, le reste du programme n'a pas bougé`
+        : `à chaque fois que cette séance revient dans le cycle en cours`;
+    return `Séance « ${edited.session.title} » (jour ${day}) mise à jour dans l'app, ${etendue} : ${edited.changes.join(" ; ")}.${
       edited.errors.length ? ` Non appliqué : ${edited.errors.join(" ")}` : ""
-    } Séance maintenant : ${liste}. Confirme au client que sa fiche séance est à jour, il n'a rien à reporter lui-même.`;
+    } Séance maintenant : ${liste}. Confirme au client que sa fiche séance est à jour, dis-lui la portée exacte, il n'a rien à reporter lui-même.`;
   }
 
   // BYOK strict : le coach IA est facturé sur la clé du tenant (coach), jamais
@@ -893,11 +977,14 @@ ${logsDigest((logs ?? []) as CoachLog[])}`;
       const j = (input as { jours?: unknown }).jours;
       return runChangeDays(Array.isArray(j) ? j.map(String) : []);
     }
+    if (name === "restaurer_seance") {
+      return runRestore(input as { jour_programme?: unknown });
+    }
     if (name === "passer_en_circuit") {
-      return runCircuit(input as { jour_programme?: unknown; materiel?: unknown; duree_min?: unknown });
+      return runCircuit(input as { jour_programme?: unknown; materiel?: unknown; duree_min?: unknown; portee?: unknown });
     }
     if (name === "modifier_seance") {
-      return runSessionEdit(input as { jour_programme?: unknown; operations?: unknown });
+      return runSessionEdit(input as { jour_programme?: unknown; operations?: unknown; portee?: unknown });
     }
     if (name === "memoriser") {
       const f = (input as { fait?: string }).fait ?? "";

@@ -387,6 +387,7 @@ export const en: Shape<typeof fr> = {
     backToToday: "Back to today",
     beforeStart: "before you start",
     cycleGoal: "Goal for this cycle:",
+    dayOverride: "One-off session, for this day only: it was set up with your coach. Your program itself has not changed, and the next times this session comes round you will find it as usual.",
     sensations: "Feel (no loads)",
     circuitIntro: "Circuit workout: each block runs its exercises on a timer, with a signal at every change. Start the circuit, put the phone down, and follow the voice or the beeps. Nothing to tap between blocks.",
     finisher: "Circuit finisher",

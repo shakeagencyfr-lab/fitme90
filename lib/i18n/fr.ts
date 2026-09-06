@@ -387,6 +387,7 @@ export const fr = {
     backToToday: "Revenir à aujourd'hui",
     beforeStart: "avant de commencer",
     cycleGoal: "Objectif de ce cycle :",
+    dayOverride: "Séance à part, valable pour ce jour seulement : elle a été mise en place avec ton coach. Ton programme, lui, n'a pas changé, et les prochaines fois où cette séance revient, tu la retrouveras normale.",
     sensations: "Sensations (sans charge)",
     circuitIntro: "Séance en circuit : chaque bloc enchaîne ses exercices au chrono, avec un signal à chaque changement. Lance le circuit, pose le téléphone, et suis la voix ou les bips. Tu n'as rien à toucher entre les blocs.",
     finisher: "Finisher en circuit",

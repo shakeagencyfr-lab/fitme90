@@ -21,6 +21,7 @@ import type { Locale } from "@/lib/i18n";
 import type { Session } from "@/lib/program";
 import { libraryEntry, type LibraryExercise } from "@/lib/exercise-library";
 import { equipmentSupports, pickAlternative, traitsOf } from "@/lib/exercise-alternatives";
+import { EXERCISE_LIBRARY } from "@/lib/exercise-library";
 import type { Famille } from "@/lib/exercise-traits";
 import {
   circuitParams,
@@ -212,6 +213,60 @@ export function decoupeBlocs(list: readonly RescueExercise[]): RescueExercise[][
   return out;
 }
 
+/**
+ * Un circuit trop maigre pour être une séance.
+ *
+ * Une séance qu'on a déjà retouchée peut ne compter que deux ou trois
+ * mouvements. Mise au chrono telle quelle, elle donne un circuit qu'on tourne
+ * six fois : pénible et sans intérêt. En dessous de ce seuil, on complète
+ * depuis la bibliothèque avec ce que le matériel permet, en cherchant les
+ * zones qui manquent.
+ */
+const CIBLE_EXERCICES = 6;
+
+/**
+ * Complète une liste d'exercices jusqu'à une séance jouable.
+ *
+ * On prend d'abord dans les zones absentes (un circuit qui n'a que du haut du
+ * corps s'équilibre avec des jambes et du tronc), puis dans les moins
+ * représentées. À matériel égal, le mouvement le plus simple à mettre en place
+ * gagne : c'est un circuit, on enchaîne, personne ne veut régler une machine
+ * entre deux exercices.
+ */
+export function completerCircuit(
+  base: readonly RescueExercise[],
+  equipment: readonly string[],
+  cible = CIBLE_EXERCICES,
+): RescueExercise[] {
+  const out = [...base];
+  if (out.length >= cible) return out;
+  const pris = new Set(out.map((e) => e.key));
+
+  const candidats = EXERCISE_LIBRARY.map((e) => ({ e, t: traitsOf(e) }))
+    .filter(({ e, t }) => !!t && !pris.has(e.key) && equipmentSupports(t!, equipment))
+    .map(({ e, t }) => ({ entry: e, zone: ZONE_DE[t!.familles[0]], besoins: t!.besoin.length }));
+
+  while (out.length < cible) {
+    const compte = new Map<Zone, number>();
+    for (const e of out) compte.set(e.zone, (compte.get(e.zone) ?? 0) + 1);
+    // La zone la moins servie d'abord, le mouvement le plus simple ensuite.
+    const trie = candidats
+      .filter((c) => !pris.has(c.entry.key))
+      .sort((a, b) => (compte.get(a.zone) ?? 0) - (compte.get(b.zone) ?? 0) || a.besoins - b.besoins);
+    const choisi = trie[0];
+    if (!choisi) break;
+    pris.add(choisi.entry.key);
+    out.push({
+      name: choisi.entry.name,
+      key: choisi.entry.key,
+      note: choisi.entry.guide.cues[0] ?? "",
+      zone: choisi.zone,
+      garde: false,
+    });
+  }
+  return out;
+}
+
 export interface CircuitFromInput {
   session: Session;
   /** Le matériel réellement disponible pour CETTE séance. */
@@ -273,16 +328,22 @@ const WARMUP: Record<Locale, { name: string; detail: string }[]> = {
 export function circuitFromSession(input: CircuitFromInput): RescueSession {
   const p = circuitParams(input.level, input.cycleIndex);
   const { exercises, dropped } = mapExercises(input.session, input.equipment);
-  const groupes = decoupeBlocs(alterneZones(exercises));
+  // Une séance déjà réduite à deux mouvements ne fait pas un circuit : on
+  // complète avant de découper, sinon on tourne six fois sur deux exercices.
+  const complets = completerCircuit(exercises, input.equipment);
+  const groupes = decoupeBlocs(alterneZones(complets));
   const lang = input.locale === "en" ? "en" : "fr";
 
   const blocks: CircuitBlock[] = groupes.map((g, i) => {
     // Zone dominante du bloc : c'est ce que le client lit avant de lancer.
     const compte = new Map<Zone, number>();
     for (const e of g) compte.set(e.zone, (compte.get(e.zone) ?? 0) + 1);
-    const zone = [...compte.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    // Zone dominante du bloc, et « corps entier » quand aucune ne domine :
+    // un bloc jambes + tronc + cardio ne s'appelle pas « bloc tronc ».
+    const rangs = [...compte.entries()].sort((a, b) => b[1] - a[1]);
+    const zone = rangs.length > 1 && rangs[0][1] === rangs[1][1] ? null : rangs[0][0];
     return {
-      title: `${lang === "en" ? "Block" : "Bloc"} ${i + 1} · ${ZONE_LABEL[zone][lang]}`,
+      title: `${lang === "en" ? "Block" : "Bloc"} ${i + 1}${zone ? ` · ${ZONE_LABEL[zone][lang]}` : lang === "en" ? " · full body" : " · corps entier"}`,
       rounds: p.rounds,
       work: p.work,
       rest: p.rest,
