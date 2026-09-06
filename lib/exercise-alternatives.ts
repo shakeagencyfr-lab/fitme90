@@ -16,6 +16,7 @@ import {
   normalizeExerciseName,
   type LibraryExercise,
 } from "@/lib/exercise-library";
+import { EQUIPMENT_CATALOG, matchEquipment, type EquipmentFamily } from "@/lib/equipment-catalog";
 
 /**
  * Famille de travail. Plus fine qu'un « groupe musculaire » affiché : c'est la
@@ -71,6 +72,13 @@ export interface Traits {
   familles: Famille[];
   /** Matériels tous requis (ET, pas OU). Vide = poids du corps. */
   besoin: Besoin[];
+  /**
+   * Quand le mouvement demande UNE machine précise, ses clés au catalogue
+   * (l'une d'elles suffit). Sans ça, « besoin : machine » se contentait de
+   * n'importe quelle machine : un client équipé d'un seul pec deck se voyait
+   * proposer un leg curl.
+   */
+  machine?: string[];
 }
 
 /**
@@ -86,10 +94,10 @@ export const EXERCISE_TRAITS: Record<string, Traits> = {
   // ─────────────────────────────────────────────────────────── bas du corps
   "squat": { familles: ["quadriceps", "fessiers"], besoin: ["barre"] },
   "squat-poids-du-corps": { familles: ["quadriceps", "fessiers", "adducteurs"], besoin: [] },
-  "presse-jambes": { familles: ["quadriceps", "fessiers"], besoin: ["machine"] },
-  "leg-extension": { familles: ["quadriceps"], besoin: ["machine"] },
+  "presse-jambes": { familles: ["quadriceps", "fessiers"], besoin: ["machine"], machine: ["presse-cuisses"] },
+  "leg-extension": { familles: ["quadriceps"], besoin: ["machine"], machine: ["leg-extension"] },
   "front-squat": { familles: ["quadriceps", "fessiers"], besoin: ["barre"] },
-  "hack-squat": { familles: ["quadriceps"], besoin: ["machine"] },
+  "hack-squat": { familles: ["quadriceps"], besoin: ["machine"], machine: ["hack-squat"] },
   "wall-sit": { familles: ["quadriceps"], besoin: [] },
   "fentes": { familles: ["quadriceps", "fessiers"], besoin: [] },
   "fentes-marchees": { familles: ["quadriceps", "fessiers"], besoin: [] },
@@ -102,8 +110,8 @@ export const EXERCISE_TRAITS: Record<string, Traits> = {
   "souleve-de-terre-roumain": { familles: ["ischios", "fessiers"], besoin: ["halteres"] },
   "souleve-de-terre-sumo": { familles: ["fessiers", "ischios", "adducteurs"], besoin: ["barre"] },
   "good-morning": { familles: ["ischios", "lombaires"], besoin: ["barre"] },
-  "leg-curl-allonge": { familles: ["ischios"], besoin: ["machine"] },
-  "leg-curl-assis": { familles: ["ischios"], besoin: ["machine"] },
+  "leg-curl-allonge": { familles: ["ischios"], besoin: ["machine"], machine: ["leg-curl-allonge", "leg-curl-assis"] },
+  "leg-curl-assis": { familles: ["ischios"], besoin: ["machine"], machine: ["leg-curl-assis", "leg-curl-allonge"] },
 
   "hip-thrust": { familles: ["fessiers", "ischios"], besoin: ["banc"] },
   "glute-bridge": { familles: ["fessiers", "ischios"], besoin: [] },
@@ -111,9 +119,9 @@ export const EXERCISE_TRAITS: Record<string, Traits> = {
   "kettlebell-swing": { familles: ["fessiers", "ischios", "cardio"], besoin: ["kettlebell"] },
 
   "mollets-debout": { familles: ["mollets"], besoin: [] },
-  "mollets-assis": { familles: ["mollets"], besoin: ["machine"] },
-  "adducteurs-machine": { familles: ["adducteurs"], besoin: ["machine"] },
-  "abduction-hanche-machine": { familles: ["fessiers", "adducteurs"], besoin: ["machine"] },
+  "mollets-assis": { familles: ["mollets"], besoin: ["machine"], machine: ["mollets-assis", "mollets-debout"] },
+  "adducteurs-machine": { familles: ["adducteurs"], besoin: ["machine"], machine: ["adducteurs-machine"] },
+  "abduction-hanche-machine": { familles: ["fessiers", "adducteurs"], besoin: ["machine"], machine: ["abducteurs-machine"] },
   "abduction-hanche-debout": { familles: ["fessiers"], besoin: [] },
   "adduction-hanche-poulie": { familles: ["adducteurs"], besoin: ["poulie"] },
   "kickback-fessier-poulie": { familles: ["fessiers"], besoin: ["poulie"] },
@@ -123,24 +131,24 @@ export const EXERCISE_TRAITS: Record<string, Traits> = {
   "fentes-statiques": { familles: ["quadriceps", "fessiers"], besoin: [] },
   "squat-gobelet": { familles: ["quadriceps", "fessiers"], besoin: ["halteres"] },
   "squat-sumo-haltere": { familles: ["quadriceps", "fessiers", "adducteurs"], besoin: ["halteres"] },
-  "leg-curl-debout": { familles: ["ischios"], besoin: ["machine"] },
+  "leg-curl-debout": { familles: ["ischios"], besoin: ["machine"], machine: ["leg-curl-allonge", "leg-curl-assis"] },
   "leg-curl-elastique": { familles: ["ischios"], besoin: ["elastique"] },
   "leg-curl-suspension": { familles: ["ischios", "fessiers"], besoin: ["elastique"] },
-  "machine-a-marches": { familles: ["cardio", "quadriceps", "fessiers"], besoin: ["machine"] },
+  "machine-a-marches": { familles: ["cardio", "quadriceps", "fessiers"], besoin: ["machine"], machine: ["stairmaster"] },
   "velo-stationnaire": { familles: ["cardio", "quadriceps"], besoin: ["velo"] },
-  "sled-push": { familles: ["quadriceps", "fessiers", "cardio"], besoin: ["machine"] },
-  "developpe-incline-machine": { familles: ["pectoraux", "epaules", "triceps"], besoin: ["machine"] },
-  "developpe-couche-machine": { familles: ["pectoraux", "triceps"], besoin: ["machine"] },
-  "rowing-machine": { familles: ["dos_horizontal", "biceps"], besoin: ["machine"] },
-  "developpe-epaules-machine": { familles: ["epaules", "triceps"], besoin: ["machine"] },
+  "sled-push": { familles: ["quadriceps", "fessiers", "cardio"], besoin: ["machine"], machine: ["sled"] },
+  "developpe-incline-machine": { familles: ["pectoraux", "epaules", "triceps"], besoin: ["machine"], machine: ["developpe-incline-machine", "developpe-couche-machine"] },
+  "developpe-couche-machine": { familles: ["pectoraux", "triceps"], besoin: ["machine"], machine: ["developpe-couche-machine"] },
+  "rowing-machine": { familles: ["dos_horizontal", "biceps"], besoin: ["machine"], machine: ["rowing-machine"] },
+  "developpe-epaules-machine": { familles: ["epaules", "triceps"], besoin: ["machine"], machine: ["developpe-epaules-machine"] },
   "developpe-epaules-halteres-assis": { familles: ["epaules", "triceps"], besoin: ["halteres", "banc"] },
   "elevations-laterales-poulie": { familles: ["epaules"], besoin: ["poulie"] },
   "oiseau-poulie": { familles: ["epaules_arriere", "dos_horizontal"], besoin: ["poulie"] },
-  "oiseau-machine": { familles: ["epaules_arriere", "dos_horizontal"], besoin: ["machine"] },
+  "oiseau-machine": { familles: ["epaules_arriere", "dos_horizontal"], besoin: ["machine"], machine: ["oiseau-machine", "pec-deck"] },
   "tirage-vertical-prise-serree": { familles: ["dos_vertical", "biceps"], besoin: ["poulie"] },
   "tractions-assistees": { familles: ["dos_vertical", "biceps"], besoin: ["traction"] },
   "rowing-inverse": { familles: ["dos_horizontal", "biceps"], besoin: ["elastique"] },
-  "dips-machine": { familles: ["triceps", "pectoraux"], besoin: ["machine"] },
+  "dips-machine": { familles: ["triceps", "pectoraux"], besoin: ["machine"], machine: ["dips-machine"] },
 
   // ─────────────────────────────────────────────────────────── haut, poussée
   "developpe-couche": { familles: ["pectoraux", "triceps", "epaules"], besoin: ["barre", "banc"] },
@@ -151,7 +159,7 @@ export const EXERCISE_TRAITS: Record<string, Traits> = {
   "dips": { familles: ["pectoraux", "triceps"], besoin: ["dips"] },
   "ecarte-halteres": { familles: ["pectoraux"], besoin: ["halteres", "banc"] },
   "ecarte-poulie": { familles: ["pectoraux"], besoin: ["poulie"] },
-  "pec-deck": { familles: ["pectoraux"], besoin: ["machine"] },
+  "pec-deck": { familles: ["pectoraux"], besoin: ["machine"], machine: ["pec-deck"] },
   "pull-over": { familles: ["pectoraux", "dos_vertical"], besoin: ["halteres", "banc"] },
 
   // ─────────────────────────────────────────────────────────── haut, tirage
@@ -182,7 +190,7 @@ export const EXERCISE_TRAITS: Record<string, Traits> = {
   "curl-barre": { familles: ["biceps"], besoin: ["barre"] },
   "curl-marteau": { familles: ["biceps", "avant_bras"], besoin: ["halteres"] },
   "curl-concentration": { familles: ["biceps"], besoin: ["halteres"] },
-  "curl-pupitre": { familles: ["biceps"], besoin: ["machine"] },
+  "curl-pupitre": { familles: ["biceps"], besoin: ["machine"], machine: ["pupitre-biceps"] },
   "extension-triceps-poulie": { familles: ["triceps"], besoin: ["poulie"] },
   "extension-triceps-couche": { familles: ["triceps"], besoin: ["barre", "banc"] },
   "extension-triceps-verticale": { familles: ["triceps"], besoin: ["halteres"] },
@@ -202,7 +210,7 @@ export const EXERCISE_TRAITS: Record<string, Traits> = {
   "pallof-press": { familles: ["obliques", "abdos"], besoin: ["poulie"] },
   "ab-roller": { familles: ["abdos"], besoin: ["roulette"] },
   "superman": { familles: ["lombaires"], besoin: [] },
-  "extension-lombaire": { familles: ["lombaires", "fessiers"], besoin: ["machine"] },
+  "extension-lombaire": { familles: ["lombaires", "fessiers"], besoin: ["machine"], machine: ["banc-lombaire"] },
 
   // ─────────────────────────────────────────────────────────────── cardio
   "burpees": { familles: ["cardio", "corps_entier"], besoin: [] },
@@ -256,18 +264,106 @@ function normEquip(raw: string): string {
     .trim();
 }
 
+/** Familles du catalogue qui valent « une machine guidée ». */
+const FAMILLES_MACHINE: readonly EquipmentFamily[] = [
+  "smith machine",
+  "presse à cuisses",
+  "hack squat",
+  "leg extension",
+  "leg curl",
+  "machine à mollets",
+  "machine à pectoraux (pec deck, convergente)",
+  "machine à dos (tirage vertical, tirage horizontal)",
+  "machine à épaules",
+  "machine à biceps / triceps",
+  "machine abdominaux / lombaires",
+  "machine fessiers et hanches (abduction, adduction, hip thrust)",
+  "escalier / stairmaster",
+  "traîneau / sled",
+];
+
+/**
+ * Les clés du catalogue qui satisfont chaque besoin.
+ *
+ * C'est la traduction du besoin dans le vocabulaire commun : le client coche
+ * ses machines dans un catalogue, l'analyse photo y est rattachée, et le
+ * moteur compare enfin des identifiants au lieu de chercher des mots.
+ */
+const CLES_BESOIN: Record<Besoin, string[]> = {
+  barre: ["barre-olympique", "barre-ez", "rack-squat", "smith-machine"],
+  banc: ["banc-plat", "banc-incline", "banc-decline"],
+  // Un kettlebell fait le travail d'un haltère sur tout ce qui se tient à la main.
+  halteres: ["halteres", "kettlebells"],
+  kettlebell: ["kettlebells"],
+  poulie: ["poulie-haute", "poulie-basse", "poulie-vis-a-vis"],
+  // La roue abdominale est rangée dans une famille de machines faute de mieux,
+  // mais ce n'est pas une machine : elle ne rend possible aucun exercice guidé.
+  machine: EQUIPMENT_CATALOG.filter(
+    (i) => FAMILLES_MACHINE.includes(i.famille) && i.key !== "ab-roller",
+  ).map((i) => i.key),
+  traction: ["barre-traction", "tractions-assistees"],
+  dips: ["barres-paralleles", "dips-machine"],
+  // Un banc, une marche, une caisse : tout ce sur quoi on monte.
+  step: ["box", "banc-plat", "banc-incline", "banc-decline"],
+  elastique: ["elastiques", "trx"],
+  corde: ["corde-a-sauter"],
+  rameur: ["rameur"],
+  velo: ["velo", "velo-assault"],
+  elliptique: ["elliptique"],
+  tapis: ["tapis-course"],
+  roulette: ["ab-roller"],
+};
+
+/** Mots qui trahissent une machine sans dire laquelle. */
+const MOTS_MACHINE = ["machine", "multifonction", "appareil", "poste", "station"];
+
 /**
  * Le matériel déclaré couvre-t-il TOUS les besoins du mouvement ?
  *
- * « Poids du corps uniquement » est une ligne de matériel comme une autre dans
- * la base ; elle ne contient aucun indice, donc elle ne couvre rien, ce qui
- * est exactement le comportement voulu.
+ * DEUX LECTURES, DANS CET ORDRE. Chaque ligne de matériel est d'abord
+ * rattachée au catalogue : c'est une comparaison d'identifiants, donc exacte,
+ * et c'est le cas de tout client passé par le sélecteur ou par l'analyse
+ * photo. Ce qui n'est pas reconnu (matériel exotique, salles décrites à la
+ * main avant le catalogue) garde l'ancien filet par indices textuels, sans
+ * quoi ces clients perdraient d'un coup tout leur matériel.
+ *
+ * « Poids du corps uniquement » ne couvre aucun besoin, ce qui est exactement
+ * le comportement voulu.
  */
-export function equipmentSupports(besoin: readonly Besoin[], equipment: readonly string[]): boolean {
-  if (besoin.length === 0) return true;
-  const dispo = equipment.map(normEquip).filter(Boolean);
-  if (dispo.length === 0) return false;
-  return besoin.every((b) => INDICES[b].some((mot) => dispo.some((e) => e.includes(mot))));
+export function equipmentSupports(
+  traits: Pick<Traits, "besoin" | "machine">,
+  equipment: readonly string[],
+): boolean {
+  if (traits.besoin.length === 0) return true;
+  if (equipment.length === 0) return false;
+
+  const cles = new Set<string>();
+  const inconnus: string[] = [];
+  for (const nom of equipment) {
+    const item = matchEquipment(nom);
+    if (item) {
+      cles.add(item.key);
+      continue;
+    }
+    const n = normEquip(nom);
+    if (n) inconnus.push(n);
+  }
+  if (cles.size === 0 && inconnus.length === 0) return false;
+
+  const couvre = (b: Besoin) =>
+    CLES_BESOIN[b].some((k) => cles.has(k)) ||
+    INDICES[b].some((mot) => inconnus.some((e) => e.includes(mot)));
+  if (!traits.besoin.every(couvre)) return false;
+
+  // Machine nommée : on exige CETTE machine, pas « une machine ». Un client
+  // qui n'a qu'un pec deck ne doit pas se voir proposer un leg curl.
+  if (traits.machine?.length) {
+    if (traits.machine.some((k) => cles.has(k))) return true;
+    // Une ligne libre qui parle quand même d'une machine sans dire laquelle :
+    // on ne peut pas trancher, et vider la séance serait pire que se tromper.
+    return inconnus.some((e) => MOTS_MACHINE.some((m) => e.includes(m)));
+  }
+  return true;
 }
 
 /** Traits d'une entrée de bibliothèque (jamais undefined en pratique : test). */
@@ -340,7 +436,7 @@ export function pickAlternative(input: AlternativeInput): LibraryExercise | null
     // Un cardio ne remplace pas de la musculation, et réciproquement : le
     // format de la carte (durée vs séries) change du tout au tout.
     if (isCardioKey(entry.key) !== isCardioKey(origine.key)) continue;
-    if (!equipmentSupports(t.besoin, input.equipment)) continue;
+    if (!equipmentSupports(t, input.equipment)) continue;
     const s = score(traits, t);
     if (s < 0) continue;
     if (!best || s > best.score) best = { entry, score: s };
