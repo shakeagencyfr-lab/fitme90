@@ -14,6 +14,9 @@ import { CapacityCard } from "@/components/capacity-card";
 import { CoachOnboarding } from "@/components/coach-onboarding";
 import { InternalClientForm } from "@/components/internal-client-form";
 import { listOffers } from "@/lib/offers";
+import { bookingSpace } from "@/lib/booking";
+import { listTenantAgenda } from "@/lib/booking-appointments";
+import { BookingToday } from "@/components/booking-today";
 import { Card, MonoLabel } from "@/components/ui";
 
 export const metadata = { title: "Clients" };
@@ -68,13 +71,21 @@ export default async function AdminClientsPage() {
   // Conso IA par client + total, dans l'unité que ce coach a le droit de voir
   // (dollars sur sa clé, crédits s'il les achète, appels si l'IA est comprise) ;
   // non-lus VIP par client (icône de ligne).
-  const [usageByUser, vipThreads, cap, offers, view] = await Promise.all([
+  const [usageByUser, vipThreads, cap, offers, view, space] = await Promise.all([
     aiUsageForUsers(rows.map((p) => p.id)),
     tenantId ? listCoachVipThreads(tenantId) : Promise.resolve([]),
     tenantId ? tenantCapacity(tenantId) : Promise.resolve(null),
     tenantId ? listOffers(tenantId) : Promise.resolve([]),
     costViewOf(tenantId),
+    bookingSpace(tenantId),
   ]);
+
+  // L'agenda du jour, quand la réservation tourne : de la veille (pour ne pas
+  // perdre la journée en cours au changement de fuseau) à une semaine devant.
+  const now = new Date();
+  const agenda = space.open && tenantId
+    ? await listTenantAgenda(tenantId, new Date(now.getTime() - 86400000), new Date(now.getTime() + 8 * 86400000))
+    : [];
   // Les plans masqués comptent ici : ce sont justement ceux qu'un coach crée
   // pour des clients inscrits à la main, sans passer par sa page de vente.
   const offerChoices = offers
@@ -104,6 +115,8 @@ export default async function AdminClientsPage() {
         <Card><Stat label={tx("Ont payé")} value={paidCount} /></Card>
         <Card><Stat label={tx("Programme actif")} value={activeCount} /></Card>
       </div>
+
+      {space.open ? <BookingToday agenda={agenda} timezone={space.timezone} now={now} /> : null}
 
       {cap ? <CapacityCard cap={cap} /> : null}
 

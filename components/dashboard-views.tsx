@@ -93,6 +93,41 @@ export function CoachView({ d }: { d: CoachDashboard }) {
         />
       </div>
 
+      {/* Le présentiel, quand le pack tourne : ce que le coach a devant lui, et
+          ce que ses séances lui ont rapporté. Rien quand il ne le vend pas. */}
+      {d.booking ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KeyFigure
+            label={tx("Rendez-vous à venir")}
+            value={d.booking.upcoming}
+            hint={
+              d.booking.pending > 0
+                ? `${d.booking.pending} ${d.booking.pending > 1 ? tx("demandes à valider") : tx("demande à valider")}`
+                : tx("Tout est validé.")
+            }
+          />
+          <KeyFigure
+            label={tx("Séances honorées")}
+            value={d.booking.done}
+            hint={`${tx("Sur les")} ${d.booking.window} ${tx("derniers jours.")}`}
+          />
+          <KeyFigure
+            label={tx("Taux de présence")}
+            value={d.booking.attendancePct === null ? "·" : `${d.booking.attendancePct} %`}
+            hint={
+              d.booking.attendancePct === null
+                ? tx("Aucune séance terminée pour l'instant.")
+                : `${d.booking.noShow} ${d.booking.noShow > 1 ? tx("absences") : tx("absence")} · ${d.booking.cancelled} ${tx("annulées")}`
+            }
+          />
+          <KeyFigure
+            label={tx("Séances encaissées")}
+            value={euros(d.booking.paidCents)}
+            hint={tx("Payées en ligne à la réservation.")}
+          />
+        </div>
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-2">
         <MonthBars
           points={d.months}
