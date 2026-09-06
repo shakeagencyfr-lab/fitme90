@@ -25,3 +25,53 @@ export async function readClientRecipes(userId: string): Promise<unknown[]> {
     .maybeSingle<{ recipes: unknown[] | null }>();
   return Array.isArray(data?.recipes) ? data.recipes : [];
 }
+
+/** Retire une idée du jour (par position) : elle ne s'affiche plus, sans rien coûter. */
+export async function removeClientRecipe(userId: string, index: number): Promise<void> {
+  const current = await readClientRecipes(userId);
+  if (!Number.isInteger(index) || index < 0 || index >= current.length) return;
+  const next = current.filter((_, i) => i !== index);
+  await saveClientRecipes(userId, next);
+}
+
+export interface SavedRecipe {
+  id: string;
+  recipe: Record<string, unknown>;
+  createdAt: string;
+}
+
+/**
+ * « Mes recettes » : ce que le client a choisi de garder. Les idées du jour
+ * sont remplacées à chaque génération ; sans cet endroit, une recette qu'il
+ * aimait disparaissait au premier « nouvelles idées », et l'onglet Nutrition
+ * s'allongeait de tout ce qu'il n'osait pas régénérer.
+ */
+export async function readSavedRecipes(userId: string): Promise<SavedRecipe[]> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("saved_recipes")
+    .select("id, recipe, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(200)
+    .returns<{ id: string; recipe: Record<string, unknown>; created_at: string }[]>();
+  return (data ?? []).map((r) => ({ id: r.id, recipe: r.recipe, createdAt: r.created_at }));
+}
+
+/** Garde une recette. Bornée à 200 par client : au-delà, ce n'est plus une sélection. */
+export async function saveRecipeForClient(userId: string, recipe: Record<string, unknown>): Promise<string | null> {
+  const admin = createAdminClient();
+  const { count } = await admin.from("saved_recipes").select("id", { count: "exact", head: true }).eq("user_id", userId);
+  if ((count ?? 0) >= 200) return null;
+  const { data } = await admin
+    .from("saved_recipes")
+    .insert({ user_id: userId, recipe })
+    .select("id")
+    .maybeSingle<{ id: string }>();
+  return data?.id ?? null;
+}
+
+export async function deleteSavedRecipe(userId: string, id: string): Promise<void> {
+  const admin = createAdminClient();
+  await admin.from("saved_recipes").delete().eq("id", id).eq("user_id", userId);
+}
