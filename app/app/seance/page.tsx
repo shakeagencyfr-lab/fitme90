@@ -7,13 +7,15 @@ import { Card, MonoLabel } from "@/components/ui";
 import { SessionRunner, type Exercise } from "@/components/session-runner";
 import { CoachLoadSuggestion } from "@/components/coach-loads";
 import { DepannageButton } from "@/components/depannage-button";
+import { RescueBanner } from "@/components/rescue-banner";
 import { targetRpe, karvonen, resolveRestSeconds } from "@/lib/fitness";
 import { explainWarmup, bpmLabel } from "@/lib/warmup-guide";
 import { getT, userLocale } from "@/lib/i18n/server";
 import { dateLocale } from "@/lib/i18n";
 import { rpeScale } from "@/lib/i18n/fitness";
 import { CircuitRunner } from "@/components/circuit-runner";
-import { isCircuitSession, sensationScale, targetSensation } from "@/lib/circuit";
+import { isCircuitSession, sensationScale, targetSensation, circuitLevel, sessionMinutes } from "@/lib/circuit";
+import { isRescueKind, rescueSession } from "@/lib/rescue-circuit";
 
 export const metadata = { title: "Séance" };
 
@@ -53,13 +55,31 @@ export default async function SeancePage({
   // elles selon le rang du jour d'entraînement DANS le cycle. Repli sur la séance
   // unique pour les anciens plans.
   const s = sessionForDay(plan, day, pattern, startWd) ?? plan.session;
-  const warmup = warmupSteps(s);
+  const warmupBase = warmupSteps(s);
   // Séance en circuit (client sans salle) : chrono et sensations, pas de
   // charges ni de RPE. Une séance en séries peut finir par un bloc au chrono.
-  const circuit = isCircuitSession(s);
-  const blocks = s?.blocks ?? [];
   const sensGoal = targetSensation(day);
   const sensations = sensationScale(locale);
+
+  // SÉANCE DE DÉPANNAGE. Le client a dit ce dont il dispose (bouton « Je n'ai
+  // pas mon matériel ») : on refait sa séance du jour en circuit avec ce
+  // matériel-là, sans appel IA et sans toucher au programme enregistré.
+  const depParam = Array.isArray(sp.depannage) ? sp.depannage[0] : sp.depannage;
+  const depannage = isRescueKind(depParam) ? depParam : null;
+  const rescue =
+    depannage && s
+      ? rescueSession({
+          session: s,
+          kind: depannage,
+          level: circuitLevel(answers.level),
+          minutes: sessionMinutes(answers.dur),
+          cycleIndex: cycle - 1,
+          locale,
+        })
+      : null;
+
+  const circuit = rescue ? rescue.blocks.length > 0 : isCircuitSession(s);
+  const blocks = rescue ? rescue.blocks : s?.blocks ?? [];
 
   const exercises: Exercise[] = (s?.exercises ?? []).map((e) => ({
     name: e.name,
@@ -71,6 +91,8 @@ export default async function SeancePage({
     duration: e.duration,
     zone: e.zone,
   }));
+
+  const warmup = rescue ? rescue.warmup : warmupBase;
 
   const supabase = await createClient();
   const [{ data: log }, { data: prof }] = await Promise.all([
@@ -169,13 +191,23 @@ export default async function SeancePage({
         </h1>
         <p className="text-[14px] text-muted">
           {[dateLabel, dur].filter(Boolean).join(" · ")}
+          {depannage ? <> · <span className="font-semibold text-brand">{t("rescue.badge")}</span></> : null}
         </p>
-        {ctx.access.coachEnabled ? (
-          <div className="pt-1">
-            <DepannageButton />
-          </div>
-        ) : null}
+        {/* Le dépannage ne demande plus rien à l'IA : il est proposé à tous. */}
+        <div className="pt-1">
+          <DepannageButton day={day} coachEnabled={ctx.access.coachEnabled} />
+        </div>
       </header>
+
+      {depannage ? (
+        <RescueBanner
+          day={day}
+          kind={depannage}
+          dropped={rescue?.dropped ?? []}
+          playable={circuit}
+          canLog={ctx.access.canLog}
+        />
+      ) : null}
 
       {/* Échauffement : préparation avant le travail (obligatoire, 5 à 8 min). */}
       {warmup.length ? (

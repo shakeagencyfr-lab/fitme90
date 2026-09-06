@@ -362,6 +362,17 @@ export interface AlternativeInput {
   avoid?: readonly string[];
   /** Le plan considère-t-il cet exercice comme du cardio ? */
   cardio?: boolean;
+  /**
+   * Préférer, à famille égale, le mouvement qui UTILISE le matériel plutôt
+   * que celui qui en demande le moins.
+   *
+   * Le défaut sert le bouton « autre exercice » : la machine est prise, on
+   * veut ce qui se fait tout de suite, donc le plus simple à mettre en place.
+   * La séance de dépannage veut l'inverse : le client a sorti ses haltères,
+   * lui rendre une séance entièrement au poids du corps est une réponse à
+   * côté de sa demande.
+   */
+  preferEquipped?: boolean;
 }
 
 /**
@@ -375,7 +386,7 @@ export interface AlternativeInput {
  *     celui qui a le plus de chances d'être réellement praticable ici et
  *     maintenant, ce qui est tout l'objet du bouton.
  */
-function score(origine: Traits, candidat: Traits): number {
+function score(origine: Traits, candidat: Traits, preferEquipped = false): number {
   const [principale] = origine.familles;
   const set = new Set(candidat.familles);
   let s = 0;
@@ -383,7 +394,9 @@ function score(origine: Traits, candidat: Traits): number {
   else if (set.has(principale)) s += 60;
   else return -1; // famille principale absente : ce n'est pas un remplacement.
   for (const f of origine.familles.slice(1)) if (set.has(f)) s += 8;
-  s -= candidat.besoin.length * 3;
+  // Le matériel n'arbitre qu'à famille égale : ce départage ne fait jamais
+  // passer un mouvement d'une autre famille devant.
+  s += (preferEquipped ? 3 : -3) * candidat.besoin.length;
   return s;
 }
 
@@ -414,7 +427,7 @@ export function pickAlternative(input: AlternativeInput): LibraryExercise | null
     // format de la carte (durée vs séries) change du tout au tout.
     if (isCardioKey(entry.key) !== isCardioKey(origine.key)) continue;
     if (!equipmentSupports(t, input.equipment)) continue;
-    const s = score(traits, t);
+    const s = score(traits, t, !!input.preferEquipped);
     if (s < 0) continue;
     if (!best || s > best.score) best = { entry, score: s };
   }

@@ -1,5 +1,9 @@
 import { notFound } from "next/navigation";
 import { CircuitRunner } from "@/components/circuit-runner";
+import { DepannageButton } from "@/components/depannage-button";
+import { RescueBanner } from "@/components/rescue-banner";
+import { rescueSession } from "@/lib/rescue-circuit";
+import type { Session } from "@/lib/program";
 
 // Bac à sable du chrono de circuit, sur le même principe que /dev/materiel :
 // une séance fictive, sans session ni base, pour regarder l'aperçu et le
@@ -52,12 +56,37 @@ const BLOCKS = [
   },
 ];
 
+// Une séance de salle, pour voir ce que le dépannage en fait sans matériel.
+const ex = (name: string, key: string) => ({ name, key, sets: 4, reps: "8-10", load: "", note: "", cardio: false, duration: "", zone: "" });
+const SALLE = {
+  cycleLabel: "Cycle 1 · Séance A",
+  title: "Haut du corps",
+  meta: "",
+  restSec: 90,
+  format: "sets" as const,
+  warmup: [],
+  exercises: [
+    ex("Développé couché", "developpe-couche"),
+    ex("Tirage vertical", "tirage-vertical"),
+    ex("Développé militaire", "developpe-militaire"),
+    ex("Presse à cuisses", "presse-jambes"),
+    ex("Extension triceps poulie", "extension-triceps-poulie"),
+    ex("Gainage planche", "gainage-planche"),
+  ],
+} as unknown as Session;
+
 export default function DevCircuitPage() {
   if (process.env.LANDING_PREVIEW !== "1") notFound();
+  const rescue = rescueSession({ session: SALLE, kind: "aucun", level: "intermediaire", minutes: 45, cycleIndex: 0, locale: "fr" });
   return (
     <div className="mx-auto flex max-w-[640px] flex-col gap-5 p-4">
       <h1 className="font-archivo font-extrabold text-[32px] leading-[1.05] tracking-[-0.03em] text-ink">Full body · poussée + quadriceps</h1>
+      <DepannageButton day={3} coachEnabled />
       <CircuitRunner day={3} blocks={BLOCKS} targetSensation={2} canLog alreadyDone={false} />
+
+      <h2 className="mt-8 font-archivo font-extrabold text-[26px] leading-[1.05] tracking-[-0.03em] text-ink">Dépannage · aucun matériel</h2>
+      <RescueBanner day={3} kind="aucun" dropped={rescue.dropped} playable={rescue.blocks.length > 0} canLog />
+      <CircuitRunner day={3} blocks={rescue.blocks} targetSensation={2} canLog={false} alreadyDone={false} mode="finisher" />
     </div>
   );
 }

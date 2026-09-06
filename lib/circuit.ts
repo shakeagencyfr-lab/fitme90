@@ -272,6 +272,43 @@ export function trimToBudget(blocks: readonly CircuitBlock[], budgetSec: number)
 }
 
 /**
+ * L'inverse de `trimToBudget` : ajoute des tours tant que la séance reste
+ * nettement plus courte que le temps dont le client dispose.
+ *
+ * Une séance reconstruite à partir de peu de mouvements (un dépannage sans
+ * matériel) tombait à quinze minutes là où le client en avait quarante-cinq :
+ * trop peu de travail pour la séance qu'il devait faire. On monte donc les
+ * tours, jamais au-delà de six, et jamais au point de dépasser le budget.
+ */
+export function fillToBudget(blocks: readonly CircuitBlock[], budgetSec: number, maxRounds = 6): CircuitBlock[] {
+  const out = blocks.map((b) => ({ ...b }));
+  if (!out.length) return out;
+  // On vise 80 % du temps disponible : le compte rond au-dessus déborderait,
+  // et l'échauffement comme les transitions prennent le reste.
+  const cible = budgetSec * 0.8;
+  let garde = 0;
+  while (circuitSeconds(out) < cible && garde++ < 40) {
+    // Le bloc le plus COURT d'abord : c'est celui dont un tour de plus
+    // déséquilibre le moins la séance.
+    let idx = -1;
+    let min = Infinity;
+    out.forEach((b, i) => {
+      if (b.rounds >= maxRounds || !b.exercises.length) return;
+      const d = blockSeconds(b);
+      if (d < min) {
+        min = d;
+        idx = i;
+      }
+    });
+    if (idx < 0) break;
+    const essai = out.map((b, i) => (i === idx ? { ...b, rounds: b.rounds + 1 } : b));
+    if (circuitSeconds(essai) > budgetSec) break;
+    out[idx] = essai[idx];
+  }
+  return out;
+}
+
+/**
  * Le miroir « à plat » d'un circuit : un exercice de plan par exercice de
  * bloc, séries = tours, reps = secondes d'effort. C'est ce que lisent tous
  * les consommateurs écrits avant les circuits (PDF, coach, qualité du plan) :
