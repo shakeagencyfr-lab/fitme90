@@ -4,6 +4,27 @@ import type { fr } from "./fr";
 type Shape<T> = { [K in keyof T]: T[K] extends string ? string : Shape<T[K]> };
 
 export const en: Shape<typeof fr> = {
+  dates: {
+    daysShort: "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
+    daysLong: "Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday",
+    monthsShort: "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",
+    monthsLong: "January,February,March,April,May,June,July,August,September,October,November,December",
+    dayCodes: "MON,TUE,WED,THU,FRI,SAT,SUN",
+    at: "at",
+  },
+  cycles: {
+    theN: "The {n} cycles",
+    yours: "Your cycle",
+    aims: "We aim for",
+    how: "How",
+    goTo: "Go to cycle {n}",
+    swipe: "swipe →",
+  },
+  site: {
+    monthly: "Monthly subscription",
+    oneMonth: "1 month",
+    months: "{n} months",
+  },
   common: {
     continue: "Continue",
     back: "Back",
@@ -253,6 +274,8 @@ export const en: Shape<typeof fr> = {
     generate: "Generate my program",
   },
   generate: {
+    keepOpen: "keep this page open",
+    elapsed: "elapsed",
     step: "Step 3 · generation",
     writing: "Writing your program",
     failed: "Generation failed",
@@ -333,6 +356,15 @@ export const en: Shape<typeof fr> = {
     monthsShort: "{n} months",
   },
   landing: {
+    language: "Language",
+    swipe: "Swipe",
+    statWeeks: "weeks",
+    statWeeksLong: "weeks",
+    statProgramming: "of programming",
+    statGym: "fitted to your gym",
+    statSupport: "support, on tap",
+    statMethod: "your coach's method, on tap",
+    statBlocks: "blocks that learn from you",
     chooseProgram: "Choose your program",
     programs: "Programs",
     noOffer: "No offer available right now. Come back soon.",
@@ -354,6 +386,7 @@ export const en: Shape<typeof fr> = {
     },
   },
   session: {
+    bpmRange: "{a} to {b} bpm",
     ofDay: "Today's workout",
     warmup: "Warm-up",
     rpe: "Loads by feel (RPE)",
@@ -439,6 +472,14 @@ export const en: Shape<typeof fr> = {
     exercisesCount: "{n} exercises",
   },
   nutrition: {
+    dayAbbr: "D",
+    weekAbbr: "W",
+    mealBreakfast: "Breakfast",
+    mealLunch: "Lunch",
+    mealSnack: "Snack",
+    mealDinner: "Dinner",
+    digestEmpty: "Nothing logged today.",
+    digestHead: "Eaten so far: {kcal} kcal of {kcalTarget} (P {p}/{pTarget} g, C {c}/{cTarget} g, F {f}/{fTarget} g).",
     calendar: "Nutrition calendar",
     needs: "Today's needs",
     trainingDay: "Training day",
@@ -596,6 +637,16 @@ export const en: Shape<typeof fr> = {
     empty: "No message yet. Write to your coach, they'll answer here.",
   },
   booking: {
+    mailRequestSent: "Your request has been sent",
+    mailConfirmed: "Appointment confirmed",
+    mailCancelled: "Appointment cancelled",
+    mailReminder: "Reminder: your appointment",
+    mailAwaiting: "{service}, {when}. {coach} will confirm shortly.",
+    mailWithCoach: "{service} with {coach}, {when}.",
+    mailWhere: "Where: {address}",
+    mailPaymentExpired: "{service}, {when}: the payment was not completed in time, the slot has been released. Book again if you wish.",
+    mailCoachCancelled: "{coach} cancelled {service}, {when}{why}. Book another slot from your space.",
+    yourCoach: "Your coach",
     title: "Booking",
     intro: "Book an in-person session with {coach}, on their available slots.",
     book: "Book a session",
@@ -663,6 +714,12 @@ export const en: Shape<typeof fr> = {
     prompt: "Based on my logged sessions, suggest the loads (or the target RPE if I am a beginner) for each exercise of my next session. Be concrete and cautious.",
   },
   rescue: {
+    block: "Block",
+    fullBody: "full body",
+    zoneLegs: "legs",
+    zoneUpper: "upper body",
+    zoneCore: "core",
+    zoneCardio: "cardio",
     button: "I do not have my equipment",
     hint: "Today's workout, rebuilt as a circuit with what you have. Your program does not change.",
     aucun: { label: "No equipment", hint: "Bodyweight, travelling or in a room" },
@@ -812,6 +869,7 @@ export const en: Shape<typeof fr> = {
     noSub: "No active subscription.",
   },
   pdf: {
+    yourCoach: "Your coach",
     save: "Download the PDF",
     eyebrow: "Training plan",
     title: "My program",

@@ -234,7 +234,7 @@ export default async function SeancePage({
           </summary>
           <ol className="mt-3 flex flex-col gap-2">
             {warmup.map((w, i) => {
-              const ex = explainWarmup(w, hasHrProfile ? zones : null, locale === "en" ? "en" : "fr");
+              const ex = explainWarmup(w, hasHrProfile ? zones : null, locale);
               return (
                 <li key={i} className="flex items-start gap-3 rounded-control bg-surface-2 px-3 py-2">
                   <span className="font-archivo font-extrabold text-[14px] w-5 shrink-0 text-center text-muted-2">
@@ -248,7 +248,7 @@ export default async function SeancePage({
                     {ex.zone ? (
                       <span className="inline-flex w-fit items-center gap-1.5 rounded-pill border border-cardio/40 bg-cardio/10 px-2.5 py-0.5 font-mono text-[11px] text-cardio">
                         {ex.zone.id}{ex.zone.name ? ` ${ex.zone.name}` : ""}
-                        {ex.zone.range ? ` · ${bpmLabel(ex.zone.range, locale === "en" ? "en" : "fr")}` : ` · ${t("session.zoneHint")}`}
+                        {ex.zone.range ? ` · ${bpmLabel(ex.zone.range, locale)}` : ` · ${t("session.zoneHint")}`}
                       </span>
                     ) : null}
                     {ex.how ? <p className="text-[12.5px] leading-[1.55] text-muted">{ex.how}</p> : null}

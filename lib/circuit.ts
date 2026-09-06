@@ -11,7 +11,7 @@
 // seconde que suit le chrono, et l'échelle de sensations qui remplace le RPE.
 // Rien ici ne touche le réseau ni l'écran, tout se teste à sec.
 
-import type { Locale } from "@/lib/i18n";
+import { pick, type Locale, type LocalText } from "@/lib/i18n";
 import type { PlanExercise, Session } from "@/lib/program";
 import { matchEquipment } from "@/lib/equipment-catalog";
 
@@ -171,10 +171,13 @@ const SENSATION_INTRO_EN =
   "No load to write down here: what matters is how the effort feels. Adjust your pace (range, speed, easier or harder variant) to reach the target feeling, and rate it at the end of each block.";
 
 /** L'échelle de sensations dans la langue de la page. */
+const SENSATION_SCALES: LocalText<{ intro: string; steps: SensationStep[] }> = {
+  fr: { intro: SENSATION_INTRO_FR, steps: SENSATIONS_FR },
+  en: { intro: SENSATION_INTRO_EN, steps: SENSATIONS_EN },
+};
+
 export function sensationScale(locale: Locale): { intro: string; steps: SensationStep[] } {
-  return locale === "en"
-    ? { intro: SENSATION_INTRO_EN, steps: SENSATIONS_EN }
-    : { intro: SENSATION_INTRO_FR, steps: SENSATIONS_FR };
+  return pick(SENSATION_SCALES, locale);
 }
 
 /** Sensation visée selon le cycle : « ça travaille » au premier, « dur » ensuite. */

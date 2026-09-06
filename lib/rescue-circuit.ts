@@ -17,7 +17,7 @@
 //
 // Module PUR : testable à sec, aucune dépendance serveur.
 
-import type { Locale } from "@/lib/i18n";
+import { pick, translate, type Locale, type LocalText } from "@/lib/i18n";
 import type { Session } from "@/lib/program";
 import { libraryEntry, type LibraryExercise } from "@/lib/exercise-library";
 import { equipmentSupports, pickAlternative, traitsOf } from "@/lib/exercise-alternatives";
@@ -77,11 +77,11 @@ const ZONE_DE: Record<Famille, Zone> = {
   corps_entier: "cardio",
 };
 
-const ZONE_LABEL: Record<Zone, { fr: string; en: string }> = {
-  jambes: { fr: "jambes", en: "legs" },
-  haut: { fr: "haut du corps", en: "upper body" },
-  tronc: { fr: "tronc", en: "core" },
-  cardio: { fr: "cardio", en: "cardio" },
+const ZONE_KEY: Record<Zone, "rescue.zoneLegs" | "rescue.zoneUpper" | "rescue.zoneCore" | "rescue.zoneCardio"> = {
+  jambes: "rescue.zoneLegs",
+  haut: "rescue.zoneUpper",
+  tronc: "rescue.zoneCore",
+  cardio: "rescue.zoneCardio",
 };
 
 /** Les noms d'exercices de la séance, circuit ou séries, cardio compris. */
@@ -302,7 +302,7 @@ export interface RescueSession {
   dropped: string[];
 }
 
-const WARMUP: Record<Locale, { name: string; detail: string }[]> = {
+const WARMUP: LocalText<{ name: string; detail: string }[]> = {
   fr: [
     { name: "Monter en température", detail: "3 min de marche sur place, montées de genoux puis talons fesses, de plus en plus vite." },
     { name: "Mobilité", detail: "Cercles de bras 10 par sens, rotations de hanches 8 par sens, squats à vide 10, fentes arrière 6 par jambe." },
@@ -332,7 +332,8 @@ export function circuitFromSession(input: CircuitFromInput): RescueSession {
   // complète avant de découper, sinon on tourne six fois sur deux exercices.
   const complets = completerCircuit(exercises, input.equipment);
   const groupes = decoupeBlocs(alterneZones(complets));
-  const lang = input.locale === "en" ? "en" : "fr";
+  const locale = input.locale;
+  const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
 
   const blocks: CircuitBlock[] = groupes.map((g, i) => {
     // Zone dominante du bloc : c'est ce que le client lit avant de lancer.
@@ -343,7 +344,7 @@ export function circuitFromSession(input: CircuitFromInput): RescueSession {
     const rangs = [...compte.entries()].sort((a, b) => b[1] - a[1]);
     const zone = rangs.length > 1 && rangs[0][1] === rangs[1][1] ? null : rangs[0][0];
     return {
-      title: `${lang === "en" ? "Block" : "Bloc"} ${i + 1}${zone ? ` · ${ZONE_LABEL[zone][lang]}` : lang === "en" ? " · full body" : " · corps entier"}`,
+      title: `${t("rescue.block")} ${i + 1} · ${zone ? t(ZONE_KEY[zone]) : t("rescue.fullBody")}`,
       rounds: p.rounds,
       work: p.work,
       rest: p.rest,
@@ -360,7 +361,7 @@ export function circuitFromSession(input: CircuitFromInput): RescueSession {
   const budget = Math.max(15, input.minutes - 7) * 60;
   return {
     blocks: fillToBudget(trimToBudget(blocks, budget), budget),
-    warmup: WARMUP[lang],
+    warmup: pick(WARMUP, locale),
     dropped,
   };
 }

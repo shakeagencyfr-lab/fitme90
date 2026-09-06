@@ -68,9 +68,9 @@ function libraryGuide(name: string): ResolvedGuide | null {
   };
 }
 
-/** Clé de cache : les fiches anglaises sont rangées à part. */
+/** Clé de cache : les fiches dans une autre langue sont rangées à part. */
 function cacheKey(key: string, locale: Locale): string {
-  return locale === "en" ? `${key}|en` : key;
+  return locale === "fr" ? key : `${key}|${locale}`;
 }
 
 /** Fiche depuis le cache IA, ou null. */

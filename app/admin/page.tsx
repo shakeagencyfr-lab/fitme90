@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { tx } from "@/lib/i18n/request";
+import { fmtLocale, tx } from "@/lib/i18n/request";
 import { clientDisplayName } from "@/lib/display-name";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -31,7 +31,7 @@ type Prof = {
 };
 
 const fmt = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "UTC" }) : "·";
+  d ? new Date(d).toLocaleDateString(fmtLocale(), { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "UTC" }) : "·";
 
 export default async function AdminClientsPage() {
   // Cloisonnement par tenant : un coach ne voit QUE ses propres clients.
@@ -87,7 +87,7 @@ export default async function AdminClientsPage() {
     total.calls += u.calls;
   }
   const aiCell = (u: UserAiUsage | undefined) =>
-    view === "usd" ? formatUsd(u?.costUsd ?? 0) : view === "credits" ? (u?.credits ?? 0).toLocaleString("fr-FR") : (u?.calls ?? 0).toLocaleString("fr-FR");
+    view === "usd" ? formatUsd(u?.costUsd ?? 0) : view === "credits" ? (u?.credits ?? 0).toLocaleString(fmtLocale()) : (u?.calls ?? 0).toLocaleString(fmtLocale());
   const aiHeader = view === "usd" ? "Coût IA" : view === "credits" ? "Crédits IA" : "Appels IA";
   const unreadByClient = new Map<string, number>();
   for (const t of vipThreads) if (t.unread > 0) unreadByClient.set(t.clientId, t.unread);
@@ -122,7 +122,7 @@ export default async function AdminClientsPage() {
         </div>
         <div className="flex items-baseline gap-2">
           <span className="font-archivo font-extrabold text-[34px] leading-none tracking-[-0.03em] text-ink">
-            {view === "usd" ? formatUsd(total.costUsd) : view === "credits" ? total.credits.toLocaleString("fr-FR") : total.calls.toLocaleString("fr-FR")}
+            {view === "usd" ? formatUsd(total.costUsd) : view === "credits" ? total.credits.toLocaleString(fmtLocale()) : total.calls.toLocaleString(fmtLocale())}
           </span>
           <span className="text-[13px] text-muted-2">
             {view === "usd" ? tx("sur vos propres clés") : view === "credits" ? tx("crédits, depuis le début") : tx("appels, compris dans ton abonnement")}

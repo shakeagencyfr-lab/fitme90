@@ -26,12 +26,12 @@ export async function POST(req: Request) {
 
   try {
     // 1) Résolution sans IA (rapide, gratuite). Les textes de la bibliothèque
-    // sont en français : un client anglophone garde les images mais reçoit des
-    // consignes en anglais (cache IA séparé, généré une fois par exercice).
+    // sont en français : un client d'une autre langue garde les images mais
+    // reçoit des consignes dans sa langue (cache IA séparé, généré une fois).
     const resolved = await resolveGuide(name, tenantId);
     if (resolved && (locale === "fr" || resolved.source === "coach")) return NextResponse.json({ guide: resolved });
-    if (locale === "en") {
-      const cached = await cachedAiGuide(normalizeExerciseName(name), "en");
+    if (locale !== "fr") {
+      const cached = await cachedAiGuide(normalizeExerciseName(name), locale);
       if (cached) return NextResponse.json({ guide: { ...cached, frames: resolved?.frames ?? [] } });
     }
 

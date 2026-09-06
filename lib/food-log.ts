@@ -19,6 +19,7 @@
 // testés ici une fois pour toutes. Le réseau vit dans lib/open-food-facts.ts.
 // ------------------------------------------------------------------ */
 
+import { translate, type Locale, type TKey } from "@/lib/i18n";
 import type { Repas } from "@/lib/recipe-catalog";
 
 export interface Macros {
@@ -63,10 +64,9 @@ export function isMealSlot(v: unknown): v is Repas {
 }
 
 /** Libellé d'un repas, dans les deux langues (la nutrition n'en avait qu'en français). */
-export function mealSlotLabel(slot: Repas, locale: "fr" | "en"): string {
-  const FR: Record<Repas, string> = { "petit-dejeuner": "Petit-déjeuner", dejeuner: "Déjeuner", collation: "Collation", diner: "Dîner" };
-  const EN: Record<Repas, string> = { "petit-dejeuner": "Breakfast", dejeuner: "Lunch", collation: "Snack", diner: "Dinner" };
-  return (locale === "en" ? EN : FR)[slot];
+export function mealSlotLabel(slot: Repas, locale: Locale): string {
+  const KEYS: Record<Repas, TKey> = { "petit-dejeuner": "nutrition.mealBreakfast", dejeuner: "nutrition.mealLunch", collation: "nutrition.mealSnack", diner: "nutrition.mealDinner" };
+  return translate(locale, KEYS[slot]);
 }
 
 /**
@@ -129,7 +129,7 @@ export function kcalFromMacros(m: { protein: number; carbs: number; fat: number 
  * convertit. Sans énergie du tout mais avec des macros, on la recalcule
  * (4-4-9), c'est ce qu'écrit l'étiquette à l'arrondi près.
  */
-export function parseOffProduct(raw: unknown, locale: "fr" | "en" = "fr"): FoodProduct | null {
+export function parseOffProduct(raw: unknown, locale: Locale = "fr"): FoodProduct | null {
   if (!raw || typeof raw !== "object") return null;
   const p = raw as Record<string, unknown>;
   const n = (p.nutriments && typeof p.nutriments === "object" ? p.nutriments : {}) as Record<string, unknown>;
@@ -258,13 +258,12 @@ export function manualProduct(input: { name: unknown; kcal?: unknown; protein?: 
  * sait ainsi où en est le client avant de répondre « qu'est-ce que je mange
  * ce soir ? ». Compact, parce que chaque ligne se paie à chaque message.
  */
-export function journalDigest(entries: readonly FoodEntry[], target: Macros, locale: "fr" | "en" = "fr"): string {
-  if (!entries.length) return locale === "en" ? "Nothing logged today." : "Rien de noté aujourd'hui.";
+export function journalDigest(entries: readonly FoodEntry[], target: Macros, locale: Locale = "fr"): string {
+  if (!entries.length) return translate(locale, "nutrition.digestEmpty");
   const tot = sumEntries(entries);
-  const head =
-    locale === "en"
-      ? `Eaten so far: ${tot.kcal} kcal of ${target.kcal} (P ${tot.protein}/${target.protein} g, C ${tot.carbs}/${target.carbs} g, F ${tot.fat}/${target.fat} g).`
-      : `Consommé jusqu'ici : ${tot.kcal} kcal sur ${target.kcal} (P ${tot.protein}/${target.protein} g, G ${tot.carbs}/${target.carbs} g, L ${tot.fat}/${target.fat} g).`;
+  const head = translate(locale, "nutrition.digestHead", {
+    kcal: tot.kcal, kcalTarget: target.kcal, p: tot.protein, pTarget: target.protein, c: tot.carbs, cTarget: target.carbs, f: tot.fat, fTarget: target.fat,
+  });
   const lines = groupBySlot(entries).map((g) => {
     const items = g.entries.map((e) => `${e.name}${e.brand ? ` (${e.brand})` : ""} ${e.grams} g, ${macrosFor(e.per100, e.grams).kcal} kcal`).join(" ; ");
     return `- ${mealSlotLabel(g.slot, locale)} : ${items}`;

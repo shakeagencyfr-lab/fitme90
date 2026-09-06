@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { LOCALE_COOKIE } from "@/lib/i18n";
+import { LOCALE_COOKIE, localeFromLabel } from "@/lib/i18n";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
 import { makeT } from "@/lib/i18n";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -84,7 +84,7 @@ export async function saveQuestionnaire(payload: {
     }
   }
   // Langue choisie pour le programme : profil (l'IA et le cron la lisent) + cookie.
-  const lang = answers.program_lang === "English" ? "en" : answers.program_lang === "Français" ? "fr" : null;
+  const lang = localeFromLabel(answers.program_lang);
   if (lang) {
     profileUpdate.language = lang;
     try {

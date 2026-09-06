@@ -1,5 +1,6 @@
 "use client";
 
+import { LIVE_LOCALES, localeLabel } from "@/lib/i18n";
 import { usePhrase } from "@/components/locale-provider";
 
 import { useActionState, useEffect, useState } from "react";
@@ -78,11 +79,14 @@ export function BrandingForm({ branding, namePlaceholder }: { branding: Branding
             defaultValue={branding.language}
             className="w-full rounded-control border border-line-4 bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-ink sm:max-w-[280px]"
           >
-            <option value="fr">{tx("Français")}</option>
-            <option value="en">{tx("English")}</option>
+            {LIVE_LOCALES.map((l) => (
+              <option key={l} value={l}>
+                {localeLabel(l)}
+              </option>
+            ))}
           </select>
           <span className="text-[12px] text-muted-2">
-            {tx("Langue par défaut de ta page publique, de l'espace client et du coach IA. Chaque client peut ensuite basculer lui-même (FR / EN) ; l'IA lui répond dans sa langue.")}</span>
+            {tx("Langue par défaut de ta page publique, de l'espace client et du coach IA. Chaque client peut ensuite basculer lui-même ; l'IA lui répond dans sa langue.")}</span>
         </label>
 
         {/* Section « à propos » optionnelle */}

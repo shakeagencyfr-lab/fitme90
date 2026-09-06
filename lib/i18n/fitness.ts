@@ -1,5 +1,5 @@
 import { RPE, RPE_INTRO, type RpeStep } from "@/lib/fitness";
-import type { Locale } from "./index";
+import { pick, type Locale, type LocalText } from "./index";
 
 // Échelle RPE dans la langue de la page (la source française vit dans lib/fitness).
 const RPE_EN: RpeStep[] = [
@@ -13,6 +13,11 @@ const RPE_EN: RpeStep[] = [
 const RPE_INTRO_EN =
   "No load is imposed: you do not know your maxes yet. Pick a weight by feel to hit the target RPE, log what you did, and the coach will suggest loads for the next session from that data.";
 
+const SCALES: LocalText<{ RPE: RpeStep[]; RPE_INTRO: string }> = {
+  fr: { RPE, RPE_INTRO },
+  en: { RPE: RPE_EN, RPE_INTRO: RPE_INTRO_EN },
+};
+
 export function rpeScale(locale: Locale): { RPE: RpeStep[]; RPE_INTRO: string } {
-  return locale === "en" ? { RPE: RPE_EN, RPE_INTRO: RPE_INTRO_EN } : { RPE, RPE_INTRO };
+  return pick(SCALES, locale);
 }

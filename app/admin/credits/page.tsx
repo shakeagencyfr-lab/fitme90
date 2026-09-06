@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { tx } from "@/lib/i18n/request";
+import { fmtLocale, tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { billingParentId, tenantNode } from "@/lib/hierarchy";
 import { getWallet, listCreditPacks, clientUsesCredits, listLedger, programCreditCost, creditPriceToday, type LedgerEntry } from "@/lib/credits";
@@ -29,7 +29,7 @@ function reasonLabel(r: string): string {
 }
 
 function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleString("fr-FR", {
+  return new Date(iso).toLocaleString(fmtLocale(), {
     day: "2-digit",
     month: "2-digit",
     year: "2-digit",

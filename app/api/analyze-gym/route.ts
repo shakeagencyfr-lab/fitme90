@@ -8,9 +8,9 @@ import { MODELS, textOf, parseJsonLoose, effortConfig, apiCallOf, type ApiCall }
 import { anthropicForUser } from "@/lib/tenant";
 import { LIMIT_ANALYZE_GYM_TOTAL, GYM_PHOTOS_PER_BATCH } from "@/lib/config";
 import { EQUIPMENT_FAMILIES, equipmentKey } from "@/lib/equipment";
-import { EQUIPMENT_CATALOG, canonicalEquipment, matchEquipment } from "@/lib/equipment-catalog";
+import { EQUIPMENT_CATALOG, canonicalEquipment, equipmentName, matchEquipment } from "@/lib/equipment-catalog";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
-import { aiLanguageInstruction } from "@/lib/i18n";
+import { aiLanguageInstruction, type Locale } from "@/lib/i18n";
 
 export const runtime = "nodejs";
 
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     'Réponds UNIQUEMENT par un JSON valide : {"equipment":[{"name":"","family":"","confidence":"high|medium|low"}]}.',
     "`name` : le nom de la machine. Si elle figure dans le catalogue ci-dessous, reprends son nom EXACTEMENT ; sinon, décris-la précisément dans la langue du client.",
     "Catalogue des machines connues :",
-    EQUIPMENT_CATALOG.map((m) => (locale === "en" ? m.name : m.nom)).join(" | ") + ".",
+    EQUIPMENT_CATALOG.map((m) => equipmentName(m, locale)).join(" | ") + ".",
     "`family` : la famille correspondante, reprise EXACTEMENT dans cette liste :",
     EQUIPMENT_FAMILIES.join(" | ") + ".",
     "Si rien ne correspond, mets family à \"\" plutôt que d'inventer une famille.",
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
  */
 function canonicaliser(
   list: { name: string; confidence: string }[],
-  locale: "fr" | "en",
+  locale: Locale,
 ): { name: string; confidence: string }[] {
   const vus = new Set<string>();
   const sortie: { name: string; confidence: string }[] = [];

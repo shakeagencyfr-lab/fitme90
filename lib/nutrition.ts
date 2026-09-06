@@ -18,6 +18,7 @@
 
 import { menuForDay, shoppingEntries, REPAS_LABEL, type Profil } from "@/lib/recipe-engine";
 import { RAYON_LABEL, RAYON_ORDRE, type Repas } from "@/lib/recipe-catalog";
+import { pick, type Locale } from "@/lib/i18n";
 
 // ------------------------------------------------------------------ helpers
 
@@ -183,7 +184,7 @@ export function shoppingList(
   profil: Profil,
   repas: readonly Repas[] = ["petit-dejeuner", "dejeuner", "diner", "collation"],
   maxDay = 90,
-  locale: "fr" | "en" = "fr",
+  locale: Locale = "fr",
 ): ShoppingGroup[] {
   const jours: ReturnType<typeof menuForDay>[] = [];
   const end = Math.min(maxDay, startDay + spanDays - 1);
@@ -208,11 +209,11 @@ export function shoppingList(
           return `${n} ${n > 1 ? plusieurs : un}`;
         })()
       : roundQty(e.grammes, e.unite) + shopUnit(e.grammes, e.unite);
-    return { key: e.food, food: e.nom, qty, rayon: RAYON_LABEL[e.rayon][locale] };
+    return { key: e.food, food: e.nom, qty, rayon: pick(RAYON_LABEL[e.rayon], locale) };
   });
 
   return RAYON_ORDRE.map((r) => {
-    const name = RAYON_LABEL[r][locale];
+    const name = pick(RAYON_LABEL[r], locale);
     const items = rows.filter((x) => x.rayon === name);
     return { name, count: items.length + " " + plural(items.length, "article", "articles"), items };
   }).filter((g) => g.items.length > 0);

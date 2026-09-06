@@ -1,4 +1,4 @@
-import { tx } from "@/lib/i18n/request";
+import { fmtLocale, tx } from "@/lib/i18n/request";
 // Courbe de poids compacte, rendue côté serveur (SVG). Lecture seule, pour la
 // fiche client du coach.
 export interface WeightPoint {
@@ -7,7 +7,7 @@ export interface WeightPoint {
 }
 
 const fmtDate = (d: string) =>
-  new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", timeZone: "UTC" });
+  new Date(d).toLocaleDateString(fmtLocale(), { day: "2-digit", month: "short", timeZone: "UTC" });
 
 export function MiniWeightChart({ points }: { points: WeightPoint[] }) {
   if (points.length === 0) {

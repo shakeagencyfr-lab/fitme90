@@ -12,7 +12,7 @@ import { LeadBand } from "@/components/landing-templates/lead-band";
 import { TestimonialBand } from "@/components/landing-templates/testimonial-band";
 import { AuthorEngine } from "@/components/landing-templates/author-engine";
 import { offerCardCopy, landingCopy, type LandingCopy, type Audience } from "@/components/landing-templates/coach-copy";
-import { makeT, type Locale } from "@/lib/i18n";
+import { makeT, translate, type Locale } from "@/lib/i18n";
 import { themeVars, themeAttrs } from "@/lib/theme";
 
 // Template « Volt » : sombre, contrasté, tranchant.
@@ -233,7 +233,7 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
               bg="#0b0c0e"
               radius={0}
               uppercase
-              langLabel={locale === "en" ? "Language" : "Langue"}
+              langLabel={translate(locale, "landing.language")}
               links={[
                 { href: "#auteur", label: L.navMethod },
                 { href: "#offres", label: L.navPrograms },
@@ -322,7 +322,7 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
             </Reveal>
           </div>
           <div className="mx-auto mt-10 w-full max-w-[1240px]">
-            <Rail tone="dark" hint={locale === "en" ? "Slide" : "Fais glisser"}>
+            <Rail tone="dark" hint={translate(locale, "landing.swipe")}>
               {L.features.map((f, i) => (
                 <article
                   key={f.title}
@@ -480,7 +480,7 @@ export function CoachVolt({ tenant, offers, leadMagnet = false, locale = "fr" }:
             </div>
           ) : offers.length >= 3 ? (
             <div className="mx-auto mt-10 w-full max-w-[1240px]">
-              <Rail tone="dark" hint={locale === "en" ? "Slide" : "Fais glisser"}>
+              <Rail tone="dark" hint={translate(locale, "landing.swipe")}>
                 {offers.map((o) => (
                   <div key={o.id} className="w-[320px] sm:w-[360px]">
                     <OfferCard offer={o} offers={offers} slug={tenant.slug} chargesEnabled={tenant.chargesEnabled} locale={locale} audience={tenant.businessType} />

@@ -3,6 +3,7 @@ import { getSessionContext } from "@/lib/guard";
 import { createClient } from "@/lib/supabase/server";
 import { brandForUser } from "@/lib/branding";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
+import { makeT } from "@/lib/i18n";
 import type { Plan } from "@/lib/program";
 import { planPdf, planPdfFilename, type PlanPdfOptions } from "@/lib/plan-pdf";
 import { decodeImageForPdf } from "@/lib/pdf-image";
@@ -118,7 +119,7 @@ export async function GET(req: Request): Promise<Response> {
   const bytes = planPdf({
     plan,
     clientName,
-    coachName: brand?.name ?? (locale === "en" ? "Your coach" : "Ton coach"),
+    coachName: brand?.name ?? makeT(locale)("pdf.yourCoach"),
     locale,
     options,
     logo,

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { tx } from "@/lib/i18n/request";
+import { fmtLocale, tx } from "@/lib/i18n/request";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminOrNull } from "@/lib/admin";
@@ -59,13 +59,13 @@ const MEASURE_COLS: [key: keyof MeasureRow, label: string][] = [
 ];
 
 const fmt = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric", timeZone: "UTC" }) : "·";
+  d ? new Date(d).toLocaleDateString(fmtLocale(), { day: "2-digit", month: "long", year: "numeric", timeZone: "UTC" }) : "·";
 
 const fmtShort = (d: string) =>
-  new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "2-digit", timeZone: "UTC" });
+  new Date(d).toLocaleDateString(fmtLocale(), { day: "2-digit", month: "short", year: "2-digit", timeZone: "UTC" });
 
 const fmtDateTime = (d: string) =>
-  new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric", timeZone: "UTC" });
+  new Date(d).toLocaleDateString(fmtLocale(), { day: "2-digit", month: "long", year: "numeric", timeZone: "UTC" });
 
 const val = (v: unknown) =>
   Array.isArray(v) ? v.join(", ") : v == null || v === "" ? "·" : String(v);
@@ -145,8 +145,8 @@ export default async function ClientDetailPage({
     costView === "usd"
       ? { label: tx("Coût IA"), value: formatUsd(clientUsage.costUsd) }
       : costView === "credits"
-        ? { label: tx("Crédits IA"), value: clientUsage.credits.toLocaleString("fr-FR") }
-        : { label: tx("Appels IA"), value: clientUsage.calls.toLocaleString("fr-FR") };
+        ? { label: tx("Crédits IA"), value: clientUsage.credits.toLocaleString(fmtLocale()) }
+        : { label: tx("Appels IA"), value: clientUsage.calls.toLocaleString(fmtLocale()) };
 
   const access = computeAccess(profile.paid, profile.start_date);
   const answers = quiz?.answers ?? {};
@@ -434,7 +434,7 @@ function Personne({ p }: { p: ReferralPerson }) {
       </span>
       <span className="flex items-center gap-2">
         <span className="font-mono text-[10.5px] text-muted-2">
-          {new Date(p.joinedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
+          {new Date(p.joinedAt).toLocaleDateString(fmtLocale(), { day: "2-digit", month: "short", year: "numeric" })}
         </span>
         <span className={`rounded-pill px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] ${p.converted ? "bg-brand/10 text-brand" : "border border-line-4 text-muted-2"}`}>
           {p.converted ? tx("Converti") : tx("Inscrit")}

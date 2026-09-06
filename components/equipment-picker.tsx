@@ -4,9 +4,11 @@ import { useMemo, useState } from "react";
 import { ModalLayer } from "@/components/modal-layer";
 import { MuscleIllustration } from "@/components/muscle-illustration";
 import { useLocale, useT } from "@/components/locale-provider";
+import { pick } from "@/lib/i18n";
 import {
   MUSCLE_GROUPS,
   MUSCLE_GROUP_LABEL,
+  equipmentName,
   equipmentPhoto,
   searchEquipment,
   type EquipmentItem,
@@ -37,7 +39,7 @@ function Tuile({
 }) {
   const locale = useLocale();
   const photo = equipmentPhoto(item);
-  const nom = locale === "en" ? item.name : item.nom;
+  const nom = equipmentName(item, locale);
   return (
     <button
       type="button"
@@ -144,7 +146,7 @@ export function EquipmentPicker({
                 key={g}
                 actif={groupe === g}
                 onClick={() => setGroupe(groupe === g ? null : g)}
-                libelle={MUSCLE_GROUP_LABEL[g][locale]}
+                libelle={pick(MUSCLE_GROUP_LABEL[g], locale)}
               />
             ))}
           </div>

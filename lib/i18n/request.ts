@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { DEFAULT_LOCALE, translatePhrase, type Locale } from "./index";
+import { dateLocale, DEFAULT_LOCALE, translatePhrase, type Locale } from "./index";
 
 // Locale « de requête » pour les composants serveur : posée une fois par le
 // layout (setRequestLocale), lue de façon synchrone par p(). React cache() est
@@ -18,4 +18,9 @@ export function getRequestLocale(): Locale {
 /** Traduit une phrase française (dashboards, landings) dans la locale de la requête. */
 export function tx(text: string): string {
   return translatePhrase(store().locale, text);
+}
+
+/** Locale Intl (« de-DE ») de la requête, pour formater dates et nombres. */
+export function fmtLocale(): string {
+  return dateLocale(store().locale);
 }

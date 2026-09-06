@@ -22,7 +22,7 @@ import { LeadBand } from "@/components/landing-templates/lead-band";
 import { TestimonialBand } from "@/components/landing-templates/testimonial-band";
 import { AuthorEngine } from "@/components/landing-templates/author-engine";
 import { offerCardCopy, landingCopy, type LandingCopy, type Audience } from "@/components/landing-templates/coach-copy";
-import { makeT, type Locale } from "@/lib/i18n";
+import { makeT, translate, type Locale } from "@/lib/i18n";
 import { themeVars, themeAttrs } from "@/lib/theme";
 import { ThemeSwitch } from "@/components/theme-toggle";
 
@@ -156,7 +156,7 @@ export function CoachAurora({ tenant, offers, leadMagnet = false, locale = "fr" 
   const accent = tenant.brandColor || DEFAULT_BRAND_COLOR;
   const heading = tenant.headline || tenant.name;
   const tagline = tenant.tagline || L.defaultTagline;
-  const slide = locale === "en" ? "Swipe" : "Fais glisser";
+  const slide = translate(locale, "landing.swipe");
 
   return (
     <div
@@ -201,7 +201,7 @@ export function CoachAurora({ tenant, offers, leadMagnet = false, locale = "fr" 
               tone="light"
               bg="#faf8f4"
               radius={999}
-              langLabel={locale === "en" ? "Language" : "Langue"}
+              langLabel={translate(locale, "landing.language")}
               links={[
                 { href: "#auteur", label: L.navMethod },
                 { href: "#offres", label: L.navPrograms },
@@ -270,10 +270,10 @@ export function CoachAurora({ tenant, offers, leadMagnet = false, locale = "fr" 
         <section className="border-y border-ink/8 bg-white/40 backdrop-blur-sm">
           <div className="mx-auto grid w-full max-w-[1120px] grid-cols-2 gap-y-8 px-5 py-12 sm:px-8 lg:grid-cols-4">
             {[
-              { v: 12, s: locale === "en" ? " weeks" : " sem.", l: locale === "en" ? "of programming" : "de programmation" },
-              { v: 100, s: " %", l: locale === "en" ? "fitted to your gym" : "adapté à ta salle" },
-              { v: 7, s: "/7", l: locale === "en" ? "support, on tap" : "un interlocuteur, à la demande" },
-              { v: 4, s: "", l: locale === "en" ? "blocks that learn from you" : "blocs qui apprennent de toi" },
+              { v: 12, s: ` ${translate(locale, "landing.statWeeks")}`, l: translate(locale, "landing.statProgramming") },
+              { v: 100, s: " %", l: translate(locale, "landing.statGym") },
+              { v: 7, s: "/7", l: translate(locale, "landing.statSupport") },
+              { v: 4, s: "", l: translate(locale, "landing.statBlocks") },
             ].map((k) => (
               <Reveal key={k.l} className="flex flex-col gap-1.5 px-1">
                 <div className="font-archivo text-[clamp(28px,4.6vw,46px)] font-bold leading-none tracking-[-0.03em] text-ink">

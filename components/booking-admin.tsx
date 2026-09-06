@@ -1,5 +1,6 @@
 "use client";
 
+import { translate } from "@/lib/i18n";
 import { useActionState, useState } from "react";
 import { usePhrase, useLocale } from "@/components/locale-provider";
 import {
@@ -313,8 +314,8 @@ function BlocksEditor({ calendarId, blocks, timezone }: { calendarId: string; bl
   const [open, setOpen] = useState(false);
   // Formaté à la main : le rendu de toLocaleString diffère entre le serveur
   // et le navigateur (virgules, abréviations), et React refuse l'hydratation.
-  const DAYS = locale === "en" ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] : ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."];
-  const MONTHS = locale === "en" ? ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] : ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+  const DAYS = translate(locale, "dates.daysShort").split(",");
+  const MONTHS = translate(locale, "dates.monthsShort").split(",");
   const fmt = (iso: string) => {
     const z = zonedParts(new Date(iso), timezone);
     return `${DAYS[z.weekday]} ${z.day} ${MONTHS[z.month - 1]} ${String(z.hour).padStart(2, "0")}:${String(z.minute).padStart(2, "0")}`;

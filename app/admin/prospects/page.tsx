@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { tx } from "@/lib/i18n/request";
+import { fmtLocale, tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { listProspects, leadMagnetEnabled, prospectFollowupEnabled, prospectFollowupCopy } from "@/lib/prospects";
@@ -17,7 +17,7 @@ export const metadata = { title: "Prospects" };
 export const dynamic = "force-dynamic";
 
 const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+  new Date(iso).toLocaleDateString(fmtLocale(), { day: "2-digit", month: "short", year: "numeric" });
 
 const STATUS_STYLE: Record<string, string> = {
   nouveau: "bg-brand/10 text-brand",

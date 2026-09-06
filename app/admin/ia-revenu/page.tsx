@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { tx } from "@/lib/i18n/request";
+import { fmtLocale, tx } from "@/lib/i18n/request";
 import { redirect } from "next/navigation";
 import { getAdminOrNull } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -232,10 +232,10 @@ export default async function AdminResellerAiPage() {
               {tx("Ce que la plateforme t'a débité depuis le 1er du mois pour l'IA de tous les comptes de tes coachs.")}</p>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Metric label={tx("Crédits · ce mois")} value={usage.supplierCredits.toLocaleString("fr-FR")} />
-            <Metric label={tx("Appels IA")} value={usage.calls.toLocaleString("fr-FR")} />
+            <Metric label={tx("Crédits · ce mois")} value={usage.supplierCredits.toLocaleString(fmtLocale())} />
+            <Metric label={tx("Appels IA")} value={usage.calls.toLocaleString(fmtLocale())} />
             <Metric label={tx("Coachs du réseau")} value={String(usage.coachCount)} />
-            <Metric label={tx("Crédits moyens / coach")} value={creditsPerCoach.toLocaleString("fr-FR")} />
+            <Metric label={tx("Crédits moyens / coach")} value={creditsPerCoach.toLocaleString(fmtLocale())} />
           </div>
           <p className="text-[12px] leading-[1.6] text-muted-2">
             {tx("Débit réel de ton portefeuille, action par action. Le détail est dans Consommation.")}</p>
@@ -251,7 +251,7 @@ export default async function AdminResellerAiPage() {
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Metric label={tx("Coût IA · ce mois")} value={cost} />
-            <Metric label={tx("Appels IA")} value={usage.calls.toLocaleString("fr-FR")} />
+            <Metric label={tx("Appels IA")} value={usage.calls.toLocaleString(fmtLocale())} />
             <Metric label={tx("Coachs du réseau")} value={String(usage.coachCount)} />
             <Metric label={tx("Coût moyen / coach")} value={`$${perCoach.toFixed(2)}`} />
           </div>

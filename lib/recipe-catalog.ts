@@ -15,6 +15,7 @@
 // diversité réelle, puisqu'une même recette sert un objectif de 1 800 kcal
 // comme un objectif de 3 200 kcal.
 
+import type { LocalText } from "@/lib/i18n";
 /** Allergènes du questionnaire. Mêmes étiquettes que `lib/nutrition.ts`. */
 export type Allergene = "gluten" | "lactose" | "nuts" | "egg" | "fish" | "shell" | "soy";
 
@@ -32,7 +33,7 @@ export type Regime = "vegetal" | "oeuf_lait" | "poisson" | "viande" | "porc";
  */
 export type Rayon = "fl" | "vp" | "cr" | "es" | "lc";
 
-export const RAYON_LABEL: Record<Rayon, { fr: string; en: string }> = {
+export const RAYON_LABEL: Record<Rayon, LocalText> = {
   fl: { fr: "Fruits & légumes", en: "Fruit & vegetables" },
   vp: { fr: "Viandes & poissons", en: "Meat & fish" },
   cr: { fr: "Crémerie & frais", en: "Dairy & chilled" },

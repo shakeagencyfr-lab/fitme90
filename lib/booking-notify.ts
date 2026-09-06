@@ -5,7 +5,7 @@ import { sendEmail } from "@/lib/email";
 import { addCoachNotification } from "@/lib/notifications";
 import { tenantNotifyEmails } from "@/lib/vip";
 import { humanDate, humanTime } from "@/lib/booking-time";
-import type { Locale } from "@/lib/i18n";
+import { asLocale, makeT, type Locale } from "@/lib/i18n";
 
 // ------------------------------------------------------------------ *
 // Les notifications d'un rendez-vous : cloche et push du coach, e-mail à ses
@@ -52,12 +52,12 @@ async function tenantInfo(tenantId: string): Promise<{ name: string; timezone: s
   return { name: t?.name?.trim() || "Ton coach", timezone: t?.timezone || "Europe/Paris", address: s?.address ?? "", instructions: s?.instructions ?? "" };
 }
 
-const localeOf = (v: string | null): Locale => (v === "en" ? "en" : "fr");
+const localeOf = (v: string | null): Locale => asLocale(v);
 
 /** « mardi 8 septembre à 10 h 30 » ou « Tuesday 8 September at 10:30 ». */
 export function whenLabel(startsAt: string, tz: string, locale: Locale): string {
   const d = new Date(startsAt);
-  return locale === "en" ? `${humanDate(d, tz, "en")} at ${humanTime(d, tz, "en")}` : `${humanDate(d, tz, "fr")} à ${humanTime(d, tz, "fr")}`;
+  return `${humanDate(d, tz, locale)} ${makeT(locale)("dates.at")} ${humanTime(d, tz, locale)}`;
 }
 
 async function tellCoach(b: BookingFacts, title: string, body: string): Promise<void> {
@@ -81,7 +81,7 @@ const site = () => process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 function place(info: { address: string; instructions: string }, locale: Locale): string {
   const parts: string[] = [];
-  if (info.address) parts.push(locale === "en" ? `Where: ${info.address}` : `Lieu : ${info.address}`);
+  if (info.address) parts.push(makeT(locale)("booking.mailWhere", { address: info.address }));
   if (info.instructions) parts.push(info.instructions);
   return parts.length ? `\n\n${parts.join("\n")}` : "";
 }
@@ -100,17 +100,11 @@ export async function notifyBookingCreated(b: BookingFacts, opts: { byCoach?: bo
       );
     }
     const loc = localeOf(client.language);
+    const t = makeT(loc);
     const when = whenLabel(b.starts_at, info.timezone, loc);
-    const title = opts.awaitingCoach
-      ? loc === "en" ? "Your request has been sent" : "Ta demande est envoyée"
-      : loc === "en" ? "Appointment confirmed" : "Rendez-vous confirmé";
-    const body = opts.awaitingCoach
-      ? loc === "en"
-        ? `${b.service_name}, ${when}. ${info.name} will confirm shortly.`
-        : `${b.service_name}, ${when}. ${info.name} confirme dès que possible.`
-      : loc === "en"
-        ? `${b.service_name} with ${info.name}, ${when}.${place(info, loc)}`
-        : `${b.service_name} avec ${info.name}, ${when}.${place(info, loc)}`;
+    const vars = { service: b.service_name, when, coach: info.name };
+    const title = opts.awaitingCoach ? t("booking.mailRequestSent") : t("booking.mailConfirmed");
+    const body = opts.awaitingCoach ? t("booking.mailAwaiting", vars) : `${t("booking.mailWithCoach", vars)}${place(info, loc)}`;
     await tellClient(b, client, title, body);
   } catch {
     /* best-effort */
@@ -122,13 +116,9 @@ export async function notifyBookingConfirmed(b: BookingFacts): Promise<void> {
   try {
     const [client, info] = await Promise.all([clientOf(b.client_id), tenantInfo(b.tenant_id)]);
     const loc = localeOf(client.language);
+    const t = makeT(loc);
     const when = whenLabel(b.starts_at, info.timezone, loc);
-    await tellClient(
-      b,
-      client,
-      loc === "en" ? "Appointment confirmed" : "Rendez-vous confirmé",
-      loc === "en" ? `${b.service_name} with ${info.name}, ${when}.${place(info, loc)}` : `${b.service_name} avec ${info.name}, ${when}.${place(info, loc)}`,
-    );
+    await tellClient(b, client, t("booking.mailConfirmed"), `${t("booking.mailWithCoach", { service: b.service_name, when, coach: info.name })}${place(info, loc)}`);
   } catch {
     /* best-effort */
   }
@@ -145,19 +135,10 @@ export async function notifyBookingCancelled(b: BookingFacts, by: "client" | "co
       return;
     }
     const loc = localeOf(client.language);
+    const t = makeT(loc);
     const when = whenLabel(b.starts_at, info.timezone, loc);
-    await tellClient(
-      b,
-      client,
-      loc === "en" ? "Appointment cancelled" : "Rendez-vous annulé",
-      by === "system"
-        ? loc === "en"
-          ? `${b.service_name}, ${when}: the payment was not completed in time, the slot has been released. Book again if you wish.`
-          : `${b.service_name}, ${when} : le paiement n'a pas été effectué à temps, le créneau est libéré. Réserve à nouveau si tu le souhaites.`
-        : loc === "en"
-          ? `${info.name} cancelled ${b.service_name}, ${when}${why}. Book another slot from your space.`
-          : `${info.name} a annulé ${b.service_name}, ${when}${why}. Reprends un créneau depuis ton espace.`,
-    );
+    const vars = { service: b.service_name, when, coach: info.name, why };
+    await tellClient(b, client, t("booking.mailCancelled"), by === "system" ? t("booking.mailPaymentExpired", vars) : t("booking.mailCoachCancelled", vars));
   } catch {
     /* best-effort */
   }
@@ -168,13 +149,9 @@ export async function notifyBookingReminder(b: BookingFacts): Promise<void> {
   try {
     const [client, info] = await Promise.all([clientOf(b.client_id), tenantInfo(b.tenant_id)]);
     const loc = localeOf(client.language);
+    const t = makeT(loc);
     const when = whenLabel(b.starts_at, info.timezone, loc);
-    await tellClient(
-      b,
-      client,
-      loc === "en" ? "Reminder: your appointment" : "Rappel : ton rendez-vous",
-      loc === "en" ? `${b.service_name} with ${info.name}, ${when}.${place(info, loc)}` : `${b.service_name} avec ${info.name}, ${when}.${place(info, loc)}`,
-    );
+    await tellClient(b, client, t("booking.mailReminder"), `${t("booking.mailWithCoach", { service: b.service_name, when, coach: info.name })}${place(info, loc)}`);
   } catch {
     /* best-effort */
   }

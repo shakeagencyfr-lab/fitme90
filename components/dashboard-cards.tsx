@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Card, MonoLabel } from "@/components/ui";
 import type { MonthPoint } from "@/lib/dashboard-math";
+import { fmtLocale } from "@/lib/i18n/request";
 
 /**
  * Briques du tableau de bord. Tout est rendu côté serveur : ces écrans se
@@ -109,7 +110,7 @@ export function MonthBars({
 function monthLabel(key: string): string {
   const [y, m] = key.split("-").map(Number);
   const d = new Date(Date.UTC(y, (m ?? 1) - 1, 1));
-  return d.toLocaleDateString("fr-FR", { month: "short", timeZone: "UTC" }).replace(".", "");
+  return d.toLocaleDateString(fmtLocale(), { month: "short", timeZone: "UTC" }).replace(".", "");
 }
 
 /** Liste ordonnée avec une barre de proportion : offres, paliers. */

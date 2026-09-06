@@ -23,7 +23,7 @@ import { LeadBand } from "@/components/landing-templates/lead-band";
 import { TestimonialBand } from "@/components/landing-templates/testimonial-band";
 import { AuthorEngine } from "@/components/landing-templates/author-engine";
 import { offerCardCopy, landingCopy, type LandingCopy, type Audience } from "@/components/landing-templates/coach-copy";
-import { makeT, type Locale } from "@/lib/i18n";
+import { makeT, translate, type Locale } from "@/lib/i18n";
 import { themeVars, themeAttrs } from "@/lib/theme";
 
 // Template « Kinetic » : la version démonstrative.
@@ -159,7 +159,7 @@ export function CoachKinetic({ tenant, offers, leadMagnet = false, locale = "fr"
   const accent = tenant.brandColor || DEFAULT_BRAND_COLOR;
   const heading = tenant.headline || tenant.name;
   const tagline = tenant.tagline || L.defaultTagline;
-  const slide = locale === "en" ? "Swipe" : "Fais glisser";
+  const slide = translate(locale, "landing.swipe");
 
   return (
     <div
@@ -195,7 +195,7 @@ export function CoachKinetic({ tenant, offers, leadMagnet = false, locale = "fr"
               tone="dark"
               bg="#08090b"
               radius={12}
-              langLabel={locale === "en" ? "Language" : "Langue"}
+              langLabel={translate(locale, "landing.language")}
               links={[
                 { href: "#auteur", label: L.navMethod },
                 { href: "#offres", label: L.navPrograms },
@@ -270,10 +270,10 @@ export function CoachKinetic({ tenant, offers, leadMagnet = false, locale = "fr"
         <section className="border-b border-white/10">
           <div className="mx-auto grid w-full max-w-[1240px] grid-cols-2 gap-y-8 px-5 py-14 sm:px-8 lg:grid-cols-4">
             {[
-              { v: 12, s: locale === "en" ? " weeks" : " semaines", l: locale === "en" ? "of programming" : "de programmation" },
-              { v: 100, s: " %", l: locale === "en" ? "fitted to your gym" : "adapté à ta salle" },
-              { v: 7, s: "/7", l: locale === "en" ? "your coach's method, on tap" : "la méthode de ton coach, à la demande" },
-              { v: 4, s: "", l: locale === "en" ? "blocks that learn from you" : "blocs qui apprennent de toi" },
+              { v: 12, s: ` ${translate(locale, "landing.statWeeksLong")}`, l: translate(locale, "landing.statProgramming") },
+              { v: 100, s: " %", l: translate(locale, "landing.statGym") },
+              { v: 7, s: "/7", l: translate(locale, "landing.statMethod") },
+              { v: 4, s: "", l: translate(locale, "landing.statBlocks") },
             ].map((k) => (
               <Reveal key={k.l} className="flex flex-col gap-2 px-2">
                 <div className="font-archivo text-[clamp(34px,5.5vw,58px)] font-extrabold leading-none tracking-[-0.04em] text-white">

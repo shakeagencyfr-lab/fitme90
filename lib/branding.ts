@@ -1,5 +1,5 @@
 import "server-only";
-import { isLocale } from "@/lib/i18n";
+import { asLocale, isLocale, type Locale } from "@/lib/i18n";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeHex, normalizeTheme, withPrimary, type TenantTheme } from "@/lib/theme";
 
@@ -17,7 +17,7 @@ export interface Branding {
   aboutText: string | null;
   aboutPhotoUrl: string | null;
   /** Langue par défaut des clients (fr | en). */
-  language: "fr" | "en";
+  language: Locale;
   /** Identité écrite : ce qui s'affiche dans les en-têtes, e-mails et pieds de page. */
   identity: BrandIdentity;
   /** Thème complet (couleurs, polices, apparence). */
@@ -193,7 +193,7 @@ interface Row {
 
 function toBranding(d: Row | null): Branding {
   return {
-    language: d?.language === "en" ? "en" : "fr",
+    language: asLocale(d?.language),
     brandColor: d?.brand_color ?? null,
     tagline: d?.tagline ?? null,
     headline: d?.headline ?? null,

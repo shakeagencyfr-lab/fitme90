@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { barcodeCandidates, parseOffProduct, type FoodProduct } from "@/lib/food-log";
+import type { Locale } from "@/lib/i18n";
 
 // ------------------------------------------------------------------ *
 // Open Food Facts, côté serveur : lecture d'une fiche par code-barres et
@@ -25,7 +26,7 @@ const TIMEOUT_MS = 6000;
 const PRODUCT_TTL_MS = 90 * 86400000;
 const SEARCH_TTL_MS = 7 * 86400000;
 const FIELDS =
-  "code,product_name,product_name_fr,product_name_en,generic_name,generic_name_fr,generic_name_en,brands,nutriments,serving_quantity,serving_quantity_unit,image_front_small_url,image_small_url,image_front_url,nutriscore_grade";
+  "code,product_name,product_name_fr,product_name_en,product_name_de,product_name_es,product_name_it,product_name_nl,generic_name,generic_name_fr,generic_name_en,generic_name_de,generic_name_es,generic_name_it,generic_name_nl,brands,nutriments,serving_quantity,serving_quantity_unit,image_front_small_url,image_small_url,image_front_url,nutriscore_grade";
 
 async function getJson(url: string): Promise<unknown | null> {
   const ctl = new AbortController();
@@ -47,7 +48,7 @@ const fresh = (fetchedAt: string | null | undefined, ttl: number) => !!fetchedAt
  * La fiche d'un code-barres : cache d'abord, puis Open Food Facts en essayant
  * les formes EAN-13 / UPC-A du code. Null si la base ne le connaît pas.
  */
-export async function lookupBarcode(code: string, locale: "fr" | "en"): Promise<FoodProduct | null> {
+export async function lookupBarcode(code: string, locale: Locale): Promise<FoodProduct | null> {
   const candidates = barcodeCandidates(code);
   if (!candidates.length) return null;
   const admin = createAdminClient();
@@ -83,7 +84,7 @@ export async function lookupBarcode(code: string, locale: "fr" | "en"): Promise<
  * d'Open Food Facts, puis par l'ancien point d'entrée si le premier ne répond
  * pas : les deux renvoient des fiches au même format.
  */
-export async function searchProducts(query: string, locale: "fr" | "en"): Promise<FoodProduct[]> {
+export async function searchProducts(query: string, locale: Locale): Promise<FoodProduct[]> {
   const q = query.trim().toLowerCase().replace(/\s+/g, " ").slice(0, 80);
   if (q.length < 2) return [];
   const admin = createAdminClient();

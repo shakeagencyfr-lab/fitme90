@@ -100,7 +100,7 @@ create table if not exists public.tenants (
   constraint tenants_slug_key unique (slug),
   constraint tenants_kind_check check (kind = any (array['platform','reseller','coach'])),
   constraint tenants_ai_supply_check check (ai_supply = any (array['byok','platform_credits'])),
-  constraint tenants_language_check check (language = any (array['fr','en'])),
+  constraint tenants_language_check check (language = any (array['fr','en','de','es','it','nl'])),
   constraint tenants_suspended_reason_check check (suspended_reason is null or suspended_reason = any (array['manual','payment'])),
   constraint tenants_commission_bps_check check (commission_bps is null or (commission_bps >= 0 and commission_bps <= 3000))
 );
@@ -152,7 +152,7 @@ create table if not exists public.profiles (
   -- leve a la fin, perime au-dela de 6 minutes. Service role seulement.
   generating_since timestamptz,
   constraint profiles_pkey primary key (id),
-  constraint profiles_language_check check (language is null or language = any (array['fr','en'])),
+  constraint profiles_language_check check (language is null or language = any (array['fr','en','de','es','it','nl'])),
   -- « once » = en une fois, « month » = en mensualites ; « year » n'est plus
   -- propose, il reste lisible pour l'historique.
   constraint profiles_selected_interval_check check (selected_interval is null or selected_interval = any (array['once','month','year']))

@@ -3,6 +3,7 @@
 // alimentent des colonnes de `profiles`. Plus il est riche, plus le coach IA
 // et le programme sont personnalisés.
 
+import { LIVE_LOCALES, localeLabel } from "@/lib/i18n";
 export type FieldType = "text" | "number" | "choice" | "multi" | "days" | "date";
 
 export interface Field {
@@ -41,7 +42,7 @@ export const QUIZ: Section[] = [
     title: "Qui es-tu ?",
     intro: "Ces champs alimentent ton profil, ton IMC et tes zones cardiaques.",
     fields: [
-      { key: "program_lang", label: "Langue de ton programme", type: "choice", options: ["Français", "English"], help: "La langue de ton espace, de ton programme et de ton coach IA." },
+      { key: "program_lang", label: "Langue de ton programme", type: "choice", options: LIVE_LOCALES.map(localeLabel), help: "La langue de ton espace, de ton programme et de ton coach IA." },
       { key: "name", label: "Prénom", type: "text", placeholder: "Léa", bind: "name" },
       { key: "sex", label: "Sexe biologique", type: "choice", options: ["Femme", "Homme", "Autre"], bind: "sex" },
       { key: "age", label: "Âge", type: "number", placeholder: "34", bind: "age", help: "Sert à la FC max estimée (220 − âge)." },

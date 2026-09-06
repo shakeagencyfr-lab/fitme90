@@ -9,7 +9,7 @@ import { MedicalWaiver } from "@/components/medical-waiver";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
 import { useLocale } from "@/components/locale-provider";
 import { fieldText, optionLabel, sectionText, dayLabel } from "@/lib/i18n/quiz";
-import { makeT, type Locale } from "@/lib/i18n";
+import { localeFromLabel, localeLabel, makeT, type Locale } from "@/lib/i18n";
 
 type Answers = Record<string, string | string[]>;
 
@@ -18,15 +18,14 @@ export function Questionnaire() {
   const localeInitiale = useLocale();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Answers>({
-    program_lang: localeInitiale === "en" ? "English" : "Français",
+    program_lang: localeLabel(localeInitiale),
   });
   // Le questionnaire bascule DÈS que le client choisit sa langue, sans attendre
   // la fin du parcours. Avant, la langue n'était appliquée qu'à
   // l'enregistrement : on cochait « English » et on continuait à répondre à des
   // questions en français, ce qui donnait l'impression que le choix n'avait
   // pas été pris en compte.
-  const locale: Locale =
-    answers.program_lang === "English" ? "en" : answers.program_lang === "Français" ? "fr" : localeInitiale;
+  const locale: Locale = localeFromLabel(answers.program_lang) ?? localeInitiale;
   const t = useMemo(() => makeT(locale), [locale]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");

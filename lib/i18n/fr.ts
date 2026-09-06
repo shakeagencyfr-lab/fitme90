@@ -2,6 +2,27 @@
 // doit exposer exactement les mêmes clés (le type l'impose).
 
 export const fr = {
+  dates: {
+    daysShort: "lun.,mar.,mer.,jeu.,ven.,sam.,dim.",
+    daysLong: "lundi,mardi,mercredi,jeudi,vendredi,samedi,dimanche",
+    monthsShort: "janv.,févr.,mars,avr.,mai,juin,juil.,août,sept.,oct.,nov.,déc.",
+    monthsLong: "janvier,février,mars,avril,mai,juin,juillet,août,septembre,octobre,novembre,décembre",
+    dayCodes: "LUN,MAR,MER,JEU,VEN,SAM,DIM",
+    at: "à",
+  },
+  cycles: {
+    theN: "Les {n} cycles",
+    yours: "Ton cycle",
+    aims: "On vise",
+    how: "Comment",
+    goTo: "Aller au cycle {n}",
+    swipe: "glisse →",
+  },
+  site: {
+    monthly: "Abonnement mensuel",
+    oneMonth: "1 mois",
+    months: "{n} mois",
+  },
   common: {
     continue: "Continuer",
     back: "Retour",
@@ -253,6 +274,8 @@ export const fr = {
     generate: "Générer mon programme",
   },
   generate: {
+    keepOpen: "garde cette page ouverte",
+    elapsed: "écoulé",
     step: "Étape 3 · génération",
     writing: "On écrit ton programme",
     failed: "La génération a échoué",
@@ -333,6 +356,15 @@ export const fr = {
     monthsShort: "{n} mois",
   },
   landing: {
+    language: "Langue",
+    swipe: "Fais glisser",
+    statWeeks: "sem.",
+    statWeeksLong: "semaines",
+    statProgramming: "de programmation",
+    statGym: "adapté à ta salle",
+    statSupport: "un interlocuteur, à la demande",
+    statMethod: "la méthode de ton coach, à la demande",
+    statBlocks: "blocs qui apprennent de toi",
     chooseProgram: "Choisis ton programme",
     programs: "Programmes",
     noOffer: "Aucune offre disponible pour le moment. Reviens bientôt.",
@@ -354,6 +386,7 @@ export const fr = {
     },
   },
   session: {
+    bpmRange: "{a} à {b} bpm",
     ofDay: "Séance du jour",
     warmup: "Échauffement",
     rpe: "Charges au ressenti (RPE)",
@@ -439,6 +472,14 @@ export const fr = {
     exercisesCount: "{n} exercices",
   },
   nutrition: {
+    dayAbbr: "J",
+    weekAbbr: "S",
+    mealBreakfast: "Petit-déjeuner",
+    mealLunch: "Déjeuner",
+    mealSnack: "Collation",
+    mealDinner: "Dîner",
+    digestEmpty: "Rien de noté aujourd'hui.",
+    digestHead: "Consommé jusqu'ici : {kcal} kcal sur {kcalTarget} (P {p}/{pTarget} g, G {c}/{cTarget} g, L {f}/{fTarget} g).",
     calendar: "Calendrier nutrition",
     needs: "Besoins du jour",
     trainingDay: "Jour d'entraînement",
@@ -596,6 +637,16 @@ export const fr = {
     empty: "Aucun message pour l'instant. Écris à ton coach, il te répondra ici.",
   },
   booking: {
+    mailRequestSent: "Ta demande est envoyée",
+    mailConfirmed: "Rendez-vous confirmé",
+    mailCancelled: "Rendez-vous annulé",
+    mailReminder: "Rappel : ton rendez-vous",
+    mailAwaiting: "{service}, {when}. {coach} confirme dès que possible.",
+    mailWithCoach: "{service} avec {coach}, {when}.",
+    mailWhere: "Lieu : {address}",
+    mailPaymentExpired: "{service}, {when} : le paiement n'a pas été effectué à temps, le créneau est libéré. Réserve à nouveau si tu le souhaites.",
+    mailCoachCancelled: "{coach} a annulé {service}, {when}{why}. Reprends un créneau depuis ton espace.",
+    yourCoach: "Ton coach",
     title: "Réservation",
     intro: "Prends rendez-vous pour une séance en présentiel avec {coach}, sur ses créneaux.",
     book: "Prendre rendez-vous",
@@ -663,6 +714,12 @@ export const fr = {
     prompt: "À partir de mes séances déjà validées, propose-moi les charges (ou le RPE visé si je débute) pour chaque exercice de ma prochaine séance. Sois concret et prudent.",
   },
   rescue: {
+    block: "Bloc",
+    fullBody: "corps entier",
+    zoneLegs: "jambes",
+    zoneUpper: "haut du corps",
+    zoneCore: "tronc",
+    zoneCardio: "cardio",
     button: "Je n'ai pas mon matériel",
     hint: "Ta séance du jour, refaite en circuit avec ce que tu as. Ton programme ne change pas.",
     aucun: { label: "Aucun matériel", hint: "Poids du corps, en voyage ou en chambre" },
@@ -812,6 +869,7 @@ export const fr = {
     noSub: "Aucun abonnement actif.",
   },
   pdf: {
+    yourCoach: "Ton coach",
     save: "Télécharger le PDF",
     eyebrow: "Plan d'entraînement",
     title: "Mon programme",

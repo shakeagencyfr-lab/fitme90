@@ -22,6 +22,7 @@
 // Module PUR, partagé par le formulaire de création, l'éditeur de plan et
 // l'affichage : une seule définition, pas trois façons de dire la même chose.
 
+import { asLocale, pick, type LocalText } from "@/lib/i18n";
 export type OfferFormula = "mini" | "max";
 
 export const OFFER_FORMULAS: readonly OfferFormula[] = ["mini", "max"] as const;
@@ -53,7 +54,7 @@ export interface FormulaCopy {
   fit: string;
 }
 
-const COPY: Record<"fr" | "en", Record<OfferFormula, FormulaCopy>> = {
+const COPY: LocalText<Record<OfferFormula, FormulaCopy>> = {
   fr: {
     mini: {
       name: "Mini",
@@ -89,5 +90,5 @@ const COPY: Record<"fr" | "en", Record<OfferFormula, FormulaCopy>> = {
 };
 
 export function formulaCopy(formula: OfferFormula, locale: string): FormulaCopy {
-  return COPY[locale === "en" ? "en" : "fr"][formula];
+  return pick(COPY, asLocale(locale))[formula];
 }
