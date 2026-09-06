@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { MedicalWaiver } from "@/components/medical-waiver";
 import { Button, Alert, MonoLabel } from "@/components/ui";
 import { useT } from "@/components/locale-provider";
+import { GenerationStage } from "@/components/generation-stage";
+import { generationPct, generationStep } from "@/lib/generation-progress";
 
 const STEP_KEYS = ["profile", "filter", "spread", "cycles", "meals", "format"] as const;
 
@@ -15,16 +17,21 @@ export function GenerateStep() {
   const t = useT();
   const STEPS = STEP_KEYS.map((k) => t(`generate.steps.${k}`));
   const [status, setStatus] = useState<Status>("running");
-  const [step, setStep] = useState(0);
   const [reasons, setReasons] = useState<string[]>([]);
   const [error, setError] = useState("");
   const started = useRef(false);
+  // Secondes écoulées depuis le lancement. C'est LA source de la progression :
+  // le nombre d'étapes affichées, lui, ne dit rien du temps réel que prend le
+  // modèle. Avant, la barre atteignait 92 % en dix secondes puis n'y bougeait
+  // plus pendant trois minutes, et le client concluait à un plantage.
+  const [elapsed, setElapsed] = useState(0);
 
   async function run() {
     setStatus("running");
-    setStep(0);
+    setElapsed(0);
     setError("");
-    const tick = setInterval(() => setStep((s) => Math.min(s + 1, STEPS.length - 1)), 2000);
+    const debut = Date.now();
+    const tick = setInterval(() => setElapsed((Date.now() - debut) / 1000), 250);
     try {
       // Après paiement, le webhook Stripe peut mettre 1 à 2 s à marquer le compte
       // payé : si /api/generate répond 402 (pas encore confirmé), on patiente et
@@ -46,7 +53,6 @@ export function GenerateStep() {
       clearInterval(tick);
       // Le programme existe déjà : rien à écrire, on y va.
       if (res.status === 409) {
-        setStep(STEPS.length - 1);
         setStatus("done");
         router.push("/app");
         return;
@@ -60,7 +66,6 @@ export function GenerateStep() {
         throw new Error(t("generate.notPaid"));
       }
       if (!res.ok) throw new Error(data.error || t("generate.failedBody"));
-      setStep(STEPS.length - 1);
       setStatus("done");
       setTimeout(() => router.push("/app?genere=1"), 600);
     } catch (err) {
@@ -77,8 +82,9 @@ export function GenerateStep() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const pct =
-    status === "done" ? 100 : Math.round(((step + 1) / STEPS.length) * 92);
+  const fini = status === "done";
+  const pct = generationPct(elapsed, fini);
+  const step = generationStep(elapsed, STEPS.length, fini);
 
   if (status === "waiver") {
     return (
@@ -119,6 +125,7 @@ export function GenerateStep() {
           <div className="h-[6px] overflow-hidden rounded-[3px] bg-line">
             <div className="h-full bg-brand transition-all duration-500" style={{ width: `${pct}%` }} />
           </div>
+          <GenerationStage pct={pct} elapsed={elapsed} />
           <ul className="flex flex-col gap-2.5">
             {STEPS.map((s, i) => (
               <li
@@ -135,7 +142,7 @@ export function GenerateStep() {
               </li>
             ))}
           </ul>
-          <p className="text-[12.5px] text-muted-2">{t("generate.takesTime")}</p>
+          <p className="text-[13px] text-muted">{t("generate.takesTime")}</p>
         </>
       )}
     </div>

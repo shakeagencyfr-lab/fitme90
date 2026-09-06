@@ -249,7 +249,7 @@ export const fr = {
     failed: "La génération a échoué",
     failedBody: "La génération a échoué.",
     notPaid: "Paiement non confirmé. Si tu viens de payer, patiente un instant et réessaie.",
-    takesTime: "Cela prend généralement moins d'une minute.",
+    takesTime: "L'écriture de ton programme peut prendre jusqu'à 5 minutes : ton coach IA construit tes trois cycles séance par séance. Laisse cette page ouverte, tu seras redirigé automatiquement.",
     retry: "Réessayer",
     signAndGenerate: "Signer et générer mon programme",
     steps: {

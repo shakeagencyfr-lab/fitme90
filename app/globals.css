@@ -723,3 +723,34 @@ input:not([type="checkbox"]):not([type="radio"]) {
 @media (prefers-reduced-motion: reduce) {
   [data-wl-motion="on"] { animation: none !important; }
 }
+
+/* ── Écran de génération du programme ─────────────────────────────────────
+   Le tracé cardiaque se dessine en boucle, le point pulse, la phrase de
+   motivation apparaît en fondu. Le tout tourne pendant deux à quatre minutes :
+   les durées sont longues et les mouvements lents, pour que ça reste
+   supportable à regarder et non pas clignotant. */
+@keyframes gen-ecg {
+  from { stroke-dashoffset: 300; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes gen-pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.9; }
+  50% { transform: translate(-50%, -50%) scale(2.4); opacity: 0.15; }
+}
+@keyframes gen-phrase {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.gen-ecg {
+  stroke-dasharray: 300;
+  animation: gen-ecg 2.6s linear infinite;
+}
+.gen-pulse { animation: gen-pulse 1.4s ease-in-out infinite; }
+.gen-phrase { animation: gen-phrase 0.5s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gen-ecg,
+  .gen-pulse,
+  .gen-phrase { animation: none; }
+  .gen-ecg { stroke-dashoffset: 0; }
+}
