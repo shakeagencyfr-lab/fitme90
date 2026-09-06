@@ -7,6 +7,7 @@ import { restPattern, startWeekday } from "@/lib/schedule";
 import { DAYS } from "@/lib/questionnaire";
 import { NutritionView } from "@/components/nutrition-view";
 import { readClientRecipes, readSavedRecipes } from "@/lib/recipes-store";
+import { readFoodDay } from "@/lib/food-log-store";
 
 export const metadata = { title: "Nutrition" };
 
@@ -19,7 +20,12 @@ export default async function NutritionPage() {
     .select("item_key")
     .eq("user_id", ctx.userId);
   const initialChecks = (checks ?? []).map((c: { item_key: string }) => c.item_key);
-  const [initialRecipes, savedRecipes] = await Promise.all([readClientRecipes(ctx.userId), readSavedRecipes(ctx.userId)]);
+  const currentDay = Math.max(1, ctx.access.day);
+  const [initialRecipes, savedRecipes, journal] = await Promise.all([
+    readClientRecipes(ctx.userId),
+    readSavedRecipes(ctx.userId),
+    readFoodDay(ctx.userId, currentDay),
+  ]);
 
   const baseKcal = pnum(plan.nutrition.kcal) || 2580;
   const week = plan.weekPlan.slice(0, 7);
@@ -37,7 +43,7 @@ export default async function NutritionPage() {
         {t("nav.nutrition")}
       </h1>
       <NutritionView
-        currentDay={Math.max(1, ctx.access.day)}
+        currentDay={currentDay}
         baseKcal={baseKcal}
         restPattern={pattern}
         startWeekday={startWeekday(ctx.profile?.start_date)}
@@ -51,6 +57,8 @@ export default async function NutritionPage() {
         initialSaved={savedRecipes as never}
         startDate={ctx.profile?.start_date ?? ""}
         programDays={ctx.access.programDays}
+        canLog={ctx.access.canLog}
+        initialJournal={journal}
       />
     </div>
   );

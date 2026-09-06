@@ -26,7 +26,9 @@ import { addMemoryNote, readMemory, renderMemory } from "@/lib/coach-memory";
 import { blockPosition } from "@/lib/block-logic";
 import { CYCLES_PER_BLOCK, LIMIT_ADAPT_PER_WEEK } from "@/lib/config";
 import { revalidatePath } from "next/cache";
-import { pnum, grp } from "@/lib/nutrition";
+import { pnum, grp, macrosForDay } from "@/lib/nutrition";
+import { readFoodDay } from "@/lib/food-log-store";
+import { journalDigest } from "@/lib/food-log";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
 import { aiLanguageInstruction } from "@/lib/i18n";
 
@@ -177,6 +179,10 @@ export async function POST(req: NextRequest) {
     .order("day", { ascending: false })
     .limit(12);
 
+  // Journal alimentaire du jour : le coach sait ce qui a déjà été mangé avant
+  // de conseiller un repas. Lu en session, donc RLS.
+  const journalRows = ctx.access.day >= 1 ? await readFoodDay(ctx.userId, ctx.access.day) : [];
+
   // Toutes les séances validées (jours) : pour repérer les retards à rattraper.
   const { data: doneRows } = await supabase
     .from("session_logs")
@@ -197,6 +203,16 @@ export async function POST(req: NextRequest) {
   const coachPattern = restPattern(quiz?.train_days ?? []);
   const coachStartWd = startWeekday(ctx.profile?.start_date);
   const todayIsTraining = ctx.access.day >= 1 && !isRestDay(ctx.access.day, coachPattern, coachStartWd);
+  const nutritionOfPlan = ((program?.plan as { nutrition?: Record<string, string> } | null)?.nutrition) ?? {};
+  const journalTarget = macrosForDay(
+    {
+      kcal: pnum(nutritionOfPlan.kcal ?? "") || 2400,
+      protein: pnum(nutritionOfPlan.protein ?? "") || 140,
+      carbs: pnum(nutritionOfPlan.carbs ?? "") || 260,
+      fat: pnum(nutritionOfPlan.fat ?? "") || 75,
+    },
+    !todayIsTraining,
+  );
   const missedList = ctx.profile?.start_date
     ? missedDays({
         pattern: coachPattern,
@@ -279,7 +295,11 @@ ${
 Le « weekPlan » du programme n'est qu'un gabarit de semaine indicatif : pour une date ou un jour précis, fie-toi TOUJOURS au calendrier ci-dessus, jamais au weekPlan.
 
 SÉANCES VALIDÉES (les plus récentes d'abord) :
-${logsDigest((logs ?? []) as CoachLog[])}`;
+${logsDigest((logs ?? []) as CoachLog[])}
+
+JOURNAL ALIMENTAIRE D'AUJOURD'HUI (scans de code-barres et saisies du client, face à sa cible du jour) :
+${journalDigest(journalRows, journalTarget, locale)}
+S'il te demande quoi manger, pars de ce qui est déjà consommé et de ce qui reste. Un journal vide ne veut pas dire qu'il n'a rien mangé : demande-lui plutôt que supposer.`;
 
   // Cache de prompt en DURÉE LONGUE (1 heure) plutôt que les 5 minutes par
   // défaut. Une conversation avec un coach n'est pas une rafale : le client

@@ -24,7 +24,9 @@ const csp = [
   `default-src 'self'`,
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://js.stripe.com`,
   `style-src 'self' 'unsafe-inline'`,
-  `img-src 'self' data: blob: ${sb}`,
+  // Photos des produits scannés (journal alimentaire) : servies par Open
+  // Food Facts, jamais réécrites chez nous.
+  `img-src 'self' data: blob: ${sb} https://images.openfoodfacts.org`,
   `font-src 'self'`,
   `connect-src 'self' ${sb} ${sbWs} https://api.stripe.com`,
   // 'self' est indispensable : le studio marque blanche encadre la vraie page

@@ -16,6 +16,8 @@ import type { Repas } from "@/lib/recipe-catalog";
 import { Card, MonoLabel, Button, Alert } from "@/components/ui";
 import { setShoppingCheck, saveRecipeAction, deleteSavedRecipeAction, dismissRecipeAction } from "@/app/app/nutrition/actions";
 import { dateOfProgramDay } from "@/lib/schedule";
+import { FoodJournal } from "@/components/food-journal";
+import type { FoodEntry } from "@/lib/food-log";
 
 interface Recipe {
   id?: string;
@@ -52,6 +54,10 @@ interface Props {
   startDate?: string; // date de début du programme (pour les vraies dates)
   /** Durée du programme en jours (offre du client). Défaut 90 j ≈ 13 semaines. */
   programDays?: number;
+  /** Le client peut-il encore écrire (journal alimentaire) ? */
+  canLog?: boolean;
+  /** Lignes du journal alimentaire du jour courant, déjà chargées. */
+  initialJournal?: FoodEntry[];
 }
 
 export function NutritionView({
@@ -69,6 +75,8 @@ export function NutritionView({
   initialSaved = [],
   startDate = "",
   programDays = 90,
+  canLog = false,
+  initialJournal = [],
 }: Props) {
   // Nombre de semaines couvertes par le programme (dernière semaine incluse).
   const WEEKS = Math.max(1, Math.ceil(programDays / 7));
@@ -335,6 +343,11 @@ export function NutritionView({
           <p className="text-[13.5px] leading-[1.65] text-body">{t("nutrition.macroExplain")}</p>
         </Card>
       </section>
+
+      {/* Journal : ce qui a été mangé ce jour-là, face à la cible du jour.
+          Juste sous les besoins, parce que c'est la même question vue des
+          deux côtés : « combien il me faut », « où j'en suis ». */}
+      <FoodJournal day={day} target={dayRest ? repos : train} slots={repas} canLog={canLog} initialEntries={initialJournal} initialDay={currentDay} />
 
       {/* Repas du jour */}
       <section className="flex flex-col gap-3">
