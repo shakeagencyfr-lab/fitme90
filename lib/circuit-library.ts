@@ -25,10 +25,15 @@
 
 import { pick, translate, type Locale, type LocalText } from "@/lib/i18n";
 import { libraryEntry } from "@/lib/exercise-library";
+import { traitsOf } from "@/lib/exercise-alternatives";
+import { matchEquipment } from "@/lib/equipment-catalog";
+import type { Session } from "@/lib/program";
 import {
   circuitBudgetSec,
   circuitParams,
   fitToDuration,
+  isCircuitSession,
+  isHomeEquipment,
   circuitSeconds,
   WARMUP_MINUTES,
   type CircuitBlock,
@@ -1343,4 +1348,200 @@ export function circuitSummaries(locale: Locale): {
     avoid: t.avoid.map((p) => pick(PATHOLOGY_LABEL[p], locale)),
     safeFor: (t.safeFor ?? []).map((p) => pick(PATHOLOGY_LABEL[p], locale)),
   }));
+}
+
+// ──────────────────────────────────────── lire le profil réel du client
+
+/**
+ * Les zones à ménager d'un client, lues dans son questionnaire santé.
+ *
+ * On lit les cases cochées (pathologies articulaires et générales, grossesse)
+ * et les contraintes durables qu'il a déclarées au coach. On NE lit PAS les
+ * « blessures passées (guéries) » : une entorse de 2022 est guérie, et
+ * l'écarter des sauts pour toujours priverait le client de la moitié du
+ * catalogue sans qu'il ait rien demandé.
+ */
+export function pathologiesFromAnswers(answers: Record<string, unknown> | null | undefined): Pathology[] {
+  const a = answers ?? {};
+  const coches = (raw: unknown): string[] => (Array.isArray(raw) ? raw.map((x) => String(x)) : []);
+  const found = new Set<Pathology>();
+
+  for (const p of coches(a.patho1)) {
+    if (/lombalgie|hernie|dos/i.test(p)) found.add("dos");
+    if (/epaule|épaule/i.test(p)) found.add("epaule");
+    if (/genou/i.test(p)) found.add("genou");
+    if (/poignet/i.test(p)) found.add("poignet");
+    if (/cheville/i.test(p)) found.add("cheville");
+    if (/hanche/i.test(p)) found.add("hanche");
+  }
+  for (const p of coches(a.patho2)) {
+    if (/hypertension|tension/i.test(p)) found.add("hypertension");
+  }
+  const grossesse = String(a.pregnancy ?? "");
+  if (/enceinte|post.?partum/i.test(grossesse)) found.add("grossesse");
+
+  // Les contraintes dites au coach en cours de route ont autant de valeur que
+  // les cases du questionnaire : c'est souvent là que la douleur apparaît.
+  const libres = Array.isArray(a.adaptations) ? a.adaptations.map((x) => String(x)) : [];
+  for (const p of detectPathologies(...libres)) found.add(p);
+
+  return PATHOLOGIES.filter((p) => found.has(p));
+}
+
+/**
+ * Le palier de matériel le mieux servi par ce que le client a déclaré.
+ *
+ * Le matériel arrive sous les noms que la personne a cochés (« Haltères »,
+ * « Élastiques »), pas sous les clés du catalogue : on passe donc par
+ * matchEquipment, qui connaît les alias. Une salle se reconnaît à ce qu'elle
+ * seule possède (machines, poulies, barres) : c'est déjà ce que sait faire
+ * isHomeEquipment, et il n'y a pas de raison de le refaire ici.
+ */
+export function gearFromEquipment(equipment: readonly string[]): CircuitGear {
+  if (equipment.length && !isHomeEquipment(equipment)) return "salle";
+  const cles = new Set<string>(["poids-du-corps"]);
+  for (const nom of equipment) {
+    const item = matchEquipment(nom);
+    if (item) cles.add(item.key);
+  }
+  // Du mieux équipé au plus nu : le premier palier entièrement couvert gagne.
+  const ordre: CircuitGear[] = ["hotel", "kettlebell", "halteres", "elastiques", "aucun"];
+  return ordre.find((g) => GEAR_EQUIPMENT[g].every((k) => cles.has(k))) ?? "aucun";
+}
+
+/** Les mots par lesquels un client demande un thème, dans les langues servies. */
+const THEME_WORDS: Record<CircuitTheme, RegExp> = {
+  "haut-du-corps": /haut du corps|upper body|pectoraux|pompes|bras|épaules|epaules|torse|buste|chest|arms/i,
+  "bas-du-corps": /bas du corps|jambes|cuisses|quadriceps|mollets|lower body|legs|leg day/i,
+  abdos: /abdo|abdominaux|ventre|gainage|core|abs|sangle abdominale|obliques/i,
+  cardio: /cardio|hiit|souffle|brûler|bruler|transpirer|essouffl|fat burn|conditioning/i,
+  fessiers: /fessier|fesses|glute|hanche|booty/i,
+  "dos-posture": /\bdos\b|posture|omoplate|cervicale|bureau|back|round shoulders/i,
+  mobilite: /mobilit|étirement|etirement|souplesse|récup|recup|assoupli|stretch|mobility|easy day/i,
+  "corps-entier": /corps entier|full body|général|general|tout le corps|complet/i,
+};
+
+/**
+ * Le thème demandé par une phrase de client, ou null.
+ *
+ * L'ordre compte : « je veux travailler mes fessiers » doit rendre les
+ * fessiers, pas le bas du corps, alors que les deux motifs peuvent coller.
+ * Les thèmes précis passent donc avant les thèmes larges.
+ */
+export function themeFromWish(text: string | null | undefined): CircuitTheme | null {
+  const v = (text ?? "").trim();
+  if (!v) return null;
+  const ordre: CircuitTheme[] = ["mobilite", "abdos", "fessiers", "dos-posture", "cardio", "haut-du-corps", "bas-du-corps", "corps-entier"];
+  return ordre.find((t) => THEME_WORDS[t].test(v)) ?? null;
+}
+
+/** Les familles de muscles d'un thème, pour reconnaître une séance. */
+const THEME_FAMILIES: Record<CircuitTheme, string[]> = {
+  "haut-du-corps": ["pectoraux", "dos_vertical", "dos_horizontal", "epaules", "epaules_arriere", "trapezes", "biceps", "triceps", "avant_bras"],
+  "bas-du-corps": ["quadriceps", "ischios", "mollets", "adducteurs"],
+  fessiers: ["fessiers"],
+  abdos: ["abdos", "obliques"],
+  "dos-posture": ["dos_horizontal", "dos_vertical", "epaules_arriere", "lombaires", "trapezes"],
+  cardio: ["cardio"],
+  "corps-entier": ["corps_entier"],
+  mobilite: [],
+};
+
+/**
+ * Le thème de la séance qu'on remplace, lu dans ses mouvements.
+ *
+ * Sert quand le client ne dit pas ce qu'il veut : « mets-moi ça en circuit »
+ * un jour de jambes doit rendre un circuit de jambes, pas un corps entier.
+ * Une séance sans dominante nette rend « corps entier », ce qui est la vérité.
+ */
+export function themeFromFamilies(familles: readonly string[]): CircuitTheme {
+  const compte = new Map<CircuitTheme, number>();
+  for (const f of familles) {
+    for (const [theme, list] of Object.entries(THEME_FAMILIES) as [CircuitTheme, string[]][]) {
+      if (theme === "corps-entier" || theme === "dos-posture") continue;
+      if (list.includes(f)) compte.set(theme, (compte.get(theme) ?? 0) + 1);
+    }
+  }
+  const rangs = [...compte.entries()].sort((a, b) => b[1] - a[1]);
+  if (!rangs.length) return "corps-entier";
+  const total = familles.length || 1;
+  // Une dominante, c'est plus de la moitié des mouvements. En dessous, la
+  // séance touche à tout : c'est un corps entier, et le dire est plus honnête
+  // que de choisir le groupe le mieux placé d'une courte tête.
+  return rangs[0][1] / total > 0.5 ? rangs[0][0] : "corps-entier";
+}
+
+/** Le thème d'une séance du programme, circuit ou séries, lu dans ses fiches. */
+export function themeFromSession(session: Session): CircuitTheme {
+  const noms = isCircuitSession(session)
+    ? (session.blocks ?? []).flatMap((b) => b.exercises.map((e) => ({ name: e.name, key: e.key })))
+    : session.exercises.map((e) => ({ name: e.name, key: e.key }));
+  const familles: string[] = [];
+  for (const x of noms) {
+    const entry = libraryEntry(x.name, x.key);
+    const t = entry ? (entry.traits ?? traitsOf(entry)) : null;
+    if (t?.familles[0]) familles.push(t.familles[0]);
+  }
+  return themeFromFamilies(familles);
+}
+
+/**
+ * Le circuit à servir en remplacement d'une séance, et sa séance rendue.
+ *
+ * C'est le point d'entrée du Coach IA : il passe ce qu'il sait du client (son
+ * matériel, son niveau, sa durée de séance, ses zones sensibles) et l'envie
+ * exprimée dans le chat s'il y en a une. Le thème vient de l'envie quand elle
+ * est claire, sinon de la séance remplacée. Rien n'est inventé : la sortie est
+ * un circuit du catalogue, rendu à la bonne durée.
+ */
+export interface SubstituteInput {
+  /** La séance qu'on remplace, quand il y en a une. */
+  session?: Session | null;
+  /** Ce que le client a demandé dans le chat, tel qu'il l'a écrit. */
+  wish?: string | null;
+  /** Un thème imposé, qui l'emporte sur l'envie comme sur la séance. */
+  theme?: CircuitTheme | null;
+  equipment: readonly string[];
+  /** Un palier imposé (voyage, hôtel), qui l'emporte sur le matériel déclaré. */
+  gear?: CircuitGear | null;
+  pathologies?: readonly Pathology[];
+  level: CircuitLevel;
+  minutes: number;
+  cycleIndex: number;
+  locale: Locale;
+}
+
+export interface SubstituteResult {
+  template: CircuitTemplate;
+  circuit: RenderedCircuit;
+  /** D'où vient le thème retenu : ce que le coach dit au client. */
+  from: "envie" | "theme" | "seance" | "defaut";
+}
+
+export function substituteCircuit(input: SubstituteInput): SubstituteResult | null {
+  const parEnvie = input.theme ? null : themeFromWish(input.wish);
+  const theme = input.theme ?? parEnvie ?? (input.session ? themeFromSession(input.session) : null);
+  const from: SubstituteResult["from"] = input.theme ? "theme" : parEnvie ? "envie" : input.session ? "seance" : "defaut";
+  const gear = input.gear ?? gearFromEquipment(input.equipment);
+  const pathologies = input.pathologies ?? [];
+  const template = bestCircuit({
+    theme: theme ?? undefined,
+    gear,
+    level: input.level,
+    pathologies,
+    // Sans pathologie déclarée, les sauts restent permis : c'est au client de
+    // demander autre chose, pas à nous de décider qu'il est fragile.
+    noImpact: false,
+  });
+  if (!template) return null;
+  return {
+    template,
+    circuit: renderCircuit(template, {
+      minutes: input.minutes,
+      level: input.level,
+      cycleIndex: input.cycleIndex,
+      locale: input.locale,
+    }),
+    from,
+  };
 }
