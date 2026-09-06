@@ -7,7 +7,7 @@ import { saveSession, type SetEntry } from "@/app/app/seance/actions";
 import { Button, Alert, MonoLabel } from "@/components/ui";
 import { ExerciseModal } from "@/components/exercise-modal";
 import { MuscleIllustration } from "@/components/muscle-illustration";
-import { matchLibraryExercise, libraryFrames } from "@/lib/exercise-library";
+import { matchLibraryExercise, framesOf } from "@/lib/exercise-library";
 import { isCardioExercise, cardioZone, formatRest, type HeartZone } from "@/lib/fitness";
 
 // Vignette illustrée d'un exercice (depuis la bibliothèque), cliquable pour
@@ -15,7 +15,7 @@ import { isCardioExercise, cardioZone, formatRest, type HeartZone } from "@/lib/
 function ExerciseThumb({ name, onOpen }: { name: string; onOpen: () => void }) {
   const lib = matchLibraryExercise(name);
   if (!lib) return null;
-  const src = lib.noPhoto ? null : libraryFrames(lib.key)[0];
+  const src = framesOf(lib)[0] ?? null;
   return (
     <button
       type="button"
