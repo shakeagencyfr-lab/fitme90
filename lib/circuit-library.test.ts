@@ -11,11 +11,17 @@ import {
   detectPathologies,
   filterCircuits,
   gearCovers,
+  gearFromEquipment,
+  pathologiesFromAnswers,
   renderCircuit,
+  substituteCircuit,
+  themeFromFamilies,
+  themeFromWish,
   type CircuitTemplate,
 } from "./circuit-library";
 import { circuitBudgetSec, circuitSeconds, isCircuitSession, WARMUP_MINUTES } from "./circuit";
 import { libraryEntry } from "./exercise-library";
+import type { Session } from "./program";
 import { equipmentSupports, traitsOf } from "./exercise-alternatives";
 
 /** Les durées de séance réellement proposées dans l'application. */
@@ -249,5 +255,128 @@ describe("circuitSummaries", () => {
     const genou = rows.find((r) => r.id === "menage-genou")!;
     expect(genou.safeFor).toEqual(["Genou sensible"]);
     expect(genou.gear).toBe("Sans matériel");
+  });
+});
+
+describe("pathologiesFromAnswers", () => {
+  it("lit les cases du questionnaire santé", () => {
+    expect(pathologiesFromAnswers({ patho1: ["Lombalgie", "Genou"], patho2: ["Hypertension"] })).toEqual([
+      "genou",
+      "dos",
+      "hypertension",
+    ]);
+    expect(pathologiesFromAnswers({ patho1: ["Aucune"], patho2: ["Aucune"] })).toEqual([]);
+    expect(pathologiesFromAnswers({ pregnancy: "Enceinte" })).toEqual(["grossesse"]);
+    expect(pathologiesFromAnswers(null)).toEqual([]);
+  });
+
+  it("lit aussi les contraintes déclarées au coach en cours de route", () => {
+    expect(pathologiesFromAnswers({ adaptations: ["Douleur à l'épaule droite depuis samedi"] })).toEqual(["epaule"]);
+  });
+
+  it("ignore les blessures passées déclarées guéries", () => {
+    expect(pathologiesFromAnswers({ past_injuries: "Entorse cheville en 2022" })).toEqual([]);
+  });
+});
+
+describe("gearFromEquipment", () => {
+  it("rend le palier le mieux servi par le matériel déclaré", () => {
+    expect(gearFromEquipment([])).toBe("aucun");
+    expect(gearFromEquipment(["poids-du-corps"])).toBe("aucun");
+    expect(gearFromEquipment(["poids-du-corps", "elastiques", "tapis-sol"])).toBe("elastiques");
+    expect(gearFromEquipment(["poids-du-corps", "halteres", "tapis-sol"])).toBe("halteres");
+    expect(gearFromEquipment(["poids-du-corps", "halteres", "elastiques", "banc-plat", "tapis-sol"])).toBe("hotel");
+  });
+
+  it("lit les noms que le client a cochés, pas seulement les clés", () => {
+    expect(gearFromEquipment(["Poids du corps", "Élastiques", "Tapis de sol"])).toBe("elastiques");
+    expect(gearFromEquipment(["Poids du corps", "Haltères", "Tapis de sol"])).toBe("halteres");
+  });
+
+  it("reconnaît une salle à ce qu'elle seule possède", () => {
+    expect(gearFromEquipment(["Haltères", "Presse à cuisses", "Poulie haute"])).toBe("salle");
+    expect(gearFromEquipment(["Barre olympique", "Rack à squat"])).toBe("salle");
+  });
+});
+
+describe("themeFromWish", () => {
+  it("reconnaît ce que le client demande, sans se tromper de thème proche", () => {
+    expect(themeFromWish("je veux un truc pour les fessiers")).toBe("fessiers");
+    expect(themeFromWish("un abs killer stp")).toBe("abdos");
+    expect(themeFromWish("j'ai envie de transpirer, du hiit")).toBe("cardio");
+    expect(themeFromWish("mal au dos, je veux bosser ma posture")).toBe("dos-posture");
+    expect(themeFromWish("haut du corps aujourd'hui")).toBe("haut-du-corps");
+    expect(themeFromWish("jour de jambes")).toBe("bas-du-corps");
+    expect(themeFromWish("something easy, stretching")).toBe("mobilite");
+  });
+  it("ne devine pas un thème dans une phrase qui n'en parle pas", () => {
+    expect(themeFromWish("je peux pas venir demain")).toBeNull();
+    expect(themeFromWish("")).toBeNull();
+    expect(themeFromWish(null)).toBeNull();
+  });
+});
+
+describe("themeFromFamilies", () => {
+  it("suit la dominante quand il y en a une", () => {
+    expect(themeFromFamilies(["quadriceps", "ischios", "fessiers", "mollets"])).toBe("bas-du-corps");
+    expect(themeFromFamilies(["abdos", "obliques", "abdos"])).toBe("abdos");
+    expect(themeFromFamilies(["pectoraux", "triceps", "epaules", "biceps"])).toBe("haut-du-corps");
+  });
+  it("rend corps entier quand la séance touche à tout", () => {
+    expect(themeFromFamilies(["quadriceps", "pectoraux", "abdos", "cardio"])).toBe("corps-entier");
+    expect(themeFromFamilies([])).toBe("corps-entier");
+  });
+});
+
+describe("substituteCircuit", () => {
+  const seanceJambes: Session = {
+    title: "Bas du corps",
+    exercises: [
+      { name: "Squat", key: "squat", sets: 4, reps: "8", load: "", note: "", rest: 120 },
+      { name: "Presse à cuisses", key: "presse-jambes", sets: 3, reps: "12", load: "", note: "", rest: 90 },
+      { name: "Leg curl assis", key: "leg-curl-assis", sets: 3, reps: "12", load: "", note: "", rest: 60 },
+      { name: "Extension des mollets debout", key: "mollets-debout", sets: 4, reps: "15", load: "", note: "", rest: 45 },
+    ],
+  } as Session;
+
+  const base = { equipment: ["poids-du-corps"], level: "intermediaire" as const, minutes: 45, cycleIndex: 1, locale: "fr" as const };
+
+  it("suit l'envie du client quand il en exprime une", () => {
+    const r = substituteCircuit({ ...base, session: seanceJambes, wish: "je veux du gainage et des abdos" })!;
+    expect(r.from).toBe("envie");
+    expect(r.template.theme).toBe("abdos");
+  });
+
+  it("suit la séance remplacée quand le client ne demande rien", () => {
+    const r = substituteCircuit({ ...base, session: seanceJambes })!;
+    expect(r.from).toBe("seance");
+    expect(r.template.theme).toBe("bas-du-corps");
+  });
+
+  it("respecte le matériel déclaré", () => {
+    const r = substituteCircuit({ ...base, equipment: ["poids-du-corps", "elastiques", "tapis-sol"], wish: "fessiers" })!;
+    expect(r.template.gear).toBe("elastiques");
+    const nu = substituteCircuit({ ...base, wish: "fessiers" })!;
+    expect(nu.template.gear).toBe("aucun");
+  });
+
+  it("écarte un circuit contre-indiqué, même quand le thème correspond", () => {
+    const r = substituteCircuit({ ...base, wish: "du hiit, je veux transpirer", pathologies: ["genou"] })!;
+    expect(r.template.avoid).not.toContain("genou");
+    expect(r.circuit.blocks.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("rend un circuit à la bonne durée, prêt à poser dans le plan", () => {
+    for (const minutes of DUREES) {
+      const r = substituteCircuit({ ...base, minutes, session: seanceJambes })!;
+      expect(Math.abs(r.circuit.minutes - minutes), `${minutes}`).toBeLessThanOrEqual(5);
+      expect(isCircuitSession({ format: "circuit", blocks: r.circuit.blocks })).toBe(true);
+    }
+  });
+
+  it("trouve toujours quelque chose, même sans séance ni envie", () => {
+    const r = substituteCircuit({ ...base })!;
+    expect(r.from).toBe("defaut");
+    expect(r.template).toBeTruthy();
   });
 });

@@ -21,6 +21,13 @@ import { missedDays } from "@/lib/streak";
 import { generateProgram, patchPlanForTrainDays, readAdaptations, type Plan, type Session, sessionSlotForDay, sessionForDay, replaceSessionInPlan, cycleSessions, cycleIndexForDay, setDayOverride, clearDayOverride, hasDayOverride, backupSession, hasSessionBackup, restoreSessionInPlan } from "@/lib/program";
 import { circuitFromSession, isRescueKind, RESCUE_EQUIPMENT } from "@/lib/rescue-circuit";
 import { WARMUP_MINUTES, circuitLevel, circuitSeconds, flattenBlocks, formatMinutes, sessionMinutes } from "@/lib/circuit";
+import {
+  CIRCUIT_THEMES,
+  pathologiesFromAnswers,
+  substituteCircuit,
+  type CircuitGear,
+  type CircuitTheme,
+} from "@/lib/circuit-library";
 import { coachAgenda, coachPlanView, logsDigest, type CoachLog, sessionLines } from "@/lib/coach-context";
 import { addMemoryNote, readMemory, renderMemory } from "@/lib/coach-memory";
 import { blockPosition } from "@/lib/block-logic";
@@ -483,7 +490,7 @@ S'il te demande quoi manger, pars de ce qui est déjà consommé et de ce qui re
     {
       name: "passer_en_circuit",
       description:
-        "Transforme une séance du programme en CIRCUIT dans l'app du client : des blocs d'exercices chronométrés qu'il enchaîne au chrono plein écran, avec signal sonore à chaque changement, sans charge ni RPE (on parle de sensations de 1 à 4). Utilise-le dès que le client demande un circuit, du HIIT, un format enchaîné, ou une séance sans matériel qu'il veut faire au chrono. Les exercices sont repris de sa séance du jour et remplacés par des mouvements praticables avec le matériel indiqué, en gardant les mêmes groupes musculaires : tu n'as ni à les inventer ni à les lister. RÈGLE ABSOLUE : n'annonce JAMAIS au client que sa séance est en circuit sans avoir appelé CET outil. Retirer des exercices avec modifier_seance ne fait pas un circuit, et le client verrait toujours ses cases de charge et de répétitions.",
+        "Pose un CIRCUIT sur une séance du programme, dans l'app du client : des blocs d'exercices chronométrés qu'il enchaîne au chrono plein écran, avec signal sonore à chaque changement, sans charge ni RPE (on parle de sensations de 1 à 4). Utilise-le dès que le client demande un circuit, du HIIT, un format enchaîné, un thème précis (« un truc pour les abdos », « du haut du corps », « des fessiers »), ou une séance sans matériel qu'il veut faire au chrono. Par défaut, l'outil PUISE DANS LA BIBLIOTHÈQUE de circuits déjà écrits : tu n'as ni à inventer les mouvements, ni à les lister, ni à choisir le circuit toi-même. Il choisit selon, dans l'ordre : le thème que tu passes, l'envie que le client vient d'exprimer (recopie-la dans `envie`), sinon la séance qu'on remplace. Il tient compte tout seul du matériel du client, de son niveau, de sa durée de séance et des zones sensibles qu'il a déclarées : un circuit contre-indiqué n'est jamais servi. RÈGLE ABSOLUE : n'annonce JAMAIS au client que sa séance est en circuit sans avoir appelé CET outil. Retirer des exercices avec modifier_seance ne fait pas un circuit, et le client verrait toujours ses cases de charge et de répétitions.",
       input_schema: {
         type: "object",
         properties: {
@@ -500,6 +507,22 @@ S'il te demande quoi manger, pars de ce qui est déjà consommé et de ce qui re
           duree_min: {
             type: "integer",
             description: "Durée visée de la séance en minutes (20 à 90). Absent = la durée habituelle de ses séances.",
+          },
+          theme: {
+            type: "string",
+            enum: [...CIRCUIT_THEMES],
+            description:
+              "Le thème du circuit, quand le client l'a demandé sans ambiguïté. Absent = déduit de `envie`, puis de la séance remplacée. Ne le force que si tu es sûr : la déduction est fiable.",
+          },
+          envie: {
+            type: "string",
+            description:
+              "Ce que le client vient d'écrire sur ce qu'il a envie de faire, dans SES mots (« j'ai envie de me défoncer sur les abdos », « un truc doux, j'ai mal partout »). Sert à choisir le bon circuit. Ne recopie ici que ce qu'il a vraiment dit, jamais ce que tu supposes.",
+          },
+          garder_mes_exercices: {
+            type: "boolean",
+            description:
+              "true = ne PAS piocher dans la bibliothèque, mais reprendre les exercices de sa séance du jour et les mettre au chrono. À n'utiliser que s'il demande explicitement de garder SA séance (« la même chose mais au chrono »). Défaut false.",
           },
           portee: {
             type: "string",
@@ -681,7 +704,15 @@ S'il te demande quoi manger, pars de ce qui est déjà consommé et de ce qui re
     return v === "jour" || v === "cycle" ? v : defaut;
   }
 
-  async function runCircuit(input: { jour_programme?: unknown; materiel?: unknown; duree_min?: unknown; portee?: unknown }): Promise<string> {
+  async function runCircuit(input: {
+    jour_programme?: unknown;
+    materiel?: unknown;
+    duree_min?: unknown;
+    portee?: unknown;
+    theme?: unknown;
+    envie?: unknown;
+    garder_mes_exercices?: unknown;
+  }): Promise<string> {
     const day = typeof input.jour_programme === "number" && Number.isFinite(input.jour_programme)
       ? Math.max(1, Math.min(ctx!.access.programDays, Math.trunc(input.jour_programme)))
       : Math.max(1, ctx!.access.day);
@@ -723,20 +754,56 @@ S'il te demande quoi manger, pars de ce qui est déjà consommé et de ce qui re
     const minutes = typeof input.duree_min === "number" && Number.isFinite(input.duree_min)
       ? Math.max(20, Math.min(90, Math.trunc(input.duree_min)))
       : sessionMinutes(quiz?.answers?.dur);
-    const built = circuitFromSession({
-      session: current,
-      equipment: equipement,
-      level: circuitLevel(quiz?.answers?.level),
-      minutes,
-      cycleIndex: cycleIndexForDay(day, prog.plan.cycles?.length || 3),
-      locale,
-    });
+    const level = circuitLevel(quiz?.answers?.level);
+    const cycleIndex = cycleIndexForDay(day, prog.plan.cycles?.length || 3);
+
+    // Par défaut on PUISE DANS LA BIBLIOTHÈQUE : ces circuits sont écrits à
+    // l'avance, tiennent honnêtement la durée demandée, et respectent les
+    // zones sensibles déclarées. La conversion de la séance existante reste
+    // possible, mais seulement si le client demande de garder SES exercices.
+    const garder = input.garder_mes_exercices === true;
+    const themeImpose = CIRCUIT_THEMES.includes(input.theme as CircuitTheme) ? (input.theme as CircuitTheme) : null;
+    const envie = typeof input.envie === "string" ? input.envie.slice(0, 300) : null;
+    // Un palier de matériel imposé par la situation l'emporte sur ce qui est
+    // déclaré : en voyage, le client n'a pas sa salle avec lui.
+    const gearImpose: CircuitGear | null =
+      situation === "aucun" ? "aucun" : situation === "hotel" ? "hotel" : situation === "halteres" ? "halteres" : null;
+    const pathologies = pathologiesFromAnswers(quiz?.answers);
+
+    const choisi = garder
+      ? null
+      : substituteCircuit({
+          session: current,
+          wish: envie,
+          theme: themeImpose,
+          equipment: equipement,
+          gear: gearImpose,
+          pathologies,
+          level,
+          minutes,
+          cycleIndex,
+          locale,
+        });
+
+    const built = choisi
+      ? { blocks: choisi.circuit.blocks, warmup: choisi.circuit.warmup, dropped: [] as string[] }
+      : circuitFromSession({
+          session: current,
+          equipment: equipement,
+          level,
+          minutes,
+          cycleIndex,
+          locale,
+        });
     if (!built.blocks.length) {
       return "Impossible de construire un circuit à partir de cette séance avec ce matériel. Propose au client de garder ses séries, ou demande-lui ce dont il dispose vraiment.";
     }
 
     const enCircuit: Session = {
       ...current,
+      // Un circuit de la bibliothèque porte SON titre : le client doit lire
+      // « Abs killer » sur sa journée, pas le nom de la séance remplacée.
+      ...(choisi ? { title: choisi.circuit.title } : {}),
       format: "circuit",
       restSec: 0,
       warmup: built.warmup,
@@ -771,9 +838,25 @@ S'il te demande quoi manger, pars de ce qui est déjà consommé et de ce qui re
       reel < minutes - 4
         ? ` ATTENTION : la séance ne fait que ${formatMinutes(totalSec)} et non ${minutes} minutes, faute d'assez de mouvements praticables avec ce matériel. Annonce ${formatMinutes(totalSec)} au client, pas ${minutes} minutes.`
         : "";
-    return `Séance « ${current.title} » (jour ${day}) passée EN CIRCUIT dans l'app, ${etendue} Contenu : ${resume}. Durée totale ${formatMinutes(totalSec)}, échauffement compris.${ecart}${
+    // D'où vient le circuit : le coach le dit au client, parce que « j'ai pris
+    // le circuit fessiers parce que tu m'as dit ça » vaut mieux qu'un contenu
+    // qui tombe du ciel.
+    const origine = choisi
+      ? ` Circuit choisi dans la bibliothèque : « ${choisi.circuit.title} » (${choisi.circuit.goal})${
+          choisi.from === "envie"
+            ? ", d'après ce que le client vient de demander"
+            : choisi.from === "seance"
+              ? `, pour rester sur le même travail que sa séance « ${current.title} »`
+              : ""
+        }.${
+          pathologies.length
+            ? ` Zones ménagées d'après son questionnaire : ${pathologies.join(", ")}. Aucun circuit qui les sollicite ne lui est proposé, ce n'est pas la peine de le lui redemander.`
+            : ""
+        }`
+      : " Circuit construit à partir de ses propres exercices, comme il l'a demandé.";
+    return `Séance du jour ${day} passée EN CIRCUIT dans l'app, ${etendue}${origine} Contenu : ${resume}. Durée totale ${formatMinutes(totalSec)}, échauffement compris.${ecart}${
       built.dropped.length ? ` Sans équivalent avec ce matériel, donc retirés : ${built.dropped.join(", ")}.` : ""
-    } Le client la lance depuis sa fiche séance : le chrono enchaîne les blocs tout seul, avec un signal sonore à chaque changement, et il note une sensation de 1 à 4 par bloc au lieu d'une charge. Dis-lui la portée exacte du changement, sans lui redonner la liste complète.`;
+    } Le client la lance depuis sa fiche séance : le chrono enchaîne les blocs tout seul, avec un signal sonore à chaque changement, et il note une sensation de 1 à 4 par bloc au lieu d'une charge. Annonce-lui le nom du circuit, à quoi il sert, sa durée et la portée exacte du changement, sans lui redonner la liste complète des mouvements.`;
   }
 
   /**
