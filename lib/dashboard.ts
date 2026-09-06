@@ -5,6 +5,9 @@ import { listChildTenants } from "@/lib/hierarchy";
 import { tenantMonthlyAiUsage, resellerMonthlyAiUsage } from "@/lib/ai-cost";
 import { getWallet } from "@/lib/credits";
 import { costViewOf, resellerRights, type CostView } from "@/lib/cost-view";
+import { bookingFigures, type BookingFigures } from "@/lib/booking-summary";
+import { bookingSpace } from "@/lib/booking";
+import { listTenantAgenda } from "@/lib/booking-appointments";
 import { tenantOrders } from "@/lib/orders";
 import {
   lastMonths,
@@ -65,6 +68,14 @@ export interface CoachDashboard {
     /** Ce que ce compte a le droit de voir : dollars, crédits, ou rien. */
     view: CostView;
   };
+  /**
+   * Les rendez-vous en présentiel, quand le pack réservation tourne.
+   *
+   * null quand il ne tourne pas : un coach qui ne vend pas de présentiel ne
+   * doit pas lire une rangée de zéros qui lui reprocherait un métier qui
+   * n'est pas le sien.
+   */
+  booking: (BookingFigures & { window: number }) | null;
 }
 
 type ProfileRow = {
@@ -119,7 +130,10 @@ export async function coachDashboard(tenantId: string, now: Date = new Date()): 
   const thisMonth = months[months.length - 1];
   const prevMonth = months[months.length - 2];
 
-  const [{ data: profiles }, { data: offers }, { data: prospects }, capacity, ai, wallet, orders, view] = await Promise.all([
+  // Fenêtre des rendez-vous lus pour les chiffres : les 90 derniers jours pour
+  // le réalisé, un an devant pour ce qui est déjà posé.
+  const BOOKING_WINDOW_DAYS = 90;
+  const [{ data: profiles }, { data: offers }, { data: prospects }, capacity, ai, wallet, orders, view, space] = await Promise.all([
     admin
       .from("profiles")
       .select("created_at, paid, selected_offer_id, selected_interval, subscription_interval, subscription_status, subscription_id")
@@ -137,6 +151,7 @@ export async function coachDashboard(tenantId: string, now: Date = new Date()): 
     getWallet(tenantId),
     tenantOrders(tenantId),
     costViewOf(tenantId),
+    bookingSpace(tenantId),
   ]);
 
   const rows = toSaleRows(profiles ?? [], offers ?? []);
@@ -203,6 +218,19 @@ export async function coachDashboard(tenantId: string, now: Date = new Date()): 
       creditsSpent: ai.credits,
       view,
     },
+    booking: space.open
+      ? {
+          ...bookingFigures(
+            await listTenantAgenda(
+              tenantId,
+              new Date(now.getTime() - BOOKING_WINDOW_DAYS * 86400000),
+              new Date(now.getTime() + 365 * 86400000),
+            ),
+            now,
+          ),
+          window: BOOKING_WINDOW_DAYS,
+        }
+      : null,
   };
 }
 
