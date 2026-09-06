@@ -134,9 +134,14 @@ describe("pickAlternative", () => {
   });
 
   it("écarte tout ce qui est déjà dans la séance", () => {
-    const seance = ["Développé couché", "Pompes", "Dips"];
-    const alt = pickAlternative({ name: "Développé couché", equipment: MAISON, avoid: seance });
-    // Rien d'autre en pectoraux au poids du corps : mieux vaut rien qu'un doublon.
+    // Toute la poussée horizontale au poids du corps est déjà dans la séance :
+    // mieux vaut rien qu'un doublon.
+    const seance = EXERCISE_LIBRARY.filter((e) => {
+      const t = EXERCISE_TRAITS[e.key];
+      return t.familles.includes("pectoraux") && t.besoin.length === 0;
+    }).map((e) => e.name);
+    expect(seance.length).toBeGreaterThan(3);
+    const alt = pickAlternative({ name: "Développé couché", equipment: MAISON, avoid: ["Développé couché", ...seance] });
     expect(alt).toBeNull();
   });
 
@@ -243,7 +248,6 @@ describe("exercisesForEquipment", () => {
   const SANS_EXERCICE: Record<string, string> = {
     "poids-du-corps": "c'est l'absence de matériel, par définition",
     "tapis-sol": "il rend le sol supportable, il n'ouvre aucun mouvement",
-    "mollets-debout": "la version debout se fait déjà sur une marche : la machine la charge, elle ne l'invente pas",
   };
 
   it("chaque machine du catalogue débloque au moins un exercice", () => {

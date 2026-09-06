@@ -31,6 +31,7 @@ export const EQUIPMENT_FAMILIES = [
   "élastiques",
   "TRX / sangles de suspension",
   "medecine ball / slam ball",
+  "ballon de gym (swiss ball)",
   "tapis de course",
   "vélo / vélo assault",
   "rameur",
