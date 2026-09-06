@@ -14,6 +14,7 @@ import {
   timeline,
   timelineSeconds,
   trimToBudget,
+  fillToBudget,
   type CircuitBlock,
 } from "./circuit";
 
@@ -112,6 +113,18 @@ describe("durées", () => {
     expect(apres.every((b) => b.exercises.length === 3)).toBe(true);
     // Jamais sous deux tours : un budget impossible laisse les blocs entiers.
     expect(trimToBudget(blocs, 10).every((b) => b.rounds >= 2)).toBe(true);
+  });
+
+  it("ajoute des tours quand la séance est bien plus courte que le temps disponible", () => {
+    const un = [bloc({ rounds: 2 })];
+    const rempli = fillToBudget(un, 30 * 60);
+    expect(rempli[0].rounds).toBeGreaterThan(2);
+    expect(circuitSeconds(rempli)).toBeLessThanOrEqual(30 * 60);
+    // Jamais au-delà du plafond de tours, ni au-delà du budget.
+    expect(fillToBudget(un, 10 * 3600)[0].rounds).toBe(6);
+    const serre = fillToBudget([bloc({ rounds: 3 })], 60);
+    expect(serre[0].rounds).toBe(3);
+    expect(fillToBudget([], 3600)).toEqual([]);
   });
 });
 
