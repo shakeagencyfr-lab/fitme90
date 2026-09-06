@@ -481,7 +481,13 @@ export function CircuitRunner({
   const nextIsNewBlock = step?.kind === "work" && step.nextBlock >= 0 && step.nextBlock !== step.block;
   const bigEntry = step ? (step.kind === "work" ? blocks[step.block]?.exercises[step.exercise] : blocks[step.nextBlock]?.exercises[step.nextExercise]) : undefined;
   const bigLib = bigEntry ? libEntry(bigEntry.name, bigEntry.key) : null;
-  const bigSrc = bigLib ? framesOf(bigLib)[0] ?? null : null;
+  const bigFrames = useMemo(() => (bigLib ? framesOf(bigLib) : []), [bigLib]);
+  // Va-et-vient entre les deux images de la fiche (départ, arrivée) : c'est ce
+  // qui montre le mouvement. Le tic du chrono suffit à cadencer l'alternance,
+  // et comme elle se lit sur le temps écoulé de l'étape, chaque exercice repart
+  // de sa première image.
+  const frame = step ? step.seconds - remaining : 0;
+  const bigSrc = bigFrames.length ? bigFrames[Math.max(0, frame) % bigFrames.length] ?? null : null;
 
   const R = 54;
   const C = 2 * Math.PI * R;
@@ -637,46 +643,56 @@ export function CircuitRunner({
             </div>
           </div>
 
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-            <div className={["font-mono text-[13px] uppercase tracking-[0.18em]", isWork ? "text-brand" : "text-white/70"].join(" ")}>
-              {phaseLabel(step)}
-            </div>
+          {/* Une colonne sur mobile, deux dès qu'il y a de la largeur : le
+              chrono d'un côté, le mouvement de l'autre, aussi grand que
+              possible. Sur un ordinateur, l'ancienne vignette de 64 px se
+              perdait au milieu d'un écran vide. */}
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center nav:flex-row nav:gap-12 nav:px-10">
+            <div className="flex flex-col items-center gap-3 nav:shrink-0">
+              <div className={["font-mono text-[13px] uppercase tracking-[0.18em]", isWork ? "text-brand" : "text-white/70"].join(" ")}>
+                {phaseLabel(step)}
+              </div>
 
-            <div className="relative flex items-center justify-center">
-              <svg viewBox="0 0 120 120" className="size-[min(62vw,300px)] -rotate-90" aria-hidden>
-                <circle cx="60" cy="60" r={R} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="6" />
-                <circle
-                  cx="60"
-                  cy="60"
-                  r={R}
-                  fill="none"
-                  stroke={isWork ? "var(--color-brand)" : "rgba(255,255,255,0.85)"}
-                  strokeWidth="6"
-                  strokeLinecap="round"
-                  strokeDasharray={C}
-                  strokeDashoffset={C * (1 - ringPct)}
-                  style={{ transition: "stroke-dashoffset 200ms linear" }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-archivo font-extrabold text-[clamp(56px,18vw,96px)] leading-none tabular-nums tracking-[-0.04em]">
-                  {remaining}
-                </span>
-                <span className="mt-1 font-mono text-[11px] uppercase tracking-[0.12em] text-white/50">s</span>
+              <div className="relative flex items-center justify-center">
+                <svg viewBox="0 0 120 120" className="size-[min(52vw,26vh,240px)] -rotate-90 nav:size-[min(30vw,34vh,300px)]" aria-hidden>
+                  <circle cx="60" cy="60" r={R} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="6" />
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r={R}
+                    fill="none"
+                    stroke={isWork ? "var(--color-brand)" : "rgba(255,255,255,0.85)"}
+                    strokeWidth="6"
+                    strokeLinecap="round"
+                    strokeDasharray={C}
+                    strokeDashoffset={C * (1 - ringPct)}
+                    style={{ transition: "stroke-dashoffset 200ms linear" }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="font-archivo font-extrabold text-[clamp(48px,15vw,88px)] leading-none tabular-nums tracking-[-0.04em]">
+                    {remaining}
+                  </span>
+                  <span className="mt-1 font-mono text-[11px] uppercase tracking-[0.12em] text-white/50">s</span>
+                </div>
               </div>
             </div>
 
-            <div className="flex w-full max-w-[420px] flex-col items-center gap-2">
+            <div className="flex w-full max-w-[420px] flex-col items-center gap-2 nav:max-w-[520px]">
               {!isWork ? <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-white/60">{step.nextBlock >= 0 && step.nextBlock !== step.block ? t("circuit.nextBlock") : t("circuit.next")}</span> : null}
-              <div className="flex items-center gap-3">
-                {bigSrc ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={bigSrc} alt="" className="size-16 shrink-0 rounded-control object-cover ring-1 ring-white/15" />
-                ) : null}
-                <h2 className="font-archivo font-extrabold text-[clamp(22px,6vw,32px)] leading-[1.08] tracking-[-0.02em]" style={{ textWrap: "balance" }}>
-                  {bigName}
-                </h2>
-              </div>
+              {bigSrc ? (
+                // Le mouvement, en grand : c'est ce qu'on regarde à deux mètres
+                // du téléphone, ou depuis l'autre bout d'une pièce.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={bigSrc}
+                  alt=""
+                  className="aspect-square w-[min(62vw,34vh,260px)] rounded-[18px] object-cover ring-1 ring-white/15 nav:w-[min(34vw,48vh,440px)]"
+                />
+              ) : null}
+              <h2 className="font-archivo font-extrabold text-[clamp(22px,6vw,32px)] leading-[1.08] tracking-[-0.02em]" style={{ textWrap: "balance" }}>
+                {bigName}
+              </h2>
               {isWork && bigEntry?.note ? <p className="text-[14px] leading-[1.5] text-white/70">{bigEntry.note}</p> : null}
               {isWork && nextName ? (
                 <p className="mt-1 text-[13px] text-white/55">
