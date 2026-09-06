@@ -23,6 +23,7 @@
 // l'affichage : une seule définition, pas trois façons de dire la même chose.
 
 import { asLocale, pick, type LocalText } from "@/lib/i18n";
+import { FORMULAS_DE } from "@/lib/i18n/pack-de";
 export type OfferFormula = "mini" | "max";
 
 export const OFFER_FORMULAS: readonly OfferFormula[] = ["mini", "max"] as const;
@@ -87,6 +88,7 @@ const COPY: LocalText<Record<OfferFormula, FormulaCopy>> = {
       fit: "Ideal for a program sold at a higher price with VIP follow-up.",
     },
   },
+  de: FORMULAS_DE,
 };
 
 export function formulaCopy(formula: OfferFormula, locale: string): FormulaCopy {

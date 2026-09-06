@@ -3,6 +3,7 @@ import { programDaysForMonths, monthlyEquivalentCents } from "@/lib/config";
 import { productCopy } from "@/lib/i18n/products";
 import type { Offer } from "@/lib/offers";
 import { S } from "@/components/landing-icons";
+import { DE, GYM_DE } from "./coach-copy-de";
 
 // Tous les textes des landings pro->client (onyx, lumen, volt, sage) dans les
 // deux langues. Les templates ne diffèrent que par le DESIGN : ils lisent ce
@@ -66,7 +67,7 @@ export function offerCardCopy(offer: Offer, offers: Offer[], t: TFn): OfferCardC
   return { eyebrow, pitch: product?.pitch ?? null, bullets, perMonthCents, featured };
 }
 
-interface Feature { title: string; body: string }
+export interface Feature { title: string; body: string }
 type IconFeature = Feature & { icon: (typeof S)[keyof typeof S] };
 const FEATURE_ICONS = [S.dumbbell, S.camera, S.shield, S.ai, S.heart, S.grid, S.timer, S.chat];
 interface Step { k: string; title: string; body: string }
@@ -442,7 +443,7 @@ const EN: Omit<LandingCopy, "features"> & { features: Feature[] } = {
 //
 // Seules les clés qui changent sont redéfinies ; le reste vient du socle.
 // ─────────────────────────────────────────────────────────────
-type Overrides = Partial<Omit<LandingCopy, "features">> & { features?: Feature[] };
+export type Overrides = Partial<Omit<LandingCopy, "features">> & { features?: Feature[] };
 
 const GYM_FR: Overrides = {
   testimonialsTitle: "Ce qu'en disent ses adhérents",
@@ -596,8 +597,8 @@ const GYM_EN: Overrides = {
   giftBody: "Gift coaching to someone: you pay, they receive a code to use freely.",
 };
 
-const BASES: LocalText<typeof FR> = { fr: FR, en: EN };
-const GYMS: LocalText<Overrides> = { fr: GYM_FR, en: GYM_EN };
+const BASES: LocalText<typeof FR> = { fr: FR, en: EN, de: DE };
+const GYMS: LocalText<Overrides> = { fr: GYM_FR, en: GYM_EN, de: GYM_DE };
 
 export function landingCopy(locale: Locale, audience: Audience = "coach"): LandingCopy {
   const base = pick(BASES, locale);

@@ -18,6 +18,7 @@
 // Module PUR : testable à sec, aucune dépendance serveur.
 
 import { pick, translate, type Locale, type LocalText } from "@/lib/i18n";
+import { RESCUE_WARMUP_DE } from "@/lib/i18n/pack-de";
 import type { Session } from "@/lib/program";
 import { libraryEntry, type LibraryExercise } from "@/lib/exercise-library";
 import { equipmentSupports, pickAlternative, traitsOf } from "@/lib/exercise-alternatives";
@@ -313,6 +314,7 @@ const WARMUP: LocalText<{ name: string; detail: string }[]> = {
     { name: "Mobility", detail: "Arm circles 10 each way, hip rotations 8 each way, 10 bodyweight squats, 6 reverse lunges per leg." },
     { name: "Activation", detail: "One round of the first block at half speed, to set your stance and your breathing." },
   ],
+  de: RESCUE_WARMUP_DE,
 };
 
 /**
