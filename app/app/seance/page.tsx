@@ -2,7 +2,7 @@ import Link from "next/link";
 import { loadEspaceOrRedirect } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import { restPattern, isRestDay, startWeekday, dateOfProgramDay } from "@/lib/schedule";
-import { sessionForDay, warmupSteps, cycleIndexForDay } from "@/lib/program";
+import { sessionForDay, warmupSteps, cycleIndexForDay, hasDayOverride } from "@/lib/program";
 import { Card, MonoLabel } from "@/components/ui";
 import { SessionRunner, type Exercise } from "@/components/session-runner";
 import { CoachLoadSuggestion } from "@/components/coach-loads";
@@ -201,6 +201,14 @@ export default async function SeancePage({
           <DepannageButton day={day} coachEnabled={ctx.access.coachEnabled} />
         </div>
       </header>
+
+      {/* Séance à part posée avec le coach pour ce jour : le client doit
+          savoir que son programme, lui, n'a pas changé. */}
+      {!depannage && hasDayOverride(plan, day) ? (
+        <div className="rounded-card border border-line bg-surface-2 px-4 py-3 text-[13px] leading-[1.6] text-muted">
+          {t("session.dayOverride")}
+        </div>
+      ) : null}
 
       {depannage ? (
         <RescueBanner
