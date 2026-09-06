@@ -62,6 +62,13 @@ export function partsPour(repas: readonly Repas[]): Record<string, number> {
 
 // ───────────────────────────────────────────────────────── mise à l'échelle
 
+/**
+ * Marge tolérée sur une macro qu'une ancre déborde en servant la sienne.
+ * 5 % : de quoi ne pas bloquer sur un arrondi, pas de quoi laisser passer un
+ * dépassement que le client verrait dans son total du jour.
+ */
+const TOLERANCE_MACRO = 1.05;
+
 /** Bornes par défaut d'un ingrédient ajustable : de 40 % à 250 % de la base. */
 function bornes(ing: Ingredient): [number, number] {
   return [ing.min ?? Math.round(ing.qty * 0.4), ing.max ?? Math.round(ing.qty * 2.5)];
@@ -152,9 +159,49 @@ export function scaleRecipe(tpl: RecipeTemplate, cible: Macros): ScaledRecipe {
           .map((i) => apport(FOODS[i.food], qty.get(i.food) ?? i.qty)),
       );
       const besoin = cible[macro] - autres[macro];
+      let vise = besoin / parGramme;
+
+      // UNE ANCRE NE DÉFONCE PAS LES AUTRES MACROS POUR SATISFAIRE LA SIENNE.
+      //
+      // Sans cette borne, une source de protéines qui porte aussi beaucoup de
+      // glucides (pois chiches, fèves, lentilles corail) était montée jusqu'à
+      // atteindre la cible de protéines et déversait au passage 50 g de
+      // glucides en trop, soit 200 kcal. Le repas dépassait sa cible, et comme
+      // l'ancre saturait sa borne haute, il sortait IDENTIQUE un jour de repos
+      // et un jour d'entraînement : le client voyait un jour de repos plus
+      // calorique que son jour de séance, ce qui n'a aucun sens.
+      //
+      // Le compromis est assumé : mieux vaut manquer quelques grammes de
+      // protéines que dépasser la cible calorique du jour. La recette qui ne
+      // peut pas atteindre la cible sans la faire exploser n'est de toute
+      // façon pas la bonne pour ce client : c'est `menuForDay` qui l'écarte.
+      // Le plancher, c'est ce que le reste de la recette apporte AU MINIMUM :
+      // les ingrédients fixes à leur quantité écrite, les autres ancres à leur
+      // borne basse, puisqu'elles peuvent encore descendre pour faire de la
+      // place. Se borner contre leur valeur courante bloquerait tout le monde
+      // au premier tour, avant même que quiconque ait eu l'occasion de céder.
+      const plancher = somme(
+        tpl.ingredients
+          .filter((i) => i.food !== ancre.food)
+          .map((i) => apport(FOODS[i.food], i.role ? bornes(i)[0] : (qty.get(i.food) ?? i.qty))),
+      );
+      for (const autre of ["p", "c", "f"] as const) {
+        if (autre === macro) continue;
+        const parGrammeAutre = food[autre] / 100;
+        if (parGrammeAutre <= 0) continue;
+        vise = Math.min(vise, (cible[autre] * TOLERANCE_MACRO - plancher[autre]) / parGrammeAutre);
+      }
+
       const [min, max] = bornes(ancre);
-      const brut = Math.min(max, Math.max(min, besoin / parGramme));
-      qty.set(ancre.food, Math.min(max, Math.max(min, arrondi(brut, pas(food, role)))));
+      const brut = Math.min(max, Math.max(min, vise));
+      const step = pas(food, role);
+      let g = Math.min(max, Math.max(min, arrondi(brut, step)));
+      // L'arrondi va au plus proche : sur un aliment qui se compte, il peut
+      // repasser AU-DESSUS du garde-fou qu'on vient de calculer (un deuxième
+      // œuf entier là où il n'y avait la place que pour un et demi). On
+      // redescend d'un cran quand c'est le cas, sans passer sous la borne.
+      if (g > vise && g - step >= min) g -= step;
+      qty.set(ancre.food, g);
     }
   }
 
@@ -318,6 +365,48 @@ export function poolServable(repas: Repas, profil: Profil): RecipeTemplate[] {
  */
 const ROTATION = 15;
 
+/**
+ * À quel point une recette mise à l'échelle rate la cible du repas.
+ *
+ * Les calories ET les protéines comptent : un bol de pois chiches peut bien
+ * atteindre les calories d'un déjeuner, il ne portera jamais ses 56 g de
+ * protéines sans devenir immangeable. Le servir quand même donnerait une
+ * journée à 70 g de protéines sur 115 annoncés, et le tableau de bord
+ * mentirait. Mieux vaut le proposer aux clients dont la cible lui correspond.
+ */
+function ecartCible(r: ScaledRecipe, cible: Macros): number {
+  return (
+    Math.abs(r.macros.kcal - cible.kcal) / Math.max(1, cible.kcal) +
+    Math.abs(r.macros.p - cible.p) / Math.max(1, cible.p)
+  );
+}
+
+/** Au-delà, la recette ne convient pas à cette cible : on l'écarte. */
+const ECART_MAX = 0.3;
+
+/** On garde toujours ce nombre de candidats, même si aucun n'est parfait. */
+const CANDIDATS_MIN = 6;
+
+/**
+ * Les recettes du pool qui tombent sur la cible, dans l'ordre des goûts.
+ * Si aucune n'y tombe, on garde les moins mauvaises : un repas approximatif
+ * vaut mieux qu'un repas absent.
+ */
+function candidatsPourCible(pool: RecipeTemplate[], cible: Macros): RecipeTemplate[] {
+  const notes = pool.map((tpl, rang) => ({ tpl, rang, ecart: ecartCible(scaleRecipe(tpl, cible), cible) }));
+  const bons = notes.filter((n) => n.ecart <= ECART_MAX);
+  if (bons.length >= CANDIDATS_MIN) return bons.map((n) => n.tpl);
+  // Cible hors d'atteinte pour tout le monde : on garde les moins mauvaises,
+  // puis on REMET l'ordre des goûts. Trier sur l'écart jusqu'au bout ferait
+  // passer les préférences du client à la trappe au moment précis où il n'y a
+  // déjà pas grand-chose à lui proposer.
+  return [...notes]
+    .sort((a, b) => a.ecart - b.ecart)
+    .slice(0, CANDIDATS_MIN)
+    .sort((a, b) => a.rang - b.rang)
+    .map((n) => n.tpl);
+}
+
 /** Décalage propre à chaque repas, pour que les créneaux ne tournent pas en bloc. */
 const DECALAGE: Record<Repas, number> = {
   "petit-dejeuner": 0,
@@ -353,21 +442,21 @@ export function menuForDay(plan: MenuDuJour): ScaledRecipe[] {
   // recette suivante de la rotation, sinon le client verrait deux fois la même.
   const rang = new Map<Repas, number>();
   for (const repas of plan.repas) {
-    const pool = poolServable(repas, plan.profil);
-    if (pool.length === 0) continue;
+    const servables = poolServable(repas, plan.profil);
+    if (servables.length === 0) continue;
+    const part = parts[repas] ?? 0;
+    const cible = {
+      kcal: plan.macros.kcal * part,
+      p: plan.macros.p * part,
+      c: plan.macros.c * part,
+      f: plan.macros.f * part,
+    };
+    const pool = candidatsPourCible(servables, cible);
     const n = rang.get(repas) ?? 0;
     rang.set(repas, n + 1);
     const fenetre = Math.min(pool.length, ROTATION);
     const i = (((plan.jour - 1 + DECALAGE[repas] + n) % fenetre) + fenetre) % fenetre;
-    const part = parts[repas] ?? 0;
-    out.push(
-      scaleRecipe(pool[i], {
-        kcal: plan.macros.kcal * part,
-        p: plan.macros.p * part,
-        c: plan.macros.c * part,
-        f: plan.macros.f * part,
-      }),
-    );
+    out.push(scaleRecipe(pool[i], cible));
   }
   return out;
 }
@@ -430,21 +519,20 @@ export function buildMenu(plan: PlanRepas): ScaledRecipe[] {
   const out: ScaledRecipe[] = [];
 
   for (const repas of plan.repas) {
-    const trie = poolServable(repas, plan.profil).filter((r) => !deja.has(r.id));
-    if (trie.length === 0) continue;
+    const part = parts[repas] ?? 0;
+    const cible = {
+      kcal: plan.jour.kcal * part,
+      p: plan.jour.p * part,
+      c: plan.jour.c * part,
+      f: plan.jour.f * part,
+    };
+    const servables = poolServable(repas, plan.profil).filter((r) => !deja.has(r.id));
+    if (servables.length === 0) continue;
+    const trie = candidatsPourCible(servables, cible);
     // On saute ce qui vient d'être servi, SAUF si tout l'est : le client aura
     // alors la meilleure recette plutôt qu'un repas vide.
     const choix = trie.find((r) => !exclus.has(r.id)) ?? trie[0];
-
-    const part = parts[repas] ?? 0;
-    out.push(
-      scaleRecipe(choix, {
-        kcal: plan.jour.kcal * part,
-        p: plan.jour.p * part,
-        c: plan.jour.c * part,
-        f: plan.jour.f * part,
-      }),
-    );
+    out.push(scaleRecipe(choix, cible));
     deja.add(choix.id);
   }
   return out;
