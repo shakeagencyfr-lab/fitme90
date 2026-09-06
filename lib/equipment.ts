@@ -54,9 +54,9 @@ export type EquipConfidence = "high" | "medium" | "low";
  */
 export function confidenceLabel(c: string | null | undefined, locale: Locale): string | null {
   const map: Record<EquipConfidence, LocalText> = {
-    high: { fr: "sûr", en: "confident" },
-    medium: { fr: "probable", en: "likely" },
-    low: { fr: "incertain", en: "unsure" },
+    high: { fr: "sûr", en: "confident", de: "sicher" },
+    medium: { fr: "probable", en: "likely", de: "wahrscheinlich" },
+    low: { fr: "incertain", en: "unsure", de: "unsicher" },
   };
   const key = (c ?? "").toLowerCase();
   // Tolère les anciennes lignes déjà enregistrées en français.

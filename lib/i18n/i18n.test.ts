@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { translate, localeFromAcceptLanguage, asLocale, localeFromLabel, translatePhrase, DICTS, LIVE_LOCALES, LOCALES } from "./index";
+import { PHRASES_EN } from "./phrases-en";
+import { PHRASES_DE } from "./phrases-de";
 
 describe("i18n", () => {
   it("interpolates variables and falls back to French", () => {
@@ -42,5 +44,12 @@ describe("i18n", () => {
     expect(translatePhrase("fr", "Chat avec mes clients")).toBe("Chat avec mes clients");
     expect(translatePhrase("en", "Chat avec mes clients")).toBe("Chat with my clients");
     expect(translatePhrase("de", "Chat avec mes clients")).not.toBe("Chat avec mes clients");
+  });
+
+  it("translates every dashboard phrase in German", () => {
+    const missing = Object.keys(PHRASES_EN).filter((k) => !(k in PHRASES_DE));
+    expect(missing).toEqual([]);
+    expect(translate("de", "nav.program")).toBe("Programm");
+    expect(translatePhrase("de", "Clients")).toBe("Kunden");
   });
 });

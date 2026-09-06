@@ -1,4 +1,5 @@
 import { pick, type Locale, type LocalText } from "@/lib/i18n";
+import { DE } from "./site-copy-de";
 import type { PublicSite } from "@/lib/site";
 import type { Audience } from "@/components/landing-templates/coach-copy";
 
@@ -165,7 +166,7 @@ const EN = (audience: Audience): SiteCopy => ({
   legal: "Legal notice",
 });
 
-const COPIES: LocalText<(audience: Audience) => SiteCopy> = { fr: FR, en: EN };
+const COPIES: LocalText<(audience: Audience) => SiteCopy> = { fr: FR, en: EN, de: DE };
 
 export function siteCopy(locale: Locale, audience: Audience): SiteCopy {
   return pick(COPIES, locale)(audience);

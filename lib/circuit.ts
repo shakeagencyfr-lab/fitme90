@@ -12,6 +12,7 @@
 // Rien ici ne touche le réseau ni l'écran, tout se teste à sec.
 
 import { pick, type Locale, type LocalText } from "@/lib/i18n";
+import { SENSATIONS_DE, SENSATION_INTRO_DE } from "@/lib/i18n/pack-de";
 import type { PlanExercise, Session } from "@/lib/program";
 import { matchEquipment } from "@/lib/equipment-catalog";
 
@@ -174,6 +175,7 @@ const SENSATION_INTRO_EN =
 const SENSATION_SCALES: LocalText<{ intro: string; steps: SensationStep[] }> = {
   fr: { intro: SENSATION_INTRO_FR, steps: SENSATIONS_FR },
   en: { intro: SENSATION_INTRO_EN, steps: SENSATIONS_EN },
+  de: { intro: SENSATION_INTRO_DE, steps: SENSATIONS_DE },
 };
 
 export function sensationScale(locale: Locale): { intro: string; steps: SensationStep[] } {

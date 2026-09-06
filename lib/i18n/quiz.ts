@@ -1,5 +1,6 @@
 import type { Field, Section } from "@/lib/questionnaire";
 import { translate, type Locale } from "./index";
+import { QUIZ_DE } from "./quiz-de";
 
 // Questionnaire dans les autres langues : traduction D'AFFICHAGE uniquement. Les valeurs
 // enregistrées restent les libellés français (la génération, le coach IA et
@@ -94,6 +95,7 @@ export interface QuizTranslation {
 
 const TRANSLATIONS: Partial<Record<Locale, QuizTranslation>> = {
   en: { sections: EN_SECTIONS, fields: EN_FIELDS },
+  de: QUIZ_DE,
 };
 
 function translationFor(locale: Locale): QuizTranslation | null {
