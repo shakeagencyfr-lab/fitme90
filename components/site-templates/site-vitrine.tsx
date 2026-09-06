@@ -6,7 +6,7 @@ import { Reveal } from "@/components/reveal";
 import { S } from "@/components/landing-icons";
 import { formatEuros, DEFAULT_BRAND_COLOR } from "@/lib/config";
 import { themeVars, themeAttrs } from "@/lib/theme";
-import type { Locale } from "@/lib/i18n";
+import { translate, type Locale } from "@/lib/i18n";
 import type { PublicSite } from "@/lib/site";
 import { siteCopy, servicesOf, introOf } from "@/components/site-templates/site-copy";
 import { mapsHref, telHref } from "@/components/site-templates/site-utils";
@@ -186,7 +186,7 @@ export function SiteVitrine({ site, locale = "fr" }: { site: PublicSite; locale?
               tone="light"
               bg="#ffffff"
               radius={12}
-              langLabel={locale === "en" ? "Language" : "Langue"}
+              langLabel={translate(locale, "landing.language")}
               links={nav.map(([href, label]) => ({ href, label }))}
               login={{ href: `/connexion?c=${t.slug}`, label: C.login }}
               cta={maps ? { href: maps, label: C.itinerary } : undefined}

@@ -9,6 +9,7 @@
  * décalage du fuseau à cet instant, heure d'été comprise.
  */
 
+import { dateLocale, type Locale } from "@/lib/i18n";
 export interface ZonedParts {
   year: number;
   month: number; // 1..12
@@ -153,8 +154,8 @@ export function instantOf(key: string, hm: string, tz: string): Date | null {
 }
 
 /** Date lisible (« mardi 8 septembre »), dans le fuseau et la langue. */
-export function humanDate(date: Date, tz: string, locale: "fr" | "en", withYear = false): string {
-  return date.toLocaleDateString(locale === "en" ? "en-GB" : "fr-FR", {
+export function humanDate(date: Date, tz: string, locale: Locale, withYear = false): string {
+  return date.toLocaleDateString(dateLocale(locale), {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -163,10 +164,10 @@ export function humanDate(date: Date, tz: string, locale: "fr" | "en", withYear 
   });
 }
 
-/** Heure lisible (« 10:30 » en anglais, « 10 h 30 » en français). */
-export function humanTime(date: Date, tz: string, locale: "fr" | "en"): string {
+/** Heure lisible (« 10:30 » partout, « 10 h 30 » en français). */
+export function humanTime(date: Date, tz: string, locale: Locale): string {
   const k = timeKey(date, tz);
-  if (locale === "en") return k;
+  if (locale !== "fr") return k;
   const [h, m] = k.split(":");
   return m === "00" ? `${Number(h)} h` : `${Number(h)} h ${m}`;
 }

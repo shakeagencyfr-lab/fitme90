@@ -1,12 +1,12 @@
 import type { Field, Section } from "@/lib/questionnaire";
-import type { Locale } from "./index";
+import { translate, type Locale } from "./index";
 
-// Questionnaire en anglais : traduction D'AFFICHAGE uniquement. Les valeurs
+// Questionnaire dans les autres langues : traduction D'AFFICHAGE uniquement. Les valeurs
 // enregistrées restent les libellés français (la génération, le coach IA et
 // les règles de dépistage s'appuient dessus) ; l'IA reçoit à part la consigne
 // de répondre dans la langue du client.
 
-interface FieldText {
+export interface FieldText {
   label: string;
   help?: string;
   placeholder?: string;
@@ -86,30 +86,44 @@ const EN_FIELDS: Record<string, FieldText> = {
   weigh: { label: "Weigh-ins", options: { Quotidienne: "Daily", Hebdomadaire: "Weekly", Jamais: "Never" } },
 };
 
-export const DAY_LABELS_EN: Record<string, string> = { LUN: "MON", MAR: "TUE", MER: "WED", JEU: "THU", VEN: "FRI", SAM: "SAT", DIM: "SUN" };
+/** Les traductions du questionnaire, par langue ; une langue absente lit l'anglais. */
+export interface QuizTranslation {
+  sections: Record<string, { title: string; intro?: string }>;
+  fields: Record<string, FieldText>;
+}
+
+const TRANSLATIONS: Partial<Record<Locale, QuizTranslation>> = {
+  en: { sections: EN_SECTIONS, fields: EN_FIELDS },
+};
+
+function translationFor(locale: Locale): QuizTranslation | null {
+  if (locale === "fr") return null;
+  return TRANSLATIONS[locale] ?? TRANSLATIONS.en ?? null;
+}
+
+const DAY_CODES_FR = ["LUN", "MAR", "MER", "JEU", "VEN", "SAM", "DIM"];
 
 /** Libellé d'un jour (code LUN…DIM) dans la langue demandée. */
 export function dayLabel(code: string, locale: Locale): string {
-  return locale === "en" ? DAY_LABELS_EN[code] ?? code : code;
+  const i = DAY_CODES_FR.indexOf(code);
+  if (i < 0) return code;
+  return translate(locale, "dates.dayCodes").split(",")[i] ?? code;
 }
 
 /** Titre et intro d'une section du questionnaire. */
 export function sectionText(section: Section, locale: Locale): { title: string; intro?: string } {
-  if (locale !== "en") return { title: section.title, intro: section.intro };
-  const en = EN_SECTIONS[section.title];
-  return en ? { title: en.title, intro: en.intro ?? section.intro } : { title: section.title, intro: section.intro };
+  const tr = translationFor(locale)?.sections[section.title];
+  return tr ? { title: tr.title, intro: tr.intro ?? section.intro } : { title: section.title, intro: section.intro };
 }
 
 /** Libellé, aide et placeholder d'un champ. */
 export function fieldText(field: Field, locale: Locale): { label: string; help?: string; placeholder?: string } {
-  if (locale !== "en") return { label: field.label, help: field.help, placeholder: field.placeholder };
-  const en = EN_FIELDS[field.key];
-  if (!en) return { label: field.label, help: field.help, placeholder: field.placeholder };
-  return { label: en.label, help: en.help, placeholder: en.placeholder ?? field.placeholder };
+  const tr = translationFor(locale)?.fields[field.key];
+  if (!tr) return { label: field.label, help: field.help, placeholder: field.placeholder };
+  return { label: tr.label, help: tr.help, placeholder: tr.placeholder ?? field.placeholder };
 }
 
 /** Libellé d'une option (la valeur enregistrée reste la française). */
 export function optionLabel(field: Field, value: string, locale: Locale): string {
-  if (locale !== "en") return value;
-  return EN_FIELDS[field.key]?.options?.[value] ?? value;
+  return translationFor(locale)?.fields[field.key]?.options?.[value] ?? value;
 }

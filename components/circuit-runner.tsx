@@ -1,5 +1,6 @@
 "use client";
 
+import { speechLocale } from "@/lib/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useT } from "@/components/locale-provider";
@@ -188,7 +189,7 @@ export function CircuitRunner({
         if (!synth) return;
         synth.cancel();
         const u = new SpeechSynthesisUtterance(text);
-        u.lang = locale === "en" ? "en-US" : "fr-FR";
+        u.lang = speechLocale(locale);
         u.rate = 1.02;
         synth.speak(u);
       } catch {

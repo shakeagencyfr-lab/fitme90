@@ -4,7 +4,7 @@ import { macrosForDay, pnum, grp, type ScaledMeal } from "@/lib/nutrition";
 import { A4, PdfPage, ellipsize, renderPdf, textWidth, wrap, type PdfImage } from "@/lib/pdf";
 import type { HeartZone, RpeStep } from "@/lib/fitness";
 import { explainWarmup, bpmLabel } from "@/lib/warmup-guide";
-import { dateLocale, makeT, type Locale } from "@/lib/i18n";
+import { dateLocale, makeT, pick, type Locale, type LocalText } from "@/lib/i18n";
 import { contentMarkString } from "@/lib/ai-act";
 
 /**
@@ -156,10 +156,10 @@ function seance(c: Composeur, s: Session, t: ReturnType<typeof makeT>, zones: He
     c.page.text(t("session.warmup"), MARGE, c.y, { size: 8.5, font: "Helvetica-Bold", color: GRIS });
     c.y += 13;
     for (const w of s.warmup) {
-      const ex = explainWarmup(w, zones, locale === "en" ? "en" : "fr");
+      const ex = explainWarmup(w, zones, locale);
       let ligne = w.detail ? `${w.name}, ${w.detail}` : w.name;
       if (ex.zone) {
-        ligne += ` (${ex.zone.id}${ex.zone.name ? ` ${ex.zone.name}` : ""}${ex.zone.range ? `, ${bpmLabel(ex.zone.range, locale === "en" ? "en" : "fr")}` : ""})`;
+        ligne += ` (${ex.zone.id}${ex.zone.name ? ` ${ex.zone.name}` : ""}${ex.zone.range ? `, ${bpmLabel(ex.zone.range, locale)}` : ""})`;
       }
       paragraphe(c, `· ${ligne}`, { size: 8.5, color: GRIS });
       if (ex.how) paragraphe(c, ex.how, { size: 8, color: GRIS_CLAIR, largeur: LARGEUR_UTILE - 12 });
@@ -328,7 +328,8 @@ function zonesCardio(c: Composeur, zones: HeartZone[] | null, t: ReturnType<type
     ["Z4", "Threshold", "Long intervals, heavy breathing"],
     ["Z5", "VO2 max", "Short sprints, maximal effort"],
   ];
-  const lignes = locale === "en" ? defsEn : defs;
+  const ZONE_DEFS: LocalText<[string, string, string][]> = { fr: defs, en: defsEn };
+  const lignes = pick(ZONE_DEFS, locale);
   c.page.rect(MARGE, c.y - 6, LARGEUR_UTILE, 20, FOND);
   c.page.text("ZONE", MARGE + 6, c.y, { size: 7.5, font: "Helvetica-Bold", color: GRIS_CLAIR });
   c.page.text(t("pdf.zoneUse").toUpperCase(), MARGE + 130, c.y, { size: 7.5, font: "Helvetica-Bold", color: GRIS_CLAIR });

@@ -6,7 +6,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useLocale, useT } from "@/components/locale-provider";
-import { dateLocale, type Locale, type TFn } from "@/lib/i18n";
+import { dateLocale, type Locale, type TFn, speechLocale } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
 import { COACH_NAME } from "@/lib/config";
@@ -339,7 +339,7 @@ export function CoachWidget({
       setError(t("widget.noVoice"));
       return;
     }
-    rec.lang = "fr-FR";
+    rec.lang = speechLocale(locale);
     rec.interimResults = true;
     rec.continuous = false;
     const base = input ? input + " " : "";

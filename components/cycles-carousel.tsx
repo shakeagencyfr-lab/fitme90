@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { blockDef, blocksForMonths } from "@/lib/templates";
 import { CYCLES_PER_BLOCK } from "@/lib/config";
 import { useLocale } from "@/components/locale-provider";
-import type { Locale } from "@/lib/i18n";
+import { pick, translate, type Locale, type LocalText } from "@/lib/i18n";
 
 type Cycle = { label: string; name: string; weeks: string; body: string };
 
@@ -61,9 +61,12 @@ const EXPL_SINGLE_EN: Expl = {
 // intermédiaires = progression. Au-delà d'un bloc (produit 12 mois), le
 // « pourquoi » vient de l'orientation du bloc (Fondations, Construction,
 // Intensité, Réalisation) et la position dans le bloc donne le reste.
+const EXPLS: LocalText<Expl[]> = { fr: EXPL_FR, en: EXPL_EN };
+const EXPL_SINGLES: LocalText<Expl> = { fr: EXPL_SINGLE_FR, en: EXPL_SINGLE_EN };
+
 function explFor(i: number, total: number, locale: Locale) {
-  const EXPL = locale === "en" ? EXPL_EN : EXPL_FR;
-  if (total === 1) return locale === "en" ? EXPL_SINGLE_EN : EXPL_SINGLE_FR;
+  const EXPL = pick(EXPLS, locale);
+  if (total === 1) return pick(EXPL_SINGLES, locale);
   if (total <= CYCLES_PER_BLOCK) {
     if (i === 0) return EXPL[0];
     if (i === total - 1) return EXPL[2];
@@ -119,9 +122,9 @@ export function CyclesCarousel({ cycles }: { cycles: Cycle[] }) {
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">
-          {cycles.length > 1 ? (locale === "en" ? `The ${cycles.length} cycles` : `Les ${cycles.length} cycles`) : locale === "en" ? "Your cycle" : "Ton cycle"} · {active + 1}/{cycles.length}
+          {cycles.length > 1 ? translate(locale, "cycles.theN", { n: cycles.length }) : translate(locale, "cycles.yours")} · {active + 1}/{cycles.length}
         </div>
-        <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2 nav:hidden">glisse →</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-2 nav:hidden">{translate(locale, "cycles.swipe")}</span>
       </div>
 
       <div
@@ -147,8 +150,8 @@ export function CyclesCarousel({ cycles }: { cycles: Cycle[] }) {
             <p className="text-[13.5px] leading-[1.6] text-muted">{explFor(i, cycles.length, locale).why}</p>
 
             <div className="mt-auto flex flex-col gap-3 border-t border-line-2 pt-3">
-              <Chips title={locale === "en" ? "We aim for" : "On vise"} items={explFor(i, cycles.length, locale).aims} />
-              <Chips title={locale === "en" ? "How" : "Comment"} items={explFor(i, cycles.length, locale).how} />
+              <Chips title={translate(locale, "cycles.aims")} items={explFor(i, cycles.length, locale).aims} />
+              <Chips title={translate(locale, "cycles.how")} items={explFor(i, cycles.length, locale).how} />
             </div>
           </article>
         ))}
@@ -160,7 +163,7 @@ export function CyclesCarousel({ cycles }: { cycles: Cycle[] }) {
           <button
             key={i}
             onClick={() => go(i)}
-            aria-label={`${locale === "en" ? "Go to cycle" : "Aller au cycle"} ${i + 1}`}
+            aria-label={translate(locale, "cycles.goTo", { n: i + 1 })}
             className={[
               "h-2 rounded-full transition-all",
               i === active ? "w-6 bg-brand" : "w-2 bg-line-4 hover:bg-muted-2",

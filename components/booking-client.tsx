@@ -10,7 +10,7 @@ import type { SlotsResult } from "@/lib/booking-appointments";
 import { clientCanCancel } from "@/lib/booking-rules";
 import { humanDate, humanTime, shiftDayKey, dayKey, parseDayKey } from "@/lib/booking-time";
 import { formatEuros } from "@/lib/config";
-import type { Locale } from "@/lib/i18n";
+import { dateLocale, type Locale } from "@/lib/i18n";
 
 // ------------------------------------------------------------------ *
 // La prise de rendez-vous côté client, en quatre gestes : la prestation,
@@ -373,7 +373,7 @@ function SlotPicker({
     const p = parseDayKey(key);
     if (!p) return key;
     const d = new Date(Date.UTC(p.year, p.month - 1, p.day));
-    return d.toLocaleDateString(locale === "en" ? "en-GB" : "fr-FR", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+    return d.toLocaleDateString(dateLocale(locale), { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
   };
   // Les créneaux du jour choisi, planning par planning, fusionnés et triés.
   const items = (slots?.calendars ?? [])

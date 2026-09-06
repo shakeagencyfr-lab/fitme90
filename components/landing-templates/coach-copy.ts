@@ -1,4 +1,4 @@
-import type { Locale, TFn } from "@/lib/i18n";
+import { pick, type Locale, type LocalText, type TFn } from "@/lib/i18n";
 import { programDaysForMonths, monthlyEquivalentCents } from "@/lib/config";
 import { productCopy } from "@/lib/i18n/products";
 import type { Offer } from "@/lib/offers";
@@ -9,7 +9,7 @@ import { S } from "@/components/landing-icons";
 // module, et rien d'autre ne doit contenir de phrase de vente.
 //
 // Deux axes indépendants :
-//   locale    fr | en
+//   locale    fr | en | de | es | it | nl (anglais à défaut)
 //   audience  coach | gym
 //
 // L'audience n'est pas un détail de vocabulaire. Un coach indépendant vend SA
@@ -596,9 +596,12 @@ const GYM_EN: Overrides = {
   giftBody: "Gift coaching to someone: you pay, they receive a code to use freely.",
 };
 
+const BASES: LocalText<typeof FR> = { fr: FR, en: EN };
+const GYMS: LocalText<Overrides> = { fr: GYM_FR, en: GYM_EN };
+
 export function landingCopy(locale: Locale, audience: Audience = "coach"): LandingCopy {
-  const base = locale === "en" ? EN : FR;
-  const over = audience === "gym" ? (locale === "en" ? GYM_EN : GYM_FR) : null;
+  const base = pick(BASES, locale);
+  const over = audience === "gym" ? pick(GYMS, locale) : null;
   const merged = over ? { ...base, ...over } : base;
   // Les icônes sont posées APRÈS la fusion : une variante qui redéfinit
   // `features` fournit du texte, jamais des icônes, et l'ordre reste le même.

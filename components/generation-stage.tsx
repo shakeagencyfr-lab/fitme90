@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocale } from "@/components/locale-provider";
-import type { Locale } from "@/lib/i18n";
+import { pick, translate, type Locale, type LocalText } from "@/lib/i18n";
 
 /**
  * L'écran d'attente de la génération du programme.
@@ -20,7 +20,7 @@ import type { Locale } from "@/lib/i18n";
  * c'est une liste, et le typage des dictionnaires ne porte que des chaînes.
  * Ton coach de salle, pas ton application : on tutoie, on ne promet rien.
  */
-const PHRASES: Record<Locale, string[]> = {
+const PHRASES: LocalText<string[]> = {
   fr: [
     "La séance que tu ne rates pas est celle qui compte.",
     "On construit un plan que tu peux tenir, pas un plan qui impressionne.",
@@ -57,7 +57,7 @@ const ECG =
 
 export function GenerationStage({ pct, elapsed }: { pct: number; elapsed: number }) {
   const locale = useLocale();
-  const phrases = PHRASES[locale] ?? PHRASES.fr;
+  const phrases = pick(PHRASES, locale);
   const [i, setI] = useState(0);
 
   // Une phrase toutes les cinq secondes : le temps de la lire sans avoir
@@ -138,7 +138,7 @@ export function GenerationStage({ pct, elapsed }: { pct: number; elapsed: number
             {formatElapsed(elapsed, locale)}
           </span>
           <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted-2">
-            {locale === "en" ? "keep this page open" : "garde cette page ouverte"}
+            {translate(locale, "generate.keepOpen")}
           </span>
         </div>
       </div>
@@ -149,7 +149,7 @@ export function GenerationStage({ pct, elapsed }: { pct: number; elapsed: number
 /** « 2 min 05 » / « 45 s » : un temps qui avance, preuve que rien n'est figé. */
 function formatElapsed(sec: number, locale: Locale): string {
   const s = Math.max(0, Math.floor(sec));
-  const prefixe = locale === "en" ? "elapsed" : "écoulé";
+  const prefixe = translate(locale, "generate.elapsed");
   if (s < 60) return `${s} s ${prefixe}`;
   const m = Math.floor(s / 60);
   return `${m} min ${String(s % 60).padStart(2, "0")} ${prefixe}`;

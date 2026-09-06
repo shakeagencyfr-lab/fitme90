@@ -1,3 +1,4 @@
+import { pick, type Locale, type LocalText } from "@/lib/i18n";
 // Vocabulaire de référence du matériel de salle.
 //
 // La détection photo renvoyait du texte libre, injecté tel quel dans le brief
@@ -51,8 +52,8 @@ export type EquipConfidence = "high" | "medium" | "low";
  * clé quelle que soit la langue du client : l'ancien enum français faisait
  * silencieusement retomber toutes les réponses anglaises sur « moyenne ».
  */
-export function confidenceLabel(c: string | null | undefined, locale: "fr" | "en"): string | null {
-  const map: Record<EquipConfidence, { fr: string; en: string }> = {
+export function confidenceLabel(c: string | null | undefined, locale: Locale): string | null {
+  const map: Record<EquipConfidence, LocalText> = {
     high: { fr: "sûr", en: "confident" },
     medium: { fr: "probable", en: "likely" },
     low: { fr: "incertain", en: "unsure" },
@@ -63,7 +64,7 @@ export function confidenceLabel(c: string | null | undefined, locale: "fr" | "en
     "élevée": "high", elevee: "high", moyenne: "medium", faible: "low",
   };
   const norm = (key in map ? key : legacy[key]) as EquipConfidence | undefined;
-  return norm ? map[norm][locale] : null;
+  return norm ? pick(map[norm], locale) : null;
 }
 
 /** Clé de dédoublonnage : deux photos de la même machine ne font qu'une ligne. */

@@ -12,7 +12,7 @@ import { LeadBand } from "@/components/landing-templates/lead-band";
 import { TestimonialBand } from "@/components/landing-templates/testimonial-band";
 import { AuthorEngine } from "@/components/landing-templates/author-engine";
 import { offerCardCopy, landingCopy, type LandingCopy, type Audience } from "@/components/landing-templates/coach-copy";
-import { makeT, type Locale } from "@/lib/i18n";
+import { makeT, translate, type Locale } from "@/lib/i18n";
 import { themeVars, themeAttrs } from "@/lib/theme";
 import { ThemeSwitch } from "@/components/theme-toggle";
 
@@ -180,7 +180,7 @@ export function CoachSage({ tenant, offers, leadMagnet = false, locale = "fr" }:
   const accent = tenant.brandColor || DEFAULT_BRAND_COLOR;
   const title = tenant.headline || tenant.name;
   const tagline = tenant.tagline || L.defaultTagline;
-  const slide = locale === "en" ? "Slide" : "Fais glisser";
+  const slide = translate(locale, "landing.swipe");
 
   return (
     <div
@@ -219,7 +219,7 @@ export function CoachSage({ tenant, offers, leadMagnet = false, locale = "fr" }:
               tone="light"
               bg="#f4f1ea"
               radius={999}
-              langLabel={locale === "en" ? "Language" : "Langue"}
+              langLabel={translate(locale, "landing.language")}
               links={[
                 { href: "#auteur", label: L.navMethod },
                 { href: "#offres", label: L.navPrograms },

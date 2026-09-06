@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { tx } from "@/lib/i18n/request";
+import { fmtLocale, tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { listCoachVipThreads } from "@/lib/vip";
 import { Alert, Card } from "@/components/ui";
@@ -8,7 +8,7 @@ export const metadata = { title: "Chat avec mes clients" };
 export const dynamic = "force-dynamic";
 
 const fmtWhen = (d: string | null) =>
-  d ? new Date(d).toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+  d ? new Date(d).toLocaleString(fmtLocale(), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
 
 export default async function AdminChatPage() {
   const ctx = await getAdminOrNull();

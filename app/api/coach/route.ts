@@ -31,7 +31,7 @@ import { readFoodDay } from "@/lib/food-log-store";
 import { journalDigest } from "@/lib/food-log";
 import { loadBookingToolkit } from "@/lib/coach-booking-tools";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
-import { aiLanguageInstruction } from "@/lib/i18n";
+import { aiLanguageInstruction, dateLocale } from "@/lib/i18n";
 
 /** Bulles maximum par réponse. Doit rester >= au nombre demandé à la persona. */
 const MAX_BUBBLES = 8;
@@ -252,7 +252,7 @@ export async function POST(req: NextRequest) {
   const memoryBlock = renderMemory(await readMemory(ctx.userId));
   // Langue du client : le coach répond dedans (cookie > profil > tenant).
   const locale = await resolveLocale(await userLocale(ctx.userId));
-  const dateLoc = locale === "en" ? "en-GB" : "fr-FR";
+  const dateLoc = dateLocale(locale);
   // Le prompt système est scindé en DEUX blocs pour le cache Anthropic, qui
   // fonctionne par préfixe : tout ce qui est stable d'un message à l'autre
   // (persona, profil, programme) va dans le premier bloc et porte le

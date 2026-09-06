@@ -1,4 +1,5 @@
 import { cardioZone, isCardioExercise, type HeartZone } from "@/lib/fitness";
+import { pick, translate, type Locale, type LocalText } from "@/lib/i18n";
 
 /**
  * Un échauffement qui s'explique tout seul. Pur, testé.
@@ -11,7 +12,8 @@ import { cardioZone, isCardioExercise, type HeartZone } from "@/lib/fitness";
  * texte du plan reste, on l'éclaire.
  */
 
-export type WarmupLocale = "fr" | "en";
+/** Conservé pour les appelants historiques : c'est la locale de l'app. */
+export type WarmupLocale = Locale;
 
 export interface WarmupExplained {
   name: string;
@@ -26,7 +28,7 @@ function deburr(s: string): string {
   return (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-type Rule = { test: RegExp; fr: string; en: string };
+type Rule = { test: RegExp } & LocalText;
 
 /** Ce qu'on fait vraiment, par zone du corps ou par type d'item. */
 const RULES: Rule[] = [
@@ -82,7 +84,7 @@ const RULES: Rule[] = [
   },
 ];
 
-const CARDIO_HOW = {
+const CARDIO_HOW: LocalText = {
   fr: "Allure facile, tu peux parler sans t'essouffler ; monte un peu le rythme sur la dernière minute.",
   en: "Easy pace, you can talk without getting out of breath; pick up the pace a little on the last minute.",
 };
@@ -108,18 +110,18 @@ export function explainWarmup(
     return {
       name,
       detail,
-      how: CARDIO_HOW[locale],
+      how: pick(CARDIO_HOW, locale),
       zone: zone ? { id: zone.id, name: zone.name, range: zone.range } : { id: explicit ? `Z${explicit[1]}` : "Z1", name: "", range: "" },
     };
   }
 
   const rule = RULES.find((r) => r.test.test(text));
-  return { name, detail, how: rule ? rule[locale] : "", zone: null };
+  return { name, detail, how: rule ? pick(rule, locale) : "", zone: null };
 }
 
 /** « 105 à 118 bpm » à partir de la fourchette « 105–118 » d'une zone. */
 export function bpmLabel(range: string, locale: WarmupLocale = "fr"): string {
   const [a, b] = range.split(/[–-]/).map((x) => x.trim());
   if (!a || !b) return "";
-  return locale === "en" ? `${a} to ${b} bpm` : `${a} à ${b} bpm`;
+  return translate(locale, "session.bpmRange", { a, b });
 }

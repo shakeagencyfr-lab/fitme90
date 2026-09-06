@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { tx } from "@/lib/i18n/request";
+import { fmtLocale, tx } from "@/lib/i18n/request";
 import { trendPct } from "@/lib/dashboard-math";
 import type { CoachDashboard, ResellerDashboard } from "@/lib/dashboard";
 import { formatEuros, usdToEur } from "@/lib/config";
@@ -141,15 +141,15 @@ export function CoachView({ d }: { d: CoachDashboard }) {
         <MonoLabel>{tx("Consommation IA du mois")}</MonoLabel>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {d.ai.view === "credits" ? (
-            <Figure value={(d.ai.credits ?? 0).toLocaleString("fr-FR")} label={tx("crédits restants")} />
+            <Figure value={(d.ai.credits ?? 0).toLocaleString(fmtLocale())} label={tx("crédits restants")} />
           ) : d.ai.view === "included" ? (
             <Figure value={tx("Comprise")} label={tx("dans ton abonnement")} />
           ) : (
             <Figure value={`≈ ${euros(Math.round(aiEur * 100))}`} label={tx("sur ta clé Anthropic")} />
           )}
-          <Figure value={d.ai.calls.toLocaleString("fr-FR")} label={tx("appels IA")} />
+          <Figure value={d.ai.calls.toLocaleString(fmtLocale())} label={tx("appels IA")} />
           {d.ai.view === "credits" ? (
-            <Figure value={d.ai.creditsSpent.toLocaleString("fr-FR")} label={tx("crédits débités ce mois")} />
+            <Figure value={d.ai.creditsSpent.toLocaleString(fmtLocale())} label={tx("crédits débités ce mois")} />
           ) : d.ai.view === "usd" ? (
             <Figure
               value={d.clients.paid > 0 ? `≈ ${euros(Math.round((aiEur * 100) / d.clients.paid))}` : "·"}
@@ -157,7 +157,7 @@ export function CoachView({ d }: { d: CoachDashboard }) {
             />
           ) : (
             <Figure
-              value={d.clients.paid > 0 ? Math.round(d.ai.calls / d.clients.paid).toLocaleString("fr-FR") : "·"}
+              value={d.clients.paid > 0 ? Math.round(d.ai.calls / d.clients.paid).toLocaleString(fmtLocale()) : "·"}
               label={tx("appels par client payant")}
             />
           )}
@@ -270,15 +270,15 @@ export function NetworkView({ d }: { d: ResellerDashboard }) {
                 a débité, jamais un coût Anthropic : ce chiffre contiendrait la
                 marge de la plateforme. */}
             {d.ai.view === "credits" ? (
-              <Figure value={d.ai.creditsSpent.toLocaleString("fr-FR")} label={tx("crédits débités")} />
+              <Figure value={d.ai.creditsSpent.toLocaleString(fmtLocale())} label={tx("crédits débités")} />
             ) : (
               <Figure value={`≈ ${euros(Math.round(aiEur * 100))}`} label={tx("coût réel")} />
             )}
-            <Figure value={d.ai.calls.toLocaleString("fr-FR")} label={tx("appels")} />
+            <Figure value={d.ai.calls.toLocaleString(fmtLocale())} label={tx("appels")} />
             {/* Un stock n'existe que pour qui achète ses crédits : ailleurs, le
                 mot « crédits » n'a rien à faire sur ce tableau. */}
             {d.ai.view === "credits" ? (
-              <Figure value={(d.ai.credits ?? 0).toLocaleString("fr-FR")} label={tx("crédits en stock")} />
+              <Figure value={(d.ai.credits ?? 0).toLocaleString(fmtLocale())} label={tx("crédits en stock")} />
             ) : null}
           </div>
           <p className="text-[12.5px] leading-[1.6] text-muted">

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { tx } from "@/lib/i18n/request";
+import { fmtLocale, tx } from "@/lib/i18n/request";
 import { getAdminOrNull } from "@/lib/admin";
 import { tenantNode } from "@/lib/hierarchy";
 import { usageHistory, scopeAccounts, modelLabel, driverLabel, type UsageRow } from "@/lib/ai-usage-log";
@@ -27,7 +27,7 @@ const ACTIONS: { value: string; label: string }[] = [
 ];
 
 function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleString("fr-FR", {
+  return new Date(iso).toLocaleString(fmtLocale(), {
     day: "2-digit", month: "2-digit", year: "2-digit",
     hour: "2-digit", minute: "2-digit", second: "2-digit",
     timeZone: "Europe/Paris",
@@ -122,7 +122,7 @@ export default async function AdminUsagePage({
       />
 
       <div className={`grid grid-cols-2 gap-3 ${showUsd && showCredits ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
-        <Metric label={tx("Appels IA")} value={totals.calls.toLocaleString("fr-FR")} />
+        <Metric label={tx("Appels IA")} value={totals.calls.toLocaleString(fmtLocale())} />
         {showUsd ? (
           <Metric label={tx("Coût Anthropic")} value={formatUsdPrecise(totals.costUsd)} sub={formatEurPrecise(usdToEur(totals.costUsd))} />
         ) : null}
@@ -134,7 +134,7 @@ export default async function AdminUsagePage({
         {showCredits ? (
           <Metric
             label={creditsLabel}
-            value={usesCredits ? creditsOf(totals).toLocaleString("fr-FR") : "0"}
+            value={usesCredits ? creditsOf(totals).toLocaleString(fmtLocale()) : "0"}
             sub={usesCredits || !showUsd ? undefined : "clé personnelle"}
           />
         ) : null}
@@ -181,7 +181,7 @@ export default async function AdminUsagePage({
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-muted">{modelLabel(r.model)}</td>
                       <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-muted">
-                        {r.inputTokens.toLocaleString("fr-FR")} / {r.outputTokens.toLocaleString("fr-FR")}
+                        {r.inputTokens.toLocaleString(fmtLocale())} / {r.outputTokens.toLocaleString(fmtLocale())}
                         <CacheBadges read={r.cacheReadTokens} write={r.cacheWriteTokens} />
                       </td>
                       {showUsd ? (
@@ -253,7 +253,7 @@ function MobileRow({ row, showAccount, showUsd, credits }: { row: UsageRow; show
         <span aria-hidden>·</span>
         <span>{modelLabel(row.model)}</span>
         <span aria-hidden>·</span>
-        <span className="tabular-nums">{row.inputTokens.toLocaleString("fr-FR")} / {row.outputTokens.toLocaleString("fr-FR")} tokens</span>
+        <span className="tabular-nums">{row.inputTokens.toLocaleString(fmtLocale())} / {row.outputTokens.toLocaleString(fmtLocale())} tokens</span>
         <CacheBadges read={row.cacheReadTokens} write={row.cacheWriteTokens} />
         {showUsd && credits > 0 ? (
           <>

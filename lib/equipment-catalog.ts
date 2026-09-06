@@ -20,6 +20,7 @@
 // machine, en usage. Aucune image en double, et le rangement reste unique.
 
 import { EQUIPMENT_FAMILIES, equipmentKey } from "@/lib/equipment";
+import type { Locale, LocalText } from "@/lib/i18n";
 
 export type EquipmentFamily = (typeof EQUIPMENT_FAMILIES)[number];
 
@@ -50,7 +51,7 @@ export const MUSCLE_GROUPS: readonly MuscleGroup[] = [
   "cardio",
 ];
 
-export const MUSCLE_GROUP_LABEL: Record<MuscleGroup, { fr: string; en: string }> = {
+export const MUSCLE_GROUP_LABEL: Record<MuscleGroup, LocalText> = {
   polyvalent: { fr: "Polyvalent", en: "All-round" },
   pectoraux: { fr: "Pectoraux", en: "Chest" },
   dos: { fr: "Dos", en: "Back" },
@@ -67,6 +68,8 @@ export interface EquipmentItem {
   key: string;
   nom: string;
   name: string;
+  /** Le nom dans les autres langues ; à défaut, l'anglais. */
+  names?: Partial<Record<Locale, string>>;
   famille: EquipmentFamily;
   groupes: MuscleGroup[];
   /** Clé d'un dossier de `public/exercises`, ou null si aucune photo ne convient. */
@@ -620,10 +623,16 @@ export function matchEquipment(nom: string): EquipmentItem | null {
  * quand le catalogue ne le connaît pas : on ne prête pas au client du matériel
  * qu'il n'a pas.
  */
-export function canonicalEquipment(nom: string, locale: "fr" | "en"): string {
+export function canonicalEquipment(nom: string, locale: Locale): string {
   const item = matchEquipment(nom);
   if (!item) return (nom ?? "").trim();
-  return locale === "en" ? item.name : item.nom;
+  return equipmentName(item, locale);
+}
+
+/** Le nom d'une machine du catalogue dans la langue du client (anglais à défaut). */
+export function equipmentName(item: Pick<EquipmentItem, "nom" | "name" | "names">, locale: Locale): string {
+  if (locale === "fr") return item.nom;
+  return item.names?.[locale] ?? item.name;
 }
 
 /**

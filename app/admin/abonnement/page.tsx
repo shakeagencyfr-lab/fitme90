@@ -1,5 +1,5 @@
 import { getAdminOrNull } from "@/lib/admin";
-import { tx } from "@/lib/i18n/request";
+import { fmtLocale, tx } from "@/lib/i18n/request";
 import { billingParentId, tenantNode } from "@/lib/hierarchy";
 import { listPlans, type Plan } from "@/lib/plans";
 import { tenantCapacity } from "@/lib/entitlements";
@@ -13,7 +13,7 @@ import { cancelMyPlan, reactivateMyPlan, refreshMyBilling } from "@/app/admin/ac
 import { Alert, Card, MonoLabel } from "@/components/ui";
 
 const fmtDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }) : null;
+  iso ? new Date(iso).toLocaleDateString(fmtLocale(), { day: "2-digit", month: "long", year: "numeric" }) : null;
 
 export const metadata = { title: "Mon abonnement" };
 

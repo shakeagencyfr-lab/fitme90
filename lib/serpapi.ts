@@ -1,4 +1,5 @@
 import "server-only";
+import { asLocale } from "@/lib/i18n";
 import { readBoundedText } from "@/lib/bounded-body";
 import {
   buildDraft,
@@ -143,7 +144,7 @@ export async function searchPlaces(
   const q = query.trim().slice(0, 120);
   if (q.length < 3) return { ok: false, error: "Écris au moins trois caractères." };
 
-  const hl = opts.locale === "en" ? "en" : "fr";
+  const hl = asLocale(opts.locale);
   const res = await call(
     { engine: "google_maps", type: "search", q, hl, gl: hl },
     opts.fetcher ?? fetch,
@@ -193,7 +194,7 @@ export async function fetchPlaceDraft(
   const identite = identiteDeFiche(id, opts.placeId);
   if (!identite) return { ok: false, error: "Cette fiche n'a pas d'identifiant exploitable. Choisis-en une autre." };
 
-  const hl = opts.locale === "en" ? "en" : "fr";
+  const hl = asLocale(opts.locale);
   const f = opts.fetcher ?? fetch;
 
   const fiche = await call({ engine: "google_maps", type: "place", ...identite, hl }, f);

@@ -1,4 +1,4 @@
-import { tx } from "@/lib/i18n/request";
+import { fmtLocale, tx } from "@/lib/i18n/request";
 import { Card, MonoLabel } from "@/components/ui";
 import { revenueReport, lineCostEur, type RevenueLine, type RevenueTotals } from "@/lib/platform-revenue";
 import { formatEurPrecise, formatEuros } from "@/lib/config";
@@ -35,7 +35,7 @@ export async function AiRevenueSummary({
   if (lines.length === 0) return null;
   const achat = totals.basis === "purchase";
 
-  const depuis = new Date(sinceIso).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+  const depuis = new Date(sinceIso).toLocaleDateString(fmtLocale(), { day: "numeric", month: "long" });
   const prix = Math.max(0, creditPriceCents) / 100;
   const surCredits = lines.filter((l) => l.onCredits);
   // Ni recette ni coût : trois tuiles à zéro et un rapport prix/coût n'apprennent
@@ -51,7 +51,7 @@ export async function AiRevenueSummary({
           <p className="max-w-[75ch] text-[13.5px] leading-[1.6] text-muted">
             {tx("Aucun pack de crédits payé sur la période, et aucune dépense IA à ta charge.")}{" "}
             {totals.creditsSpent > 0
-              ? `${totals.creditsSpent.toLocaleString("fr-FR")} ${tx("crédits ont pourtant été consommés : ces comptes tournent sur leur propre clé Anthropic, ils règlent directement et ne te coûtent rien.")}`
+              ? `${totals.creditsSpent.toLocaleString(fmtLocale())} ${tx("crédits ont pourtant été consommés : ces comptes tournent sur leur propre clé Anthropic, ils règlent directement et ne te coûtent rien.")}`
               : tx("Ton réseau n'a encore rien consommé.")}{" "}
             {tx("Les crédits que tu offres n'entrent pas en recette : la marge apparaîtra au premier pack réellement acheté.")}
           </p>
@@ -62,7 +62,7 @@ export async function AiRevenueSummary({
       <div className="grid gap-3 sm:grid-cols-3">
         <Card className="flex flex-col gap-1">
           <MonoLabel>{tx("Crédits vendus")}</MonoLabel>
-          <Chiffre>{totals.creditsSold.toLocaleString("fr-FR")}</Chiffre>
+          <Chiffre>{totals.creditsSold.toLocaleString(fmtLocale())}</Chiffre>
           <Sous>
             {formatEuros(totals.revenueCents)} {tx("encaissés depuis le")} {depuis}
           </Sous>
@@ -72,8 +72,8 @@ export async function AiRevenueSummary({
           <Chiffre>{formatEurPrecise(totals.costEur)}</Chiffre>
           <Sous>
             {achat
-              ? `${totals.upstreamCredits.toLocaleString("fr-FR")} ${tx("crédits que la plateforme t'a débités")}`
-              : `${totals.creditsSpent.toLocaleString("fr-FR")} ${tx("crédits consommés par le réseau")}`}
+              ? `${totals.upstreamCredits.toLocaleString(fmtLocale())} ${tx("crédits que la plateforme t'a débités")}`
+              : `${totals.creditsSpent.toLocaleString(fmtLocale())} ${tx("crédits consommés par le réseau")}`}
           </Sous>
         </Card>
         <Card className={`flex flex-col gap-1 ${totals.marginEur < 0 ? "border-alert-line bg-alert" : ""}`}>
@@ -94,7 +94,7 @@ export async function AiRevenueSummary({
         <Card className="flex flex-col gap-2">
           <MonoLabel>{tx("Coût par crédit : pas encore mesurable")}</MonoLabel>
           <p className="text-[13px] leading-[1.6] text-muted">
-            {totals.creditsSpent.toLocaleString("fr-FR")}{" "}
+            {totals.creditsSpent.toLocaleString(fmtLocale())}{" "}
             {tx("crédits ont été consommés, mais aucune dépense IA ne t'est imputable sur la période. C'est le cas quand les comptes concernés tournent sur leur propre clé Anthropic : ils paient directement, tu ne supportes rien. Le rapport prix/coût s'affichera dès qu'une consommation passera par ta clé.")}
           </p>
         </Card>
@@ -172,9 +172,9 @@ function Ligne({ l, totals, purchase }: { l: RevenueLine; totals: RevenueTotals;
           </span>
         </span>
       </td>
-      <td className="px-4 py-3 tabular-nums text-body">{l.creditsSold.toLocaleString("fr-FR")}</td>
+      <td className="px-4 py-3 tabular-nums text-body">{l.creditsSold.toLocaleString(fmtLocale())}</td>
       <td className="px-4 py-3 tabular-nums text-body">{formatEuros(l.revenueCents)}</td>
-      <td className="px-4 py-3 tabular-nums text-body">{l.creditsSpent.toLocaleString("fr-FR")}</td>
+      <td className="px-4 py-3 tabular-nums text-body">{l.creditsSpent.toLocaleString(fmtLocale())}</td>
       <td className="px-4 py-3 tabular-nums text-body">
         {l.onCredits ? formatEurPrecise(cout) : tiret}
       </td>

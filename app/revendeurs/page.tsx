@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { LocaleProvider } from "@/components/locale-provider";
-import { setRequestLocale } from "@/lib/i18n/request";
+import { fmtLocale, setRequestLocale } from "@/lib/i18n/request";
 import { resolveLocale } from "@/lib/i18n/server";
 import { tx } from "@/lib/i18n/request";
 import Link from "next/link";
@@ -319,7 +319,7 @@ export default async function RevendeursPage() {
               <span className="font-semibold text-white/90">{tx(String(label))}</span>
               <span className="text-white/70">{n as number}</span>
               <span className="text-white/70">{p as number} €</span>
-              <span className="text-right font-archivo text-[18px] font-extrabold text-brand tabular-nums">{((n as number) * (p as number)).toLocaleString("fr-FR")} €</span>
+              <span className="text-right font-archivo text-[18px] font-extrabold text-brand tabular-nums">{((n as number) * (p as number)).toLocaleString(fmtLocale())} €</span>
             </div>
           ))}
           <div className="px-5 py-3 text-[12px] text-white/35">{tx("Exemples illustratifs de revenu brut mensuel. Chiffres à ajuster selon ta stratégie.")}</div>

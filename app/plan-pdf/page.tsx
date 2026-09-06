@@ -5,6 +5,7 @@ import { brandForUser } from "@/lib/branding";
 import type { Plan } from "@/lib/program";
 import { PlanPdfView } from "@/components/plan-pdf-view";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
+import { makeT } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Plan" };
@@ -33,7 +34,7 @@ export default async function PlanPdfPage() {
     <PlanPdfView
       plan={plan}
       clientName={ctx.profile?.name ?? ""}
-      coachName={brand?.name ?? (locale === "en" ? "Your coach" : "Ton coach")}
+      coachName={brand?.name ?? makeT(locale)("pdf.yourCoach")}
       logoUrl={brand?.logoUrl ?? null}
       locale={locale}
       downloadHref="/api/plan-pdf"

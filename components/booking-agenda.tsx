@@ -1,5 +1,6 @@
 "use client";
 
+import { translate } from "@/lib/i18n";
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { useLocale, usePhrase } from "@/components/locale-provider";
@@ -35,8 +36,8 @@ export function BookingAgenda({ bookings, timezone, calendars, services, clients
   const tx = usePhrase();
   const locale = useLocale();
   const now = new Date();
-  const DAYS = locale === "en" ? ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] : ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
-  const MONTHS = locale === "en" ? ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"] : ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  const DAYS = translate(locale, "dates.daysLong").split(",");
+  const MONTHS = translate(locale, "dates.monthsLong").split(",");
   const hm = (iso: string) => {
     const z = zonedParts(new Date(iso), timezone);
     return `${String(z.hour).padStart(2, "0")}:${String(z.minute).padStart(2, "0")}`;

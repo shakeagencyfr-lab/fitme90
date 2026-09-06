@@ -302,7 +302,7 @@ export const PHRASES_EN: Record<string, string> = {
   "Lance ton activité de coaching sous ta marque, propulsée par l'IA. Programmes, nutrition, chat, paiements : tout est prêt. Toi, tu vends.": "Launch your coaching business under your brand, powered by AI. Programs, nutrition, chat, payments: everything is ready. You sell.",
   "Lance ton activité sans rien payer. Tu passes à une formule seulement quand tu accueilles ton deuxième client.": "Launch your business without paying anything. You move to a plan only when you welcome your second client.",
   "Langue de tes clients": "Your clients' language",
-  "Langue par défaut de ta page publique, de l'espace client et du coach IA. Chaque client peut ensuite basculer lui-même (FR / EN) ; l'IA lui répond dans sa langue.": "Default language of your public page, the client space and the AI coach. Each client can then switch themselves (FR / EN); the AI answers in their language.",
+  "Langue par défaut de ta page publique, de l'espace client et du coach IA. Chaque client peut ensuite basculer lui-même ; l'IA lui répond dans sa langue.": "Default language of your public page, the client space and the AI coach. Each client can then switch themselves; the AI answers in their language.",
   "Le bon produit, au bon moment": "The right product, at the right time",
   "Le business model le plus scalable qui soit": "The most scalable business model there is",
   "Le chiffrement des secrets n'est pas configuré côté serveur (SECRETS_ENC_KEY).": "Secrets encryption is not configured on the server (SECRETS_ENC_KEY).",

@@ -1,5 +1,5 @@
 import { getAdminOrNull } from "@/lib/admin";
-import { tx } from "@/lib/i18n/request";
+import { fmtLocale, tx } from "@/lib/i18n/request";
 import { listOffers } from "@/lib/offers";
 import { listPromos } from "@/lib/promo";
 import { listGiftCodes } from "@/lib/gift";
@@ -12,7 +12,7 @@ import { Alert, Card } from "@/components/ui";
 export const metadata = { title: "Codes promo & cadeaux" };
 
 const fmtDate = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "UTC" }) : null;
+  d ? new Date(d).toLocaleDateString(fmtLocale(), { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "UTC" }) : null;
 
 export default async function AdminCodesPage() {
   const ctx = await getAdminOrNull();

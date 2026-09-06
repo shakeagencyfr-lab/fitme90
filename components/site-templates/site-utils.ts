@@ -1,4 +1,4 @@
-import type { Locale } from "@/lib/i18n";
+import { translate, type Locale } from "@/lib/i18n";
 import type { Offer } from "@/lib/offers";
 import type { PublicSite } from "@/lib/site";
 
@@ -32,10 +32,7 @@ export function telHref(site: PublicSite): string | null {
 
 /** « 3 mois » / « Abonnement mensuel », selon la nature de l'offre. */
 export function durationLabel(offer: Offer, locale: Locale): string {
-  if (offer.billing_type === "subscription") {
-    return locale === "en" ? "Monthly subscription" : "Abonnement mensuel";
-  }
+  if (offer.billing_type === "subscription") return translate(locale, "site.monthly");
   const n = offer.duration_months;
-  if (locale === "en") return n === 1 ? "1 month" : `${n} months`;
-  return `${n} mois`;
+  return n === 1 ? translate(locale, "site.oneMonth") : translate(locale, "site.months", { n });
 }

@@ -87,7 +87,7 @@ export function NutritionView({
   const dateOf = (d: number) =>
     startDate
       ? dateOfProgramDay(startDate, d).toLocaleDateString(dl, { day: "numeric", month: "short", timeZone: "UTC" })
-      : `${locale === "en" ? "D" : "J"}${d}`;
+      : `${t("nutrition.dayAbbr")}${d}`;
   // Date longue (jour de semaine + numéro + mois), pour le récapitulatif.
   const dateLong = (d: number) =>
     startDate
@@ -190,7 +190,7 @@ export function NutritionView({
   // qui est proposé à table est exactement ce qu'il y a dans le caddie.
   const meals = useMemo(() => dayMeals(day, dayRest, base, profil, repas), [day, dayRest, base, profil, repas]);
   const groups = useMemo(
-    () => shoppingList(day, span, isRestOf, base, profil, repas, programDays, locale === "en" ? "en" : "fr"),
+    () => shoppingList(day, span, isRestOf, base, profil, repas, programDays, locale),
     [day, span, isRestOf, base, profil, repas, programDays, locale],
   );
   const train = macrosForDay(base, false);
@@ -278,7 +278,7 @@ export function NutritionView({
                 w === week ? "bg-fill text-fillfg border-fill" : "bg-surface text-body border-line-4",
               ].join(" ")}
             >
-              {locale === "en" ? "W" : "S"}{w}
+              {t("nutrition.weekAbbr")}{w}
             </button>
           ))}
         </div>
@@ -497,7 +497,7 @@ export function NutritionView({
                   span === d ? "bg-fill text-fillfg border-fill" : "bg-surface text-body border-line-4",
                 ].join(" ")}
               >
-                {d} {locale === "en" ? "d" : "j"}
+                {d} {t("nutrition.dayAbbr").toLowerCase()}
               </button>
             ))}
             <button onClick={copyList} className="tap rounded-pill border border-line-4 bg-surface px-3 text-[13px] font-medium text-body">

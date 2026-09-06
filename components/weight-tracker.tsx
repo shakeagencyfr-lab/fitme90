@@ -3,20 +3,23 @@
 import { useActionState, useState } from "react";
 import { addWeight, type EvoState } from "@/app/app/evolution/actions";
 import { Card, MonoLabel, Button, Alert } from "@/components/ui";
+import { useLocale } from "@/components/locale-provider";
+import { dateLocale } from "@/lib/i18n";
 
 interface W {
   kg: number;
   measured_at: string;
 }
 
-function fmt(d: string) {
-  return new Date(d).toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
+function fmt(d: string, dl: string) {
+  return new Date(d).toLocaleDateString(dl, { weekday: "short", day: "2-digit", month: "short" });
 }
-function fmtLong(d: string) {
-  return new Date(d).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+function fmtLong(d: string, dl: string) {
+  return new Date(d).toLocaleDateString(dl, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
 export function WeightTracker({ weights }: { weights: W[] }) {
+  const dl = dateLocale(useLocale());
   const [state, action, pending] = useActionState(addWeight, {} as EvoState);
   const [sel, setSel] = useState<number | null>(null);
 
@@ -100,7 +103,7 @@ export function WeightTracker({ weights }: { weights: W[] }) {
                 <button
                   key={i}
                   onClick={() => setSel(on ? null : i)}
-                  aria-label={`${wl[i].kg} kg le ${fmtLong(wl[i].measured_at)}`}
+                  aria-label={`${wl[i].kg} kg le ${fmtLong(wl[i].measured_at, dl)}`}
                   className="absolute -translate-x-1/2 -translate-y-1/2"
                   style={{ left: `${c.x}%`, top: `${c.y}%` }}
                 >
@@ -126,14 +129,14 @@ export function WeightTracker({ weights }: { weights: W[] }) {
                 <div className="font-archivo font-extrabold text-[15px] leading-none text-ink">
                   {String(wl[sel].kg).replace(".", ",")} kg
                 </div>
-                <div className="pt-0.5 text-[11px] text-muted-2">{fmtLong(wl[sel].measured_at)}</div>
+                <div className="pt-0.5 text-[11px] text-muted-2">{fmtLong(wl[sel].measured_at, dl)}</div>
               </div>
             ) : null}
           </div>
           <div className="flex justify-between pt-1.5 font-mono text-[10px] text-muted-2">
-            <span>{first ? fmt(first.measured_at) : ""}</span>
+            <span>{first ? fmt(first.measured_at, dl) : ""}</span>
             <span>touche un point pour le détail</span>
-            <span>{last ? fmt(last.measured_at) : ""}</span>
+            <span>{last ? fmt(last.measured_at, dl) : ""}</span>
           </div>
         </div>
       ) : (

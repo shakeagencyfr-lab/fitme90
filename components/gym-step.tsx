@@ -10,7 +10,7 @@ import {
   GYM_PHOTO_QUALITY,
 } from "@/lib/config";
 import { confidenceLabel, equipmentKey } from "@/lib/equipment";
-import { equipmentPhoto, matchEquipment, type EquipmentItem } from "@/lib/equipment-catalog";
+import { equipmentName, equipmentPhoto, matchEquipment, type EquipmentItem } from "@/lib/equipment-catalog";
 import { EquipmentPicker } from "@/components/equipment-picker";
 import { saveEquipment, type EquipItem } from "@/app/salle/actions";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
@@ -21,7 +21,7 @@ type Ligne = EquipItem & { on: boolean };
 
 /** Le nom d'une machine du catalogue dans la langue du client. */
 function nomLocal(item: EquipmentItem, locale: Locale): string {
-  return locale === "en" ? item.name : item.nom;
+  return equipmentName(item, locale);
 }
 
 export function GymStep({ nextHref = "/generation" }: { nextHref?: string }) {
