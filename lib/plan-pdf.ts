@@ -1,6 +1,8 @@
 import { cycleSessions, type Plan, type Session } from "@/lib/program";
-import { macrosForDay, pnum, grp } from "@/lib/nutrition";
-import { A4, PdfPage, ellipsize, renderPdf, textWidth, wrap } from "@/lib/pdf";
+import { macrosForDay, pnum, grp, type ScaledMeal } from "@/lib/nutrition";
+import { A4, PdfPage, ellipsize, renderPdf, textWidth, wrap, type PdfImage } from "@/lib/pdf";
+import type { HeartZone, RpeStep } from "@/lib/fitness";
+import { explainWarmup, bpmLabel } from "@/lib/warmup-guide";
 import { dateLocale, makeT, type Locale } from "@/lib/i18n";
 import { contentMarkString } from "@/lib/ai-act";
 
@@ -29,11 +31,31 @@ const FOND: [number, number, number] = [0.976, 0.973, 0.969];
 /** Colonnes du tableau d'exercices, en fraction de la largeur utile. */
 const COLONNES = { exercice: 0.42, series: 0.16, repos: 0.1, note: 0.32 };
 
+export interface PlanPdfOptions {
+  /** Index des cycles à exporter ; null = tous. */
+  cycles: number[] | null;
+  /** Les repères nutritionnels (calories et macros). */
+  nutrition: boolean;
+  /** Une journée type de repas, jour d'entraînement et jour de repos. */
+  sampleMeals: boolean;
+}
+
+export const PDF_OPTIONS_ALL: PlanPdfOptions = { cycles: null, nutrition: true, sampleMeals: true };
+
 export interface PlanPdfInput {
   plan: Plan;
   clientName: string;
   coachName: string;
   locale: Locale;
+  options?: PlanPdfOptions;
+  /** Logo du coach ou de la salle, déjà préparé (lib/pdf-image.ts). */
+  logo?: PdfImage | null;
+  /** Zones cardiaques du client (âge et FC de repos renseignés), sinon null. */
+  zones?: HeartZone[] | null;
+  /** L'échelle RPE dans la langue du document. */
+  rpe?: { intro: string; steps: RpeStep[] } | null;
+  /** Journée type de repas, calculée par lib/nutrition sur les objectifs du plan. */
+  sampleMeals?: { training: ScaledMeal[]; rest: ScaledMeal[] } | null;
 }
 
 /**
@@ -86,7 +108,15 @@ function paragraphe(
 }
 
 /** En-tête du document : marque, titre, destinataire. */
-function entete(c: Composeur, { clientName, coachName, locale }: PlanPdfInput, t: ReturnType<typeof makeT>): void {
+function entete(c: Composeur, { clientName, coachName, locale, logo }: PlanPdfInput, t: ReturnType<typeof makeT>): void {
+  // Le logo du coach ou de la salle en haut à droite, à l'échelle dans une
+  // boîte de 150 x 44 points ; sans logo, le nom seul en fait office.
+  if (logo && logo.width > 0 && logo.height > 0) {
+    const boxW = 150, boxH = 44;
+    const k = Math.min(boxW / logo.width, boxH / logo.height);
+    const w = logo.width * k, h = logo.height * k;
+    c.page.image(logo.name, MARGE + LARGEUR_UTILE - w, c.y - 2, w, h);
+  }
   c.page.text(coachName.toUpperCase(), MARGE, c.y, { size: 8.5, font: "Helvetica-Bold", color: GRIS_CLAIR });
   c.y += 18;
 
@@ -109,7 +139,7 @@ function section(c: Composeur, titre: string): void {
 }
 
 /** Une séance : titre, échauffement, puis le tableau des exercices. */
-function seance(c: Composeur, s: Session, t: ReturnType<typeof makeT>): void {
+function seance(c: Composeur, s: Session, t: ReturnType<typeof makeT>, zones: HeartZone[] | null, locale: Locale): void {
   // Le titre et au moins l'en-tête du tableau doivent tenir ensemble : un
   // titre seul en bas de page, avec ses exercices sur la suivante, se lit mal.
   c.reserver(72);
@@ -118,8 +148,20 @@ function seance(c: Composeur, s: Session, t: ReturnType<typeof makeT>): void {
   c.y += 16;
 
   if (s.warmup.length > 0) {
-    const detail = s.warmup.map((w) => (w.detail ? `${w.name} (${w.detail})` : w.name)).join(" · ");
-    paragraphe(c, `${t("session.warmup")} : ${detail}`, { size: 8.5, color: GRIS_CLAIR });
+    // Chaque item avec son mode d'emploi et, pour le cardio, la zone et les
+    // pulsations du client : le papier doit se suffire, sans l'app sous la main.
+    c.page.text(t("session.warmup"), MARGE, c.y, { size: 8.5, font: "Helvetica-Bold", color: GRIS });
+    c.y += 13;
+    for (const w of s.warmup) {
+      const ex = explainWarmup(w, zones, locale === "en" ? "en" : "fr");
+      let ligne = w.detail ? `${w.name}, ${w.detail}` : w.name;
+      if (ex.zone) {
+        ligne += ` (${ex.zone.id}${ex.zone.name ? ` ${ex.zone.name}` : ""}${ex.zone.range ? `, ${bpmLabel(ex.zone.range, locale === "en" ? "en" : "fr")}` : ""})`;
+      }
+      paragraphe(c, `· ${ligne}`, { size: 8.5, color: GRIS });
+      if (ex.how) paragraphe(c, ex.how, { size: 8, color: GRIS_CLAIR, largeur: LARGEUR_UTILE - 12 });
+      c.y += 2;
+    }
     c.y += 4;
   }
 
@@ -211,6 +253,90 @@ function nutrition(c: Composeur, plan: Plan, t: ReturnType<typeof makeT>): void 
   c.y += 6;
 }
 
+/** L'échelle RPE : comment choisir sa charge. Toujours dans le document. */
+function echelleRpe(c: Composeur, rpe: { intro: string; steps: RpeStep[] }, t: ReturnType<typeof makeT>): void {
+  c.reserver(150);
+  section(c, t("pdf.rpeTitle"));
+  paragraphe(c, rpe.intro, { size: 9, color: GRIS });
+  c.y += 6;
+  for (const step of rpe.steps) {
+    c.reserver(16);
+    c.page.text(`RPE ${step.id}`, MARGE + 6, c.y, { size: 9, font: "Helvetica-Bold", color: ENCRE });
+    c.page.text(step.label, MARGE + 58, c.y, { size: 9, font: "Helvetica-Bold", color: GRIS });
+    c.page.text(ellipsize(step.body, LARGEUR_UTILE - 150, 8.5), MARGE + 144, c.y, { size: 8.5, color: GRIS });
+    c.y += 14;
+  }
+  c.y += 4;
+  paragraphe(c, t("pdf.rpeGoal"), { size: 8.5, color: GRIS_CLAIR });
+  c.y += 8;
+}
+
+/** Les cinq zones cardiaques, avec les pulsations du client quand on les connaît. */
+function zonesCardio(c: Composeur, zones: HeartZone[] | null, t: ReturnType<typeof makeT>, locale: Locale): void {
+  c.reserver(160);
+  section(c, t("pdf.zonesTitle"));
+  paragraphe(c, zones ? t("pdf.zonesIntro") : t("pdf.zonesNoProfile"), { size: 9, color: GRIS });
+  c.y += 6;
+  const defs: [string, string, string][] = [
+    ["Z1", "Récupération", "Échauffement, retour au calme, marche"],
+    ["Z2", "Endurance", "Base du cardio, allure où tu peux parler"],
+    ["Z3", "Tempo", "Allure soutenue, phrases courtes"],
+    ["Z4", "Seuil", "Intervalles longs, respiration forte"],
+    ["Z5", "VO2 max", "Sprints courts, effort maximal"],
+  ];
+  const defsEn: [string, string, string][] = [
+    ["Z1", "Recovery", "Warm-up, cool-down, walking"],
+    ["Z2", "Endurance", "Cardio base, a pace where you can talk"],
+    ["Z3", "Tempo", "Sustained pace, short sentences"],
+    ["Z4", "Threshold", "Long intervals, heavy breathing"],
+    ["Z5", "VO2 max", "Short sprints, maximal effort"],
+  ];
+  const lignes = locale === "en" ? defsEn : defs;
+  c.page.rect(MARGE, c.y - 6, LARGEUR_UTILE, 20, FOND);
+  c.page.text("ZONE", MARGE + 6, c.y, { size: 7.5, font: "Helvetica-Bold", color: GRIS_CLAIR });
+  c.page.text(t("pdf.zoneUse").toUpperCase(), MARGE + 130, c.y, { size: 7.5, font: "Helvetica-Bold", color: GRIS_CLAIR });
+  c.page.text("BPM", MARGE + LARGEUR_UTILE - 90, c.y, { size: 7.5, font: "Helvetica-Bold", color: GRIS_CLAIR });
+  c.y += 18;
+  lignes.forEach(([id, nom, usage], i) => {
+    c.reserver(18);
+    c.page.line(MARGE, c.y - 4, MARGE + LARGEUR_UTILE, { color: FILET });
+    c.page.text(`${id} · ${nom}`, MARGE + 6, c.y, { size: 9, font: "Helvetica-Bold", color: ENCRE });
+    c.page.text(ellipsize(usage, LARGEUR_UTILE - 240, 8.5), MARGE + 130, c.y, { size: 8.5, color: GRIS });
+    const z = zones?.[i];
+    c.page.text(z ? z.range.replace(/[–-]/, " à ") : "·", MARGE + LARGEUR_UTILE - 90, c.y, { size: 9, font: "Helvetica-Bold", color: ENCRE });
+    c.y += 17;
+  });
+  c.page.line(MARGE, c.y - 4, MARGE + LARGEUR_UTILE, { color: FILET });
+  c.y += 12;
+}
+
+/** Une journée type de repas, jour d'entraînement puis jour de repos. */
+function journeeType(c: Composeur, meals: { training: ScaledMeal[]; rest: ScaledMeal[] }, t: ReturnType<typeof makeT>): void {
+  c.reserver(120);
+  section(c, t("pdf.sampleMeals"));
+  paragraphe(c, t("pdf.sampleMealsIntro"), { size: 8.5, color: GRIS_CLAIR });
+  c.y += 6;
+  for (const bloc of [
+    { titre: t("pdf.trainingDay"), list: meals.training },
+    { titre: t("pdf.restDay"), list: meals.rest },
+  ]) {
+    c.reserver(40);
+    c.page.text(bloc.titre, MARGE, c.y, { size: 10.5, font: "Helvetica-Bold", color: ENCRE });
+    c.y += 16;
+    for (const m of bloc.list) {
+      c.reserver(30);
+      c.page.text(`${m.time}  ${m.name}`, MARGE + 6, c.y, { size: 9.5, font: "Helvetica-Bold", color: ENCRE });
+      const kcal = `${grp(m.kcal)} kcal`;
+      c.page.text(kcal, MARGE + LARGEUR_UTILE - textWidth(kcal, 9), c.y, { size: 9, color: GRIS });
+      c.y += 13;
+      const items = m.items.map((it) => `${it.food} ${it.qty}`).join(" · ");
+      paragraphe(c, items, { size: 8.5, color: GRIS, largeur: LARGEUR_UTILE - 12 });
+      c.y += 5;
+    }
+    c.y += 6;
+  }
+}
+
 /** Numéro de page en pied, une fois le nombre total connu. */
 function pieds(pages: PdfPage[], mention: string): void {
   pages.forEach((page, i) => {
@@ -234,8 +360,11 @@ export function planPdf(input: PlanPdfInput): Uint8Array {
     c.y += 14;
   }
 
+  const options = input.options ?? PDF_OPTIONS_ALL;
+  const zones = input.zones ?? null;
   const cycles = input.plan.cycles ?? [];
   cycles.forEach((cycle, i) => {
+    if (options.cycles && !options.cycles.includes(i)) return;
     // Les semaines couvertes AVANT le titre, en surtitre : posées après, elles
     // retombaient sur la ligne du titre et les deux se chevauchaient.
     if (cycle.weeks) {
@@ -248,10 +377,16 @@ export function planPdf(input: PlanPdfInput): Uint8Array {
       paragraphe(c, cycle.body, { size: 9, color: GRIS });
       c.y += 8;
     }
-    for (const s of cycleSessions(input.plan, i)) seance(c, s, t);
+    for (const s of cycleSessions(input.plan, i)) seance(c, s, t, zones, input.locale);
   });
 
-  nutrition(c, input.plan, t);
+  // Toujours présents : le client s'entraîne avec ce papier, il doit savoir
+  // choisir sa charge et lire une zone cardiaque sans l'app.
+  if (input.rpe) echelleRpe(c, input.rpe, t);
+  zonesCardio(c, zones, t, input.locale);
+
+  if (options.nutrition) nutrition(c, input.plan, t);
+  if (options.sampleMeals && input.sampleMeals) journeeType(c, input.sampleMeals, t);
 
   const date = new Date().toLocaleDateString(dateLocale(input.locale), { day: "numeric", month: "long", year: "numeric" });
   // La mention visible accompagne la marque machine : l'une informe le lecteur,
@@ -259,6 +394,7 @@ export function planPdf(input: PlanPdfInput): Uint8Array {
   pieds(c.pages, `${t("pdf.footer", { date })} · ${t("pdf.aiNotice")}`);
 
   return renderPdf(c.pages, {
+    images: input.logo ? [input.logo] : [],
     title: input.clientName ? `${t("pdf.title")} ${input.clientName}` : t("pdf.title"),
     // AI Act, article 50(2) : le document sort marqué, pas seulement légendé.
     aiMark: contentMarkString({

@@ -15,6 +15,7 @@ import { subscriptionIsActive } from "@/lib/subscription";
 import { NextBlockPrompt } from "@/components/next-block";
 import { blockLabel } from "@/lib/templates";
 import { UpgradeCard } from "@/components/upgrade-card";
+import { PlanExport } from "@/components/plan-export";
 import { upgradeEligible } from "@/lib/upgrade-logic";
 import { upgradeQuote, confirmUpgrade } from "@/lib/upgrade";
 import { DAYS_PER_MONTH } from "@/lib/config";
@@ -342,9 +343,7 @@ export default async function ProgrammePage({
             pièce jointe. Auparavant ce lien ouvrait une page qui appelait la
             boîte d'impression du navigateur, où il fallait aller chercher
             « Enregistrer au format PDF ». */}
-        <ButtonLink href="/api/plan-pdf" variant="ghost" className="mt-1 h-10 self-start" download>
-          {t("dashboard.exportPdf")}
-        </ButtonLink>
+        <PlanExport cycles={plan.cycles.map((c, i) => (c.label || c.name ? `${c.label}${c.label && c.name ? " · " : ""}${c.name}` : `${t("dashboard.cycle")} ${i + 1}`))} />
       </section>
 
       {/* Cycles, en carrousel horizontal avec explications approfondies */}
