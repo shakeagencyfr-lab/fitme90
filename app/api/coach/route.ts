@@ -28,6 +28,7 @@ import {
   type CircuitGear,
   type CircuitTheme,
 } from "@/lib/circuit-library";
+import { circuitPoolForTenant } from "@/lib/coach-circuits";
 import { coachAgenda, coachPlanView, logsDigest, type CoachLog, sessionLines } from "@/lib/coach-context";
 import { addMemoryNote, readMemory, renderMemory } from "@/lib/coach-memory";
 import { blockPosition } from "@/lib/block-logic";
@@ -770,9 +771,13 @@ S'il te demande quoi manger, pars de ce qui est déjà consommé et de ce qui re
       situation === "aucun" ? "aucun" : situation === "hotel" ? "hotel" : situation === "halteres" ? "halteres" : null;
     const pathologies = pathologiesFromAnswers(quiz?.answers);
 
+    // Les circuits écrits par le coach passent devant ceux de la plateforme :
+    // ses clients paient pour SA méthode.
+    const pool = garder ? [] : await circuitPoolForTenant(coachTenant);
     const choisi = garder
       ? null
       : substituteCircuit({
+          pool,
           session: current,
           wish: envie,
           theme: themeImpose,

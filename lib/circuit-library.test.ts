@@ -12,6 +12,7 @@ import {
   filterCircuits,
   gearCovers,
   gearFromEquipment,
+  maxFillableMinutes,
   pathologiesFromAnswers,
   renderCircuit,
   substituteCircuit,
@@ -378,5 +379,32 @@ describe("substituteCircuit", () => {
     const r = substituteCircuit({ ...base })!;
     expect(r.from).toBe("defaut");
     expect(r.template).toBeTruthy();
+  });
+});
+
+describe("maxFillableMinutes", () => {
+  it("dit jusqu'où un circuit peut aller sans mentir", () => {
+    // Deux blocs de trois mouvements ne remplissent pas 90 minutes : c'est la
+    // limite qu'il faut annoncer au coach au moment où il écrit son circuit.
+    expect(maxFillableMinutes([{ exercises: 3 }, { exercises: 3 }])).toBeLessThan(90);
+    expect(maxFillableMinutes(Array.from({ length: 4 }, () => ({ exercises: 4 })))).toBeGreaterThanOrEqual(90);
+    expect(maxFillableMinutes([])).toBe(0);
+    expect(maxFillableMinutes([{ exercises: 1 }])).toBe(0);
+    // Un bloc écrit plus long garde sa longueur : le plafond monte avec lui.
+    expect(maxFillableMinutes([{ exercises: 3, workBias: 15 }, { exercises: 3 }])).toBeGreaterThan(
+      maxFillableMinutes([{ exercises: 3 }, { exercises: 3 }]),
+    );
+  });
+
+  it("ne promet jamais plus que ce que le rendu construit vraiment", () => {
+    for (const t of CIRCUIT_TEMPLATES) {
+      const tailles = [...t.blocks, ...(t.finisher ? [t.finisher] : [])].map((b) => ({
+        exercises: b.exercises.length,
+        workBias: b.workBias,
+      }));
+      const plafond = maxFillableMinutes(tailles);
+      const rendu = renderCircuit(t, { minutes: 200, level: "avance", cycleIndex: 2, locale: "fr" });
+      expect(rendu.minutes, t.id).toBeLessThanOrEqual(plafond);
+    }
   });
 });

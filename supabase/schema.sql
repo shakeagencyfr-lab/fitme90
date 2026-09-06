@@ -578,6 +578,34 @@ create table if not exists public.exercise_media (
   constraint exercise_media_tenant_id_exercise_key_key unique (tenant_id, exercise_key)
 );
 
+-- Circuits du coach : ses propres séances en circuit, écrites au configurateur
+-- du dashboard, qui viennent s'ajouter au catalogue de la plateforme pour SES
+-- clients. Les blocs sont du JSON de la même forme que les modèles du code
+-- (titre, exercices par clé de bibliothèque, décalages d'effort et de repos).
+create table if not exists public.coach_circuits (
+  id uuid not null default gen_random_uuid(),
+  tenant_id uuid not null,
+  title text not null,
+  goal text not null default ''::text,
+  theme text not null default 'corps-entier'::text,
+  gear text not null default 'aucun'::text,
+  levels text[] not null default '{debutant,intermediaire,avance}'::text[],
+  impact text not null default 'faible'::text,
+  -- Zones à ménager que ce circuit sollicite : il n'est jamais proposé à un
+  -- client qui les a déclarées.
+  avoid text[] not null default '{}'::text[],
+  -- Zones pour lesquelles il est écrit : il leur est proposé en premier.
+  safe_for text[] not null default '{}'::text[],
+  sensation smallint,
+  blocks jsonb not null default '[]'::jsonb,
+  -- Visuel du circuit, affiché dans la bibliothèque du coach.
+  image_url text,
+  enabled boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint coach_circuits_pkey primary key (id)
+);
+
 create table if not exists public.shop_products (
   id uuid not null default gen_random_uuid(),
   -- Boutique PAR TENANT : chaque coach a la sienne.
@@ -673,6 +701,9 @@ alter table public.promo_codes
 alter table public.exercise_media
   add constraint exercise_media_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade;
 
+alter table public.coach_circuits
+  add constraint coach_circuits_tenant_id_fkey foreign key (tenant_id) references public.tenants(id) on delete cascade;
+
 -- =====================================================================
 -- 3. INDEX
 -- =====================================================================
@@ -689,6 +720,7 @@ create index if not exists credit_ledger_tenant_created_idx on public.credit_led
 create index if not exists credit_ledger_tenant_idx on public.credit_ledger (tenant_id, created_at desc);
 create index if not exists credit_packs_tenant_idx on public.credit_packs (tenant_id, "position");
 create index if not exists exercise_media_tenant_idx on public.exercise_media (tenant_id);
+create index if not exists coach_circuits_tenant_idx on public.coach_circuits (tenant_id);
 create unique index if not exists gift_codes_session_uidx on public.gift_codes (stripe_session_id) where (stripe_session_id is not null);
 create index if not exists gift_codes_tenant_idx on public.gift_codes (tenant_id);
 create index if not exists offers_tenant_idx on public.offers (tenant_id, "position");
