@@ -70,6 +70,12 @@ describe("matchLibraryExercise", () => {
     expect(matchLibraryExercise("Squat barre")?.key).toBe("squat");
   });
 
+  it("leg curl machine tombe sur la fiche allongée (avec photo)", () => {
+    expect(matchLibraryExercise("Leg curl machine")?.key).toBe("leg-curl-allonge");
+    expect(matchLibraryExercise("Leg curl à la machine")?.key).toBe("leg-curl-allonge");
+    expect(matchLibraryExercise("Leg curl léger avec sangles de suspension")?.key).toBe("leg-curl-suspension");
+  });
+
   it("renvoie null pour un exercice inconnu", () => {
     expect(matchLibraryExercise("Yoga du matin")).toBeNull();
     expect(matchLibraryExercise("")).toBeNull();
