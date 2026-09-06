@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/guard";
+import { hasProgram } from "@/lib/queries";
 import { GymStep } from "@/components/gym-step";
 import { CoachMark } from "@/components/brand";
 import { brandForUser } from "@/lib/branding";
@@ -14,7 +15,9 @@ export async function generateMetadata() {
 export default async function SallePage() {
   const ctx = await getSessionContext();
   if (!ctx) redirect("/connexion?suite=/salle");
-  if (ctx.access.phase === "active" || ctx.access.phase === "grace") redirect("/app");
+  // Même règle qu'au questionnaire : c'est le programme déjà écrit qui ferme
+  // l'étape, pas le simple fait que le compte soit ouvert.
+  if (await hasProgram(ctx.userId)) redirect("/app");
   // Le paiement vient après cette étape : s'il n'a pas payé, la suite est la
   // caisse ; sinon, on peut lancer la génération directement.
   const nextHref = ctx.access.phase === "not_paid" ? "/app/paiement" : "/generation";
