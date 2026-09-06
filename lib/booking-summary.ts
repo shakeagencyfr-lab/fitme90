@@ -83,6 +83,27 @@ export function agendaView<T extends Pick<Booking, "status" | "starts_at" | "pai
   };
 }
 
+/**
+ * Les rendez-vous rangés par jour, pour poser un repère sur un calendrier.
+ *
+ * La clé est le jour DANS LE FUSEAU DU COACH : c'est le jour où le client
+ * devra être là, et c'est donc celui qu'il doit voir sur sa case.
+ */
+export function byDayKey<T extends Pick<Booking, "status" | "starts_at">>(
+  bookings: readonly T[],
+  timezone: string,
+): Map<string, T[]> {
+  const out = new Map<string, T[]>();
+  for (const b of bookings.filter(isLive)) {
+    const k = dayKey(new Date(b.starts_at), timezone);
+    const list = out.get(k) ?? [];
+    list.push(b);
+    out.set(k, list);
+  }
+  for (const list of out.values()) list.sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+  return out;
+}
+
 export interface BookingFigures {
   /** Rendez-vous vivants encore à venir. */
   upcoming: number;

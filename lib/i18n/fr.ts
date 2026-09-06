@@ -691,6 +691,10 @@ export const fr = {
     with: "avec {name}",
     tzNote: "Horaires en heure locale de ton coach ({tz}).",
     closed: "La réservation n'est pas ouverte pour l'instant.",
+    nextTitle: "Prochain rendez-vous",
+    seeAll: "Tous mes rendez-vous",
+    whenToday: "aujourd'hui",
+    whenTomorrow: "demain",
   },
   referral: {
     intro: "Partage ton lien personnel : quand quelqu'un rejoint grâce à toi, tu es récompensé·e.",

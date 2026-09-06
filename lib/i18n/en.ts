@@ -691,6 +691,10 @@ export const en: Shape<typeof fr> = {
     with: "with {name}",
     tzNote: "Times in your coach's local time ({tz}).",
     closed: "Booking is not open for now.",
+    nextTitle: "Next appointment",
+    seeAll: "All my appointments",
+    whenToday: "today",
+    whenTomorrow: "tomorrow",
   },
   referral: {
     intro: "Share your personal link: when someone joins thanks to you, you get rewarded.",
