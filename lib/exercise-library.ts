@@ -221,7 +221,7 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
     key: "leg-curl-allonge",
     name: "Leg curl allongé",
     muscle: "Ischio-jambiers",
-    aliases: ["leg curl allonge", "leg curl couche", "lying leg curl", "curl ischios allonge"],
+    aliases: ["leg curl allonge", "leg curl couche", "lying leg curl", "curl ischios allonge", "leg curl machine", "leg curl a la machine", "machine leg curl", "leg curl machine allonge"],
     guide: {
       steps: [
         "Allongé sur le ventre, chevilles sous le rouleau.",

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { saveSession, type SetEntry } from "@/app/app/seance/actions";
 import { Button, Alert, MonoLabel } from "@/components/ui";
 import { ExerciseModal } from "@/components/exercise-modal";
+import { MuscleIllustration } from "@/components/muscle-illustration";
 import { matchLibraryExercise, libraryFrames } from "@/lib/exercise-library";
 import { isCardioExercise, cardioZone, formatRest, type HeartZone } from "@/lib/fitness";
 
@@ -14,16 +15,20 @@ import { isCardioExercise, cardioZone, formatRest, type HeartZone } from "@/lib/
 function ExerciseThumb({ name, onOpen }: { name: string; onOpen: () => void }) {
   const lib = matchLibraryExercise(name);
   if (!lib) return null;
-  const src = libraryFrames(lib.key)[0];
+  const src = lib.noPhoto ? null : libraryFrames(lib.key)[0];
   return (
     <button
       type="button"
       onClick={onOpen}
       aria-label={`Voir ${name}`}
-      className="tap group relative size-14 shrink-0 overflow-hidden rounded-control border border-line-3 bg-surface-2"
+      className="tap group relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-control border border-line-3 bg-surface-2 text-muted-2"
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt={name} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt={name} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+      ) : (
+        <MuscleIllustration muscle={lib.muscle} className="h-[80%] w-auto" />
+      )}
       <span className="absolute bottom-0 right-0 flex size-4 items-center justify-center rounded-tl-[6px] bg-brand text-white">
         <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth={2.2} aria-hidden>
           <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
