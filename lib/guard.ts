@@ -32,6 +32,8 @@ export interface ProfileRow {
   subscription_cancel_at: string | null;
   subscription_installments: number | null;
   subscription_paid_in_full: boolean | null;
+  /** Le coach a ouvert la réservation en ligne de séances à ce client. */
+  booking_enabled: boolean | null;
 }
 
 export interface SessionContext {
@@ -59,7 +61,7 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, email, name, paid, start_date, photo_consent_at, medical_ack_at, tenant_id, role, subscription_id, subscription_status, subscription_current_period_end, subscription_interval, subscription_cancel_at_period_end, subscription_synced_at, subscription_cancel_at, subscription_installments, subscription_paid_in_full",
+      "id, email, name, paid, start_date, photo_consent_at, medical_ack_at, tenant_id, role, subscription_id, subscription_status, subscription_current_period_end, subscription_interval, subscription_cancel_at_period_end, subscription_synced_at, subscription_cancel_at, subscription_installments, subscription_paid_in_full, booking_enabled",
     )
     .eq("id", user.id)
     .maybeSingle<ProfileRow>();

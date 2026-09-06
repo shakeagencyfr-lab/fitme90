@@ -11,6 +11,7 @@ function plan(over: Partial<Plan>): Plan {
     client_limit: 10,
     setup_fee_cents: 0,
     whitelabel_included: false,
+    booking_included: false,
     ai_supply: "byok",
     coach_byok_allowed: true,
     coach_credits_allowed: false,

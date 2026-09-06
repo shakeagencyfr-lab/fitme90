@@ -4,12 +4,14 @@ import { tx } from "@/lib/i18n/request";
 import { listPlans, freePlanOf, MAX_PLANS_PER_TENANT, type Plan } from "@/lib/plans";
 import { resellerRights } from "@/lib/cost-view";
 import { resellerWhitelabelPrice } from "@/lib/whitelabel";
+import { resellerBookingPrice } from "@/lib/booking-billing";
+import { BookingPriceForm } from "@/components/booking-price-form";
 import { parentDashboardBrand, platformBrand } from "@/lib/branding";
 import { WhitelabelPriceForm } from "@/components/whitelabel-price-form";
 import { formatEuros } from "@/lib/config";
 import { PlanForm } from "@/components/plan-form";
 import { FreePlanForm } from "@/components/free-plan-form";
-import { togglePlan, togglePlanWhitelabel, removePlan } from "@/app/admin/actions";
+import { togglePlan, togglePlanWhitelabel, togglePlanBooking, removePlan } from "@/app/admin/actions";
 import { Alert, Card } from "@/components/ui";
 
 export const metadata = { title: "Paliers" };
@@ -61,12 +63,13 @@ export default async function AdminPlansPage() {
 
   // Un revendeur ne vend que ce que son propre palier lui ouvre ; ce qui ne
   // lui est pas ouvert se demande à son parent, nommé par sa marque.
-  const [plans, free, rights, wlPrice, parentBrand] = tenantId
-    ? await Promise.all([listPlans(tenantId), freePlanOf(tenantId), resellerRights(tenantId), resellerWhitelabelPrice(tenantId), parentDashboardBrand(tenantId)])
-    : [[], null, { byok: true, credits: true }, null, null];
+  const [plans, free, rights, wlPrice, parentBrand, bkPrice] = tenantId
+    ? await Promise.all([listPlans(tenantId), freePlanOf(tenantId), resellerRights(tenantId), resellerWhitelabelPrice(tenantId), parentDashboardBrand(tenantId), resellerBookingPrice(tenantId)])
+    : [[], null, { byok: true, credits: true }, null, null, null];
   const contactName = parentBrand?.name ?? (await platformBrand())?.name ?? "la plateforme";
   const payants = plans.filter((p) => !p.is_free);
   const includedPlans = plans.filter((p) => p.whitelabel_included).map((p) => (p.is_free ? `${p.name} (gratuit)` : p.name));
+  const bookingPlans = plans.filter((p) => p.booking_included).map((p) => (p.is_free ? `${p.name} (gratuit)` : p.name));
 
   return (
     <div className="flex flex-col gap-5">
@@ -99,6 +102,7 @@ export default async function AdminPlansPage() {
                     <Pill>{clientsLabel(p, unite)}</Pill>
                     <Pill>{p.ai_supply === "credits" ? tx("IA en crédits") : tx("IA en clé personnelle")}</Pill>
                     {p.whitelabel_included ? <Pill>{tx("Marque blanche incluse")}</Pill> : null}
+                    {p.booking_included ? <Pill>{tx("Réservation incluse")}</Pill> : null}
                     {sells === "resellers" ? (
                       <>
                         {p.coach_byok_allowed ? <Pill tone="muted">{tx("Coachs en clé perso")}</Pill> : null}
@@ -135,6 +139,21 @@ export default async function AdminPlansPage() {
                       {p.whitelabel_included ? tx("Marque blanche incluse") : tx("Inclure la marque blanche")}
                     </button>
                   </form>
+                  {sells === "coaches" ? (
+                    <form action={togglePlanBooking}>
+                      <input type="hidden" name="id" value={p.id} />
+                      <input type="hidden" name="included" value={p.booking_included ? "" : "on"} />
+                      <button
+                        type="submit"
+                        className={`tap rounded-btn px-3.5 py-2 text-[13px] font-semibold ${
+                          p.booking_included ? "border border-brand/40 bg-brand/[0.06] text-brand" : "border border-line-4 text-body hover:border-ink"
+                        }`}
+                        title={p.booking_included ? tx("Retirer la réservation de ce palier") : tx("Inclure la réservation dans ce palier, sans supplément")}
+                      >
+                        {p.booking_included ? tx("Réservation incluse") : tx("Inclure la réservation")}
+                      </button>
+                    </form>
+                  ) : null}
                   <form action={togglePlan}>
                     <input type="hidden" name="id" value={p.id} />
                     <input type="hidden" name="active" value={p.is_active ? "" : "on"} />
@@ -166,6 +185,9 @@ export default async function AdminPlansPage() {
             <>
               <div className="mt-2 font-archivo font-bold text-[17px] text-ink">{tx("Pack marque blanche")}</div>
               <WhitelabelPriceForm initialCents={wlPrice} includedPlans={includedPlans} />
+
+              <div className="mt-2 font-archivo font-bold text-[17px] text-ink">{tx("Pack réservation")}</div>
+              <BookingPriceForm initialCents={bkPrice} includedPlans={bookingPlans} />
             </>
           ) : null}
         </div>

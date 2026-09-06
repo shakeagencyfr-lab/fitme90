@@ -19,6 +19,9 @@ import { aiUsageForUser, formatUsd } from "@/lib/ai-cost";
 import { costViewOf } from "@/lib/cost-view";
 import { clientReferralLinks, type ReferralPerson } from "@/lib/affiliation";
 import { clientDisplayName } from "@/lib/display-name";
+import { bookingSpace } from "@/lib/booking";
+import { clientCoachAiIncluded } from "@/lib/offers";
+import { ClientBookingToggle } from "@/components/client-booking-toggle";
 import type { Plan } from "@/lib/program";
 
 export const metadata = { title: "Fiche client" };
@@ -35,6 +38,7 @@ type Prof = {
   medical_ack_at: string | null;
   medical_ack_name: string | null;
   managed_by_coach: boolean;
+  booking_enabled: boolean | null;
 };
 
 type MeasureRow = {
@@ -83,7 +87,7 @@ export default async function ClientDetailPage({
     await Promise.all([
       admin
         .from("profiles")
-        .select("id, tenant_id, email, name, sex, paid, start_date, medical_hold, medical_ack_at, medical_ack_name, managed_by_coach")
+        .select("id, tenant_id, email, name, sex, paid, start_date, medical_hold, medical_ack_at, medical_ack_name, managed_by_coach, booking_enabled")
         .eq("id", id)
         .maybeSingle<Prof>(),
       admin
@@ -126,7 +130,7 @@ export default async function ClientDetailPage({
 
   // Chat VIP embarqué dans la fiche : le coach répond en gardant toutes les infos
   // du client sous les yeux. Affiché seulement si l'offre du client porte l'option.
-  const vipCtx = await clientVipContext(id);
+  const [vipCtx, bookingSp, clientAi] = await Promise.all([clientVipContext(id), bookingSpace(profile.tenant_id), clientCoachAiIncluded(id)]);
   let vipMessages: VipMessage[] = [];
   if (vipCtx.enabled) {
     vipMessages = await listVipMessages(id);
@@ -272,6 +276,9 @@ export default async function ClientDetailPage({
           </span>
         </div>
       </Card>
+
+      {/* Réservation en présentiel : ouverte client par client. */}
+      <ClientBookingToggle clientId={profile.id} enabled={!!profile.booking_enabled} packAllowed={bookingSp.access.allowed} spaceActive={bookingSp.active} coachAi={clientAi} />
 
       {/* Parrainage : d'où vient ce client, et qui il a amené. Rien à
           afficher tant qu'il n'y a ni parrain ni filleul. */}

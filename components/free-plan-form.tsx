@@ -97,15 +97,26 @@ export function FreePlanForm({
             ) : null}
 
             {sells === "coaches" ? (
-              <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
-                <input type="checkbox" name="whitelabel_included" defaultChecked={plan.whitelabel_included} className="mt-0.5 size-4 accent-brand" />
-                <span className="flex flex-col gap-0.5">
-                  <span className="text-[14px] font-semibold text-ink">{tx("Inclure le pack marque blanche")}</span>
-                  <span className="text-[12px] leading-[1.5] text-muted-2">
-                    {tx("Domaine personnalisé, e-mails depuis son serveur, site de présentation. Décoché, le coach garde ta marque et peut souscrire le pack à part si tu en fixes le prix.")}
+              <>
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
+                  <input type="checkbox" name="whitelabel_included" defaultChecked={plan.whitelabel_included} className="mt-0.5 size-4 accent-brand" />
+                  <span className="flex flex-col gap-0.5">
+                    <span className="text-[14px] font-semibold text-ink">{tx("Inclure le pack marque blanche")}</span>
+                    <span className="text-[12px] leading-[1.5] text-muted-2">
+                      {tx("Domaine personnalisé, e-mails depuis son serveur, site de présentation. Décoché, le coach garde ta marque et peut souscrire le pack à part si tu en fixes le prix.")}
+                    </span>
                   </span>
-                </span>
-              </label>
+                </label>
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-control border border-line-4 bg-surface-2 p-3.5">
+                  <input type="checkbox" name="booking_included" defaultChecked={plan.booking_included} className="mt-0.5 size-4 accent-brand" />
+                  <span className="flex flex-col gap-0.5">
+                    <span className="text-[14px] font-semibold text-ink">{tx("Inclure le pack réservation")}</span>
+                    <span className="text-[12px] leading-[1.5] text-muted-2">
+                      {tx("Rendez-vous en présentiel depuis l'espace client, plannings, paiement en ligne, Coach IA qui réserve. Décoché, le coach peut le souscrire à part si tu en fixes le prix.")}
+                    </span>
+                  </span>
+                </label>
+              </>
             ) : (
               <ResellerRightsFields byok={byok} setByok={setByok} credits={creditsOn} setCredits={setCredits} creditsForced={creditsForced} />
             )}
