@@ -16,6 +16,7 @@ import { setTenantCustomDomain } from "@/lib/custom-domain";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { deleteCoachCircuit, sanitizeCoachCircuit, saveCoachCircuit } from "@/lib/coach-circuits";
 import { createClient } from "@/lib/supabase/server";
 import { isServedInstant } from "@/lib/push-windows";
 import { getAdminOrNull } from "@/lib/admin";
@@ -2388,4 +2389,43 @@ export async function handOverClient(
   // Le lien peut manquer sans que la reprise ait échoué : l'adresse est posée,
   // et le client peut toujours demander un courriel de connexion.
   return { ok: true, lien: lien ?? undefined };
+}
+
+/**
+ * Enregistre un circuit du coach (création ou modification).
+ *
+ * Le formulaire envoie les blocs en JSON : c'est une structure imbriquée
+ * (blocs, puis mouvements), et la reconstruire depuis des champs plats
+ * donnerait un code plus fragile que le JSON lui-même. Tout est revalidé
+ * côté serveur, les clés d'exercice comprises.
+ */
+export async function saveCircuit(formData: FormData): Promise<{ ok?: true; error?: string }> {
+  const ctx = await getAdminOrNull();
+  const tenantId = ctx?.profile?.tenant_id;
+  if (!tenantId) return { error: "Aucun compte rattaché à ton profil." };
+
+  let brut: unknown;
+  try {
+    brut = JSON.parse(String(formData.get("circuit") ?? "{}"));
+  } catch {
+    return { error: "Formulaire illisible, recharge la page." };
+  }
+  const parsed = sanitizeCoachCircuit(brut);
+  if (!parsed.circuit) return { error: parsed.error };
+
+  const id = String(formData.get("id") ?? "") || null;
+  const { error } = await saveCoachCircuit(tenantId, parsed.circuit, id);
+  if (error) return { error };
+  revalidatePath("/admin/circuits");
+  return { ok: true };
+}
+
+/** Supprime un circuit du coach. */
+export async function removeCircuit(formData: FormData): Promise<void> {
+  const ctx = await getAdminOrNull();
+  if (!ctx?.profile?.tenant_id) return;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await deleteCoachCircuit(ctx.profile.tenant_id, id);
+  revalidatePath("/admin/circuits");
 }

@@ -230,6 +230,13 @@ export interface CircuitTemplate {
   blocks: CircuitTemplateBlock[];
   /** Bloc final, ajouté seulement quand la durée le permet. */
   finisher?: CircuitTemplateBlock;
+  /**
+   * Circuit écrit par le coach lui-même, et non par la plateforme.
+   *
+   * Il passe devant le catalogue par défaut à critères égaux : ses clients
+   * paient pour SA méthode, pas pour la nôtre.
+   */
+  own?: boolean;
 }
 
 // ───────────────────────────────────────────────── titres de blocs communs
@@ -1262,6 +1269,32 @@ export function renderCircuit(tpl: CircuitTemplate, input: RenderCircuitInput): 
   };
 }
 
+/**
+ * Le temps maximum qu'un circuit peut remplir honnêtement, en minutes.
+ *
+ * Un circuit n'est pas extensible à l'infini : le rendu plafonne à 8 tours par
+ * bloc, et n'allonge l'effort que jusqu'à 60 secondes (un bloc écrit plus long
+ * garde sa longueur). Deux blocs de trois mouvements ne rempliront jamais 90
+ * minutes, et il vaut mieux le dire à celui qui écrit le circuit que de
+ * laisser son client découvrir une séance plus courte que promis.
+ */
+export function maxFillableMinutes(blocks: readonly { exercises: number; workBias?: number }[]): number {
+  const blocs = blocks.filter((b) => b.exercises >= 2);
+  if (!blocs.length) return 0;
+  const MAX_ROUNDS = 8;
+  const MAX_WORK = 60;
+  const REST = 15;
+  const ROUND_REST = 30;
+  const BLOCK_REST = 60;
+  let total = 0;
+  blocs.forEach((b, i) => {
+    const work = MAX_WORK + Math.max(0, b.workBias ?? 0);
+    total += MAX_ROUNDS * (b.exercises * work + (b.exercises - 1) * REST) + (MAX_ROUNDS - 1) * ROUND_REST;
+    if (i < blocs.length - 1) total += BLOCK_REST;
+  });
+  return Math.floor(total / 60) + WARMUP_MINUTES;
+}
+
 // ──────────────────────────────────────────────────────────────── sélection
 
 export interface CircuitCriteria {
@@ -1284,10 +1317,13 @@ export interface CircuitCriteria {
  * est classé : d'abord ceux écrits pour la contrainte de la personne, puis le
  * thème demandé, puis le matériel exact, puis le niveau.
  */
-export function filterCircuits(criteria: CircuitCriteria = {}): CircuitTemplate[] {
+export function filterCircuits(
+  criteria: CircuitCriteria = {},
+  pool: readonly CircuitTemplate[] = CIRCUIT_TEMPLATES,
+): CircuitTemplate[] {
   const patho = criteria.pathologies ?? [];
   const gear = criteria.gear;
-  return CIRCUIT_TEMPLATES.filter((t) => {
+  return pool.filter((t) => {
     if (patho.some((p) => t.avoid.includes(p))) return false;
     if (criteria.theme && t.theme !== criteria.theme) return false;
     if (gear && !gearCovers(gear, t.gear)) return false;
@@ -1306,6 +1342,8 @@ function score(t: CircuitTemplate, c: CircuitCriteria): number {
   if (c.gear && t.gear === c.gear) s += 10;
   if (c.level && t.levels[0] === c.level) s += 5;
   if (patho.length && t.impact === "nul") s += 3;
+  // Les circuits du coach passent devant les nôtres, à critères égaux.
+  if (t.own) s += 20;
   return s;
 }
 
@@ -1316,12 +1354,15 @@ function score(t: CircuitTemplate, c: CircuitCriteria): number {
  * les contraintes de la personne, on retire le thème plutôt que de servir un
  * circuit contre-indiqué. Mieux vaut un corps entier que mal au dos.
  */
-export function bestCircuit(criteria: CircuitCriteria = {}): CircuitTemplate | null {
-  const exact = filterCircuits(criteria);
+export function bestCircuit(
+  criteria: CircuitCriteria = {},
+  pool: readonly CircuitTemplate[] = CIRCUIT_TEMPLATES,
+): CircuitTemplate | null {
+  const exact = filterCircuits(criteria, pool);
   if (exact.length) return exact[0];
-  const sansTheme = criteria.theme ? filterCircuits({ ...criteria, theme: undefined }) : [];
+  const sansTheme = criteria.theme ? filterCircuits({ ...criteria, theme: undefined }, pool) : [];
   if (sansTheme.length) return sansTheme[0];
-  const sansMateriel = criteria.gear ? filterCircuits({ ...criteria, theme: undefined, gear: undefined }) : [];
+  const sansMateriel = criteria.gear ? filterCircuits({ ...criteria, theme: undefined, gear: undefined }, pool) : [];
   return sansMateriel[0] ?? null;
 }
 
@@ -1509,6 +1550,8 @@ export interface SubstituteInput {
   minutes: number;
   cycleIndex: number;
   locale: Locale;
+  /** Le catalogue où chercher : celui de la plateforme, plus celui du coach. */
+  pool?: readonly CircuitTemplate[];
 }
 
 export interface SubstituteResult {
@@ -1524,15 +1567,18 @@ export function substituteCircuit(input: SubstituteInput): SubstituteResult | nu
   const from: SubstituteResult["from"] = input.theme ? "theme" : parEnvie ? "envie" : input.session ? "seance" : "defaut";
   const gear = input.gear ?? gearFromEquipment(input.equipment);
   const pathologies = input.pathologies ?? [];
-  const template = bestCircuit({
-    theme: theme ?? undefined,
-    gear,
-    level: input.level,
-    pathologies,
-    // Sans pathologie déclarée, les sauts restent permis : c'est au client de
-    // demander autre chose, pas à nous de décider qu'il est fragile.
-    noImpact: false,
-  });
+  const template = bestCircuit(
+    {
+      theme: theme ?? undefined,
+      gear,
+      level: input.level,
+      pathologies,
+      // Sans pathologie déclarée, les sauts restent permis : c'est au client de
+      // demander autre chose, pas à nous de décider qu'il est fragile.
+      noImpact: false,
+    },
+    input.pool ?? CIRCUIT_TEMPLATES,
+  );
   if (!template) return null;
   return {
     template,
