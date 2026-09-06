@@ -125,11 +125,16 @@ export default async function ProgrammePage({
 
   const { plan, trainDays, doneDays } = await loadPlanAndDays(ctx.userId);
   if (!plan) {
+    // Le bouton mène à la génération, pas au questionnaire : il dit « générer
+    // mon programme », et le client a souvent déjà répondu (compte créé à la
+    // main par son coach, questionnaire rempli en assistance). La page de
+    // génération renvoie d'elle-même au questionnaire quand il manque, donc un
+    // seul lien couvre les deux cas.
     return (
       <Empty
         title={t("dashboard.toGenerateTitle")}
         body={t("dashboard.toGenerateBody")}
-        cta={{ href: "/questionnaire", label: t("dashboard.toGenerateCta") }}
+        cta={{ href: "/generation", label: t("dashboard.toGenerateCta") }}
       />
     );
   }

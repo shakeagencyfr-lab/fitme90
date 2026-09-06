@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/guard";
 import { createClient } from "@/lib/supabase/server";
 import { confirmCoachCheckout } from "@/lib/coach-payments";
+import { hasProgram } from "@/lib/queries";
 import { GenerateStep } from "@/components/generate-step";
 import { CoachMark } from "@/components/brand";
 import { brandForUser } from "@/lib/branding";
@@ -28,21 +29,13 @@ export default async function GenerationPage({
     await confirmCoachCheckout(ctx.userId, sp.session_id);
   }
 
-  if (ctx.access.phase === "active" || ctx.access.phase === "grace") redirect("/app");
-
   // Programme déjà écrit (il n'a peut-être pas encore commencé) : cette page
   // n'a plus rien à faire. La laisser se relancer coûtait une génération au
-  // coach à chaque retour arrière ou rechargement.
+  // coach à chaque retour arrière ou rechargement. C'est le seul motif de
+  // renvoi : la phase d'accès, elle, fermait aussi la porte aux comptes actifs
+  // qui n'ont pas encore de programme, créés à la main par leur coach.
   const supabase = await createClient();
-  if (ctx.access.phase !== "not_paid") {
-    const { data: prog } = await supabase
-      .from("programs")
-      .select("id")
-      .eq("user_id", ctx.userId)
-      .limit(1)
-      .maybeSingle<{ id: string }>();
-    if (prog) redirect("/app");
-  }
+  if (await hasProgram(ctx.userId)) redirect("/app");
 
   // Le questionnaire doit être rempli avant de générer.
   const { data: quiz } = await supabase
