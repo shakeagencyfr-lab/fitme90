@@ -20,6 +20,9 @@ import { costViewOf } from "@/lib/cost-view";
 import { clientReferralLinks, type ReferralPerson } from "@/lib/affiliation";
 import { clientDisplayName } from "@/lib/display-name";
 import { bookingSpace } from "@/lib/booking";
+import { listClientBookings } from "@/lib/booking-appointments";
+import { humanDate, humanTime } from "@/lib/booking-time";
+import { getRequestLocale } from "@/lib/i18n/request";
 import { clientCoachAiIncluded } from "@/lib/offers";
 import { ClientBookingToggle } from "@/components/client-booking-toggle";
 import type { Plan } from "@/lib/program";
@@ -131,6 +134,9 @@ export default async function ClientDetailPage({
   // Chat VIP embarqué dans la fiche : le coach répond en gardant toutes les infos
   // du client sous les yeux. Affiché seulement si l'offre du client porte l'option.
   const [vipCtx, bookingSp, clientAi] = await Promise.all([clientVipContext(id), bookingSpace(profile.tenant_id), clientCoachAiIncluded(id)]);
+  // Les rendez-vous de CE client : le coach ouvre une fiche avant une séance,
+  // et il doit y lire quand il le voit, sans repasser par l'agenda général.
+  const rdv = bookingSp.open && profile.booking_enabled ? await listClientBookings(id) : { upcoming: [], past: [] };
   let vipMessages: VipMessage[] = [];
   if (vipCtx.enabled) {
     vipMessages = await listVipMessages(id);
@@ -279,6 +285,36 @@ export default async function ClientDetailPage({
 
       {/* Réservation en présentiel : ouverte client par client. */}
       <ClientBookingToggle clientId={profile.id} enabled={!!profile.booking_enabled} packAllowed={bookingSp.access.allowed} spaceActive={bookingSp.active} coachAi={clientAi} />
+
+      {rdv.upcoming.length > 0 || rdv.past.length > 0 ? (
+        <Card className="flex flex-col gap-3">
+          <MonoLabel>{tx("Ses rendez-vous")}</MonoLabel>
+          {rdv.upcoming.length > 0 ? (
+            <ul className="flex flex-col gap-1.5">
+              {rdv.upcoming.map((b) => (
+                <li key={b.id} className="flex items-baseline gap-2.5 text-[13.5px]">
+                  <span className="font-semibold tabular-nums text-ink">
+                    {humanDate(new Date(b.starts_at), bookingSp.timezone, getRequestLocale())}
+                  </span>
+                  <span className="tabular-nums text-body">{humanTime(new Date(b.starts_at), bookingSp.timezone, getRequestLocale())}</span>
+                  <span className="min-w-0 flex-1 truncate text-muted">{b.service_name}</span>
+                  {b.status === "pending" ? (
+                    <span className="shrink-0 rounded-pill bg-alert px-2 py-0.5 text-[11.5px] font-semibold text-alert-ink">{tx("à valider")}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[13.5px] text-muted">{tx("Aucun rendez-vous à venir.")}</p>
+          )}
+          {rdv.past.length > 0 ? (
+            <p className="text-[12.5px] text-muted-2">
+              {rdv.past.length} {rdv.past.length > 1 ? tx("séances passées") : tx("séance passée")}.{" "}
+              <Link href="/admin/reservations" className="text-brand hover:underline">{tx("Voir l'agenda")}</Link>
+            </p>
+          ) : null}
+        </Card>
+      ) : null}
 
       {/* Parrainage : d'où vient ce client, et qui il a amené. Rien à
           afficher tant qu'il n'y a ni parrain ni filleul. */}
