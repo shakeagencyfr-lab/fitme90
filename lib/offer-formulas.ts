@@ -24,6 +24,7 @@
 
 import { asLocale, pick, type LocalText } from "@/lib/i18n";
 import { FORMULAS_DE } from "@/lib/i18n/pack-de";
+import { FORMULAS_NL } from "@/lib/i18n/pack-nl";
 import { FORMULAS_IT } from "@/lib/i18n/pack-it";
 import { FORMULAS_ES } from "@/lib/i18n/pack-es";
 export type OfferFormula = "mini" | "max";
@@ -93,6 +94,7 @@ const COPY: LocalText<Record<OfferFormula, FormulaCopy>> = {
   de: FORMULAS_DE,
   es: FORMULAS_ES,
   it: FORMULAS_IT,
+  nl: FORMULAS_NL,
 };
 
 export function formulaCopy(formula: OfferFormula, locale: string): FormulaCopy {

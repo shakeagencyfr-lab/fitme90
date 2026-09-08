@@ -1,6 +1,7 @@
 import { RPE, RPE_INTRO, type RpeStep } from "@/lib/fitness";
 import { pick, type Locale, type LocalText } from "./index";
 import { RPE_DE, RPE_INTRO_DE } from "./pack-de";
+import { RPE_NL, RPE_INTRO_NL } from "./pack-nl";
 import { RPE_IT, RPE_INTRO_IT } from "./pack-it";
 import { RPE_ES, RPE_INTRO_ES } from "./pack-es";
 
@@ -22,6 +23,7 @@ const SCALES: LocalText<{ RPE: RpeStep[]; RPE_INTRO: string }> = {
   de: { RPE: RPE_DE, RPE_INTRO: RPE_INTRO_DE },
   es: { RPE: RPE_ES, RPE_INTRO: RPE_INTRO_ES },
   it: { RPE: RPE_IT, RPE_INTRO: RPE_INTRO_IT },
+  nl: { RPE: RPE_NL, RPE_INTRO: RPE_INTRO_NL },
 };
 
 export function rpeScale(locale: Locale): { RPE: RpeStep[]; RPE_INTRO: string } {

@@ -52,15 +52,15 @@ export const MUSCLE_GROUPS: readonly MuscleGroup[] = [
 ];
 
 export const MUSCLE_GROUP_LABEL: Record<MuscleGroup, LocalText> = {
-  polyvalent: { fr: "Polyvalent", en: "All-round", de: "Vielseitig", es: "Polivalente", it: "Polivalente" },
-  pectoraux: { fr: "Pectoraux", en: "Chest", de: "Brust", es: "Pectorales", it: "Pettorali" },
-  dos: { fr: "Dos", en: "Back", de: "Rücken", es: "Espalda", it: "Schiena" },
-  epaules: { fr: "Épaules", en: "Shoulders", de: "Schultern", es: "Hombros", it: "Spalle" },
-  bras: { fr: "Bras", en: "Arms", de: "Arme", es: "Brazos", it: "Braccia" },
-  jambes: { fr: "Jambes", en: "Legs", de: "Beine", es: "Piernas", it: "Gambe" },
-  fessiers: { fr: "Fessiers", en: "Glutes", de: "Gesäß", es: "Glúteos", it: "Glutei" },
-  abdos: { fr: "Abdominaux", en: "Core", de: "Bauch", es: "Abdominales", it: "Addominali" },
-  cardio: { fr: "Cardio", en: "Cardio", de: "Cardio", es: "Cardio", it: "Cardio" },
+  polyvalent: { fr: "Polyvalent", en: "All-round", de: "Vielseitig", es: "Polivalente", it: "Polivalente", nl: "Veelzijdig" },
+  pectoraux: { fr: "Pectoraux", en: "Chest", de: "Brust", es: "Pectorales", it: "Pettorali", nl: "Borst" },
+  dos: { fr: "Dos", en: "Back", de: "Rücken", es: "Espalda", it: "Schiena", nl: "Rug" },
+  epaules: { fr: "Épaules", en: "Shoulders", de: "Schultern", es: "Hombros", it: "Spalle", nl: "Schouders" },
+  bras: { fr: "Bras", en: "Arms", de: "Arme", es: "Brazos", it: "Braccia", nl: "Armen" },
+  jambes: { fr: "Jambes", en: "Legs", de: "Beine", es: "Piernas", it: "Gambe", nl: "Benen" },
+  fessiers: { fr: "Fessiers", en: "Glutes", de: "Gesäß", es: "Glúteos", it: "Glutei", nl: "Bilspieren" },
+  abdos: { fr: "Abdominaux", en: "Core", de: "Bauch", es: "Abdominales", it: "Addominali", nl: "Buikspieren" },
+  cardio: { fr: "Cardio", en: "Cardio", de: "Cardio", es: "Cardio", it: "Cardio", nl: "Cardio" },
 };
 
 export interface EquipmentItem {
@@ -83,7 +83,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   // ───────────────────────────────────────────────────── poids libres, racks
   {
     key: "barre-olympique",
-    names: { de: "Olympia-Langhantel und Scheiben", es: "Barra olímpica y discos", it: "Bilanciere olimpico e dischi" },
+    names: { de: "Olympia-Langhantel und Scheiben", es: "Barra olímpica y discos", it: "Bilanciere olimpico e dischi", nl: "Olympische stang en schijven" },
     nom: "Barre olympique et disques",
     name: "Olympic barbell and plates",
     famille: "barre olympique",
@@ -93,7 +93,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "barre-ez",
-    names: { de: "SZ-Stange", es: "Barra EZ", it: "Bilanciere EZ" },
+    names: { de: "SZ-Stange", es: "Barra EZ", it: "Bilanciere EZ", nl: "EZ-stang" },
     nom: "Barre EZ",
     name: "EZ curl bar",
     famille: "barre olympique",
@@ -103,7 +103,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "rack-squat",
-    names: { de: "Squat Rack", es: "Rack de sentadillas", it: "Rack per squat" },
+    names: { de: "Squat Rack", es: "Rack de sentadillas", it: "Rack per squat", nl: "Squatrack" },
     nom: "Rack à squat",
     name: "Squat rack",
     famille: "rack à squat",
@@ -113,7 +113,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "smith-machine",
-    names: { de: "Multipresse", es: "Máquina Smith", it: "Multipower (Smith machine)" },
+    names: { de: "Multipresse", es: "Máquina Smith", it: "Multipower (Smith machine)", nl: "Smith machine" },
     nom: "Smith machine",
     name: "Smith machine",
     famille: "smith machine",
@@ -123,7 +123,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "halteres",
-    names: { de: "Kurzhanteln", es: "Mancuernas", it: "Manubri" },
+    names: { de: "Kurzhanteln", es: "Mancuernas", it: "Manubri", nl: "Dumbbells" },
     nom: "Haltères",
     name: "Dumbbells",
     famille: "haltères",
@@ -133,7 +133,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "kettlebells",
-    names: { de: "Kettlebells", es: "Kettlebells", it: "Kettlebell" },
+    names: { de: "Kettlebells", es: "Kettlebells", it: "Kettlebell", nl: "Kettlebells" },
     nom: "Kettlebells",
     name: "Kettlebells",
     famille: "kettlebells",
@@ -145,7 +145,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "banc-plat",
-    names: { de: "Flachbank", es: "Banco plano", it: "Panca piana" },
+    names: { de: "Flachbank", es: "Banco plano", it: "Panca piana", nl: "Vlakke bank" },
     nom: "Banc plat",
     name: "Flat bench",
     famille: "banc (plat, incliné, décliné)",
@@ -155,7 +155,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "banc-incline",
-    names: { de: "Verstellbare Bank", es: "Banco ajustable", it: "Panca regolabile" },
+    names: { de: "Verstellbare Bank", es: "Banco ajustable", it: "Panca regolabile", nl: "Verstelbare bank" },
     nom: "Banc inclinable",
     name: "Adjustable bench",
     famille: "banc (plat, incliné, décliné)",
@@ -165,7 +165,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "banc-decline",
-    names: { de: "Negativbank", es: "Banco declinado", it: "Panca declinata" },
+    names: { de: "Negativbank", es: "Banco declinado", it: "Panca declinata", nl: "Aflopende bank" },
     nom: "Banc décliné",
     name: "Decline bench",
     famille: "banc (plat, incliné, décliné)",
@@ -175,7 +175,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "banc-lombaire",
-    names: { de: "Rückenstrecker-Bank", es: "Banco de lumbares", it: "Panca lombare" },
+    names: { de: "Rückenstrecker-Bank", es: "Banco de lumbares", it: "Panca lombare", nl: "Rugextensiebank" },
     nom: "Banc à lombaires",
     name: "Back extension bench",
     famille: "machine abdominaux / lombaires",
@@ -185,7 +185,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "barre-traction",
-    names: { de: "Klimmzugstange", es: "Barra de dominadas", it: "Sbarra per trazioni" },
+    names: { de: "Klimmzugstange", es: "Barra de dominadas", it: "Sbarra per trazioni", nl: "Optrekstang" },
     nom: "Barre de traction",
     name: "Pull-up bar",
     famille: "barre de traction",
@@ -195,7 +195,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "tractions-assistees",
-    names: { de: "Klimmzughilfe-Maschine", es: "Máquina de dominadas asistidas", it: "Macchina trazioni assistite" },
+    names: { de: "Klimmzughilfe-Maschine", es: "Máquina de dominadas asistidas", it: "Macchina trazioni assistite", nl: "Machine voor geassisteerde pull-ups" },
     nom: "Machine à tractions assistées",
     name: "Assisted pull-up machine",
     famille: "barre de traction",
@@ -205,7 +205,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "barres-paralleles",
-    names: { de: "Dip-Barren", es: "Barras paralelas (fondos)", it: "Parallele (dip)" },
+    names: { de: "Dip-Barren", es: "Barras paralelas (fondos)", it: "Parallele (dip)", nl: "Brugleuningen (dips)" },
     nom: "Barres parallèles (dips)",
     name: "Parallel bars (dips)",
     famille: "barres parallèles / dips",
@@ -217,7 +217,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   // ────────────────────────────────────────────────────────────────── poulies
   {
     key: "poulie-haute",
-    names: { de: "Latzug (hoher Kabelzug)", es: "Polea alta (jalón)", it: "Cavo alto (lat machine)" },
+    names: { de: "Latzug (hoher Kabelzug)", es: "Polea alta (jalón)", it: "Cavo alto (lat machine)", nl: "Hoge katrol (lat pulldown)" },
     nom: "Poulie haute (tirage vertical)",
     name: "High pulley (lat pulldown)",
     famille: "poulie (haute, basse, vis-à-vis)",
@@ -227,7 +227,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "poulie-basse",
-    names: { de: "Rudern am Kabelzug (tief)", es: "Polea baja (remo sentado)", it: "Cavo basso (pulley)" },
+    names: { de: "Rudern am Kabelzug (tief)", es: "Polea baja (remo sentado)", it: "Cavo basso (pulley)", nl: "Lage katrol (zittend roeien)" },
     nom: "Poulie basse (tirage horizontal)",
     name: "Low pulley (seated row)",
     famille: "poulie (haute, basse, vis-à-vis)",
@@ -237,7 +237,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "poulie-vis-a-vis",
-    names: { de: "Kabelzugstation (Cable Cross)", es: "Cruce de poleas", it: "Croci ai cavi" },
+    names: { de: "Kabelzugstation (Cable Cross)", es: "Cruce de poleas", it: "Croci ai cavi", nl: "Cable crossover" },
     nom: "Poulie vis-à-vis",
     name: "Cable crossover",
     famille: "poulie (haute, basse, vis-à-vis)",
@@ -249,7 +249,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   // ────────────────────────────────────────────────────────── machines jambes
   {
     key: "presse-cuisses",
-    names: { de: "Beinpresse", es: "Prensa de piernas", it: "Leg press" },
+    names: { de: "Beinpresse", es: "Prensa de piernas", it: "Leg press", nl: "Beenpers" },
     nom: "Presse à cuisses",
     name: "Leg press",
     famille: "presse à cuisses",
@@ -259,7 +259,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "hack-squat",
-    names: { de: "Hackenschmidt-Maschine", es: "Máquina hack squat", it: "Hack squat" },
+    names: { de: "Hackenschmidt-Maschine", es: "Máquina hack squat", it: "Hack squat", nl: "Hack squat" },
     nom: "Hack squat",
     name: "Hack squat machine",
     famille: "hack squat",
@@ -269,7 +269,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "leg-extension",
-    names: { de: "Beinstrecker", es: "Extensión de cuádriceps", it: "Leg extension" },
+    names: { de: "Beinstrecker", es: "Extensión de cuádriceps", it: "Leg extension", nl: "Leg extension" },
     nom: "Leg extension",
     name: "Leg extension",
     famille: "leg extension",
@@ -279,7 +279,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "leg-curl-assis",
-    names: { de: "Beinbeuger sitzend", es: "Curl femoral sentado", it: "Leg curl seduto" },
+    names: { de: "Beinbeuger sitzend", es: "Curl femoral sentado", it: "Leg curl seduto", nl: "Zittende leg curl" },
     nom: "Leg curl assis",
     name: "Seated leg curl",
     famille: "leg curl",
@@ -289,7 +289,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "leg-curl-allonge",
-    names: { de: "Beinbeuger liegend", es: "Curl femoral tumbado", it: "Leg curl sdraiato" },
+    names: { de: "Beinbeuger liegend", es: "Curl femoral tumbado", it: "Leg curl sdraiato", nl: "Liggende leg curl" },
     nom: "Leg curl allongé",
     name: "Lying leg curl",
     famille: "leg curl",
@@ -299,7 +299,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "mollets-debout",
-    names: { de: "Wadenmaschine stehend", es: "Máquina de gemelos de pie", it: "Macchina polpacci in piedi" },
+    names: { de: "Wadenmaschine stehend", es: "Máquina de gemelos de pie", it: "Macchina polpacci in piedi", nl: "Staande kuitmachine" },
     nom: "Machine à mollets debout",
     name: "Standing calf raise",
     famille: "machine à mollets",
@@ -309,7 +309,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "mollets-assis",
-    names: { de: "Wadenmaschine sitzend", es: "Máquina de gemelos sentado", it: "Macchina polpacci seduto" },
+    names: { de: "Wadenmaschine sitzend", es: "Máquina de gemelos sentado", it: "Macchina polpacci seduto", nl: "Zittende kuitmachine" },
     nom: "Machine à mollets assis",
     name: "Seated calf raise",
     famille: "machine à mollets",
@@ -321,7 +321,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   // ──────────────────────────────────────────────── machines fessiers, hanches
   {
     key: "abducteurs-machine",
-    names: { de: "Abduktoren-Maschine", es: "Máquina de abductores", it: "Macchina abduttori" },
+    names: { de: "Abduktoren-Maschine", es: "Máquina de abductores", it: "Macchina abduttori", nl: "Abductormachine" },
     nom: "Machine à abducteurs",
     name: "Hip abduction machine",
     famille: "machine fessiers et hanches (abduction, adduction, hip thrust)",
@@ -331,7 +331,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "adducteurs-machine",
-    names: { de: "Adduktoren-Maschine", es: "Máquina de aductores", it: "Macchina adduttori" },
+    names: { de: "Adduktoren-Maschine", es: "Máquina de aductores", it: "Macchina adduttori", nl: "Adductormachine" },
     nom: "Machine à adducteurs",
     name: "Hip adduction machine",
     famille: "machine fessiers et hanches (abduction, adduction, hip thrust)",
@@ -341,7 +341,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "hip-thrust-machine",
-    names: { de: "Hip-Thrust-Maschine", es: "Máquina de hip thrust", it: "Macchina hip thrust" },
+    names: { de: "Hip-Thrust-Maschine", es: "Máquina de hip thrust", it: "Macchina hip thrust", nl: "Hip thrust machine" },
     nom: "Machine à hip thrust",
     name: "Hip thrust machine",
     famille: "machine fessiers et hanches (abduction, adduction, hip thrust)",
@@ -353,7 +353,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "kickback-machine",
-    names: { de: "Glute-Kickback-Maschine", es: "Máquina de patada de glúteo", it: "Macchina slancio glutei" },
+    names: { de: "Glute-Kickback-Maschine", es: "Máquina de patada de glúteo", it: "Macchina slancio glutei", nl: "Glute kickback machine" },
     nom: "Machine à kickback fessier",
     name: "Glute kickback machine",
     famille: "machine fessiers et hanches (abduction, adduction, hip thrust)",
@@ -365,7 +365,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   // ───────────────────────────────────────────── machines pectoraux, dos, épaules
   {
     key: "pec-deck",
-    names: { de: "Butterfly (Pec Deck)", es: "Pec deck", it: "Pec deck" },
+    names: { de: "Butterfly (Pec Deck)", es: "Pec deck", it: "Pec deck", nl: "Pec deck" },
     nom: "Pec deck",
     name: "Pec deck",
     famille: "machine à pectoraux (pec deck, convergente)",
@@ -375,7 +375,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "developpe-couche-machine",
-    names: { de: "Brustpresse", es: "Press de pecho en máquina", it: "Chest press" },
+    names: { de: "Brustpresse", es: "Press de pecho en máquina", it: "Chest press", nl: "Chest press machine" },
     nom: "Développé couché machine",
     name: "Chest press machine",
     famille: "machine à pectoraux (pec deck, convergente)",
@@ -385,7 +385,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "developpe-incline-machine",
-    names: { de: "Schrägbankpresse (Maschine)", es: "Press inclinado en máquina", it: "Chest press inclinata" },
+    names: { de: "Schrägbankpresse (Maschine)", es: "Press inclinado en máquina", it: "Chest press inclinata", nl: "Incline press machine" },
     nom: "Développé incliné machine",
     name: "Incline press machine",
     famille: "machine à pectoraux (pec deck, convergente)",
@@ -395,7 +395,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "rowing-machine",
-    names: { de: "Rudermaschine sitzend", es: "Máquina de remo sentado", it: "Macchina rematore seduto" },
+    names: { de: "Rudermaschine sitzend", es: "Máquina de remo sentado", it: "Macchina rematore seduto", nl: "Zittende roeimachine" },
     nom: "Rowing machine (assis)",
     name: "Seated row machine",
     famille: "machine à dos (tirage vertical, tirage horizontal)",
@@ -405,7 +405,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "rowing-t-bar",
-    names: { de: "T-Bar-Rudern", es: "Remo en T", it: "Rematore a T" },
+    names: { de: "T-Bar-Rudern", es: "Remo en T", it: "Rematore a T", nl: "T-bar row" },
     nom: "T-bar row",
     name: "T-bar row",
     famille: "machine à dos (tirage vertical, tirage horizontal)",
@@ -415,7 +415,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "developpe-epaules-machine",
-    names: { de: "Schulterpresse", es: "Press de hombros en máquina", it: "Shoulder press a macchina" },
+    names: { de: "Schulterpresse", es: "Press de hombros en máquina", it: "Shoulder press a macchina", nl: "Shoulder press machine" },
     nom: "Développé épaules machine",
     name: "Shoulder press machine",
     famille: "machine à épaules",
@@ -425,7 +425,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "oiseau-machine",
-    names: { de: "Reverse-Butterfly", es: "Máquina de deltoides posterior", it: "Macchina deltoidi posteriori" },
+    names: { de: "Reverse-Butterfly", es: "Máquina de deltoides posterior", it: "Macchina deltoidi posteriori", nl: "Machine voor achterste deltoïden" },
     nom: "Machine à deltoïdes postérieurs",
     name: "Rear delt machine",
     famille: "machine à épaules",
@@ -437,7 +437,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   // ──────────────────────────────────────────── machines bras et abdominaux
   {
     key: "pupitre-biceps",
-    names: { de: "Scott-Curl-Bank", es: "Banco Scott", it: "Panca Scott" },
+    names: { de: "Scott-Curl-Bank", es: "Banco Scott", it: "Panca Scott", nl: "Scott bank" },
     nom: "Pupitre à biceps",
     name: "Preacher curl bench",
     famille: "machine à biceps / triceps",
@@ -447,7 +447,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "dips-machine",
-    names: { de: "Dip-Maschine", es: "Máquina de fondos", it: "Macchina dip" },
+    names: { de: "Dip-Maschine", es: "Máquina de fondos", it: "Macchina dip", nl: "Dip machine" },
     nom: "Machine à dips",
     name: "Dip machine",
     famille: "machine à biceps / triceps",
@@ -457,7 +457,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "machine-abdos",
-    names: { de: "Bauchmaschine", es: "Máquina de abdominales", it: "Macchina addominali" },
+    names: { de: "Bauchmaschine", es: "Máquina de abdominales", it: "Macchina addominali", nl: "Buikspiermachine" },
     nom: "Machine à abdominaux",
     name: "Ab crunch machine",
     famille: "machine abdominaux / lombaires",
@@ -469,7 +469,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "ab-roller",
-    names: { de: "Bauchroller", es: "Rueda abdominal", it: "Ruota per addominali" },
+    names: { de: "Bauchroller", es: "Rueda abdominal", it: "Ruota per addominali", nl: "Ab roller" },
     nom: "Roue abdominale",
     name: "Ab wheel",
     famille: "machine abdominaux / lombaires",
@@ -481,7 +481,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   // ────────────────────────────────────────────────────────────────── cardio
   {
     key: "tapis-course",
-    names: { de: "Laufband", es: "Cinta de correr", it: "Tapis roulant" },
+    names: { de: "Laufband", es: "Cinta de correr", it: "Tapis roulant", nl: "Loopband" },
     nom: "Tapis de course",
     name: "Treadmill",
     famille: "tapis de course",
@@ -491,7 +491,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "velo",
-    names: { de: "Ergometer", es: "Bicicleta estática", it: "Cyclette" },
+    names: { de: "Ergometer", es: "Bicicleta estática", it: "Cyclette", nl: "Hometrainer" },
     nom: "Vélo d'appartement",
     name: "Stationary bike",
     famille: "vélo / vélo assault",
@@ -501,7 +501,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "velo-assault",
-    names: { de: "Air Bike (Assault Bike)", es: "Air bike (assault bike)", it: "Air bike (assault bike)" },
+    names: { de: "Air Bike (Assault Bike)", es: "Air bike (assault bike)", it: "Air bike (assault bike)", nl: "Air bike (assault bike)" },
     nom: "Vélo assault (air bike)",
     name: "Assault bike",
     famille: "vélo / vélo assault",
@@ -513,7 +513,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "rameur",
-    names: { de: "Rudergerät", es: "Remo", it: "Vogatore" },
+    names: { de: "Rudergerät", es: "Remo", it: "Vogatore", nl: "Roeitrainer" },
     nom: "Rameur",
     name: "Rowing machine",
     famille: "rameur",
@@ -523,7 +523,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "elliptique",
-    names: { de: "Crosstrainer", es: "Elíptica", it: "Ellittica" },
+    names: { de: "Crosstrainer", es: "Elíptica", it: "Ellittica", nl: "Crosstrainer" },
     nom: "Vélo elliptique",
     name: "Elliptical",
     famille: "elliptique",
@@ -533,7 +533,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "stairmaster",
-    names: { de: "Stepper (Stairmaster)", es: "Escaladora (stairmaster)", it: "Simulatore di scale (stairmaster)" },
+    names: { de: "Stepper (Stairmaster)", es: "Escaladora (stairmaster)", it: "Simulatore di scale (stairmaster)", nl: "Traploper (stairmaster)" },
     nom: "Machine à marches (stairmaster)",
     name: "Stair climber",
     famille: "escalier / stairmaster",
@@ -543,7 +543,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "sled",
-    names: { de: "Schlitten (Sled)", es: "Trineo (sled)", it: "Slitta (sled)" },
+    names: { de: "Schlitten (Sled)", es: "Trineo (sled)", it: "Slitta (sled)", nl: "Slee (sled)" },
     nom: "Traîneau (sled)",
     name: "Push sled",
     famille: "traîneau / sled",
@@ -553,7 +553,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "corde-a-sauter",
-    names: { de: "Springseil", es: "Comba", it: "Corda per saltare" },
+    names: { de: "Springseil", es: "Comba", it: "Corda per saltare", nl: "Springtouw" },
     nom: "Corde à sauter",
     name: "Jump rope",
     famille: "corde à sauter",
@@ -563,7 +563,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "box",
-    names: { de: "Plyo-Box / Step", es: "Cajón pliométrico / step", it: "Box pliometrico / step" },
+    names: { de: "Plyo-Box / Step", es: "Cajón pliométrico / step", it: "Box pliometrico / step", nl: "Plyobox / step" },
     nom: "Box / step",
     name: "Plyo box / step",
     famille: "step / box",
@@ -575,7 +575,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   // ───────────────────────────────────────────────────────────── accessoires
   {
     key: "elastiques",
-    names: { de: "Widerstandsbänder", es: "Gomas elásticas", it: "Elastici" },
+    names: { de: "Widerstandsbänder", es: "Gomas elásticas", it: "Elastici", nl: "Weerstandsbanden" },
     nom: "Élastiques",
     name: "Resistance bands",
     famille: "élastiques",
@@ -585,7 +585,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "trx",
-    names: { de: "TRX / Schlingentrainer", es: "TRX / cintas de suspensión", it: "TRX / anelli da sospensione" },
+    names: { de: "TRX / Schlingentrainer", es: "TRX / cintas de suspensión", it: "TRX / anelli da sospensione", nl: "TRX / suspensietrainer" },
     nom: "TRX / sangles de suspension",
     name: "TRX / suspension straps",
     famille: "TRX / sangles de suspension",
@@ -595,7 +595,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "medecine-ball",
-    names: { de: "Medizinball / Slam Ball", es: "Balón medicinal / slam ball", it: "Palla medica / slam ball" },
+    names: { de: "Medizinball / Slam Ball", es: "Balón medicinal / slam ball", it: "Palla medica / slam ball", nl: "Medicijnbal / slam ball" },
     nom: "Medecine ball / slam ball",
     name: "Medicine ball / slam ball",
     famille: "medecine ball / slam ball",
@@ -605,7 +605,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "poids-du-corps",
-    names: { de: "Nur Körpergewicht", es: "Solo peso corporal", it: "Solo corpo libero" },
+    names: { de: "Nur Körpergewicht", es: "Solo peso corporal", it: "Solo corpo libero", nl: "Alleen lichaamsgewicht" },
     nom: "Poids du corps uniquement",
     name: "Bodyweight only",
     famille: "poids du corps uniquement",
@@ -615,7 +615,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "ballon-gym",
-    names: { de: "Gymnastikball", es: "Fitball", it: "Fitball" },
+    names: { de: "Gymnastikball", es: "Fitball", it: "Fitball", nl: "Gymbal" },
     nom: "Ballon de gym (swiss ball)",
     name: "Stability ball",
     famille: "ballon de gym (swiss ball)",
@@ -625,7 +625,7 @@ export const EQUIPMENT_CATALOG: readonly EquipmentItem[] = [
   },
   {
     key: "tapis-sol",
-    names: { de: "Trainingsmatte", es: "Esterilla", it: "Tappetino" },
+    names: { de: "Trainingsmatte", es: "Esterilla", it: "Tappetino", nl: "Fitnessmat" },
     nom: "Tapis de sol",
     name: "Exercise mat",
     famille: "poids du corps uniquement",
