@@ -4,6 +4,7 @@ import { productCopy } from "@/lib/i18n/products";
 import type { Offer } from "@/lib/offers";
 import { S } from "@/components/landing-icons";
 import { DE, GYM_DE } from "./coach-copy-de";
+import { NL, GYM_NL } from "./coach-copy-nl";
 import { IT, GYM_IT } from "./coach-copy-it";
 import { ES, GYM_ES } from "./coach-copy-es";
 
@@ -599,8 +600,8 @@ const GYM_EN: Overrides = {
   giftBody: "Gift coaching to someone: you pay, they receive a code to use freely.",
 };
 
-const BASES: LocalText<typeof FR> = { fr: FR, en: EN, de: DE, es: ES, it: IT };
-const GYMS: LocalText<Overrides> = { fr: GYM_FR, en: GYM_EN, de: GYM_DE, es: GYM_ES, it: GYM_IT };
+const BASES: LocalText<typeof FR> = { fr: FR, en: EN, de: DE, es: ES, it: IT, nl: NL };
+const GYMS: LocalText<Overrides> = { fr: GYM_FR, en: GYM_EN, de: GYM_DE, es: GYM_ES, it: GYM_IT, nl: GYM_NL };
 
 export function landingCopy(locale: Locale, audience: Audience = "coach"): LandingCopy {
   const base = pick(BASES, locale);

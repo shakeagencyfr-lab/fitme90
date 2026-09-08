@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { translate, localeFromAcceptLanguage, asLocale, localeFromLabel, translatePhrase, DICTS, LIVE_LOCALES, LOCALES } from "./index";
 import { PHRASES_EN } from "./phrases-en";
 import { PHRASES_DE } from "./phrases-de";
+import { PHRASES_NL } from "./phrases-nl";
 import { PHRASES_IT } from "./phrases-it";
 import { PHRASES_ES } from "./phrases-es";
 
@@ -65,5 +66,11 @@ describe("i18n", () => {
     const missing = Object.keys(PHRASES_EN).filter((k) => !(k in PHRASES_IT));
     expect(missing).toEqual([]);
     expect(translate("it", "nav.program")).toBe("Programma");
+  });
+
+  it("translates every dashboard phrase in Dutch", () => {
+    const missing = Object.keys(PHRASES_EN).filter((k) => !(k in PHRASES_NL));
+    expect(missing).toEqual([]);
+    expect(translate("nl", "nav.program")).toBe("Programma");
   });
 });

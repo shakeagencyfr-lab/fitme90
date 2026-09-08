@@ -18,15 +18,17 @@ import { fr } from "./fr";
 import { en } from "./en";
 import { de } from "./de";
 import { it } from "./it";
+import { nl } from "./nl";
 import { es } from "./es";
 import { PHRASES_EN } from "./phrases-en";
 import { PHRASES_DE } from "./phrases-de";
+import { PHRASES_NL } from "./phrases-nl";
 import { PHRASES_IT } from "./phrases-it";
 import { PHRASES_ES } from "./phrases-es";
 
 export type Locale = "fr" | "en" | "de" | "es" | "it" | "nl";
 export const LOCALES: readonly Locale[] = ["fr", "en", "de", "es", "it", "nl"] as const;
-export const LIVE_LOCALES: readonly Locale[] = ["fr", "en", "de", "es", "it"] as const;
+export const LIVE_LOCALES: readonly Locale[] = ["fr", "en", "de", "es", "it", "nl"] as const;
 export const DEFAULT_LOCALE: Locale = "fr";
 export const LOCALE_COOKIE = "lang";
 
@@ -35,12 +37,12 @@ export type Shape<T> = { [K in keyof T]: T[K] extends string ? string : Shape<T[
 export type Dict = Shape<typeof fr>;
 // Tant qu'une langue n'a pas son dictionnaire, elle lit l'anglais : c'est la
 // langue de repli de toute l'Europe, et jamais un mélange.
-export const DICTS: Record<Locale, Dict> = { fr: fr as Dict, en, de, es, it, nl: en };
+export const DICTS: Record<Locale, Dict> = { fr: fr as Dict, en, de, es, it, nl };
 
 // Phrases (dashboards, landings) : le français est la clé, chaque langue a sa
 // table. Une phrase absente dans une langue tombe sur l'anglais, puis reste
 // en français.
-const PHRASES: Partial<Record<Locale, Record<string, string>>> = { en: PHRASES_EN, de: PHRASES_DE, es: PHRASES_ES, it: PHRASES_IT };
+const PHRASES: Partial<Record<Locale, Record<string, string>>> = { en: PHRASES_EN, de: PHRASES_DE, es: PHRASES_ES, it: PHRASES_IT, nl: PHRASES_NL };
 
 /**
  * Un texte par langue, le français obligatoire. `pick` choisit la langue

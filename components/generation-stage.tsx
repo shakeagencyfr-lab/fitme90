@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useLocale } from "@/components/locale-provider";
 import { pick, translate, type Locale, type LocalText } from "@/lib/i18n";
 import { GEN_PHRASES_DE } from "@/lib/i18n/pack-de";
+import { GEN_PHRASES_NL } from "@/lib/i18n/pack-nl";
 import { GEN_PHRASES_IT } from "@/lib/i18n/pack-it";
 import { GEN_PHRASES_ES } from "@/lib/i18n/pack-es";
 
@@ -55,6 +56,7 @@ const PHRASES: LocalText<string[]> = {
   de: GEN_PHRASES_DE,
   es: GEN_PHRASES_ES,
   it: GEN_PHRASES_IT,
+  nl: GEN_PHRASES_NL,
 };
 
 /** Un tracé de rythme cardiaque, en coordonnées d'un motif qui se répète. */
