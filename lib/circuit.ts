@@ -13,6 +13,7 @@
 
 import { pick, type Locale, type LocalText } from "@/lib/i18n";
 import { SENSATIONS_DE, SENSATION_INTRO_DE } from "@/lib/i18n/pack-de";
+import { SENSATIONS_IT, SENSATION_INTRO_IT } from "@/lib/i18n/pack-it";
 import { SENSATIONS_ES, SENSATION_INTRO_ES } from "@/lib/i18n/pack-es";
 import type { PlanExercise, Session } from "@/lib/program";
 import { matchEquipment } from "@/lib/equipment-catalog";
@@ -178,6 +179,7 @@ const SENSATION_SCALES: LocalText<{ intro: string; steps: SensationStep[] }> = {
   en: { intro: SENSATION_INTRO_EN, steps: SENSATIONS_EN },
   de: { intro: SENSATION_INTRO_DE, steps: SENSATIONS_DE },
   es: { intro: SENSATION_INTRO_ES, steps: SENSATIONS_ES },
+  it: { intro: SENSATION_INTRO_IT, steps: SENSATIONS_IT },
 };
 
 export function sensationScale(locale: Locale): { intro: string; steps: SensationStep[] } {
