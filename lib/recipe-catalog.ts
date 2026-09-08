@@ -34,11 +34,11 @@ export type Regime = "vegetal" | "oeuf_lait" | "poisson" | "viande" | "porc";
 export type Rayon = "fl" | "vp" | "cr" | "es" | "lc";
 
 export const RAYON_LABEL: Record<Rayon, LocalText> = {
-  fl: { fr: "Fruits & légumes", en: "Fruit & vegetables", de: "Obst & Gemüse", es: "Frutas y verduras" },
-  vp: { fr: "Viandes & poissons", en: "Meat & fish", de: "Fleisch & Fisch", es: "Carnes y pescados" },
-  cr: { fr: "Crémerie & frais", en: "Dairy & chilled", de: "Molkerei & Frische", es: "Lácteos y frescos" },
-  es: { fr: "Épicerie sèche", en: "Dry goods", de: "Trockenwaren", es: "Despensa" },
-  lc: { fr: "Condiments & liquides", en: "Condiments & drinks", de: "Gewürze & Getränke", es: "Condimentos y bebidas" },
+  fl: { fr: "Fruits & légumes", en: "Fruit & vegetables", de: "Obst & Gemüse", es: "Frutas y verduras", it: "Frutta e verdura" },
+  vp: { fr: "Viandes & poissons", en: "Meat & fish", de: "Fleisch & Fisch", es: "Carnes y pescados", it: "Carne e pesce" },
+  cr: { fr: "Crémerie & frais", en: "Dairy & chilled", de: "Molkerei & Frische", es: "Lácteos y frescos", it: "Latticini e freschi" },
+  es: { fr: "Épicerie sèche", en: "Dry goods", de: "Trockenwaren", es: "Despensa", it: "Dispensa" },
+  lc: { fr: "Condiments & liquides", en: "Condiments & drinks", de: "Gewürze & Getränke", es: "Condimentos y bebidas", it: "Condimenti e bevande" },
 };
 
 /** Ordre d'affichage des rayons, celui d'un parcours de magasin. */

@@ -19,6 +19,7 @@
 
 import { pick, translate, type Locale, type LocalText } from "@/lib/i18n";
 import { RESCUE_WARMUP_DE } from "@/lib/i18n/pack-de";
+import { RESCUE_WARMUP_IT } from "@/lib/i18n/pack-it";
 import { RESCUE_WARMUP_ES } from "@/lib/i18n/pack-es";
 import type { Session } from "@/lib/program";
 import { libraryEntry, type LibraryExercise } from "@/lib/exercise-library";
@@ -317,6 +318,7 @@ const WARMUP: LocalText<{ name: string; detail: string }[]> = {
   ],
   de: RESCUE_WARMUP_DE,
   es: RESCUE_WARMUP_ES,
+  it: RESCUE_WARMUP_IT,
 };
 
 /**
