@@ -226,6 +226,8 @@ export const nl: Shape<typeof fr> = {
     answers: "{n} antwoorden",
     nextPhotos: "Foto's van mijn sportschool",
     signAndContinue: "Ondertekenen en doorgaan",
+    healthConsent:
+      "Als je doorgaat, ga je ermee akkoord dat je gezondheidsantwoorden (aandoeningen, allergieën, gewicht, lengte) uitsluitend worden verwerkt om je programma op te bouwen en aan te passen. Je kunt dit akkoord altijd intrekken vanuit je profiel. De details staan in het",
     daysMin: "Kies minstens {n} trainingsdagen.",
     daysMax: "Maximaal {n} dagen per week: rust hoort bij het programma.",
     sections: {

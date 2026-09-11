@@ -562,6 +562,10 @@ export const RESERVED_PATH_SEGMENTS = new Set([
   "plan-pdf", "dev",
   "connexion", "inscription", "inscription-coach", "inscription-revendeur", "verifie-tes-mails", "mot-de-passe-oublie",
   "reinitialiser", "cgv", "confidentialite", "mentions-legales", "desabonnement",
+  // Pages du groupe (legal). « ia » ne passait que par accident : deux lettres,
+  // trop court pour être un slug de coach. Le jour où la règle de longueur
+  // change, la page de transparence IA disparaît sans prévenir.
+  "ia", "sous-traitance",
   "_next", "icons", "favicon.ico", "manifest.webmanifest", "sw.js",
   "robots.txt", "sitemap.xml",
 ]);

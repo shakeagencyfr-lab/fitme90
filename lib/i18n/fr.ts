@@ -226,6 +226,8 @@ export const fr = {
     answers: "{n} réponses",
     nextPhotos: "Photos de ma salle",
     signAndContinue: "Signer et poursuivre",
+    healthConsent:
+      "En continuant, tu acceptes que tes réponses de santé (pathologies, allergies, poids, taille) soient traitées dans le seul but de construire et d'adapter ton programme. Tu peux retirer cet accord à tout moment depuis ton profil. Le détail est dans la",
     daysMin: "Choisis au moins {n} jours d'entraînement.",
     daysMax: "{n} jours par semaine maximum : le repos fait partie du programme.",
     sections: {

@@ -10,6 +10,7 @@ import { isAdminEmail } from "@/lib/admin";
 import { capacityForSlug, accountCapacityForResellerSlug } from "@/lib/entitlements";
 import { provisionCoachIfPending, provisionResellerIfPending } from "@/lib/coach-onboarding";
 import { applyPendingCoachSelection } from "@/lib/tenant";
+import { recordConsents } from "@/lib/consents";
 
 function siteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -160,6 +161,10 @@ export async function signUpAction(
   const bad = signUpOutcome(res, t);
   if (bad) return bad;
 
+  // La case a été cochée : on en garde la trace, c'est ce que l'article 7.1
+  // appelle être en mesure de démontrer le consentement.
+  await recordConsents(res.data.user?.id ?? "", ["cgv", "confidentialite"]);
+
   redirect("/verifie-tes-mails");
 }
 
@@ -219,6 +224,10 @@ export async function signUpCoachAction(
   const bad = signUpOutcome(res, t);
   if (bad) return bad;
 
+  // La case a été cochée : on en garde la trace, c'est ce que l'article 7.1
+  // appelle être en mesure de démontrer le consentement.
+  await recordConsents(res.data.user?.id ?? "", ["cgv", "confidentialite"]);
+
   redirect("/verifie-tes-mails");
 }
 
@@ -257,6 +266,10 @@ export async function signUpResellerAction(
   });
   const bad = signUpOutcome(res, t);
   if (bad) return bad;
+
+  // La case a été cochée : on en garde la trace, c'est ce que l'article 7.1
+  // appelle être en mesure de démontrer le consentement.
+  await recordConsents(res.data.user?.id ?? "", ["cgv", "confidentialite"]);
 
   redirect("/verifie-tes-mails");
 }

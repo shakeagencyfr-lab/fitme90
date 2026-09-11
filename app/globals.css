@@ -220,6 +220,36 @@ input:not([type="checkbox"]):not([type="radio"]) {
   color: var(--color-muted);
   font-size: 13.5px;
 }
+.legal ol {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* Les tableaux du registre RGPD : larges par nature, ils défilent dans leur
+   propre conteneur plutôt que de faire déborder la page sur mobile. */
+.legal table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.legal th,
+.legal td {
+  border: 1px solid var(--color-line);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+  color: var(--color-body);
+}
+.legal th {
+  background: var(--color-surface-2);
+  font-weight: 600;
+  color: var(--color-ink);
+  white-space: nowrap;
+}
 
 /* ------------------------------------------------------------------ *
  * Visuels animés de la landing — 3D en CSS pur (aucune librairie,
