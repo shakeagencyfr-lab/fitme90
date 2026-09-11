@@ -37,6 +37,32 @@ function TermsCheckbox() {
   );
 }
 
+/**
+ * Case de l'accord de sous-traitance, pour les professionnels seulement.
+ *
+ * POURQUOI UNE CASE À PART, ET NON UNE LIGNE DE PLUS DANS LES CGV. Ce n'est
+ * pas le même contrat ni la même conséquence. En l'acceptant, le professionnel
+ * se reconnaît RESPONSABLE DU TRAITEMENT des données de ses clients, et
+ * l'éditeur devient son sous-traitant au sens de l'article 28.3, qui exige un
+ * contrat écrit entre les deux. Noyer ça dans les conditions de vente
+ * reviendrait à le lui faire signer sans le lui dire.
+ */
+function DpaCheckbox() {
+  const t = useT();
+  return (
+    <label className="flex items-start gap-2.5 text-[13px] text-body leading-relaxed">
+      <input type="checkbox" name="dpa" className="mt-0.5 size-4 accent-brand shrink-0" required />
+      <span>
+        {t("auth.acceptDpaPrefix")}
+        <Link href="/sous-traitance" className="text-brand" target="_blank">
+          {t("auth.dpa")}
+        </Link>
+        {t("auth.acceptDpaSuffix")}
+      </span>
+    </label>
+  );
+}
+
 function Title({ children, sub }: { children: React.ReactNode; sub?: string }) {
   return (
     <div className="mb-6 flex flex-col gap-2">
@@ -207,6 +233,7 @@ export function CoachSignupForm({ resellerSlug }: { resellerSlug?: string }) {
         required
       />
       <TermsCheckbox />
+      <DpaCheckbox />
       <Button type="submit" full loading={pending}>
         {t("auth.createSpace")}
       </Button>
@@ -272,20 +299,8 @@ export function ResellerSignupForm() {
         autoComplete="new-password"
         required
       />
-      <label className="flex items-start gap-2.5 text-[13px] text-body leading-relaxed">
-        <input type="checkbox" name="cgv" className="mt-0.5 size-4 accent-brand shrink-0" required />
-        <span>
-          J&apos;accepte les{" "}
-          <Link href="/cgv" className="text-brand" target="_blank">
-            CGV
-          </Link>{" "}
-          et la{" "}
-          <Link href="/confidentialite" className="text-brand" target="_blank">
-            politique de confidentialité
-          </Link>
-          .
-        </span>
-      </label>
+      <TermsCheckbox />
+      <DpaCheckbox />
       <Button type="submit" full loading={pending}>
         Créer mon espace revendeur
       </Button>

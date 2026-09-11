@@ -339,13 +339,47 @@ export const SUBPROCESSORS: readonly Subprocessor[] = [
  * personne a consenti. Une case cochée dans un formulaire ne prouve rien si
  * rien n'est écrit ensuite : c'est le trou que la table `consents` comble.
  */
-export type ConsentKind = "cgv" | "confidentialite" | "sante" | "prospection";
+export type ConsentKind = "cgv" | "confidentialite" | "sante" | "prospection" | "sous-traitance";
 
 export const CONSENT_LABEL: Record<ConsentKind, string> = {
   cgv: "Conditions générales de vente",
   confidentialite: "Politique de confidentialité",
   sante: "Traitement des données de santé",
   prospection: "Recevoir des conseils et des offres par e-mail",
+  "sous-traitance": "Accord de sous-traitance (professionnels)",
+};
+
+/**
+ * Ce que chaque accord autorise, dit à la personne concernée.
+ *
+ * L'article 13 demande d'informer en termes clairs. « Politique de
+ * confidentialité » ne dit rien à qui n'a pas lu le texte : cette phrase-là,
+ * si.
+ */
+export const CONSENT_EXPLAINER: Record<ConsentKind, string> = {
+  cgv: "Le contrat qui te lie à ton professionnel : ce qu'il te vend, à quel prix, pour combien de temps.",
+  confidentialite: "L'information sur ce qui est collecté, pourquoi, et combien de temps c'est gardé.",
+  sante: "Le droit de traiter tes réponses de santé pour construire et adapter ton programme. C'est le seul accord qui autorise l'application à s'en servir.",
+  prospection: "Le droit de t'écrire des conseils et des offres, en dehors du suivi de ton programme.",
+  "sous-traitance": "Le contrat de l'article 28 entre toi, responsable des données de tes clients, et l'éditeur, qui agit sur tes instructions.",
+};
+
+/**
+ * Les accords qu'on peut retirer, et ceux qu'on ne peut pas.
+ *
+ * Un consentement se retire (article 7.3). Un CONTRAT, non : les CGV et
+ * l'accord de sous-traitance sont la base du service lui-même, et on en sort
+ * en résiliant, pas en décochant une case. La politique de confidentialité,
+ * elle, n'est pas un consentement du tout : c'est une information qu'on
+ * reconnaît avoir lue. Confondre les trois donnerait un bouton « retirer »
+ * qui ne ferait rien, ce qui est pire que pas de bouton.
+ */
+export const WITHDRAWABLE: readonly ConsentKind[] = ["sante", "prospection"];
+
+/** Ce que le retrait interrompt, dit avant de cliquer et non après. */
+export const WITHDRAWAL_EFFECT: Partial<Record<ConsentKind, string>> = {
+  sante: "La génération d'un programme et les réponses du Coach IA s'arrêtent : ce sont tes réponses de santé qui les rendent possibles. Tes données restent consultables et exportables, et tu peux redonner ton accord quand tu veux.",
+  prospection: "Tu ne recevras plus de conseils ni d'offres par e-mail. Les messages liés à ton programme continuent : ils font partie du service.",
 };
 
 /**

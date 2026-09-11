@@ -15,7 +15,7 @@ create table if not exists public.consents (
   granted_at timestamptz not null default now(),
   withdrawn_at timestamptz,
   created_at timestamptz not null default now(),
-  constraint consents_kind_check check (kind in ('cgv', 'confidentialite', 'sante', 'prospection'))
+  constraint consents_kind_check check (kind in ('cgv', 'confidentialite', 'sante', 'prospection', 'sous-traitance'))
 );
 
 create index if not exists consents_user_idx on public.consents (user_id, kind, granted_at desc);

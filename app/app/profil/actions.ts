@@ -6,6 +6,8 @@ import { makeT } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSessionContext } from "@/lib/guard";
+import { recordConsents, withdrawConsent } from "@/lib/consents";
+import { WITHDRAWABLE, type ConsentKind } from "@/lib/gdpr";
 
 export interface ProfilState {
   error?: string;
@@ -186,4 +188,33 @@ export async function startCardUpdate(): Promise<{ url?: string; error?: string 
   if (!ctx) return { error: "Session expirée." };
   const { startCardUpdate: start } = await import("@/lib/card-update");
   return start(ctx.userId);
+}
+
+// ───────────────────────── Consentements (articles 7.3 et 13) ─────────────────────────
+
+/**
+ * Retirer un accord, ou le redonner.
+ *
+ * L'article 7.3 exige qu'il soit AUSSI SIMPLE de retirer son consentement que
+ * de le donner. Une case cochée en trois secondes au questionnaire ne peut pas
+ * demander un e-mail au support pour être défaite : d'où ce bouton, au même
+ * endroit que le reste des données.
+ *
+ * Ce qui n'est pas retirable ici l'est volontairement : les CGV et l'accord de
+ * sous-traitance sont des contrats, pas des consentements ; on en sort en
+ * résiliant. La liste fait foi, et l'action la revérifie plutôt que de croire
+ * le formulaire.
+ */
+export async function changeConsent(formData: FormData): Promise<void> {
+  const ctx = await getSessionContext();
+  if (!ctx) redirect("/connexion");
+  const kind = String(formData.get("kind") ?? "") as ConsentKind;
+  if (!WITHDRAWABLE.includes(kind)) redirect("/app/profil/mes-donnees");
+  if (String(formData.get("op") ?? "") === "grant") {
+    await recordConsents(ctx.userId, [kind]);
+  } else {
+    await withdrawConsent(ctx.userId, kind);
+  }
+  revalidatePath("/app/profil/mes-donnees");
+  redirect("/app/profil/mes-donnees");
 }

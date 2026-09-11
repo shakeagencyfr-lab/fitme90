@@ -13,6 +13,7 @@ import { checkAiAllowance, chargeAiUsage } from "@/lib/credits";
 import { LIMIT_GENERATE_TOTAL, programDaysForMonths } from "@/lib/config";
 import { resolveLocale, userLocale } from "@/lib/i18n/server";
 import { todayIso } from "@/lib/local-date";
+import { consentWithdrawn } from "@/lib/consents";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // génération longue : jusqu'à 5 min
@@ -71,6 +72,17 @@ export async function POST() {
     .maybeSingle<{ id: string }>();
   if (existing) {
     return NextResponse.json({ error: "already_generated" }, { status: 409 });
+  }
+
+  // 2b-bis. Accord santé retiré : on ne construit pas un programme à partir
+  // de réponses qu'on n'a plus le droit d'exploiter. Le retrait de l'article
+  // 7.3 doit produire un effet, sinon le bouton « retirer » est un mensonge.
+  //
+  // On ne coupe QUE sur un retrait explicite, jamais sur l'absence de ligne :
+  // les comptes ouverts avant la mise en service du journal n'en ont pas, et
+  // les bloquer punirait les gens pour un trou dans nos écritures.
+  if (await consentWithdrawn(ctx.userId, "sante")) {
+    return NextResponse.json({ error: t("srv.healthConsentWithdrawn") }, { status: 403 });
   }
 
   // 2c. Une génération est déjà en cours pour ce compte (deux onglets, un

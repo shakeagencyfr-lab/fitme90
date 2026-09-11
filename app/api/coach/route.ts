@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/guard";
+import { consentWithdrawn } from "@/lib/consents";
 import { recordCalls, checkActionLimit, WEEK_MS } from "@/lib/ratelimit";
 import { checkClientAiBudget } from "@/lib/coach-ai-budget";
 import { checkAiAllowance, chargeAiUsageDetailed, coachUsageToCharge } from "@/lib/credits";
@@ -101,6 +102,14 @@ export async function POST(req: NextRequest) {
       { error: t("srv.aiNotIncluded") },
       { status: 403 },
     );
+  }
+
+  // Accord santé retiré : le Coach IA raisonne sur le questionnaire et les
+  // séances, donc sur des données de santé. Le retrait doit l'arrêter, sinon
+  // il ne veut rien dire. Seul un retrait EXPLICITE coupe : un compte sans
+  // ligne de journal (ouvert avant sa mise en service) n'est pas concerné.
+  if (await consentWithdrawn(ctx.userId, "sante")) {
+    return NextResponse.json({ error: t("srv.healthConsentWithdrawn") }, { status: 403 });
   }
 
   // Le coach IA s'ARRÊTE après J90 (règle produit). Contrôle serveur.
