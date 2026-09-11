@@ -217,12 +217,11 @@ export function NetworkActionsMenu({
             <div className="mx-auto mb-1 h-1 w-10 rounded-full bg-line-4" aria-hidden />
           ) : null}
           {ownerUserId ? (
-            <form
-              action={supportLoginAs}
-              onSubmit={(e) => {
-                if (!confirm(`Se connecter en assistance dans le compte « ${name} » ?\n\nUn bandeau te permettra de revenir à ton espace.`)) e.preventDefault();
-              }}
-            >
+            // Pas de confirmation : l'entrée en assistance ne détruit rien, se
+            // voit immédiatement (bandeau ambre en haut de chaque page) et se
+            // défait en un clic. Une fenêtre de plus n'ajoutait aucune sécurité
+            // et coûtait un geste à chaque fois, toute la journée.
+            <form action={supportLoginAs}>
               <input type="hidden" name="target_user_id" value={ownerUserId} />
               <button type="submit" className={`${item} text-ink`}>
                 <Icon d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM19 8l2 2-4 4-2-2" /> {tx("Accéder en assistance")}</button>

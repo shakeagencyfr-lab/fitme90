@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { suspendTenant, reactivateTenant, giftCredits, deleteTenantTree, setResellerSupply, setTenantPlan } from "@/lib/network-admin";
 import { setSupportReturn, readSupportReturn, clearSupportReturn } from "@/lib/support-return";
+import { supportActorContext } from "@/lib/support-accounts";
 import { LANDING_TEMPLATES, BUSINESS_TYPES } from "@/lib/offers";
 import { coachAiOf, isOfferFormula } from "@/lib/offer-formulas";
 import { whitelabelEnabled, setResellerWhitelabelPrice, setHidePoweredBy } from "@/lib/whitelabel";
@@ -1885,9 +1886,22 @@ export async function createNetworkAccount(
 // Établit une vraie session dans le compte cible (l'opérateur devra se
 // reconnecter à son propre espace ensuite). Tracée dans support_access_log.
 export async function supportLoginAs(formData: FormData): Promise<void> {
+  // QUI AGIT VRAIMENT. Déjà en assistance, la session courante est celle du
+  // compte assisté : s'y fier ferait deux dégâts. L'autorisation serait
+  // calculée sur la descendance du compte visité au lieu de celle de
+  // l'opérateur, et le cookie de retour serait réécrit au nom du compte
+  // assisté, ce qui perdrait le chemin du retour à son propre espace.
+  //
+  // On repart donc toujours de l'opérateur D'ORIGINE quand il y en a un. Le
+  // bandeau de retour reste celui posé à la première bascule, et enchaîner
+  // trois comptes ramène toujours chez soi.
+  const enCours = await readSupportReturn();
   const ctx = await getAdminOrNull();
-  const actorTenantId = ctx?.profile?.tenant_id ?? null;
-  if (!ctx || !actorTenantId) redirect("/admin/reseau?assistance=refus");
+  const origine = enCours ? await supportActorContext(enCours.actorUserId) : null;
+  const actorUserId = origine?.userId ?? ctx?.userId ?? null;
+  const actorTenantId = origine?.tenantId ?? ctx?.profile?.tenant_id ?? null;
+  const actorName = origine?.tenantName ?? null;
+  if (!actorUserId || !actorTenantId) redirect("/admin/reseau?assistance=refus");
   const node = await tenantNode(actorTenantId);
   if (!node || node.kind === "coach") redirect("/admin/reseau?assistance=refus");
 
@@ -1908,12 +1922,28 @@ export async function supportLoginAs(formData: FormData): Promise<void> {
 
   // Session établie directement dans l'action (les cookies partent avec la
   // réponse) : le détour par /auth/confirm perdait la session en route.
-  await logSupportAccess({ actorUserId: ctx.userId, actorTenantId, targetUserId, targetTenantId });
+  //
+  // Chaque bascule est tracée séparément, y compris quand elle enchaîne une
+  // assistance en cours : le journal doit dire chez qui l'opérateur est passé,
+  // pas seulement où il est entré la première fois.
+  await logSupportAccess({ actorUserId, actorTenantId, targetUserId, targetTenantId });
   const ok = await establishSupportSession(targetUserId);
   if (!ok) redirect("/admin/reseau?assistance=echec");
-  // Bandeau « Retour à mon espace » dans le compte cible.
-  const { data: actorRow } = await admin.from("tenants").select("name").eq("id", actorTenantId).maybeSingle<{ name: string | null }>();
-  await setSupportReturn({ actorUserId: ctx.userId, actorName: actorRow?.name ?? "", targetUserId });
+  // Bandeau « Retour au compte principal » dans le compte cible. Le nom du
+  // compte visité y figure aussi : sans lui, le bandeau dit d'où on vient sans
+  // dire où on est.
+  const { data: cible } = await admin.from("tenants").select("name").eq("id", targetTenantId).maybeSingle<{ name: string | null }>();
+  let nomActeur = actorName;
+  if (nomActeur === null) {
+    const { data: actorRow } = await admin.from("tenants").select("name").eq("id", actorTenantId).maybeSingle<{ name: string | null }>();
+    nomActeur = actorRow?.name ?? "";
+  }
+  await setSupportReturn({
+    actorUserId,
+    actorName: nomActeur,
+    targetUserId,
+    targetName: cible?.name ?? "",
+  });
   redirect("/admin");
 }
 

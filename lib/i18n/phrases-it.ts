@@ -1770,4 +1770,13 @@ export const PHRASES_IT: Record<string, string> = {
   "Auto": "Auto",
   "Laissés en auto, l'effort et le repos suivent le niveau et le cycle du client. Écris un nombre de secondes pour les imposer.": "In auto, lo sforzo e il recupero seguono il livello e il ciclo del cliente. Scrivi un numero di secondi per fissarli.",
   "Les secondes que tu écris sont servies telles quelles, quelle que soit la durée de la séance.": "I secondi che scrivi vengono serviti così come sono, qualunque sia la durata della seduta.",
+  "Changer de compte": "Cambia account",
+  "Rechercher un compte…": "Cerca un account…",
+  "Aucun compte ne correspond.": "Nessun account corrisponde.",
+  "Afficher le bandeau d'assistance": "Mostra la barra di assistenza",
+  "Assistance en cours": "Assistenza in corso",
+  "ce compte": "questo account",
+  "Retour au compte principal": "Torna al mio account",
+  "Replier le bandeau": "Riduci la barra",
+  "Ton espace": "Il tuo spazio",
 };

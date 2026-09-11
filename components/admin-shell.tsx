@@ -10,6 +10,7 @@ import { Wordmark } from "@/components/brand";
 import { CoachBell } from "@/components/coach-bell";
 import { PageTransition } from "@/components/page-transition";
 import { AdminSearch, type SearchDest } from "@/components/admin-search";
+import { SupportChip, type SupportAccount } from "@/components/support-banner";
 import { signOutAction } from "@/app/(auth)/actions";
 import type { CoachNotif } from "@/lib/notifications";
 import type { TenantKind } from "@/lib/hierarchy";
@@ -441,6 +442,7 @@ export function AdminShell({
   brandLogoUrl = null,
   brandLogoDarkUrl = null,
   brandTheme = null,
+  support = null,
 }: {
   children: ReactNode;
   notifs: CoachNotif[];
@@ -466,6 +468,12 @@ export function AdminShell({
   brandLogoDarkUrl?: string | null;
   /** Thème du parent : couleurs, polices, apparence de tout le dashboard. */
   brandTheme?: TenantTheme | null;
+  /**
+   * Assistance en cours : le compte visité et ceux vers lesquels basculer.
+   * Le bandeau du haut le dit déjà, mais c'est dans le menu que l'oeil se pose
+   * pendant qu'on navigue, donc c'est là qu'on veut changer de compte.
+   */
+  support?: { currentName: string; accounts: SupportAccount[] } | null;
 }) {
   const tx = usePhrase();
   const pathname = usePathname();
@@ -643,6 +651,7 @@ export function AdminShell({
                   raccourci. */}
               <CoachBell notifs={notifs} unread={unread} align="left" variant="row" />
               <AdminSearch destinations={dests} kind={kind} />
+              {support ? <SupportChip currentName={support.currentName} accounts={support.accounts} /> : null}
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2">
@@ -652,6 +661,7 @@ export function AdminShell({
                   une cloche et une loupe. */}
               <CoachBell notifs={notifs} unread={unread} align="left" variant="icon" />
               <AdminSearch destinations={dests} kind={kind} variant="icon" />
+              {support ? <SupportChip currentName={support.currentName} accounts={support.accounts} variant="icon" /> : null}
             </div>
           )}
 
@@ -700,6 +710,7 @@ export function AdminShell({
               </button>
             </div>
             <AdminSearch destinations={dests} kind={kind} />
+            {support ? <SupportChip currentName={support.currentName} accounts={support.accounts} /> : null}
             <div className="-mr-2 min-h-0 flex-1 overflow-y-auto pr-2">
               <NavList pathname={pathname} kind={kind} view={aiView} hidden={hiddenHrefs} onNavigate={() => setOpen(false)} />
             </div>
