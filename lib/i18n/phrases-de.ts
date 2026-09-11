@@ -1762,4 +1762,8 @@ export const PHRASES_DE: Record<string, string> = {
   "à": "um",
   "échanges par jour": "Gespräche pro Tag",
   "économisés par an": "gespart pro Jahr",
+  "Les niveaux cochés recevront ce circuit. Décoche ceux à qui il ne convient pas.": "Die angehakten Niveaus bekommen diesen Zirkel. Hake die ab, zu denen er nicht passt.",
+  "Auto": "Auto",
+  "Laissés en auto, l'effort et le repos suivent le niveau et le cycle du client. Écris un nombre de secondes pour les imposer.": "Auf Auto folgen Belastung und Pause dem Niveau und dem Zyklus des Kunden. Schreibe eine Sekundenzahl, um sie festzulegen.",
+  "Les secondes que tu écris sont servies telles quelles, quelle que soit la durée de la séance.": "Die Sekunden, die du schreibst, werden genau so ausgespielt, egal wie lang die Einheit ist.",
 };

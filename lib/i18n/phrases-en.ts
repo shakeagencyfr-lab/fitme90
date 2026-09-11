@@ -1765,4 +1765,8 @@ export const PHRASES_EN: Record<string, string> = {
   "à": "at",
   "échanges par jour": "exchanges per day",
   "économisés par an": "saved per year",
+  "Les niveaux cochés recevront ce circuit. Décoche ceux à qui il ne convient pas.": "The ticked levels will get this circuit. Untick the ones it does not suit.",
+  "Auto": "Auto",
+  "Laissés en auto, l'effort et le repos suivent le niveau et le cycle du client. Écris un nombre de secondes pour les imposer.": "Left on auto, work and rest follow the client's level and cycle. Type a number of seconds to pin them.",
+  "Les secondes que tu écris sont servies telles quelles, quelle que soit la durée de la séance.": "The seconds you type are served as they are, whatever the length of the session.",
 };

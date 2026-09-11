@@ -1762,4 +1762,8 @@ export const PHRASES_ES: Record<string, string> = {
   "à": "a las",
   "échanges par jour": "intercambios al día",
   "économisés par an": "ahorrados al año",
+  "Les niveaux cochés recevront ce circuit. Décoche ceux à qui il ne convient pas.": "Los niveles marcados recibirán este circuito. Desmarca aquellos a los que no convenga.",
+  "Auto": "Auto",
+  "Laissés en auto, l'effort et le repos suivent le niveau et le cycle du client. Écris un nombre de secondes pour les imposer.": "En auto, el esfuerzo y el descanso siguen el nivel y el ciclo del cliente. Escribe un número de segundos para fijarlos.",
+  "Les secondes que tu écris sont servies telles quelles, quelle que soit la durée de la séance.": "Los segundos que escribes se sirven tal cual, sea cual sea la duración de la sesión.",
 };

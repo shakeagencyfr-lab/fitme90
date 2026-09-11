@@ -34,6 +34,10 @@ export interface CoachCircuitBlock {
   keys: string[];
   workBias: number;
   restBias: number;
+  /** Effort imposé en secondes, ou null pour suivre le niveau du client. */
+  work: number | null;
+  /** Repos imposé en secondes, ou null pour suivre le niveau du client. */
+  rest: number | null;
 }
 
 export interface CoachCircuit {
@@ -79,11 +83,20 @@ export function sanitizeCoachBlock(raw: unknown): CoachCircuitBlock | null {
     const n = typeof v === "number" ? Math.round(v) : parseInt(String(v ?? ""), 10);
     return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : 0;
   };
+  // Un temps laissé vide n'est pas un zéro : c'est « suis le niveau du
+  // client ». On ne le remplace donc jamais par une borne.
+  const fixe = (v: unknown, min: number, max: number): number | null => {
+    if (v === null || v === undefined || String(v).trim() === "") return null;
+    const n = typeof v === "number" ? Math.round(v) : parseInt(String(v), 10);
+    return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : null;
+  };
   return {
     title: String(b.title ?? "").trim().slice(0, 60) || "Bloc",
     keys: [...new Set(keys)],
     workBias: num(b.workBias, -20, 20),
     restBias: num(b.restBias, -15, 30),
+    work: fixe(b.work, 15, 120),
+    rest: fixe(b.rest, 0, 120),
   };
 }
 
@@ -148,6 +161,8 @@ export function templateFromCoachCircuit(c: CoachCircuit): CircuitTemplate {
     exercises: b.keys,
     ...(b.workBias ? { workBias: b.workBias } : {}),
     ...(b.restBias ? { restBias: b.restBias } : {}),
+    ...(b.work !== null ? { work: b.work } : {}),
+    ...(b.rest !== null ? { rest: b.rest } : {}),
   });
   return {
     id: `coach:${c.id}`,

@@ -229,4 +229,25 @@ describe("fitToDuration", () => {
   it("rend une liste vide telle quelle", () => {
     expect(fitToDuration([], 1200)).toEqual([]);
   });
+
+  it("ne retouche jamais l'effort d'un bloc réglé à la main", () => {
+    // Le coach a écrit 40 s : ni le remplissage (budget large) ni le rognage
+    // (budget serré) n'ont le droit d'en faire autre chose.
+    const fige: CircuitBlock = { ...bloc(1), work: 40, fixedWork: true };
+    for (const minutes of [20, 30, 90]) {
+      const blocks = fitToDuration([fige, bloc(2)], circuitBudgetSec(minutes));
+      const servi = blocks.find((b) => b.title === fige.title);
+      if (servi) expect(servi.work).toBe(40);
+    }
+  });
+
+  it("allonge quand même les blocs libres à côté d'un bloc figé", () => {
+    const fige: CircuitBlock = { ...bloc(1), work: 30, fixedWork: true };
+    const libre = { ...bloc(2), work: 30 };
+    const blocks = fitToDuration([fige, libre], circuitBudgetSec(90));
+    const a = blocks.find((b) => b.title === fige.title);
+    const b = blocks.find((b) => b.title === libre.title);
+    expect(a?.work).toBe(30);
+    if (b) expect(b.work).toBeGreaterThanOrEqual(30);
+  });
 });
