@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { useT } from "@/components/locale-provider";
 import { changePassword, deleteAccount, type ProfilState } from "@/app/app/profil/actions";
 import { signOutAction } from "@/app/(auth)/actions";
@@ -30,9 +31,17 @@ export function AccountActions() {
     <Card as="section" className="flex flex-col gap-4">
       <div className="flex flex-col gap-3">
         <MonoLabel>{t("profile.myData")}</MonoLabel>
+        {/* L'écran complet plutôt que le seul bouton d'export : l'export est un
+            droit parmi d'autres, et il ne dit rien de ce qu'on a accepté. */}
+        <Link
+          href="/app/profil/mes-donnees"
+          className="tap inline-flex w-fit items-center rounded-btn bg-ink px-5 py-2.5 text-[15px] font-semibold text-paper hover:opacity-90"
+        >
+          {t("profile.openMyData")}
+        </Link>
         <a
           href="/api/export"
-          className="tap inline-flex w-fit items-center rounded-btn border border-line-4 bg-surface px-5 text-[15px] font-semibold text-ink hover:border-ink"
+          className="tap inline-flex w-fit items-center rounded-btn border border-line-4 bg-surface px-5 py-2.5 text-[15px] font-semibold text-ink hover:border-ink"
         >
           {t("profile.exportData")}
         </a>

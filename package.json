@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "compare:generation": "vitest run --config vitest.bench.mts"
+    "compare:generation": "vitest run --config vitest.bench.mts",
+    "rgpd": "UPDATE_DOCS=1 vitest run lib/gdpr-doc"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",

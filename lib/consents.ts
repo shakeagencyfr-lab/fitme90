@@ -62,14 +62,45 @@ export async function withdrawConsent(userId: string, kind: ConsentKind): Promis
 
 /** Tous les consentements d'une personne, du plus récent au plus ancien. */
 export async function listConsents(userId: string): Promise<ConsentRow[]> {
-  if (!userId) return [];
+  return (await readConsents(userId)).rows;
+}
+
+/**
+ * La même lecture, mais qui dit si la table a répondu.
+ *
+ * L'écran « Mes données » a besoin de faire la différence entre « aucun
+ * accord enregistré » et « le journal n'est pas encore en service » : afficher
+ * une liste vide dans le second cas ferait croire à la personne qu'on n'a
+ * jamais rien recueilli, ce qui serait faux.
+ */
+export async function readConsents(
+  userId: string,
+): Promise<{ rows: ConsentRow[]; unavailable: boolean }> {
+  if (!userId) return { rows: [], unavailable: false };
   const admin = createAdminClient();
-  const { data } = await admin
+  const { data, error } = await admin
     .from("consents")
     .select("kind, text_version, granted_at, withdrawn_at")
     .eq("user_id", userId)
     .order("granted_at", { ascending: false });
-  return (data ?? []) as ConsentRow[];
+  if (error) return { rows: [], unavailable: true };
+  return { rows: (data ?? []) as ConsentRow[], unavailable: false };
+}
+
+/**
+ * Ce consentement a-t-il été RETIRÉ ?
+ *
+ * Différent de « n'a pas été donné », et c'est tout l'intérêt. Les comptes
+ * ouverts avant la mise en service du journal n'ont aucune ligne : les
+ * bloquer parce qu'on ne trouve pas leur accord reviendrait à punir des gens
+ * pour un trou dans NOS écritures. On ne coupe donc que sur un retrait
+ * explicite, jamais sur un silence.
+ */
+export async function consentWithdrawn(userId: string, kind: ConsentKind): Promise<boolean> {
+  if (!userId) return false;
+  const { rows } = await readConsents(userId);
+  const dernier = rows.find((r) => r.kind === kind);
+  return Boolean(dernier?.withdrawn_at);
 }
 
 /**

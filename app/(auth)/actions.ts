@@ -189,6 +189,12 @@ export async function signUpCoachAction(
   if (formData.get("cgv") !== "on") {
     return { error: t("authErr.terms") };
   }
+  // Article 28.3 : le contrat de sous-traitance doit être écrit, et c'est
+  // celui qui fait du professionnel le responsable du traitement des données
+  // de ses clients. Une case à part, donc un contrôle à part.
+  if (formData.get("dpa") !== "on") {
+    return { error: t("authErr.dpa") };
+  }
   const tenantName = String(formData.get("tenant_name") ?? "").trim().slice(0, 60);
   const coachName = String(formData.get("coach_name") ?? "").trim().slice(0, 40);
   if (!tenantName) return { error: t("authErr.brandName") };
@@ -226,7 +232,7 @@ export async function signUpCoachAction(
 
   // La case a été cochée : on en garde la trace, c'est ce que l'article 7.1
   // appelle être en mesure de démontrer le consentement.
-  await recordConsents(res.data.user?.id ?? "", ["cgv", "confidentialite"]);
+  await recordConsents(res.data.user?.id ?? "", ["cgv", "confidentialite", "sous-traitance"]);
 
   redirect("/verifie-tes-mails");
 }
@@ -252,6 +258,12 @@ export async function signUpResellerAction(
   if (formData.get("cgv") !== "on") {
     return { error: t("authErr.terms") };
   }
+  // Article 28.3 : le contrat de sous-traitance doit être écrit, et c'est
+  // celui qui fait du professionnel le responsable du traitement des données
+  // de ses clients. Une case à part, donc un contrôle à part.
+  if (formData.get("dpa") !== "on") {
+    return { error: t("authErr.dpa") };
+  }
   const tenantName = String(formData.get("tenant_name") ?? "").trim().slice(0, 60);
   const contactName = String(formData.get("contact_name") ?? "").trim().slice(0, 40);
   if (!tenantName) return { error: t("authErr.networkName") };
@@ -269,7 +281,7 @@ export async function signUpResellerAction(
 
   // La case a été cochée : on en garde la trace, c'est ce que l'article 7.1
   // appelle être en mesure de démontrer le consentement.
-  await recordConsents(res.data.user?.id ?? "", ["cgv", "confidentialite"]);
+  await recordConsents(res.data.user?.id ?? "", ["cgv", "confidentialite", "sous-traitance"]);
 
   redirect("/verifie-tes-mails");
 }

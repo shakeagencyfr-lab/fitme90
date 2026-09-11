@@ -2,12 +2,16 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  CONSENT_EXPLAINER,
   CONSENT_LABEL,
   CONSENT_TEXT_VERSION,
   LEGAL_BASIS_LABEL,
   MIN_AGE,
   PERSONAL_TABLES,
   SUBPROCESSORS,
+  WITHDRAWABLE,
+  WITHDRAWAL_EFFECT,
+  type ConsentKind,
 } from "./gdpr";
 
 // Le garde-fou du registre.
@@ -133,5 +137,44 @@ describe("registre des données personnelles", () => {
       ...Object.values(LEGAL_BASIS_LABEL),
     ];
     expect(textes.filter((t) => t.includes("—"))).toEqual([]);
+  });
+});
+
+describe("consentements", () => {
+  it("chaque type d'accord a un intitulé et une explication", () => {
+    for (const kind of Object.keys(CONSENT_LABEL) as ConsentKind[]) {
+      expect(CONSENT_LABEL[kind].length, kind).toBeGreaterThan(5);
+      // Une explication d'une ligne ne vaut rien : l'article 13 demande des
+      // termes clairs, pas un synonyme de l'intitulé.
+      expect(CONSENT_EXPLAINER[kind].length, kind).toBeGreaterThan(40);
+    }
+  });
+
+  it("tout accord retirable dit ce que le retrait interrompt", () => {
+    // Un bouton « retirer » sans conséquence annoncée est un piège : la
+    // personne découvre après coup que son programme s'est arrêté.
+    for (const kind of WITHDRAWABLE) {
+      expect(WITHDRAWAL_EFFECT[kind], kind).toBeTruthy();
+      expect(String(WITHDRAWAL_EFFECT[kind]).length, kind).toBeGreaterThan(40);
+    }
+  });
+
+  it("les contrats ne sont pas présentés comme retirables", () => {
+    // Les CGV et l'accord de sous-traitance sont la base du service : on en
+    // sort en résiliant, pas en décochant. La politique de confidentialité,
+    // elle, n'est pas un consentement du tout.
+    expect(WITHDRAWABLE).not.toContain("cgv");
+    expect(WITHDRAWABLE).not.toContain("sous-traitance");
+    expect(WITHDRAWABLE).not.toContain("confidentialite");
+  });
+
+  it("le schéma accepte exactement les types déclarés dans le code", () => {
+    // Un type ajouté ici mais refusé par la contrainte SQL ferait échouer
+    // l'écriture en silence, et la preuve du consentement n'existerait pas.
+    const sql = readFileSync(join(__dirname, "..", "supabase", "schema.sql"), "utf8");
+    const m = sql.match(/consents_kind_check check \(kind in \(([^)]+)\)\)/);
+    expect(m, "contrainte consents_kind_check introuvable dans le schéma").toBeTruthy();
+    const autorises = (m?.[1] ?? "").split(",").map((v) => v.trim().replace(/'/g, ""));
+    expect(autorises.sort()).toEqual((Object.keys(CONSENT_LABEL) as string[]).sort());
   });
 });

@@ -7,6 +7,7 @@ import { syncBookingSubscriptions } from "@/lib/booking-billing";
 import { expireBookingHolds } from "@/lib/booking-appointments";
 import { autoAppendBlocks } from "@/lib/blocks";
 import { purgeLapsedClients } from "@/lib/lapsed";
+import { purgeExpiredRetention } from "@/lib/retention-purge";
 import { reconcileTenantPayments } from "@/lib/coach-payments";
 import { runProspectFollowups } from "@/lib/prospect-followup-send";
 import { dispatchScheduledPushes } from "@/lib/scheduled-push";
@@ -54,5 +55,11 @@ export async function GET(req: Request) {
   // 3) Suppression des comptes clients en impayé prolongé (> 14 j). DRY-RUN tant
   //    que ENABLE_ACCOUNT_PURGE≠"1" : on compte sans supprimer.
   const purge = await purgeLapsedClients();
-  return NextResponse.json({ reconciled, followups, synced, restricted, tenantSynced, tenantDowngraded, whitelabel, booking, expiredHolds, blocks, purge, broadcast });
+  // 4) Durées de conservation (article 5.1.e) : prospects sans suite, journaux
+  //    d'appels au modèle, journal d'assistance, preuves de consentements
+  //    retirés. Aucun compte n'est touché ici. DRY-RUN tant que
+  //    ENABLE_RETENTION_PURGE≠"1" : la réponse dit ce QUI SERAIT supprimé, de
+  //    quoi valider chaque règle sur les vraies données avant de l'ouvrir.
+  const retention = await purgeExpiredRetention();
+  return NextResponse.json({ reconciled, followups, synced, restricted, tenantSynced, tenantDowngraded, whitelabel, booking, expiredHolds, blocks, purge, retention, broadcast });
 }

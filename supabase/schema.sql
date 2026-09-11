@@ -1307,7 +1307,7 @@ alter table public.bookings enable row level security;
 create table if not exists public.consents (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  -- cgv | confidentialite | sante | prospection (voir lib/gdpr.ts)
+  -- cgv | confidentialite | sante | prospection | sous-traitance (lib/gdpr.ts)
   kind text not null,
   -- Version du texte au moment de l'accord : un consentement donné sur un
   -- texte ne vaut pas pour un texte qui ajoute une finalité.
@@ -1317,7 +1317,7 @@ create table if not exists public.consents (
   -- permet de prouver qu'on a bien cessé de traiter à partir de cette date.
   withdrawn_at timestamptz,
   created_at timestamptz not null default now(),
-  constraint consents_kind_check check (kind in ('cgv', 'confidentialite', 'sante', 'prospection'))
+  constraint consents_kind_check check (kind in ('cgv', 'confidentialite', 'sante', 'prospection', 'sous-traitance'))
 );
 
 create index if not exists consents_user_idx on public.consents (user_id, kind, granted_at desc);
