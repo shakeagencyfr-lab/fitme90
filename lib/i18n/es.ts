@@ -226,6 +226,8 @@ export const es: Shape<typeof fr> = {
     answers: "{n} respuestas",
     nextPhotos: "Fotos de mi gimnasio",
     signAndContinue: "Firmar y continuar",
+    healthConsent:
+      "Al continuar, aceptas que tus respuestas de salud (patologías, alergias, peso, altura) se traten con el único fin de construir y adaptar tu programa. Puedes retirar este acuerdo en cualquier momento desde tu perfil. El detalle está en la",
     daysMin: "Elige al menos {n} días de entrenamiento.",
     daysMax: "{n} días por semana como máximo: el descanso forma parte del programa.",
     sections: {

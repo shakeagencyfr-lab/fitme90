@@ -9,6 +9,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getSessionContext } from "@/lib/guard";
 import { screen, type QuizHealthAnswers } from "@/lib/screening";
 import { QUIZ, DAYS, trainDaysError } from "@/lib/questionnaire";
+import { recordConsents } from "@/lib/consents";
+import { MIN_AGE } from "@/lib/gdpr";
 
 export interface SaveResult {
   ok?: boolean;
@@ -16,6 +18,19 @@ export interface SaveResult {
   flagged?: boolean;
   reasons?: string[];
   error?: string;
+}
+
+/**
+ * L'âge déclaré, ou null si le questionnaire ne l'a pas encore.
+ *
+ * Le champ est libre : « 34 ans », « 34,0 » et « trente-quatre » arrivent tous
+ * ici. On ne retient qu'un nombre plausible, et on ne bloque jamais sur une
+ * saisie qu'on n'a pas su lire.
+ */
+function ageDeclare(answers: Record<string, unknown>): number | null {
+  const brut = String(answers.age ?? "").replace(",", ".");
+  const n = Number.parseFloat(brut);
+  return Number.isFinite(n) && n > 0 && n < 120 ? n : null;
 }
 
 export interface WaiverResult {
@@ -66,6 +81,18 @@ export async function saveQuestionnaire(payload: {
   const trainDays = (payload.trainDays ?? []).filter((d) => DAYS.includes(d));
   const daysErr = trainDaysError(trainDays.length);
   if (daysErr) return { error: daysErr };
+
+  // ÂGE MINIMUM (article 8 du RGPD, 15 ans en France). En dessous, le
+  // consentement doit venir du titulaire de l'autorité parentale : on ne sait
+  // pas le recueillir, donc on ne traite pas. Refus avant toute écriture, pour
+  // ne pas garder en base les réponses d'un mineur qu'on vient d'écarter.
+  const age = ageDeclare(answers);
+  if (age !== null && age < MIN_AGE) {
+    return {
+      error: `Il faut avoir ${MIN_AGE} ans pour ouvrir un espace seul. En dessous, l'accord d'un parent est nécessaire : demande à ton coach de t'inscrire lui-même.`,
+    };
+  }
+
   const supabase = await createClient();
 
   // Colonnes de profil alimentées par les champs `bind` (droits par colonne).
@@ -104,6 +131,12 @@ export async function saveQuestionnaire(payload: {
     train_days: trainDays,
   });
   if (error) return { error: t("srv.saveFailed") };
+
+  // CONSENTEMENT EXPLICITE AUX DONNÉES DE SANTÉ (article 9.2.a). Le
+  // questionnaire recueille pathologies, allergies, poids et taille : c'est
+  // ici, au moment où elles entrent en base, que l'accord prend effet. Le
+  // texte qui l'accompagne est affiché juste au-dessus du bouton d'envoi.
+  await recordConsents(ctx.userId, ["sante"]);
 
   // GARDE-FOU MÉDICAL, version consentement éclairé : une situation de santé
   // déclarée n'empêche PLUS l'accès. On la signale (medical_hold reste vrai

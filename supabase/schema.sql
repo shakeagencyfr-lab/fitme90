@@ -1288,3 +1288,45 @@ alter table public.booking_hours enable row level security;
 alter table public.booking_blocks enable row level security;
 alter table public.booking_services enable row level security;
 alter table public.bookings enable row level security;
+
+-- =====================================================================
+-- 12. Consentements : ce que la personne a accepté, et quand
+-- =====================================================================
+--
+-- POURQUOI. L'article 7.1 demande au responsable d'être en mesure de
+-- DÉMONTRER que la personne a consenti. Une case cochée dans un formulaire
+-- ne démontre rien si rien n'est écrit ensuite. Cette table est la preuve.
+--
+-- CE QU'ELLE GARDE. Le type de consentement, la version du texte accepté, la
+-- date, et la date de retrait le cas échéant. Pas d'adresse IP : elle
+-- n'ajoute rien à la preuve ici et c'est une donnée de plus à protéger.
+--
+-- CE QU'ELLE NE GARDE PAS. Rien après la suppression du compte : elle
+-- disparaît en cascade. Conserver la preuve d'un accord au sujet de
+-- quelqu'un qu'on vient d'effacer se retournerait contre le principe.
+create table if not exists public.consents (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  -- cgv | confidentialite | sante | prospection (voir lib/gdpr.ts)
+  kind text not null,
+  -- Version du texte au moment de l'accord : un consentement donné sur un
+  -- texte ne vaut pas pour un texte qui ajoute une finalité.
+  text_version text not null,
+  granted_at timestamptz not null default now(),
+  -- Retrait : la ligne est gardée, datée, plutôt que supprimée. C'est ce qui
+  -- permet de prouver qu'on a bien cessé de traiter à partir de cette date.
+  withdrawn_at timestamptz,
+  created_at timestamptz not null default now(),
+  constraint consents_kind_check check (kind in ('cgv', 'confidentialite', 'sante', 'prospection'))
+);
+
+create index if not exists consents_user_idx on public.consents (user_id, kind, granted_at desc);
+
+alter table public.consents enable row level security;
+
+-- La personne lit ses propres consentements. L'écriture passe par le serveur
+-- (service_role) : un consentement que le navigateur pourrait forger ne
+-- prouverait rien.
+drop policy if exists "consents: lecture par le titulaire" on public.consents;
+create policy "consents: lecture par le titulaire" on public.consents
+  for select using (auth.uid() = user_id);

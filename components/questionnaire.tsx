@@ -4,6 +4,7 @@ import { browserLocalIso } from "@/lib/local-date";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { QUIZ, DAYS, MAX_TRAIN_DAYS, trainDaysError, type Field } from "@/lib/questionnaire";
+import Link from "next/link";
 import { saveQuestionnaire } from "@/app/questionnaire/actions";
 import { MedicalWaiver } from "@/components/medical-waiver";
 import { Button, Alert, Card, MonoLabel } from "@/components/ui";
@@ -129,6 +130,23 @@ export function Questionnaire() {
           <FieldView key={f.key} field={f} answers={answers} set={set} toggleMulti={toggleMulti} locale={locale} />
         ))}
       </div>
+
+      {last ? (
+        // CONSENTEMENT AUX DONNÉES DE SANTÉ (article 9). Le questionnaire
+        // recueille pathologies, allergies, poids et taille : un consentement
+        // n'est éclairé que si la personne lit à quoi elle consent, à l'endroit
+        // et au moment où elle valide. D'où ce texte ici, et pas dans une page
+        // qu'on lui demanderait d'aller ouvrir ailleurs.
+        <div className="rounded-card border border-line-2 bg-surface-2 p-3.5">
+          <p className="text-[13px] text-body leading-relaxed">
+            {t("quiz.healthConsent")}{" "}
+            <Link href="/confidentialite" className="text-brand" target="_blank">
+              {t("auth.privacyPolicy")}
+            </Link>
+            .
+          </p>
+        </div>
+      ) : null}
 
       <div className="flex items-center justify-between gap-3">
         <Button
