@@ -41,6 +41,14 @@ export interface CircuitBlock {
   restAfter: number;
   /** Sensation visée (1 à 4), voir SENSATIONS. */
   sensation?: number;
+  /**
+   * L'effort de ce bloc a été fixé à la main : personne ne le retouche.
+   *
+   * Un coach qui écrit « 40 secondes » veut 40 secondes. fitToDuration remplit
+   * donc le temps restant avec des tours, jamais en allongeant ce bloc, et
+   * rogne ailleurs quand ça déborde.
+   */
+  fixedWork?: boolean;
   exercises: CircuitExercise[];
 }
 
@@ -344,7 +352,7 @@ export function fitToDuration(
   // l'effort, par pas de 5 s, sans jamais sortir de la fourchette.
   garde = 0;
   while (circuitSeconds(out) < budgetSec && garde++ < 20) {
-    const essai = out.map((b) => (b.work < maxWork ? { ...b, work: Math.min(maxWork, b.work + 5) } : b));
+    const essai = out.map((b) => (!b.fixedWork && b.work < maxWork ? { ...b, work: Math.min(maxWork, b.work + 5) } : b));
     if (circuitSeconds(essai) > budgetSec) break;
     if (essai.every((b, i) => b.work === out[i].work)) break;
     out = essai;
@@ -354,7 +362,7 @@ export function fitToDuration(
   // qui coûterait bien plus de temps que le débord.
   garde = 0;
   while (circuitSeconds(out) > budgetSec && garde++ < 20) {
-    const essai = out.map((b) => (b.work > minWork ? { ...b, work: Math.max(minWork, b.work - 5) } : b));
+    const essai = out.map((b) => (!b.fixedWork && b.work > minWork ? { ...b, work: Math.max(minWork, b.work - 5) } : b));
     if (essai.every((b, i) => b.work === out[i].work)) break;
     out = essai;
   }

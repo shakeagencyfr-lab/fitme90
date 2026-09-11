@@ -85,8 +85,8 @@ describe("templateFromCoachCircuit", () => {
     safe_for: [],
     sensation: 3,
     blocks: [
-      { title: "Chauffe", keys: ["pompes", "crunch", "gainage-planche"], workBias: 5, restBias: 0 },
-      { title: "Dur", keys: ["squat-poids-du-corps", "sit-up", "gainage-lateral"], workBias: 0, restBias: -5 },
+      { title: "Chauffe", keys: ["pompes", "crunch", "gainage-planche"], workBias: 5, restBias: 0, work: null, rest: null },
+      { title: "Dur", keys: ["squat-poids-du-corps", "sit-up", "gainage-lateral"], workBias: 0, restBias: -5, work: null, rest: null },
     ],
     image_url: null,
     enabled: true,
@@ -137,5 +137,54 @@ describe("templateFromCoachCircuit", () => {
     const list = filterCircuits({ theme: "abdos", pathologies: ["dos"] }, pool);
     expect(list.map((t) => t.id)).not.toContain("coach:abc-123");
     expect(list.length).toBeGreaterThan(0);
+  });
+});
+
+describe("effort et repos réglés à la main", () => {
+  const bloc = (extra: Record<string, unknown>) =>
+    sanitizeCoachBlock({ title: "Bloc", keys: ["pompes", "crunch"], ...extra });
+
+  it("garde les secondes écrites par le coach", () => {
+    const b = bloc({ work: 40, rest: 20 });
+    expect(b?.work).toBe(40);
+    expect(b?.rest).toBe(20);
+  });
+
+  it("distingue « vide » de zéro : vide veut dire suivre le niveau du client", () => {
+    expect(bloc({ work: "", rest: null })?.work).toBeNull();
+    expect(bloc({ work: "", rest: null })?.rest).toBeNull();
+    // Zéro seconde de repos est un choix légitime, il doit survivre.
+    expect(bloc({ rest: 0 })?.rest).toBe(0);
+  });
+
+  it("ramène une saisie aberrante dans les bornes", () => {
+    expect(bloc({ work: 999 })?.work).toBe(120);
+    expect(bloc({ work: 1 })?.work).toBe(15);
+    expect(bloc({ work: "pas un nombre" })?.work).toBeNull();
+  });
+
+  it("transmet l'effort figé au modèle servi au client", () => {
+    const t = templateFromCoachCircuit({
+      id: "x",
+      title: "T",
+      goal: "",
+      theme: "abdos",
+      gear: "aucun",
+      levels: ["debutant"],
+      impact: "faible",
+      avoid: [],
+      safe_for: [],
+      sensation: null,
+      blocks: [
+        { title: "A", keys: ["pompes", "crunch"], workBias: 0, restBias: 0, work: 45, rest: 10 },
+        { title: "B", keys: ["pompes", "crunch"], workBias: 0, restBias: 0, work: null, rest: null },
+      ],
+      image_url: null,
+      enabled: true,
+    });
+    expect(t.blocks[0].work).toBe(45);
+    expect(t.blocks[0].rest).toBe(10);
+    expect(t.blocks[1].work).toBeUndefined();
+    expect(t.blocks[1].rest).toBeUndefined();
   });
 });

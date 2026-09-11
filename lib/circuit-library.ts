@@ -90,7 +90,7 @@ export const GEAR_LABEL: Record<CircuitGear, LocalText> = {
   elastiques: { fr: "Élastiques", en: "Resistance bands" },
   halteres: { fr: "Haltères", en: "Dumbbells" },
   kettlebell: { fr: "Kettlebell", en: "Kettlebell" },
-  hotel: { fr: "Chambre d'hôtel", en: "Hotel room" },
+  hotel: { fr: "Haltères, élastiques et banc", en: "Dumbbells, bands and a bench" },
   salle: { fr: "Salle de sport", en: "Gym" },
 };
 
@@ -206,6 +206,14 @@ export interface CircuitTemplateBlock {
   workBias?: number;
   /** Repos allongé ou raccourci par rapport au niveau, en secondes. */
   restBias?: number;
+  /**
+   * Effort imposé, en secondes, quel que soit le niveau et la durée servie.
+   * Le coach qui le renseigne sait ce qu'il veut : le rendu ne le retouche
+   * plus, ni pour remplir le temps restant, ni pour rentrer dans le budget.
+   */
+  work?: number;
+  /** Repos imposé entre deux exercices, en secondes. Même règle que `work`. */
+  rest?: number;
 }
 
 /** L'impact au sol : ce qui décide si un genou ou une cheville peut suivre. */
@@ -1193,13 +1201,15 @@ function buildBlock(
   sensation: number,
   locale: Locale,
 ): CircuitBlock {
-  const work = Math.max(15, Math.min(120, params.work + (block.workBias ?? 0)));
-  const rest = Math.max(0, Math.min(90, params.rest + (block.restBias ?? 0)));
+  const fixe = typeof block.work === "number";
+  const work = Math.max(15, Math.min(120, block.work ?? params.work + (block.workBias ?? 0)));
+  const rest = Math.max(0, Math.min(120, block.rest ?? params.rest + (block.restBias ?? 0)));
   return {
     title: `${translate(locale, "rescue.block")} ${index + 1} · ${pick(block.title, locale)}`,
     rounds: params.rounds,
     work,
     rest,
+    ...(fixe ? { fixedWork: true } : {}),
     roundRest: Math.max(rest, 30),
     restAfter: index === total - 1 ? 0 : 60,
     sensation,
@@ -1278,7 +1288,7 @@ export function renderCircuit(tpl: CircuitTemplate, input: RenderCircuitInput): 
  * minutes, et il vaut mieux le dire à celui qui écrit le circuit que de
  * laisser son client découvrir une séance plus courte que promis.
  */
-export function maxFillableMinutes(blocks: readonly { exercises: number; workBias?: number }[]): number {
+export function maxFillableMinutes(blocks: readonly { exercises: number; workBias?: number; work?: number | null }[]): number {
   const blocs = blocks.filter((b) => b.exercises >= 2);
   if (!blocs.length) return 0;
   const MAX_ROUNDS = 8;
@@ -1288,7 +1298,7 @@ export function maxFillableMinutes(blocks: readonly { exercises: number; workBia
   const BLOCK_REST = 60;
   let total = 0;
   blocs.forEach((b, i) => {
-    const work = MAX_WORK + Math.max(0, b.workBias ?? 0);
+    const work = typeof b.work === "number" ? b.work : MAX_WORK + Math.max(0, b.workBias ?? 0);
     total += MAX_ROUNDS * (b.exercises * work + (b.exercises - 1) * REST) + (MAX_ROUNDS - 1) * ROUND_REST;
     if (i < blocs.length - 1) total += BLOCK_REST;
   });

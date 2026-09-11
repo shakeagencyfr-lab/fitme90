@@ -1766,4 +1766,8 @@ export const PHRASES_NL: Record<string, string> = {
   "à": "tot",
   "échanges par jour": "gesprekken per dag",
   "économisés par an": "bespaard per jaar",
+  "Les niveaux cochés recevront ce circuit. Décoche ceux à qui il ne convient pas.": "De aangevinkte niveaus krijgen dit circuit. Vink de niveaus uit waar het niet bij past.",
+  "Auto": "Auto",
+  "Laissés en auto, l'effort et le repos suivent le niveau et le cycle du client. Écris un nombre de secondes pour les imposer.": "Op auto volgen inspanning en rust het niveau en de cyclus van de klant. Typ een aantal seconden om ze vast te zetten.",
+  "Les secondes que tu écris sont servies telles quelles, quelle que soit la durée de la séance.": "De seconden die je typt worden precies zo gebruikt, hoe lang de training ook is.",
 };
