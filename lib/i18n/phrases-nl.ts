@@ -1770,4 +1770,13 @@ export const PHRASES_NL: Record<string, string> = {
   "Auto": "Auto",
   "Laissés en auto, l'effort et le repos suivent le niveau et le cycle du client. Écris un nombre de secondes pour les imposer.": "Op auto volgen inspanning en rust het niveau en de cyclus van de klant. Typ een aantal seconden om ze vast te zetten.",
   "Les secondes que tu écris sont servies telles quelles, quelle que soit la durée de la séance.": "De seconden die je typt worden precies zo gebruikt, hoe lang de training ook is.",
+  "Changer de compte": "Van account wisselen",
+  "Rechercher un compte…": "Zoek een account…",
+  "Aucun compte ne correspond.": "Geen enkel account komt overeen.",
+  "Afficher le bandeau d'assistance": "Toon de assistentiebalk",
+  "Assistance en cours": "Assistentie actief",
+  "ce compte": "dit account",
+  "Retour au compte principal": "Terug naar mijn account",
+  "Replier le bandeau": "Balk inklappen",
+  "Ton espace": "Jouw ruimte",
 };

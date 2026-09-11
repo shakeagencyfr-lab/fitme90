@@ -17,6 +17,7 @@ import { CoachFreezeBanner } from "@/components/coach-freeze-banner";
 import { tenantAiReady, readinessMessage } from "@/lib/ai-readiness";
 import { tenantStripeStatus } from "@/lib/coach-payments";
 import { SupportReturnBar } from "@/components/support-return-bar";
+import { supportContext } from "@/lib/support-accounts";
 
 // Titre neutre : le dashboard est en marque blanche (marque du parent affichée
 // dans le bandeau). L'icône d'onglet est le favicon du parent (celui chargé
@@ -79,6 +80,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const bal = view === "credits" && tenantId ? await getWallet(tenantId) : null;
   const wallet = bal ? { credits: bal.credits } : null;
 
+  // Assistance en cours : le menu latéral porte la même bascule de compte que
+  // le bandeau du haut. Le calcul est mémoïsé pour la requête, ces deux appels
+  // ne font qu'une lecture. Un coach qui saisit pour son client ne bascule de
+  // rien : pas de pastille pour lui.
+  const assistance = await supportContext();
+  const support =
+    assistance && !assistance.client && assistance.accounts.length
+      ? { currentName: assistance.currentName, accounts: assistance.accounts }
+      : null;
+
   return (
     <LocaleProvider locale={locale}>
       <SupportReturnBar />
@@ -96,6 +107,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         brandLogoUrl={parentBrand?.logoUrl ?? null}
         brandLogoDarkUrl={parentBrand?.logoDarkUrl ?? null}
         brandTheme={parentBrand?.theme ?? null}
+        support={support}
       >
         {freeze.frozen ? <CoachFreezeBanner suspended={freeze.suspended} /> : null}
         {/* Ce qui empêche de vendre, dit avant que le coach le découvre par un
